@@ -1,0 +1,13 @@
+{
+  "name": "etazh",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Этаж — банда, офис и столовая для коллег (пилот)",
+  "engines": { "node": ">=22.5" },
+  "scripts": {
+    "start": "node --no-warnings server/index.js",
+    "dev": "SECURE_COOKIES=false MAIL_MODE=console EMAIL_PEPPER=dev-pepper-dev-pepper-dev-pepper-dev node --no-warnings --watch server/index.js",
+    "test": "node --no-warnings tests/unit.js && node --no-warnings tests/smoke.js",
+    "secrets": "node --no-warnings scripts/gen-secrets.js"
+  }
+}

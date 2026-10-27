@@ -1,0 +1,7 @@
+body{margin:0;background:#22305A;font-family:Rubik,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#1A2547}
+.doc{max-width:720px;margin:0 auto;padding:24px 16px 48px}
+.doc article{background:#fff;border-radius:20px;padding:20px 18px;line-height:1.55;font-size:15px}
+.doc h1{font-size:26px;margin:0 0 12px}.doc h2{font-size:18px;margin:22px 0 6px}
+.doc a{color:#2563C9}.draft{background:#FFF4E0;color:#7A4300;border-radius:12px;padding:10px 12px;font-weight:700;font-size:14px}
+.back{display:inline-block;margin-bottom:12px;color:#FFC93C;font-weight:800;text-decoration:none}
+table{border-collapse:collapse;width:100%;font-size:14px}td,th{border:1px solid #E3E7F2;padding:6px 8px;text-align:left;vertical-align:top}
