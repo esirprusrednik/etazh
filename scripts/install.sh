@@ -14,7 +14,7 @@ grep -qiE 'ubuntu|debian' /etc/os-release || die "скрипт рассчита�
 
 say "1/7 Обновление системы и базовые пакеты"
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -q
+apt-get update -q || echo "(предупреждения apt про сторонние репозитории можно игнорировать)"
 apt-get install -yq ca-certificates curl ufw fail2ban unattended-upgrades dnsutils
 dpkg-reconfigure -f noninteractive unattended-upgrades || true
 
