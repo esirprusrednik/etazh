@@ -1,13 +1,16 @@
+{
+	# Журнал запросов (IP-адреса посетителей) не ведём — только ошибки самого Caddy
+	log default {
+		output stderr
+		level ERROR
+	}
+}
+
 {$DOMAIN} {
 	encode zstd gzip
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		-Server
-	}
-	# Логи без IP и адресов страниц: только ошибки
-	log {
-		output stderr
-		level ERROR
 	}
 	reverse_proxy app:3000 {
 		header_up X-Forwarded-For {remote_host}
