@@ -1,5 +1,5 @@
 // Клиент «Этажа»: без фреймворков, рендер строками + делегирование событий (CSP запрещает inline-обработчики).
-import { buildingSvg } from './building.js';
+import { officeSvg } from './building.js';
 
 const $ = (sel) => document.querySelector(sel);
 const root = $('#app');
@@ -74,6 +74,17 @@ function avatar(look = {}, size = 42) {
 }
 
 const BEAN = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><ellipse cx="12" cy="12" rx="6" ry="9" transform="rotate(30 12 12)"/><path d="M9 6c3 3 3 9 6 12"/></svg>';
+const FLAME = '<svg width="13" height="13" viewBox="0 0 24 24" fill="#FF8A3D" aria-hidden="true"><path d="M12 2c1 4 5 5.5 5 11a5 5 0 0 1-10 0c0-2.5 1.2-4 2.5-5.2.2 1.7 1 2.7 2 3.2C11 8.5 11 5.5 12 2z"/></svg>';
+const ICONS = {
+  coffee: 'M4 8h12v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5zM16 10h2a2 2 0 0 1 0 4h-2M8 2v3M12 2v3',
+  lunch: 'M4 3v8a3 3 0 0 0 3 3v7M7 3v6M10 3v8a3 3 0 0 1-3 3M17 21V3c-2 1-3 4-3 8h3',
+  where: 'M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12zM12 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4z',
+  more: 'M5 12h.01M12 12h.01M19 12h.01',
+  swap: 'M7 7h11l-3-3M17 17H6l3 3',
+  food: 'M12 7c-4-2-8 1-7 6 1 4 3 8 7 7 4 1 6-3 7-7 1-5-3-8-7-6zM12 7c0-2 1-4 3-4',
+  alert: 'M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z'
+};
+const ico = (name, size = 20) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICONS[name]}"/></svg>`;
 const OFFICE_BG = { smol: '#E5484D', mark: '#3A86FF', vor: '#F4A72C' };
 const CALL_STYLE = {
   coffee: '#8B5A2B', lunch: '#1F7A3A', room: '#2563C9', home: '#6D3FD6', call: '#F97316', where: '#0E7490', online: '#BE185D', wait: '#4B5563'
@@ -106,7 +117,7 @@ async function refresh({ all = false } = {}) {
   if (!S.me || !S.me.nick) return;
   const jobs = [loadState()];
   if (all || S.tab === 'gang') jobs.push(loadGang());
-  if (all || S.tab === 'feed') jobs.push(loadEvents());
+  if (all || S.tab === 'feed' || S.tab === 'office') jobs.push(loadEvents());
   await Promise.all(jobs);
   if (S.tab === 'gang') markSeen('chat');
   if (S.tab === 'feed') markSeen('feed');
@@ -186,17 +197,17 @@ function renderApp() {
   return `
   <div class="app">
     <header class="top">
-      <button class="who" data-act="open" data-v="profile" aria-label="Мой профиль">
-        ${avatar(me.look, 40)}
-        <span style="min-width:0;display:flex;flex-direction:column">
+      <button class="who" data-act="open" data-v="profile" aria-label="Мой профиль, уровень ${me.level || 1}">
+        <span class="me-ava">${avatar(me.look, 40)}<span class="lvl" aria-hidden="true">${me.level || 1}</span></span>
+        <span style="min-width:0;display:flex;flex-direction:column;gap:3px">
           <span class="nick">${esc(me.nick)}</span>
-          ${me.status ? `<span class="status">${esc(me.status)}</span>` : ''}
+          <span class="row" style="gap:6px">
+            ${me.status ? `<span class="status-chip">${esc(me.status)}</span>` : ''}
+            ${me.streak ? `<span class="streak" title="Дней подряд с отметкой в офисе">${FLAME}${me.streak} ${plural(me.streak, 'день', 'дня', 'дней')}</span>` : ''}
+          </span>
         </span>
       </button>
-      <div class="row" style="gap:6px">
-        ${S.state ? `<span class="pill">${esc(S.state.msk)}</span>` : ''}
-        <button class="pill beans" data-act="open" data-v="shop" aria-label="Зёрна: ${me.beans}. Открыть лавку">${BEAN}<span>${me.beans}</span></button>
-      </div>
+      <button class="beans3d" data-act="open" data-v="shop" aria-label="Зёрна: ${me.beans}. Открыть лавку">${BEAN}<span>${me.beans}</span></button>
     </header>
     <main>
       ${showBanner ? `<div class="banner">
@@ -247,30 +258,89 @@ function renderOffice() {
         <p class="small">Не отметишься и ничего не выберешь — после 11:00 банда увидит шуточный статус вроде «в астрале».</p>`}
     </div>${renderGangNow()}`;
   }
-  const c = st.canteen;
   const here = st.gangNow.rows.filter((r) => r.where === 'office' && r.office === st.checkin.office).length;
-  const tone = { good: '#1F7A3A', ok: '#2563C9', warn: '#D97706', bad: '#E5484D' }[c.tone];
-  const trend = c.trend === 'up' ? ['↑ набирается', '#B42318'] : c.trend === 'down' ? ['↓ пустеет', '#1F7A3A'] : ['→ без резких изменений', '#4A5578'];
   const hour = Number(st.msk.slice(0, 2));
+  const since = st.checkin.since || '';
   return `
-  <section class="scene">
-    ${buildingSvg({ office: st.checkin.office, crowd: here + 1, hour, label: esc('Офис ' + st.checkin.name + (here ? ', из банды здесь: ' + here : '')) })}
-    <div class="tag">${esc(st.checkin.name)}</div>
-    <button class="leave" data-act="checkout">Ушёл</button>
+  <section class="office-card">
+    <div class="office-pic">${officeSvg({ office: st.checkin.office, crowd: here, hour, label: esc('Офис ' + st.checkin.name + (here ? ', из банды здесь: ' + here : '')) })}</div>
+    <div class="office-info">
+      <div class="row" style="align-items:flex-start;justify-content:space-between;gap:8px">
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <span class="eyebrow">Ты в офисе</span>
+          <span class="office-name">${esc(st.checkin.name)}</span>
+        </div>
+        <button class="icon-btn" data-act="open" data-v="office" aria-label="Сменить офис">${ico('swap', 16)}</button>
+      </div>
+      <span class="small">с ${since} · из банды здесь <b style="color:#1F7A3A">${here}</b> · до 19:00</span>
+      <button class="btn small ghost" style="align-self:flex-start" data-act="checkout">Ушёл домой</button>
+    </div>
   </section>
-  <section class="card">
-    <div class="row"><h3 class="grow">Столовая</h3><span class="trend" style="color:${trend[1]}">${trend[0]}</span></div>
-    <div class="big" style="color:${tone}">${esc(c.label)}</div>
-    <div class="meter" aria-hidden="true"><i style="width:${Math.max(4, c.pct)}%;background:${tone}"></i></div>
-    ${c.wait ? `<div class="note ${c.wait >= 10 ? 'bad' : 'warn'}">Очередь ≈ ${c.wait} мин</div>` : ''}
-    <div class="note ${c.advice.tone}">${esc(c.advice.text)}</div>
-    ${c.lowData ? '<p class="small">Мало отметок за последние 15 минут — оценка примерная. Отмечайся в столовой, чтобы она стала точнее.</p>' : ''}
-    ${st.inCanteen
-      ? '<button class="btn green wide" data-act="canteen-out">Поел, ухожу</button>'
-      : '<button class="btn wide" data-act="canteen-in">Я в столовой · +2</button>'}
-    <p class="small">Оценка по потоку отметок за 15 минут и среднему времени обеда (${c.lunchW} мин).</p>
-  </section>
-  ${renderGangNow()}`;
+  ${renderQuickCalls()}
+  ${renderCanteen()}
+  ${renderGangNow()}
+  ${renderSignalsMini()}`;
+}
+
+function renderQuickCalls() {
+  if (!S.me.gangs.length) return '';
+  const gang = S.activeGang || S.me.gangs[0].id;
+  const items = [['coffee', 'На кофе', '#8B5A2B', '#5E3B1A'], ['lunch', 'На обед', '#1F7A3A', '#155C2B'], ['where', 'Ты где?', '#0E7490', '#0A5468']];
+  return `<section class="qcalls" aria-label="Быстрые зовы банде">
+    ${items.map(([k, label, bg, shade]) => `<button class="qcall" style="background:${bg};border-bottom-color:${shade}" data-act="call-open" data-kind="${k}" data-gang="${gang}">${ico(k, 22)}${label}</button>`).join('')}
+    <button class="qcall" style="background:#4B5563;border-bottom-color:#2F3640" data-act="tab" data-v="gang">${ico('more', 22)}Ещё</button>
+  </section>`;
+}
+
+function renderCanteen() {
+  const st = S.state;
+  const c = st.canteen;
+  const tone = { good: '#1F7A3A', ok: '#1D5BBF', warn: '#B45309', bad: '#C81E1E' }[c.tone];
+  const trend = c.trend === 'up' ? ['↑ набирается', 'up'] : c.trend === 'down' ? ['↓ пустеет', 'down'] : ['→ ровно', 'flat'];
+  const f = c.forecast;
+  const color = (v) => (v >= 0.85 ? '#E5484D' : v >= 0.7 ? '#F59E0B' : v >= 0.4 ? '#2563C9' : '#7BC79A');
+  const bars = f && f.enough ? `
+    <div class="fc" role="img" aria-label="Прогноз загрузки с 12:00 до 14:30, пик около ${f.peak}">
+      ${f.slots.map((s, i) => `<span style="height:${Math.max(8, Math.min(100, Math.round(s.load * 100)))}%;background:${color(s.load)}${i === f.current ? ';outline:2px solid #1A2547;outline-offset:2px' : ''}"></span>`).join('')}
+    </div>
+    <div class="fc-axis"><span>12:00</span>${f.current >= 0 ? '<span>сейчас</span>' : ''}<span>${f.peak} пик</span><span>14:30</span></div>` : '';
+  return `<section class="card">
+    <div class="row" style="justify-content:space-between">
+      <span class="card-title">${ico('lunch', 18)}Столовая</span>
+      <span class="trend-chip ${trend[1]}">${trend[0]}</span>
+    </div>
+    <div class="row" style="align-items:flex-end;justify-content:space-between;gap:10px">
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <span class="big" style="color:${tone}">${esc(c.label)}</span>
+        <span style="font-size:13px;font-weight:700;color:${c.wait ? '#B45309' : '#1F5F2E'}">${c.wait ? `Очередь ≈ ${c.wait} мин` : 'Очереди нет'}</span>
+      </div>
+      ${st.inCanteen
+        ? '<button class="btn green" data-act="canteen-out">Поел</button>'
+        : '<button class="btn" style="white-space:nowrap" data-act="canteen-in">Я тут · +2</button>'}
+    </div>
+    ${bars}
+    <p class="note ${c.advice.tone}" style="margin:0">${esc(c.advice.text)}</p>
+    ${c.lowData ? '<p class="small">Мало отметок за 15 минут, оценка примерная. Отмечайся в столовой, чтобы она стала точнее.</p>' : ''}
+  </section>`;
+}
+
+function renderSignalsMini() {
+  const ev = S.events;
+  if (!ev || !ev.office) return '';
+  const list = ev.signals.slice(0, 2);
+  return `<section class="card">
+    <div class="row" style="justify-content:space-between">
+      <span class="card-title">Сигналы офиса</span>
+      <button class="btn small green" data-act="open" data-v="signal">+ Сообщить</button>
+    </div>
+    ${list.length ? list.map((s) => `<div class="sig">
+      <span class="sig-ico ${s.type === 'food' ? 'food' : 'other'}">${ico(s.type === 'food' ? 'food' : 'alert', 20)}</span>
+      <div class="grow"><div style="font-weight:700">${esc(s.label)}${s.confirmed ? ' ✓' : ''}</div>
+        <div class="small">${[s.zone, s.time, s.up ? 'подтвердили ' + s.up : ''].filter(Boolean).map(esc).join(' · ')}</div></div>
+      ${s.mine || s.myVote === 1 ? '' : `<button class="btn small ghost" data-act="vote" data-id="${s.id}" data-v="1">Есть</button>`}
+    </div>`).join('') : '<p class="small" style="margin:0">Пока тихо. Холодно, на кухне еда или кофе закончился — сообщи коллегам.</p>'}
+    ${ev.signals.length > 2 ? `<button class="linkbtn" style="align-self:flex-start" data-act="tab" data-v="feed">Все сигналы (${ev.signals.length})</button>` : ''}
+  </section>`;
 }
 
 const ddmm = (d) => (d ? `${d.slice(8, 10)}.${d.slice(5, 7)}` : '');
@@ -336,15 +406,24 @@ function renderGangNow() {
     return `<section class="card"><h3>Моя банда сейчас</h3><p class="sub">Ты пока ни в одной банде. Создай свою или вступи по ссылке от коллеги.</p>
       <button class="btn blue" data-act="tab" data-v="gang">К бандам</button></section>`;
   }
+  const dnd = S.cat.moods.dnd;
   const rows = g.rows.map((r) => {
     const [w, color] = whereText(r);
     const sameOffice = S.state.checkin && r.where === 'office' && r.office === S.state.checkin.office;
-    return `<div class="person">${avatar(r.look, 34)}
-      <div class="grow"><div style="font-weight:900">${esc(r.nick)}</div>
-      <div class="where"><span class="dot" style="background:${color}"></span>${esc(w)}${r.mood ? ' · ' + esc(r.mood) : ''}</div></div>
-      ${r.where === 'vacation' ? '<span class="small">отдыхает</span>' : r.where === 'sick' ? '<span class="small">не беспокоим</span>' : `<button class="btn small ${sameOffice ? '' : 'ghost'}" data-act="call-open" data-kind="${sameOffice ? 'coffee' : r.where === 'home' ? 'call' : 'where'}" data-to="${r.id}" data-gang="${r.gangId}">${sameOffice ? 'На кофе' : r.where === 'home' ? 'Созвонимся?' : 'Ты где?'}</button>`}</div>`;
+    const away = r.where === 'vacation' || r.where === 'sick';
+    const quiet = r.mood === dnd;
+    const action = r.where === 'vacation' ? '<span class="small">отдыхает</span>'
+      : r.where === 'sick' ? '<span class="small">не беспокоим</span>'
+      : quiet ? '<span class="small">тихо</span>'
+      : `<button class="btn small ${sameOffice ? '' : 'ghost'}" data-act="call-open" data-kind="${sameOffice ? 'coffee' : r.where === 'home' ? 'call' : 'where'}" data-to="${r.id}" data-gang="${r.gangId}">${sameOffice ? 'На кофе' : r.where === 'home' ? 'Созвонимся?' : 'Ты где?'}</button>`;
+    return `<div class="person2">
+      <span class="ava-wrap" style="opacity:${away ? 0.6 : 1}"><span class="ava-ring" style="border-color:${color}">${avatar(r.look, 32)}</span><span class="ava-dot" style="background:${color}"></span></span>
+      <div class="grow"><div style="font-weight:700;font-size:15px">${esc(r.nick)}</div>
+      <div class="where ellipsis">${esc(w)}${r.mood && r.where === 'office' ? ' · ' + esc(r.mood) : ''}</div></div>
+      ${action}</div>`;
   }).join('');
-  return `<section class="card"><h3>Моя банда сейчас</h3>
+  const gangName = (S.me.gangs.find((x) => x.id === (S.activeGang || S.me.gangs[0].id)) || {}).name || '';
+  return `<section class="card"><div class="row" style="justify-content:space-between"><span class="card-title">Моя банда сейчас</span><button class="linkbtn" data-act="tab" data-v="gang">${esc(gangName)} ›</button></div>
     ${rows || '<p class="sub">В банде пока только ты. Позови коллег ссылкой из вкладки «Моя банда».</p>'}
     ${g.more ? `<p class="small">и ещё ${g.more} — все во вкладке «Моя банда»</p>` : ''}
     ${!S.me.shareOffice ? '<div class="note warn">Банда не видит, где ты: офис, дома или в отпуске. <button class="linkbtn" data-act="share-on">Показывать банде</button></div>' : ''}
@@ -449,6 +528,8 @@ function renderSheet() {
     case 'install': return sheetWrap('Установи на телефон', renderInstall());
     case 'compose': return sheetWrap(S.cat.calls[S.compose.kind].label, renderCompose());
     case 'signal': return sheetWrap('Сигнал офиса', renderSignal());
+    case 'office': return sheetWrap('Сменить офис', `<p class="sub">Отметка перенесётся в выбранный офис. Зёрна за отметку начисляются один раз в день.</p>
+      ${S.cat.offices.map((o) => `<button class="office-btn" style="background:${OFFICE_BG[o.id] || o.color}" data-act="checkin" data-v="${o.id}">${esc(o.name)}${S.state.checkin && S.state.checkin.office === o.id ? ' · сейчас здесь' : ''}</button>`).join('')}`);
     case 'sick': return sheetWrap('Болею', `
       <p class="sub">Банда увидит «болеет — выздоравливай!», зовы не будут присылать пуши. Диагноз и подробности не нужны и нигде не сохраняются. Статус снимется сам после последнего дня.</p>
       <label class="field">По какое число (включительно, до 14 дней)<input id="sick-until" type="date" min="${S.state.today}" value="${S.state.today}"></label>
@@ -627,6 +708,7 @@ const actions = {
     await run(() => refresh());
   },
   checkin: (el) => run(async () => {
+    S.sheet = null;
     const r = await post('/api/checkin', { office: el.dataset.v });
     if (r.beans) toast(`+${r.beans} зёрен за отметку`);
     await refresh({ all: true });

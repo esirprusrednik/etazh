@@ -125,3 +125,58 @@ main { flex: 1; padding: 4px 12px 16px; display: flex; flex-direction: column; g
 .plan-day.home { background: #2563C9; color: #fff; }
 
 .today-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+/* ===== Стиль A2: изометрия, «объёмные» карточки и кнопки ===== */
+body { font-weight: 500; }
+.card { border-bottom: 5px solid #C9D2E8; }
+.card-title { font-size: 15px; font-weight: 900; display: flex; align-items: center; gap: 6px; }
+.eyebrow { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; }
+.ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Шапка */
+.me-ava { position: relative; flex: 0 0 auto; }
+.me-ava .ava { border-color: var(--gold) !important; }
+.lvl { position: absolute; right: -4px; bottom: -4px; min-width: 22px; height: 22px; padding: 0 5px; box-sizing: border-box; border-radius: 999px; background: var(--green); border: 2px solid var(--bg); font-size: 11px; font-weight: 900; display: flex; align-items: center; justify-content: center; color: #fff; }
+.status-chip { font-size: 11px; font-weight: 700; color: var(--ink); background: var(--gold); border-radius: 6px; padding: 2px 6px; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
+.streak { font-size: 12px; font-weight: 700; color: #FFB27A; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.beans3d { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; border-radius: 999px; background: var(--gold); color: var(--ink); border-bottom: 4px solid var(--gold2); font-size: 16px; font-weight: 900; }
+.beans3d:active { transform: translateY(2px); border-bottom-width: 2px; }
+
+/* Плашка офиса */
+.office-card { display: flex; align-items: stretch; border-radius: 20px; border: 3px solid var(--bg2); overflow: hidden; background: #fff; color: var(--ink); min-height: 118px; }
+.office-pic { flex: 0 0 132px; display: flex; align-items: center; justify-content: center; background: #A7E0FF; }
+.office-pic svg { width: 124px; height: auto; }
+.office-info { flex: 1 1 auto; min-width: 0; padding: 12px 12px 12px 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 6px; }
+.office-name { font-size: 20px; font-weight: 900; line-height: 1.1; }
+.icon-btn { width: 40px; height: 40px; flex: 0 0 40px; border-radius: 12px; border: 2px solid var(--line); background: #fff; color: var(--ink); display: flex; align-items: center; justify-content: center; padding: 0; }
+
+/* Быстрые зовы */
+.qcalls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.qcall { min-height: 66px; border-radius: 16px; border-bottom: 4px solid rgba(0,0,0,.3); color: #fff; font-size: 12px; font-weight: 900; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 4px; }
+.qcall:active { transform: translateY(2px); border-bottom-width: 2px; }
+
+/* Столовая: статус и прогноз */
+.trend-chip { font-size: 12px; font-weight: 700; border-radius: 999px; padding: 3px 8px; }
+.trend-chip.up { color: #B42318; background: #FDECEA; }
+.trend-chip.down { color: #1F5F2E; background: #E7F6EC; }
+.trend-chip.flat { color: var(--muted); background: #EEF1F8; }
+.fc { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; align-items: end; height: 64px; }
+.fc span { display: block; border-radius: 5px 5px 2px 2px; }
+.fc-axis { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; color: var(--muted); margin-top: -4px; }
+
+/* Банда сейчас */
+.person2 { display: flex; align-items: center; gap: 10px; min-height: 56px; border-top: 1px solid #EEF1F8; }
+.card-title + .person2, .row + .person2 { border-top: none; }
+.ava-wrap { position: relative; width: 42px; height: 42px; flex: 0 0 42px; }
+.ava-ring { width: 42px; height: 42px; border-radius: 999px; border: 2px solid; box-sizing: border-box; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #FFE7B3; }
+.ava-ring .ava { border: none !important; width: 38px !important; height: 38px !important; }
+.ava-dot { position: absolute; right: -2px; bottom: -2px; width: 16px; height: 16px; border-radius: 999px; border: 2px solid #fff; box-sizing: border-box; }
+
+/* Сигналы на главном */
+.sig { display: flex; gap: 10px; align-items: center; background: #F4F6FB; border-radius: 14px; padding: 10px; }
+.sig-ico { width: 36px; height: 36px; flex: 0 0 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+.sig-ico.food { background: #E7F6EC; color: #1F7A3A; }
+.sig-ico.other { background: #E6EEFF; color: #1D5BBF; }
+
+/* Активная вкладка — жёлтая, как в макете */
+.tab.on { background: var(--gold); color: var(--ink); }

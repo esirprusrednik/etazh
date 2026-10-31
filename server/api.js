@@ -182,8 +182,38 @@ function createApi(db) {
     else advice = { tone: 'good', text: 'Место в столовой найдётся, очереди нет.' };
     return {
       label, tone, pct: Math.min(100, Math.round(load * 100)), wait, trend, n15,
-      lowData: n15 < 3, lunchW: Math.round(office.lunch_w), shareP: Math.round(office.share_p * 100), advice
+      lowData: n15 < 3, lunchW: Math.round(office.lunch_w), shareP: Math.round(office.share_p * 100), advice,
+      forecast: canteenForecast(office)
     };
+  }
+
+  // Прогноз загрузки 12:00–14:30 по 15 минут: те же дни недели за 4 прошлые недели.
+  // Время отметок хранится обезличенно 30 дней — этого хватает.
+  function canteenForecast(office) {
+    const today = U.msk().day;
+    const tz = config.tzOffsetHours * 3600e3;
+    const dayStart = (d) => Date.parse(d + 'T00:00:00Z') - tz;
+    const weeks = [7, 14, 21, 28].map((n) => addDays(today, -n));
+    const slots = [];
+    let total = 0;
+    for (let i = 0; i < 10; i++) {
+      const minute = 12 * 60 + i * 15 + 7.5; // середина слота
+      let sum = 0;
+      for (const d of weeks) {
+        const t = dayStart(d) + minute * 60e3;
+        sum += q('SELECT COUNT(*) AS n FROM canteen WHERE office_id = ? AND at > ? AND at <= ?').get(office.id, t - office.lunch_w * 60e3, t).n;
+      }
+      total += sum;
+      const load = sum / weeks.length / office.share_p / office.seats;
+      const h = Math.floor(minute / 60);
+      const m = Math.floor((minute % 60) / 15) * 15;
+      slots.push({ t: `${h}:${String(m).padStart(2, '0')}`, load: Math.round(load * 100) / 100 });
+    }
+    const now = U.msk();
+    const nowMin = now.hour * 60 + now.minute;
+    const current = nowMin >= 720 && nowMin < 870 ? Math.floor((nowMin - 720) / 15) : -1;
+    const peak = slots.reduce((best, s, i) => (s.load > slots[best].load ? i : best), 0);
+    return { slots, current, peak: slots[peak].t, enough: total >= 20 };
   }
 
   function recomputeLunchW(officeId) {
@@ -297,10 +327,21 @@ function createApi(db) {
     const u = currentUser(req);
     if (!u) return { user: null, vapidKey: config.vapid.publicKey || null, domains: config.allowedDomains };
     const owned = q('SELECT item_id FROM owned WHERE user_id = ?').all(u.id).map((r) => r.item_id);
+    // Серия: сколько рабочих дней подряд была отметка в офисе (по журналу зёрен, он хранится всегда)
+    const days = new Set(q("SELECT DISTINCT day FROM ledger WHERE user_id = ? AND reason = 'checkin' ORDER BY day DESC LIMIT 90").all(u.id).map((r) => r.day));
+    let streak = 0;
+    let d = U.msk().day;
+    if (!days.has(d)) d = addDays(d, -1);
+    for (let guard = 0; guard < 120; guard++, d = addDays(d, -1)) {
+      if (!weekdayName(d)) continue;
+      if (days.has(d)) streak++; else break;
+    }
+    const earned = q('SELECT COALESCE(SUM(amount), 0) AS s FROM ledger WHERE user_id = ? AND amount > 0').get(u.id).s;
+    const level = 1 + Math.floor(Math.sqrt(earned / 15));
     return {
       user: {
         id: u.id, nick: u.nick, beans: u.beans, look: u.look, profile: u.profile, shareOffice: !!u.share_office, quiet: !!u.quiet,
-        welcomed: !!u.welcomed, isAdmin: u.isAdmin, owned, status: statusName(u.look.status),
+        welcomed: !!u.welcomed, isAdmin: u.isAdmin, owned, status: statusName(u.look.status), streak, level,
         nickChangeableAt: u.nick_changed_at ? u.nick_changed_at + 30 * 864e5 : null,
         gangs: myGangs(u.id).map((g) => ({ id: g.id, name: g.name, color: g.color }))
       },
@@ -443,7 +484,7 @@ function createApi(db) {
     return {
       now: U.now(), msk: U.msk().hhmm, night: U.isAfterCheckinCutoff(),
       beans: q('SELECT beans FROM users WHERE id = ?').get(u.id).beans,
-      checkin: ci ? { office: ci.office_id, name: office.name, at: ci.at } : null,
+      checkin: ci ? { office: ci.office_id, name: office.name, at: ci.at, since: U.msk(ci.at).hhmm } : null,
       today: U.msk().day,
       presence: presenceOf(u.profile, ci, u.id),
       nextVacation: u.profile.vacations.find((v) => v.from > U.msk().day) || null,

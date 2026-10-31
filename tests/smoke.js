@@ -195,7 +195,7 @@ async function waitUp() {
     // Ручной статус
     await a.post('/api/me/profile', { profile: { plan: {}, today: { kind: 'home' } } });
     const s2 = await status();
-    assert.equal(s2.where, 'home'); assert.equal(s2.planned, false);
+    if (wd >= 1 && wd <= 5) { assert.equal(s2.where, 'home'); assert.equal(s2.planned, false); } else assert.equal(s2.where, 'weekend');
     // Болею: на несколько дней, не дольше 14
     assert.equal((await a.post('/api/me/profile', { profile: { today: { kind: 'sick', to: day(20) } } })).status, 400);
     await a.post('/api/me/profile', { profile: { today: { kind: 'sick', to: day(2) } } });
