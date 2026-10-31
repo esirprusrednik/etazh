@@ -290,7 +290,13 @@ function createApi(db) {
     q('INSERT INTO login_tokens (token_hash, email_hash, code_hash, expires_at) VALUES (?, ?, ?, ?)')
       .run(U.sha256(token), emailHash, U.sha256(emailHash + ':' + code), U.now() + config.loginTokenMinutes * 60e3);
     const link = `${config.baseUrl}/auth/verify?t=${token}`;
-    await sendLoginLink(email, link, code);
+    try {
+      await sendLoginLink(email, link, code);
+    } catch (e) {
+      // В лог — причина, но без адресов почты
+      console.error('[mail] не отправлено:', String(e.message).replace(/[^\s<>@]+@[^\s<>@]+/g, '***'));
+      throw new HttpError(502, 'Не удалось отправить письмо. Попробуй через пару минут — мы уже разбираемся.');
+    }
     // Почта дальше нигде не используется и не сохраняется
     const dev = config.mailMode === 'console';
     return { ok: true, devLink: dev ? link : undefined, devCode: dev ? code : undefined };
