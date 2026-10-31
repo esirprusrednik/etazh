@@ -17,7 +17,8 @@ const S = {
   sheet: null, compose: null, signal: null,
   onb: { step: 'email', email: '', error: '', devLink: null, devCode: null, nicks: [] },
   error: '', busy: false,
-  seenChat: store.get('seenChat', 0), seenFeed: store.get('seenFeed', 0)
+  seenChat: store.get('seenChat', 0), seenFeed: store.get('seenFeed', 0),
+  fx: null, gx: null, thanksTo: null, lunchTime: '13:00'
 };
 
 // ---------- API ----------
@@ -112,11 +113,26 @@ async function loadGang() {
   try { S.gang = await get(`/api/gangs/${S.activeGang}`); } catch { S.gang = null; S.activeGang = null; }
 }
 async function loadEvents() { S.events = await get('/api/events'); }
+async function loadFeatures() {
+  S.fx = await get(`/api/features?gang=${S.activeGang || ''}`);
+  // Новые ачивки — короткое поздравление, один раз
+  const seen = new Set(store.get('achSeen', []));
+  const fresh = S.fx.achievements.filter((a) => a.got && !seen.has(a.id));
+  if (fresh.length) {
+    if (seen.size) toast(fresh.length === 1 ? `Новая ачивка: «${fresh[0].name}» · +${fresh[0].reward}` : `Новых ачивок: ${fresh.length}`);
+    store.set('achSeen', S.fx.achievements.filter((a) => a.got).map((a) => a.id));
+  }
+}
+async function loadGangExtra() {
+  if (!S.activeGang) { S.gx = null; return; }
+  try { S.gx = await get(`/api/gangs/${S.activeGang}/extra`); } catch { S.gx = null; }
+}
 
 async function refresh({ all = false } = {}) {
   if (!S.me || !S.me.nick) return;
   const jobs = [loadState()];
-  if (all || S.tab === 'gang') jobs.push(loadGang());
+  if (all || S.tab === 'gang') jobs.push(loadGang(), loadGangExtra());
+  if (all || S.tab === 'office') jobs.push(loadFeatures());
   if (all || S.tab === 'feed' || S.tab === 'office') jobs.push(loadEvents());
   await Promise.all(jobs);
   if (S.tab === 'gang') markSeen('chat');
@@ -240,7 +256,7 @@ function renderOffice() {
   const st = S.state;
   if (!st) return '<div class="card"><p class="sub">Загружаем…</p></div>';
   if (st.night) {
-    return `${renderToday()}<div class="card"><h2>Офисы засыпают</h2><p class="sub">После 19:00 отметки сбрасываются. Утром отметься снова — увидишь, кто из банды рядом и есть ли очередь в столовой.</p></div>${renderGangNow()}`;
+    return `${renderToday()}${renderBirthdays()}<div class="card"><h2>Офисы засыпают</h2><p class="sub">После 19:00 отметки сбрасываются. Утром отметься снова — увидишь, кто из банды рядом и есть ли очередь в столовой.</p></div>${renderQuests()}${renderCoffee()}${renderGangNow()}`;
   }
   if (!st.checkin) {
     return `${renderToday()}<div class="card">
@@ -256,7 +272,7 @@ function renderOffice() {
         <button class="btn ghost" data-act="open" data-v="vacation">🌴 В отпуске</button>
         <button class="btn ghost" data-act="today" data-v="slack">😏 Отлыниваю</button></div>
         <p class="small">Не отметишься и ничего не выберешь — после 11:00 банда увидит шуточный статус вроде «в астрале».</p>`}
-    </div>${renderGangNow()}`;
+    </div>${renderBirthdays()}${renderQuests()}${renderCoffee()}${renderGangNow()}`;
   }
   const here = st.gangNow.rows.filter((r) => r.where === 'office' && r.office === st.checkin.office).length;
   const hour = Number(st.msk.slice(0, 2));
@@ -276,8 +292,12 @@ function renderOffice() {
       <button class="btn small ghost" style="align-self:flex-start" data-act="checkout">Ушёл домой</button>
     </div>
   </section>
+  ${renderBirthdays()}
+  ${renderQuests()}
   ${renderQuickCalls()}
   ${renderCanteen()}
+  ${renderLunches()}
+  ${renderCoffee()}
   ${renderGangNow()}
   ${renderSignalsMini()}`;
 }
@@ -426,6 +446,7 @@ function renderGangNow() {
   return `<section class="card"><div class="row" style="justify-content:space-between"><span class="card-title">Моя банда сейчас</span><button class="linkbtn" data-act="tab" data-v="gang">${esc(gangName)} ›</button></div>
     ${rows || '<p class="sub">В банде пока только ты. Позови коллег ссылкой из вкладки «Моя банда».</p>'}
     ${g.more ? `<p class="small">и ещё ${g.more} — все во вкладке «Моя банда»</p>` : ''}
+    ${S.fx && S.fx.weekHint ? `<div class="week-hint">${ico('where', 16)}<span>${S.fx.weekHint.today ? 'Сегодня' : esc(S.fx.weekHint.label)} в офисе будут <b>${S.fx.weekHint.office} из ${S.fx.weekHint.total}</b>${S.fx.weekHint.today ? '' : ' — хороший день, чтобы собраться'}</span></div>` : ''}
     ${!S.me.shareOffice ? '<div class="note warn">Банда не видит, где ты: офис, дома или в отпуске. <button class="linkbtn" data-act="share-on">Показывать банде</button></div>' : ''}
   </section>`;
 }
@@ -448,7 +469,7 @@ function renderGang() {
   const members = v.members.map((m) => {
     const [w, color] = whereText(m);
     return `<div class="person">${avatar(m.look, 34)}<div class="grow"><div style="font-weight:900">${esc(m.nick)}${m.me ? ' (ты)' : ''}</div>
-      <div class="where"><span class="dot" style="background:${color}"></span>${esc(w)}${m.mood ? ' · ' + esc(m.mood) : ''}${m.status ? ' · ' + esc(m.status) : ''}</div></div>
+      <div class="where"><span class="dot" style="background:${color}"></span>${esc(w)}${m.mood && m.where === 'office' ? ' · ' + esc(m.mood) : ''}${m.status ? ' · ' + esc(m.status) : ''}</div></div>
       ${m.me ? '' : `<button class="btn small ghost" data-act="call-open" data-kind="where" data-to="${m.id}" data-gang="${g.id}">Позвать</button>`}</div>`;
   }).join('');
   const msgs = v.messages.map(renderMsg).join('') || '<p class="sub">Сообщения и зовы живут 24 часа. Начни первым.</p>';
@@ -459,6 +480,9 @@ function renderGang() {
     ${g.depositPending ? '<div class="note warn">Залог 50 зёрен вернётся, когда в банде будет 3 человека.</div>' : ''}
     <div class="calls">${Object.entries(S.cat.calls).map(([k, c]) => `<button class="call" style="background:${CALL_STYLE[k]}" data-act="call-open" data-kind="${k}" data-gang="${g.id}">${esc(c.label)}</button>`).join('')}</div>
   </section>
+  ${renderGangBirthdays()}
+  ${renderWeek()}
+  ${renderThanks(v)}
   <section class="card">
     <h3>Чат</h3>
     <div class="chat" id="chat">${msgs}</div>
@@ -514,6 +538,124 @@ function renderFeed() {
   return `${sig}<section class="card"><h3>Лента</h3>${list}</section>`;
 }
 
+// ----- Новые блоки: задания, обед, кофе, дни рождения, неделя, спасибо -----
+function renderQuests() {
+  const f = S.fx;
+  if (!f) return '';
+  const done = f.quests.items.filter((x) => x.done).length;
+  return `<section class="card quests">
+    <div class="row" style="justify-content:space-between"><span class="card-title">Задания дня</span><span class="small">${done}/${f.quests.items.length} · +${f.quests.reward} за каждое, +${f.quests.bonus} за все</span></div>
+    <div class="quest-row">${f.quests.items.map((x) => `<div class="quest ${x.done ? 'done' : ''}"><span class="qmark" aria-hidden="true">${x.done ? '✓' : ''}</span><span>${esc(x.name)}</span></div>`).join('')}</div>
+  </section>`;
+}
+
+function renderBirthdays() {
+  const f = S.fx;
+  if (!f || !f.birthdaysToday.length) return '';
+  return f.birthdaysToday.map((b) => `<section class="bday">
+    <span class="ava-wrap">${avatar(b.look, 34)}</span>
+    <div class="grow"><div style="font-weight:900">Сегодня день рождения у ${esc(b.nick)}</div><div class="small" style="color:#5B3B00">Поздравь в банде или подари зёрна</div></div>
+    ${b.gifted ? '<span class="small" style="color:#5B3B00;font-weight:700">Поздравил ✓</span>' : `<button class="btn small" data-act="gift" data-id="${b.id}">+${f.giftBeans} ${BEAN}</button>`}
+  </section>`).join('');
+}
+
+function renderLunches() {
+  const f = S.fx;
+  if (!f || !f.lunches.office) return '';
+  const items = f.lunches.items;
+  return `<section class="card">
+    <div class="row" style="justify-content:space-between"><span class="card-title">Обед компанией</span><button class="btn small green" data-act="open" data-v="lunch">+ Собрать</button></div>
+    ${items.length ? items.map((l) => `<div class="lunch">
+      <span class="lunch-time">${esc(l.time)}</span>
+      <div class="grow"><div style="font-weight:700">${esc(l.nick)}${l.place ? ' · ' + esc(l.place) : ''}</div>
+        <div class="small">${l.count ? `идут: ${l.who.map(esc).join(', ')}${l.count > l.who.length ? ' и ещё ' + (l.count - l.who.length) : ''}` : 'пока никто не присоединился'}</div></div>
+      ${l.mine ? `<button class="btn small ghost" data-act="lunch-cancel" data-id="${l.id}">Отменить</button>`
+        : l.joined ? `<button class="btn small ghost" data-act="lunch-leave" data-id="${l.id}">Не иду</button>`
+        : `<button class="btn small" data-act="lunch-join" data-id="${l.id}">Я с вами</button>`}
+    </div>`).join('') : '<p class="small" style="margin:0">Сегодня в этом офисе ещё никто не собирает компанию. Открой сбор — его увидят все, кто отмечен здесь.</p>'}
+  </section>`;
+}
+
+function renderCoffee() {
+  const f = S.fx;
+  if (!f) return '';
+  const c = f.coffee;
+  if (!c.optIn) {
+    return `<section class="card coffee">
+      <div class="row" style="gap:12px"><span class="coffee-ico">${ico('coffee', 22)}</span>
+      <div class="grow"><div class="card-title">Случайный кофе</div><div class="small">Раз в неделю знакомим с коллегой из твоего офиса, но не из твоей банды.</div></div></div>
+      ${c.hasHome ? '<button class="btn small" data-act="coffee-on">Участвовать</button>' : '<button class="btn small ghost" data-act="open" data-v="profile">Укажи свой офис в профиле</button>'}
+    </section>`;
+  }
+  if (!c.pair) {
+    return `<section class="card coffee"><div class="row" style="gap:12px"><span class="coffee-ico">${ico('coffee', 22)}</span>
+      <div class="grow"><div class="card-title">Случайный кофе</div><div class="small">Пары составляем по понедельникам в 10:00. Придёт уведомление.</div></div></div></section>`;
+  }
+  const p = c.pair;
+  let state = '';
+  if (p.ping && p.ping.reply) state = `<div class="note ${p.ping.reply === 'Иду' ? 'good' : 'warn'}" style="margin:0">${p.ping.mine ? esc(p.partner.nick) + ': ' : 'Ты ответил: '}${esc(p.ping.reply)} · ${esc(p.ping.opt.toLowerCase())}</div>`;
+  else if (p.ping && p.ping.mine) state = `<div class="note warn" style="margin:0">Ты предложил: ${esc(p.ping.opt.toLowerCase())}. Ждём ответа.</div>`;
+  else if (p.canReply) state = `<div class="note good" style="margin:0">${esc(p.partner.nick)} предлагает: ${esc(p.ping.opt.toLowerCase())}</div>
+    <div class="chips">${p.replies.map((r) => `<button class="chip" data-act="coffee-reply" data-v="${esc(r)}">${esc(r)}</button>`).join('')}</div>`;
+  const offer = p.canReply || (p.ping && p.ping.mine && !p.ping.reply) ? '' : `<div class="chips">${p.options.map((o) => `<button class="chip" data-act="coffee-ping" data-v="${esc(o)}">${esc(o)}</button>`).join('')}</div>`;
+  return `<section class="card coffee">
+    <div class="row" style="gap:12px"><span class="ava-wrap">${avatar(p.partner.look, 34)}</span>
+    <div class="grow"><div class="eyebrow">Случайный кофе на этой неделе</div><div style="font-weight:900;font-size:16px">${esc(p.partner.nick)}</div>${p.office ? `<div class="small">${esc(p.office)}</div>` : ''}</div></div>
+    ${state}${offer}
+  </section>`;
+}
+
+function renderGangBirthdays() {
+  const x = S.gx;
+  if (!x || !x.birthdays.length) return '';
+  return `<section class="card"><span class="card-title">Дни рождения</span>
+    ${x.birthdays.map((b) => `<div class="person2"><span class="ava-wrap">${avatar(b.look, 32)}</span>
+      <div class="grow"><div style="font-weight:700">${esc(b.nick)}${b.me ? ' (ты)' : ''}</div><div class="where">${b.inDays === 0 ? 'сегодня!' : b.inDays === 1 ? 'завтра' : `через ${b.inDays} ${plural(b.inDays, 'день', 'дня', 'дней')}`} · ${esc(b.bday)}</div></div>
+      ${b.inDays === 0 && !b.me ? (b.gifted ? '<span class="small">поздравил ✓</span>' : `<button class="btn small" data-act="gift" data-id="${b.id}">+10 ${BEAN}</button>`) : ''}</div>`).join('')}
+  </section>`;
+}
+
+const CELL = { office: ['О', 'Офис'], home: ['Д', 'Дома'], vacation: ['От', 'Отпуск'], sick: ['Б', 'Болеет'], unknown: ['·', 'Не указано'] };
+function renderWeek() {
+  const x = S.gx;
+  if (!x) return '';
+  const w = x.week;
+  return `<section class="card">
+    <div class="row" style="justify-content:space-between"><span class="card-title">Неделя банды</span><button class="linkbtn" data-act="open" data-v="profile">мой план</button></div>
+    <div class="week" style="grid-template-columns: minmax(0, 1.6fr) repeat(${w.days.length}, minmax(0, 1fr))">
+      <span></span>${w.days.map((d) => `<span class="wk-h">${esc(d.label.split(' ')[0])}<br><b>${esc(d.label.split(' ')[1].slice(0, 5))}</b></span>`).join('')}
+      ${w.rows.map((r) => `<span class="wk-n ellipsis">${esc(r.nick)}${r.me ? ' (ты)' : ''}</span>${r.cells.map((c) => `<span class="wk-c ${c}" title="${CELL[c][1]}" aria-label="${CELL[c][1]}">${CELL[c][0]}</span>`).join('')}`).join('')}
+      <span class="wk-n small">в офисе</span>${w.days.map((d) => `<span class="wk-sum ${w.best && d.label === w.best.label ? 'best' : ''}">${d.office}</span>`).join('')}
+    </div>
+    <div class="wk-legend"><span><i class="wk-c office"></i>офис</span><span><i class="wk-c home"></i>дома</span><span><i class="wk-c vacation"></i>отпуск</span><span><i class="wk-c sick"></i>болеет</span></div>
+    ${w.best ? `<div class="week-hint">${ico('where', 16)}<span>${w.best.today ? 'Сегодня' : esc(w.best.label)} в офисе будут <b>${w.best.office} из ${w.best.total}</b></span></div>` : '<p class="small" style="margin:0">Заполните план недели в профиле — тут станет видно, когда банда соберётся в офисе.</p>'}
+    ${w.hidden ? `<p class="small" style="margin:0">Ещё ${w.hidden} ${plural(w.hidden, 'человек', 'человека', 'человек')} не показывают, где работают.</p>` : ''}
+  </section>`;
+}
+
+function renderThanks(v) {
+  const x = S.gx;
+  if (!x) return '';
+  const others = v.members.filter((m) => !m.me);
+  return `<section class="card">
+    <div class="row" style="justify-content:space-between"><span class="card-title">Спасибо</span><span class="small">осталось ${x.thanksLeft} из 3 сегодня</span></div>
+    ${others.length && x.thanksLeft > 0 ? `<div class="chips">${others.map((m) => `<button class="chip ${S.thanksTo === m.id ? 'on' : ''}" data-act="thanks-to" data-v="${m.id}">${esc(m.nick)}</button>`).join('')}</div>
+    ${S.thanksTo ? `<div class="row"><label class="field grow" style="gap:0"><span class="hidden">За что спасибо</span><input id="thanks-text" maxlength="80" placeholder="За что? Можно пусто" aria-label="За что спасибо"></label><button class="btn" data-act="thanks-send">Спасибо</button></div>` : '<p class="small" style="margin:0">Выбери, кому сказать спасибо. Получатель получит зерно.</p>'}` : ''}
+    ${x.thanks.length ? `<div class="thanks-list">${x.thanks.map((t) => `<div class="thx ${t.toMe ? 'me' : ''}"><b>${esc(t.from)}</b> → <b>${esc(t.to)}</b>${t.text ? ': ' + esc(t.text) : ''}<span class="small"> · ${esc(t.when)}</span></div>`).join('')}</div>` : '<p class="small" style="margin:0">За неделю спасибо ещё не было. Начни первым.</p>'}
+  </section>`;
+}
+
+function renderAchievements() {
+  const f = S.fx;
+  if (!f) return '<p class="small">Загружаем ачивки…</p>';
+  const got = f.achievements.filter((a) => a.got).length;
+  const tiers = [['common', 'Обычные'], ['rare', 'Редкие'], ['legendary', 'Легендарные']];
+  return `<div class="row" style="justify-content:space-between"><h3>Ачивки</h3><span class="small">${got} из ${f.achievements.length}</span></div>
+    ${tiers.map(([t, title]) => `<div class="eyebrow" style="margin-top:4px">${title} · +${f.achievements.find((a) => a.tier === t).reward} ${plural(f.achievements.find((a) => a.tier === t).reward, 'зерно', 'зерна', 'зёрен')}</div>
+      <div class="ach-grid">${f.achievements.filter((a) => a.tier === t).map((a) => `<div class="ach ${t} ${a.got ? 'got' : ''}" title="${esc(a.desc)}">
+        <span class="ach-ico" aria-hidden="true">${a.got ? '★' : '?'}</span><span class="ach-name">${esc(a.name)}</span><span class="ach-desc">${esc(a.desc)}</span></div>`).join('')}</div>`).join('')}`;
+}
+
 // ----- Шторки -----
 function sheetWrap(title, body) {
   return `<div class="sheet-bg" data-act="close-bg"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}">
@@ -534,6 +676,11 @@ function renderSheet() {
       <p class="sub">Банда увидит «болеет — выздоравливай!», зовы не будут присылать пуши. Диагноз и подробности не нужны и нигде не сохраняются. Статус снимется сам после последнего дня.</p>
       <label class="field">По какое число (включительно, до 14 дней)<input id="sick-until" type="date" min="${S.state.today}" value="${S.state.today}"></label>
       <button class="btn wide" data-act="sick-now">Болею</button>`);
+    case 'lunch': return sheetWrap('Обед компанией', `
+      <p class="sub">Сбор увидят все, кто сегодня отмечен в твоём офисе. Кто присоединится — придёт уведомление.</p>
+      <div class="field">Во сколько<div class="chips">${(S.fx ? S.fx.lunches.times : []).map((t) => `<button class="chip ${S.lunchTime === t ? 'on' : ''}" data-act="lunch-time" data-v="${t}">${t}</button>`).join('')}</div></div>
+      <label class="field">Где встречаемся (необязательно)<input id="lunch-place" maxlength="30" placeholder="У лифтов на 3 этаже"></label>
+      <button class="btn wide" data-act="lunch-create">Открыть сбор</button>`);
     case 'vacation': return sheetWrap('Я в отпуске', `
       <p class="sub">С сегодняшнего дня. Банда увидит «в отпуске до …», зовы не будут присылать пуши. Отпуск попадёт в график — его можно поправить в профиле.</p>
       <label class="field">По какое число (включительно)<input id="vac-until" type="date" min="${S.state.today}" value="${S.state.today}"></label>
@@ -600,6 +747,7 @@ function renderProfile() {
     <div class="field">Худи${sw('hoodie', L.hoodie)}</div>
     <div class="chips"><button class="chip ${look.glasses ? 'on' : ''}" data-act="look-toggle" data-k="glasses">Очки</button><button class="chip ${look.phones ? 'on' : ''}" data-act="look-toggle" data-k="phones">Наушники</button></div>
 
+    ${renderAchievements()}
     <h3>Обо мне</h3>
     <div class="field">Статус<div class="chips">${Object.entries(S.cat.moods).map(([k, l]) => `<button class="chip ${p.mood === k ? 'on' : ''}" data-act="prof" data-k="mood" data-v="${k}">${esc(l)}</button>`).join('')}</div></div>
     <div class="field">Мой офис<div class="chips">${S.cat.offices.map((o) => `<button class="chip ${p.home === o.id ? 'on' : ''}" data-act="prof" data-k="home" data-v="${o.id}">${esc(o.name)}</button>`).join('')}</div></div>
@@ -621,6 +769,7 @@ function renderProfile() {
     <h3>Приватность и уведомления</h3>
     <label class="check"><input type="checkbox" data-act="toggle" data-k="shareOffice" ${me.shareOffice ? 'checked' : ''}> <span>Показывать банде, где я: офис, дома или в отпуске</span></label>
     <label class="check"><input type="checkbox" data-act="toggle" data-k="quiet" ${me.quiet ? 'checked' : ''}> <span>Тихие часы 19:00–09:00 — не присылать зовы</span></label>
+    <label class="check"><input type="checkbox" data-act="coffee-toggle" ${me.profile.coffee ? 'checked' : ''}> <span>Участвовать в случайном кофе${me.profile.home ? '' : ' (сначала укажи «Мой офис» выше)'}</span></label>
     ${pushState === 'granted' ? '<div class="row"><span class="note good grow">Уведомления включены</span><button class="btn small ghost" data-act="push-test">Проверить</button></div>'
       : pushState === 'unsupported' ? `<div class="note warn">${isIOS() && !isStandalone() ? 'На iPhone уведомления работают только из установленного приложения.' : 'Этот браузер не поддерживает уведомления.'}</div>`
       : pushState === 'denied' ? '<div class="note warn">Уведомления запрещены в настройках браузера.</div>'
@@ -718,7 +867,7 @@ const actions = {
   'canteen-out': () => run(async () => { await post('/api/canteen/out'); await loadState(); }),
   'share-on': () => run(async () => { await post('/api/me/profile', { shareOffice: true }); S.me.shareOffice = true; await loadState(); }),
 
-  'gang-select': (el) => run(async () => { S.activeGang = Number(el.dataset.v); store.set('activeGang', S.activeGang); await loadGang(); }),
+  'gang-select': (el) => run(async () => { S.activeGang = Number(el.dataset.v); store.set('activeGang', S.activeGang); S.thanksTo = null; await Promise.all([loadGang(), loadGangExtra()]); }),
   'gang-create': () => run(async () => {
     const r = await post('/api/gangs', { name: $('#gang-name').value });
     S.activeGang = r.id; store.set('activeGang', r.id);
@@ -782,6 +931,7 @@ const actions = {
     if (S.sheet === 'signal') S.signal = {};
     render();
     if (S.sheet === 'shop') await run(async () => { S.shop = await get('/api/shop'); if (S.activeGang && !S.gang) await loadGang(); });
+    if (S.sheet === 'profile' || S.sheet === 'lunch') await run(loadFeatures);
   },
   close() { S.sheet = null; S.error = ''; render(); },
   'close-bg'(el, e) { if (e.target === el) actions.close(); },
@@ -815,6 +965,22 @@ const actions = {
     await post('/api/me/profile', { profile: { today: { kind: 'sick', to: $('#sick-until').value || S.state.today } } });
     S.sheet = null; await loadMe(); await loadState(); toast('Выздоравливай! Зовы не будут беспокоить');
   }),
+  'thanks-to'(el) { S.thanksTo = Number(el.dataset.v); render(); },
+  'thanks-send': () => run(async () => {
+    const r = await post('/api/thanks', { gang: S.activeGang, to: S.thanksTo, text: ($('#thanks-text') || {}).value || '' });
+    S.thanksTo = null; toast(`Спасибо отправлено. Осталось ${r.left} на сегодня`);
+    await Promise.all([loadGangExtra(), loadMe()]);
+  }),
+  gift: (el) => run(async () => { await post('/api/gift', { to: Number(el.dataset.id) }); toast('Поздравление отправлено'); await Promise.all([loadMe(), loadFeatures(), loadGangExtra()]); }),
+  'lunch-time'(el) { S.lunchTime = el.dataset.v; const pl = $('#lunch-place'); const v = pl ? pl.value : ''; render(); if ($('#lunch-place')) $('#lunch-place').value = v; },
+  'lunch-create': () => run(async () => { await post('/api/lunch', { time: S.lunchTime, place: $('#lunch-place').value }); S.sheet = null; toast('Сбор открыт'); await loadFeatures(); }),
+  'lunch-join': (el) => run(async () => { await post(`/api/lunch/${el.dataset.id}/join`); toast('Приятного аппетита!'); await loadFeatures(); }),
+  'lunch-leave': (el) => run(async () => { await post(`/api/lunch/${el.dataset.id}/leave`); await loadFeatures(); }),
+  'lunch-cancel': (el) => run(async () => { await post(`/api/lunch/${el.dataset.id}/cancel`); await loadFeatures(); }),
+  'coffee-on': () => run(async () => { await post('/api/me/profile', { profile: { coffee: true } }); toast('Готово! Пару подберём в понедельник'); await Promise.all([loadMe(), loadFeatures()]); }),
+  'coffee-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { coffee: el.checked } }); await Promise.all([loadMe(), loadFeatures()]); }),
+  'coffee-ping': (el) => run(async () => { await post('/api/coffee/ping', { opt: el.dataset.v }); toast('Предложение отправлено'); await loadFeatures(); }),
+  'coffee-reply': (el) => run(async () => { await post('/api/coffee/reply', { label: el.dataset.v }); await loadFeatures(); }),
   'vac-now': () => run(async () => {
     const today = S.state.today;
     const to = $('#vac-until').value || today;
@@ -911,7 +1077,7 @@ document.addEventListener('change', (e) => {
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.id) {
-    const map = { email: 'login-submit', code: 'code-submit', nick: 'nick-submit', 'chat-text': 'chat-send' };
+    const map = { email: 'login-submit', code: 'code-submit', nick: 'nick-submit', 'chat-text': 'chat-send', 'thanks-text': 'thanks-send', 'lunch-place': 'lunch-create' };
     if (map[e.target.id]) { e.preventDefault(); actions[map[e.target.id]](); }
   }
   if (e.key === 'Escape' && S.sheet) actions.close();

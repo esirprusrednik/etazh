@@ -39,7 +39,7 @@ const DEFAULT_LOOK = { preset: 'm', hairStyle: 'short', hair: '#2B1D14', skin: '
 // plan — где обычно работаю по дням недели: { Пн: 'office' | 'home' }
 // today — ручной статус на сегодня: { kind: 'home' | 'vacation', day: 'YYYY-MM-DD' }
 // vacations — график отпусков: [{ from: 'YYYY-MM-DD', to: 'YYYY-MM-DD' }]
-const DEFAULT_PROFILE = { mood: 'coffee', home: null, days: [], plan: {}, today: null, vacations: [], about: '', tags: [], bday: '', showBday: true };
+const DEFAULT_PROFILE = { coffee: false, mood: 'coffee', home: null, days: [], plan: {}, today: null, vacations: [], about: '', tags: [], bday: '', showBday: true };
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const addDays = (day, n) => new Date(Date.parse(day + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
 const weekdayName = (day) => [null, 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', null][new Date(day + 'T00:00:00Z').getUTCDay()];
@@ -85,6 +85,7 @@ const TAGS = ['Кофе', 'Настолки', 'Бег', 'Велосипед', '�
 const DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт'];
 
 function createApi(db) {
+  let features = null;
   const q = (sql) => db.prepare(sql);
   const adminHashes = new Set(config.adminEmails.map((e) => U.hashEmail(e)));
 
@@ -121,6 +122,7 @@ function createApi(db) {
     if (!u) throw new HttpError(401, 'Нужно войти заново.');
     if (u.banned_until && u.banned_until > U.now()) throw new HttpError(403, 'Аккаунт временно заблокирован модератором.');
     if (nick && !u.nick) throw new HttpError(409, 'Сначала выбери никнейм.');
+    if (features && u.nick) features.onEvent('active', u.id);
     return u;
   }
 
@@ -452,6 +454,7 @@ function createApi(db) {
         prof.bday = b;
       }
       if (p.showBday !== undefined) prof.showBday = !!p.showBday;
+      if (p.coffee !== undefined) prof.coffee = !!p.coffee;
     }
     const share = body.shareOffice === undefined ? u.share_office : body.shareOffice ? 1 : 0;
     const quiet = body.quiet === undefined ? u.quiet : body.quiet ? 1 : 0;
@@ -514,6 +517,7 @@ function createApi(db) {
     // Пришёл в офис — ручной статус «дома/отпуск» на сегодня больше не актуален
     if (u.profile.today) q('UPDATE users SET profile = ? WHERE id = ?').run(JSON.stringify({ ...u.profile, today: null }), u.id);
     const got = addBeans(u.id, 'checkin');
+    if (features) features.onEvent('checkin', u.id, { office: office.id });
     if (u.share_office) pushEvent(office.id, u.id, `${u.nick} в офисе`);
     return { ok: true, beans: got };
   });
@@ -534,6 +538,7 @@ function createApi(db) {
     if (open) throw bad('Ты уже отмечен в столовой.');
     q('INSERT INTO canteen (user_id, office_id, at) VALUES (?, ?, ?)').run(u.id, ci.office_id, U.now());
     const got = addBeans(u.id, 'canteen');
+    if (features) features.onEvent('canteen', u.id);
     return { ok: true, beans: got };
   });
 
@@ -561,6 +566,7 @@ function createApi(db) {
     do code = U.shortCode(6); while (q('SELECT 1 FROM gangs WHERE code = ?').get(code));
     const r = q('INSERT INTO gangs (name, color, code, owner_id, deposit, created_at) VALUES (?, ?, ?, ?, 1, ?)').run(name, color, code, u.id, U.now());
     q('INSERT INTO gang_members (gang_id, user_id, joined_at) VALUES (?, ?, ?)').run(r.lastInsertRowid, u.id, U.now());
+    if (features) features.onEvent('gang_join', u.id);
     return { ok: true, id: Number(r.lastInsertRowid), code };
   });
 
@@ -576,6 +582,7 @@ function createApi(db) {
       q('UPDATE gangs SET deposit = 0 WHERE id = ?').run(g.id);
       addBeans(g.owner_id, 'deposit_back');
     }
+    if (features) features.onEvent('gang_join', u.id);
     return { ok: true, id: g.id };
   });
 
@@ -648,6 +655,7 @@ function createApi(db) {
       const prob = U.moderationProblem(text, { allowAt: true });
       if (prob) throw bad(prob);
       q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(g.id, u.id, 'text', text, U.now());
+      if (features) features.onEvent('text', u.id);
       return { ok: true };
     }
     const def = CALLS[body.kind];
@@ -670,6 +678,7 @@ function createApi(db) {
     }
     q('INSERT INTO messages (gang_id, user_id, type, kind, to_user_id, opt, text, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
       .run(g.id, u.id, 'call', body.kind, toId, opt, text, U.now());
+    if (features) features.onEvent('call', u.id);
     // Текст пуша нейтральный: без названий офисов и подробностей
     const recipients = toId ? [toId] : gangMembers(g.id).map((m) => m.id).filter((id) => id !== u.id);
     fireAndForget(notify(recipients, { title: g.name, body: `${u.nick} ${def.verb}${opt ? ' · ' + opt.toLowerCase() : ''}`, url: `/#gang/${g.id}`, tag: `gang-${g.id}` }));
@@ -691,6 +700,7 @@ function createApi(db) {
     const r = q('INSERT OR IGNORE INTO replies (message_id, user_id, label, at) VALUES (?, ?, ?, ?)').run(m.id, u.id, body.label, U.now());
     if (!r.changes) throw bad('Ты уже ответил.');
     const got = addBeans(u.id, 'reply');
+    if (features) features.onEvent('reply', u.id);
     if (m.user_id) fireAndForget(notify([m.user_id], { title: 'Ответ на зов', body: `${u.nick}: ${body.label}`, url: `/#gang/${m.gang_id}`, tag: `reply-${m.id}` }));
     return { ok: true, beans: got };
   });
@@ -753,6 +763,7 @@ function createApi(db) {
     if (Number(v.up) >= 2 && !s.confirmed_at) {
       q('UPDATE signals SET confirmed_at = ? WHERE id = ?').run(U.now(), s.id);
       if (s.user_id) addBeans(s.user_id, 'signal_confirmed');
+      if (s.user_id && features) features.onEvent('signal_confirmed', s.user_id);
       const here = q('SELECT DISTINCT user_id FROM checkins WHERE office_id = ? AND day = ? AND left_at IS NULL').all(s.office_id, U.msk().day).map((r) => r.user_id);
       const label = SIGNALS[s.type].label;
       fireAndForget(notify(here.filter((id) => id !== s.user_id), { title: 'Сигнал офиса', body: label + (s.zone ? ' · ' + s.zone : ''), url: '/#feed', tag: `signal-${s.id}` }));
@@ -898,6 +909,12 @@ function createApi(db) {
     return { ok: true };
   });
 
+  // ---------- Функции второго этапа ----------
+  features = require('./features').register({
+    db, q, route, requireUser, requireAdmin, bad, U, config, addBeans, spendBeans, notify, fireAndForget,
+    isMember, gangMembers, myGangs, activeCheckin, readProfile, presenceOf, weekdayName, addDays, pushEvent, officeById
+  });
+
   // ---------- Обработчик ----------
   async function handle(req, res, pathname, query) {
     const r = routes.find((x) => x.method === req.method && x.re.test(pathname));
@@ -951,6 +968,7 @@ function createApi(db) {
       const clean = JSON.stringify(readProfile(r.profile));
       if (clean !== r.profile) q('UPDATE users SET profile = ? WHERE id = ?').run(clean, r.id);
     }
+    if (features) features.cleanup();
   }
 
   return { handle, verifyLogin, cleanup, HttpError };

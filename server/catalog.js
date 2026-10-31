@@ -51,7 +51,8 @@ const EARN = {
   canteen: { amount: 2, perDay: 2 },
   reply: { amount: 1, perDay: 10 },
   signal_confirmed: { amount: 2, perDay: 3 },
-  deposit_back: { amount: 50, perDay: 100 }
+  deposit_back: { amount: 50, perDay: 100 },
+  thanks: { amount: 1, perDay: 5 } // получатель спасибо, не больше 5 зёрен в день
 };
 
 const GANG_DEPOSIT = 50;

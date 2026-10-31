@@ -30,9 +30,11 @@ server/api.js
 server/catalog.js
 server/config.js
 server/db.js
+server/features.js
 server/index.js
 server/mailer.js
 server/util.js
 server/webpush.js
+tests/features.js
 tests/smoke.js
 tests/unit.js

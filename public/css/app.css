@@ -180,3 +180,48 @@ body { font-weight: 500; }
 
 /* Активная вкладка — жёлтая, как в макете */
 .tab.on { background: var(--gold); color: var(--ink); }
+
+/* ---- Этап 2: задания, обед, кофе, дни рождения, неделя, спасибо, ачивки ---- */
+.quest-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.quest { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; font-size: 13px; font-weight: 600; color: var(--muted); background: #F4F6FB; border-radius: 14px; padding: 10px 6px; }
+.quest .qmark { width: 26px; height: 26px; border-radius: 50%; border: 2.5px dashed #B9C3DA; display: grid; place-items: center; font-weight: 900; color: #fff; }
+.quest.done { color: var(--good-fg); background: var(--good-bg); }
+.quest.done .qmark { border: none; background: var(--green); }
+.bday { display: flex; align-items: center; gap: 12px; margin: 0 16px 12px; padding: 12px 14px; border-radius: 18px; color: #3A2600; background: linear-gradient(135deg, #FFE08A, #FFC93C); box-shadow: 0 4px 0 var(--gold2); }
+.lunch { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.lunch:first-of-type { border-top: none; }
+.lunch-time { min-width: 54px; text-align: center; font-weight: 900; font-size: 15px; color: var(--green); background: var(--good-bg); border-radius: 10px; padding: 6px 4px; }
+.coffee .coffee-ico { width: 42px; height: 42px; border-radius: 14px; display: grid; place-items: center; color: #fff; background: #8B5A2B; flex: none; }
+.coffee { display: flex; flex-direction: column; gap: 10px; }
+.week-hint { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 8px 10px; border-radius: 12px; background: #EEF3FF; color: #24408E; font-size: 14px; }
+.week-hint svg { flex: none; }
+.week { display: grid; gap: 4px; align-items: center; margin-top: 10px; font-size: 13px; }
+.wk-h { text-align: center; color: var(--muted); font-size: 11px; line-height: 1.2; }
+.wk-h b { color: var(--ink); font-size: 12px; }
+.wk-n { color: var(--ink); font-weight: 600; min-width: 0; }
+.wk-c { display: grid; place-items: center; height: 26px; border-radius: 8px; font-size: 11px; font-weight: 800; background: #F1F3F8; color: #9AA3BC; }
+.wk-c.office { background: #3A86FF; color: #fff; }
+.wk-c.home { background: #E4DAFB; color: var(--violet); }
+.wk-c.vacation { background: #FFE9B8; color: #8A5A00; }
+.wk-c.sick { background: var(--bad-bg); color: var(--bad-fg); }
+.wk-sum { text-align: center; font-weight: 900; color: var(--muted); }
+.wk-sum.best { color: #fff; background: var(--green); border-radius: 8px; padding: 3px 0; }
+.wk-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; font-size: 12px; color: var(--muted); }
+.wk-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.wk-legend i.wk-c { width: 12px; height: 12px; border-radius: 4px; display: inline-block; }
+.thanks-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.thx { font-size: 14px; color: var(--ink); background: #F7F8FC; border-radius: 12px; padding: 8px 10px; overflow-wrap: anywhere; }
+.thx.me { background: #FFF6DB; }
+.ach-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 6px 0 12px; }
+.ach { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; padding: 10px 6px; border-radius: 14px; background: #F1F3F8; color: #9AA3BC; opacity: .75; }
+.ach-ico { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 17px; font-weight: 900; background: #E1E5EF; color: #9AA3BC; }
+.ach-name { font-size: 12px; font-weight: 800; line-height: 1.2; }
+.ach-desc { font-size: 10.5px; line-height: 1.25; }
+.ach.got { opacity: 1; color: var(--ink); }
+.ach.got.common { background: #EAF2FF; } .ach.got.common .ach-ico { background: #3A86FF; color: #fff; }
+.ach.got.rare { background: #F0E9FF; } .ach.got.rare .ach-ico { background: var(--violet); color: #fff; }
+.ach.got.legendary { background: #FFF3CF; } .ach.got.legendary .ach-ico { background: linear-gradient(135deg, #FFD978, #F4A72C); color: #5B3B00; box-shadow: 0 0 0 3px #FFE9A8; }
+.adm-table { width: 100%; border-collapse: collapse; font-size: 13px; color: var(--ink); }
+.adm-table th, .adm-table td { padding: 5px 4px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.adm-table th:first-child, .adm-table td:first-child { text-align: left; }
+.adm-scroll { overflow-x: auto; }

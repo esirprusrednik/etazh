@@ -10,11 +10,25 @@ async function call(method, url, body) {
   return j;
 }
 
+function metricsCard(m) {
+  const pct = (x) => (x == null ? '—' : x + '%');
+  const delta = m.prevWau ? Math.round(((m.wau - m.prevWau) / m.prevWau) * 100) : null;
+  const cols = [['active', 'Акт.'], ['checkins', 'Отм.'], ['calls', 'Зовы'], ['replies', 'Отв.'], ['thanks', 'Спас.'], ['lunches', 'Обеды'], ['messages', 'Сообщ.']];
+  return `<div class="card"><h2>Метрики пилота</h2>
+    <p class="sub">Активных за 7 дней: <b>${m.wau}</b>${delta == null ? '' : ` (${delta >= 0 ? '+' : ''}${delta}% к прошлой неделе)`} · вернулись на второй неделе: <b>${pct(m.retention)}</b> · кофе-пар на неделе: <b>${m.coffeeWeek}</b></p>
+    <p class="small">Считаем только количества. Кто именно был активен, не хранится: в журнале псевдонимы, они удаляются через 35 дней.</p>
+    <div class="adm-scroll"><table class="adm-table"><thead><tr><th>День</th>${cols.map(([, t]) => `<th>${t}</th>`).join('')}</tr></thead>
+    <tbody>${m.rows.slice().reverse().map((r) => `<tr><td>${esc(r.day)}</td>${cols.map(([k]) => `<td>${r[k] || 0}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+    <div class="row" style="margin-top:10px"><button class="btn small ghost" data-a="coffee-now">Составить кофе-пары сейчас</button><span class="small">Обычно это происходит само по понедельникам в 10:00</span></div>
+  </div>`;
+}
+
 async function load() {
   try {
-    const d = await call('GET', '/api/admin/overview');
+    const [d, m] = await Promise.all([call('GET', '/api/admin/overview'), call('GET', '/api/admin/metrics').catch(() => null)]);
     root.innerHTML = `
     <div class="card"><h2>Сводка</h2><p class="sub">Пользователей: <b>${d.users}</b> · отмечались сегодня: <b>${d.activeToday}</b> · банд: <b>${d.gangs}</b></p></div>
+    ${m ? metricsCard(m) : ''}
     <div class="card"><h2>Жалобы</h2>${d.reports.length ? d.reports.map((r) => `
       <div class="item"><div class="grow"><div style="font-weight:900">${TYPES[r.object_type]} #${r.object_id} · жалоб: ${r.n}${r.preview && r.preview.hidden ? ' · скрыто' : ''}</div>
       <div class="where">${esc(r.preview ? r.preview.text : 'уже удалено')}</div>${r.reasons ? `<div class="small">${esc(r.reasons)}</div>` : ''}</div>
@@ -35,7 +49,10 @@ document.addEventListener('click', async (e) => {
   const b = e.target.closest('[data-a]');
   if (!b) return;
   try {
-    if (b.dataset.a === 'office') {
+    if (b.dataset.a === 'coffee-now') {
+      const r = await call('POST', '/api/admin/coffee-now');
+      alert(`Составлено пар: ${r.pairs}`);
+    } else if (b.dataset.a === 'office') {
       const id = b.dataset.id;
       await call('POST', '/api/admin/office', { id, seats: Number(document.getElementById('s-' + id).value), share_p: Number(document.getElementById('p-' + id).value) });
     } else {
