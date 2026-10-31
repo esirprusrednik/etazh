@@ -225,3 +225,18 @@ body { font-weight: 500; }
 .adm-table th, .adm-table td { padding: 5px 4px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .adm-table th:first-child, .adm-table td:first-child { text-align: left; }
 .adm-scroll { overflow-x: auto; }
+
+/* ---- Подельники: личные контакты ---- */
+.tabs .in { grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.tab { font-size: 12px; }
+.crew-row { width: 100%; background: none; text-align: left; color: var(--ink); padding: 0; font: inherit; cursor: pointer; }
+.crew-nick { display: block; font-weight: 800; font-size: 15px; }
+.crew-row .where { display: block; }
+.crew-row .where.unread { color: var(--ink); font-weight: 800; }
+.crew-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
+.crew-badge { min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: var(--red); color: #fff; font-size: 12px; font-weight: 900; display: flex; align-items: center; justify-content: center; }
+.crew-out { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.crew-out .rep { background: #EEF1F8; font-size: 13px; font-weight: 800; border-radius: 999px; padding: 4px 4px 4px 10px; display: inline-flex; align-items: center; gap: 2px; }
+.linkbtn.back { color: #fff; font-weight: 800; font-size: 15px; min-height: 40px; align-self: flex-start; }
+#dm-chat .msg .meta { justify-content: flex-end; }
+#dm-chat .msg:not(.mine) .meta { justify-content: flex-start; }

@@ -78,6 +78,9 @@ const server = http.createServer(async (req, res) => {
     // Ссылка-приглашение в банду: etazh.example.ru/g/ABC123
     const g = /^\/g\/([A-Za-z0-9]{6})$/.exec(pathname);
     if (g) return send(res, 302, '', { Location: `/#join=${g[1].toUpperCase()}` });
+    // Личная ссылка «стань моим подельником»: etazh.example.ru/p/ABC123
+    const pc = /^\/p\/([A-Za-z0-9]{6})$/.exec(pathname);
+    if (pc) return send(res, 302, '', { Location: `/#crew=${pc[1].toUpperCase()}` });
 
     if (pathname.startsWith('/api/')) {
       const result = await api.handle(req, res, pathname, query);

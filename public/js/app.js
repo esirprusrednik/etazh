@@ -18,7 +18,8 @@ const S = {
   onb: { step: 'email', email: '', error: '', devLink: null, devCode: null, nicks: [] },
   error: '', busy: false,
   seenChat: store.get('seenChat', 0), seenFeed: store.get('seenFeed', 0),
-  fx: null, gx: null, thanksTo: null, lunchTime: '13:00'
+  fx: null, gx: null, thanksTo: null, lunchTime: '13:00',
+  crew: null, dm: null, dmView: null
 };
 
 // ---------- API ----------
@@ -123,6 +124,16 @@ async function loadFeatures() {
     store.set('achSeen', S.fx.achievements.filter((a) => a.got).map((a) => a.id));
   }
 }
+async function loadCrew() { S.crew = await get('/api/crew'); }
+async function loadDm() {
+  if (!S.dm) { S.dmView = null; return; }
+  try { S.dmView = await get(`/api/crew/${S.dm}`); } catch { S.dm = null; S.dmView = null; }
+}
+// Бейдж вкладки после прочтения: заявки + непрочитанное в остальных переписках
+function recountCrewBadge() {
+  if (!S.state || !S.crew) return;
+  S.state.badges.crew = S.crew.incoming.length + S.crew.list.reduce((a, f) => a + (f.id === S.dm ? 0 : f.unread), 0);
+}
 async function loadGangExtra() {
   if (!S.activeGang) { S.gx = null; return; }
   try { S.gx = await get(`/api/gangs/${S.activeGang}/extra`); } catch { S.gx = null; }
@@ -134,7 +145,10 @@ async function refresh({ all = false } = {}) {
   if (all || S.tab === 'gang') jobs.push(loadGang(), loadGangExtra());
   if (all || S.tab === 'office') jobs.push(loadFeatures());
   if (all || S.tab === 'feed' || S.tab === 'office') jobs.push(loadEvents());
+  if (all || S.tab === 'crew' || S.tab === 'gang') jobs.push(loadCrew());
+  if (S.tab === 'crew' && S.dm) jobs.push(loadDm());
   await Promise.all(jobs);
+  if (S.tab === 'crew' && S.dm && S.crew) { const f = S.crew.list.find((x) => x.id === S.dm); if (f) f.unread = 0; recountCrewBadge(); }
   if (S.tab === 'gang') markSeen('chat');
   if (S.tab === 'feed') markSeen('feed');
 }
@@ -147,10 +161,21 @@ function markSeen(kind) {
 // ---------- Рендер ----------
 function render() {
   const keepScroll = window.scrollY;
+  // Фоновое обновление не должно стирать то, что человек сейчас печатает
+  const a = document.activeElement;
+  const focused = a && a.id && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA') ? { id: a.id, v: a.value, s: a.selectionStart } : null;
+  const chat = $('#dm-chat');
+  const chatAtBottom = !chat || chat.scrollHeight - chat.scrollTop - chat.clientHeight < 40;
   if (!S.me) root.innerHTML = renderLogin();
   else if (!S.me.nick) root.innerHTML = renderNick();
   else root.innerHTML = renderApp();
   window.scrollTo(0, keepScroll);
+  if (focused) {
+    const el = document.getElementById(focused.id);
+    if (el) { el.value = focused.v; el.focus({ preventScroll: true }); try { el.setSelectionRange(focused.s, focused.s); } catch {} }
+  }
+  const chat2 = $('#dm-chat');
+  if (chat2 && chatAtBottom) chat2.scrollTop = chat2.scrollHeight;
 }
 
 function renderLogin() {
@@ -208,7 +233,7 @@ function renderNick() {
 
 function renderApp() {
   const me = S.me;
-  const b = (S.state && S.state.badges) || { chat: 0, feed: 0 };
+  const b = (S.state && S.state.badges) || { chat: 0, feed: 0, crew: 0 };
   const showBanner = !isStandalone() && store.get('installHiddenUntil', 0) < Date.now();
   return `
   <div class="app">
@@ -231,10 +256,10 @@ function renderApp() {
         <button class="btn small blue" data-act="open" data-v="install">Как?</button>
         <button class="x" style="background:none" data-act="install-hide" aria-label="Скрыть на сутки">×</button>
       </div>` : ''}
-      ${S.tab === 'office' ? renderOffice() : S.tab === 'gang' ? renderGang() : renderFeed()}
+      ${S.tab === 'office' ? renderOffice() : S.tab === 'gang' ? renderGang() : S.tab === 'crew' ? renderCrew() : renderFeed()}
     </main>
     <nav class="tabs"><div class="in">
-      ${tabBtn('office', 'Офис', 0)}${tabBtn('gang', 'Моя банда', b.chat)}${tabBtn('feed', 'События', b.feed)}
+      ${tabBtn('office', 'Офис', 0)}${tabBtn('gang', 'Банда', b.chat)}${tabBtn('crew', 'Подельники', b.crew || 0)}${tabBtn('feed', 'События', b.feed)}
     </div></nav>
   </div>
   ${S.sheet ? renderSheet() : ''}`;
@@ -244,7 +269,8 @@ function tabBtn(id, label, n) {
   const icons = {
     office: '<path d="M4 21V5l8-3 8 3v16z"/><path d="M9 21v-5h6v5M8 8h2M14 8h2M8 12h2M14 12h2"/>',
     gang: '<circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6M15 14.5c3 0 5.5 2 5.5 5.5"/>',
-    feed: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>'
+    feed: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+    crew: '<path d="M21 11.5a8.4 8.4 0 0 1-12.2 7.5L3 20.5l1.6-5.2A8.4 8.4 0 1 1 21 11.5z"/><path d="M8.5 11.5h.01M12.5 11.5h.01M16.5 11.5h.01"/>'
   };
   return `<button class="tab ${S.tab === id ? 'on' : ''}" data-act="tab" data-v="${id}" aria-current="${S.tab === id}">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[id]}</svg>
@@ -470,7 +496,7 @@ function renderGang() {
     const [w, color] = whereText(m);
     return `<div class="person">${avatar(m.look, 34)}<div class="grow"><div style="font-weight:900">${esc(m.nick)}${m.me ? ' (ты)' : ''}</div>
       <div class="where"><span class="dot" style="background:${color}"></span>${esc(w)}${m.mood && m.where === 'office' ? ' · ' + esc(m.mood) : ''}${m.status ? ' · ' + esc(m.status) : ''}</div></div>
-      ${m.me ? '' : `<button class="btn small ghost" data-act="call-open" data-kind="where" data-to="${m.id}" data-gang="${g.id}">Позвать</button>`}</div>`;
+      ${m.me ? '' : `${crewAddBtn(m.id)}<button class="btn small ghost" data-act="call-open" data-kind="where" data-to="${m.id}" data-gang="${g.id}">Позвать</button>`}</div>`;
   }).join('');
   const msgs = v.messages.map(renderMsg).join('') || '<p class="sub">Сообщения и зовы живут 24 часа. Начни первым.</p>';
   return `${chips}
@@ -514,6 +540,99 @@ function renderMsg(m) {
   return `<div class="msg ${m.mine ? 'mine' : ''}">
     <div class="meta"><b>${esc(m.author)}</b><span>${m.time}</span>${m.mine ? '' : `<button class="linkbtn" data-act="report" data-type="message" data-id="${m.id}" aria-label="Пожаловаться">⚑</button>`}</div>
     <div class="text">${esc(m.text)}</div></div>`;
+}
+
+// ----- Подельники -----
+// Кнопка «в подельники» у участника банды: прячется, если он уже подельник или заявка висит
+function crewAddBtn(id) {
+  const c = S.crew;
+  if (!c) return '';
+  if (c.list.some((x) => x.id === id)) return `<button class="btn small ghost" data-act="dm-open" data-id="${id}" aria-label="Написать подельнику">✉</button>`;
+  if (c.outgoing.some((x) => x.id === id)) return '<span class="small">заявка ушла</span>';
+  return `<button class="btn small ghost" data-act="crew-add-id" data-id="${id}" aria-label="Позвать в подельники" title="Позвать в подельники">＋</button>`;
+}
+
+function renderCrew() {
+  if (S.dm) return renderDm();
+  const c = S.crew;
+  if (!c) return '<div class="card"><p class="sub">Загружаем подельников…</p></div>';
+  const incoming = c.incoming.length ? `<section class="card"><h3>Зовут в подельники</h3>
+    ${c.incoming.map((p) => `<div class="person2">${avatar(p.look, 36)}<div class="grow ellipsis" style="font-weight:800;min-width:0">${esc(p.nick)}</div>
+      <button class="btn small" data-act="crew-accept" data-id="${p.id}">Принять</button>
+      <button class="btn small ghost" data-act="crew-decline" data-id="${p.id}" aria-label="Отклонить заявку">✕</button></div>`).join('')}
+  </section>` : '';
+  const rows = c.list.map((f) => {
+    const [w, color] = whereText(f);
+    const line = f.last ? `${f.last.mine ? 'Ты: ' : ''}${f.last.text}` : w;
+    return `<button class="person2 crew-row" data-act="dm-open" data-id="${f.id}">
+      <span class="ava-wrap"><span class="ava-ring" style="border-color:${color}">${avatar(f.look, 32)}</span><span class="ava-dot" style="background:${color}"></span></span>
+      <span class="grow" style="min-width:0"><span class="crew-nick">${esc(f.nick)}</span><span class="where ellipsis ${f.unread ? 'unread' : ''}">${esc(line)}</span></span>
+      <span class="crew-side">${f.lastTime ? `<span class="small">${f.lastTime}</span>` : ''}${f.unread ? `<span class="crew-badge">${f.unread > 9 ? '9+' : f.unread}</span>` : ''}</span>
+    </button>`;
+  }).join('');
+  return `${incoming}
+  <section class="card">
+    <div class="row" style="justify-content:space-between"><h2>Подельники</h2><span class="small">${c.list.length} из ${c.max}</span></div>
+    <p class="sub">Твои люди один на один, без банды. Переписку и зовы видите только вы двое, сообщения живут ${c.ttlDays} ${plural(c.ttlDays, 'день', 'дня', 'дней')}.</p>
+    ${rows || '<p class="sub"><b>Пока никого.</b> Позови коллегу по нику или отправь ему свою ссылку. Ещё можно нажать «＋» у человека в составе банды.</p>'}
+  </section>
+  <section class="card">
+    <h3>Позвать в подельники</h3>
+    <div class="row"><label class="field grow" style="gap:0"><span class="hidden">Ник коллеги</span><input id="crew-nick" maxlength="21" placeholder="@ник коллеги" autocapitalize="off" autocomplete="off" aria-label="Ник коллеги"></label>
+      <button class="btn" data-act="crew-add">Позвать</button></div>
+    <button class="btn blue" data-act="crew-share">Отправить свою ссылку</button>
+    <p class="small">Кто откроет ссылку, сразу станет подельником, поэтому шли её лично, а не в общий чат. Заявка по нику ждёт согласия.</p>
+    ${c.outgoing.length ? `<div class="crew-out"><span class="small">Ждём ответа:</span> ${c.outgoing.map((p) => `<span class="rep">${esc(p.nick)} <button class="linkbtn" data-act="crew-decline" data-id="${p.id}" aria-label="Отменить заявку">✕</button></span>`).join(' ')}</div>` : ''}
+    ${c.blocked.length ? `<details><summary class="small" style="cursor:pointer;min-height:32px">Заблокированные (${c.blocked.length})</summary>
+      ${c.blocked.map((p) => `<div class="row" style="justify-content:space-between"><span>${esc(p.nick)}</span><button class="linkbtn" data-act="crew-unblock" data-id="${p.id}">Разблокировать</button></div>`).join('')}</details>` : ''}
+  </section>`;
+}
+
+function renderDm() {
+  const v = S.dmView;
+  if (!v) return '<div class="card"><p class="sub">Открываем переписку…</p></div>';
+  const f = v.friend;
+  const [w, color] = whereText(f);
+  const msgs = v.messages.map((m) => renderDmMsg(m, f)).join('') || `<p class="sub">Тут пусто. Напиши первым или позови на кофе. Сообщения живут ${v.ttlDays} ${plural(v.ttlDays, 'день', 'дня', 'дней')}.</p>`;
+  const away = f.where === 'vacation' || f.where === 'sick';
+  return `
+  <button class="linkbtn back" data-act="dm-back">‹ Все подельники</button>
+  <section class="card">
+    <div class="row">
+      <span class="ava-wrap"><span class="ava-ring" style="border-color:${color}">${avatar(f.look, 32)}</span><span class="ava-dot" style="background:${color}"></span></span>
+      <div class="grow" style="min-width:0"><div style="font-weight:900;font-size:17px">${esc(f.nick)}</div><div class="where ellipsis">${esc(w)}${f.mood && f.where === 'office' ? ' · ' + esc(f.mood) : ''}</div></div>
+    </div>
+    ${away ? '<div class="note warn">Сейчас отдыхает: пуш не придёт, увидит, когда вернётся.</div>' : ''}
+    <div class="chips">${v.calls.map((k) => `<button class="chip" data-act="dm-call-open" data-kind="${k}">${esc(S.cat.calls[k].label)}</button>`).join('')}</div>
+  </section>
+  <section class="card">
+    <div class="chat" id="dm-chat">${msgs}</div>
+    <div class="row"><label class="field grow" style="gap:0"><span class="hidden">Сообщение</span><input id="dm-text" maxlength="500" placeholder="Написать ${esc(f.nick)}" aria-label="Личное сообщение"></label>
+      <button class="btn" data-act="dm-send" aria-label="Отправить">→</button></div>
+  </section>
+  <section class="card">
+    <p class="small">Переписку видите только вы двое. Модератор увидит сообщение, только если на него пожалуются (⚑).</p>
+    <div class="row" style="justify-content:space-between">
+      <button class="linkbtn" data-act="crew-remove" data-id="${f.id}">Отпустить подельника</button>
+      <button class="linkbtn" data-act="crew-block" data-id="${f.id}">Заблокировать</button>
+    </div>
+  </section>`;
+}
+
+function renderDmMsg(m, f) {
+  if (m.type === 'call') {
+    const who = m.mine ? 'Ты' : esc(f.nick);
+    const verb = m.mine ? esc(m.callText).replace(/^зовёт/, 'зовёшь').replace(/^просит/, 'просишь').replace(/^спрашивает/, 'спрашиваешь').replace(/^ждёт/, 'ждёшь') : esc(m.callText);
+    return `<div class="msg call-msg ${m.mine ? 'mine' : ''}">
+      <div class="meta"><span>${m.time}</span></div>
+      <div class="text"><b>${who}</b> ${verb}${m.opt ? ` · ${esc(m.opt.toLowerCase())}` : ''}${m.text ? ` · ${esc(m.text)}` : ''}</div>
+      ${m.reply ? `<div class="reps"><span class="rep">${m.mine ? esc(f.nick) : 'Ты'}: ${esc(m.reply)}</span></div>` : ''}
+      ${m.canReply ? `<div class="chips">${m.replyOptions.map((l) => `<button class="chip" data-act="dm-reply" data-id="${m.id}" data-v="${esc(l)}">${esc(l)}</button>`).join('')}</div>` : ''}
+    </div>`;
+  }
+  return `<div class="msg ${m.mine ? 'mine' : ''}">
+    <div class="text">${esc(m.text)}</div>
+    <div class="meta"><span>${m.time}</span>${m.mine ? (m.read ? '<span title="Прочитано">✓✓</span>' : '<span title="Доставлено">✓</span>') : `<button class="linkbtn" data-act="report" data-type="dm" data-id="${m.id}" aria-label="Пожаловаться модератору">⚑</button>`}</div></div>`;
 }
 
 // ----- События -----
@@ -692,6 +811,15 @@ function renderSheet() {
 function renderCompose() {
   const c = S.compose;
   const def = S.cat.calls[c.kind];
+  if (c.dm) {
+    const nick = S.dmView ? S.dmView.friend.nick : '';
+    return `
+    <p class="sub">Подельнику <b>${esc(nick)}</b>, лично. Придёт пуш, тихие часы 19:00–09:00 уважаем.</p>
+    ${def.opts.length ? `<div class="field">Когда / где<div class="chips">${def.opts.map((o) => `<button class="chip ${c.opt === o ? 'on' : ''}" data-act="c-opt" data-v="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>` : ''}
+    ${def.needsText ? `<label class="field">Какая переговорка<input id="c-text" maxlength="40" placeholder="Например, «Марс», 5 этаж" value="${esc(c.text || '')}"></label>` : ''}
+    <button class="btn wide" data-act="call-send">Позвать</button>
+    <p class="small">Не больше 5 зовов в час одному человеку.</p>`;
+  }
   const gang = S.me.gangs.find((g) => g.id === c.gang);
   const members = (S.gang && S.gang.gang.id === c.gang ? S.gang.members : []).filter((m) => !m.me);
   return `
@@ -900,6 +1028,13 @@ const actions = {
   'call-send': () => run(async () => {
     saveComposeText();
     const c = S.compose;
+    if (c.dm) {
+      const r = await post(`/api/crew/${c.dm}/messages`, { type: 'call', kind: c.kind, opt: c.opt, text: c.text });
+      S.sheet = null; S.tab = 'crew';
+      toast(r.quiet ? 'Отправлено. Сейчас тихие часы — пуш может не прийти' : 'Зов отправлен');
+      await loadDm();
+      return;
+    }
     const r = await post(`/api/gangs/${c.gang}/messages`, { type: 'call', kind: c.kind, to: c.to, opt: c.opt, text: c.text });
     S.sheet = null; S.tab = 'gang';
     toast(r.away ? `Зов отправлен. ${r.away === 1 && c.to ? 'Человек в отпуске' : 'Кто-то в отпуске'} — пуш не придёт, увидит в чате` : r.quiet ? 'Отправлено. Сейчас тихие часы — у кого они включены, пуш не придёт' : 'Зов отправлен');
@@ -912,6 +1047,61 @@ const actions = {
     await post(`/api/gangs/${S.activeGang}/messages`, { type: 'text', text });
     await loadGang(); markSeen('chat');
   }),
+  'dm-open': (el) => run(async () => {
+    S.tab = 'crew'; S.dm = Number(el.dataset.id); S.dmView = null; render();
+    await Promise.all([loadDm(), S.crew ? null : loadCrew()]);
+    if (S.crew) { const f = S.crew.list.find((x) => x.id === S.dm); if (f) f.unread = 0; recountCrewBadge(); }
+    window.scrollTo(0, 0);
+  }),
+  'dm-back': () => run(async () => { S.dm = null; S.dmView = null; await loadCrew(); await loadState(); }),
+  'dm-send': () => run(async () => {
+    const el = $('#dm-text');
+    const text = el.value;
+    if (!text.trim()) return;
+    el.value = '';
+    try { await post(`/api/crew/${S.dm}/messages`, { type: 'text', text }); } catch (e) { el.value = text; throw e; }
+    await loadDm();
+  }),
+  'dm-call-open'(el) {
+    const def = S.cat.calls[el.dataset.kind];
+    S.compose = { kind: el.dataset.kind, dm: S.dm, opt: def.opts[0] || null, text: '' };
+    S.sheet = 'compose'; S.error = ''; render();
+  },
+  'dm-reply': (el) => run(async () => { await post(`/api/dm/${el.dataset.id}/reply`, { label: el.dataset.v }); await loadDm(); }),
+  'crew-add': () => run(async () => {
+    const nick = $('#crew-nick').value.trim();
+    if (!nick) throw new Error('Впиши ник коллеги');
+    const r = await post('/api/crew/add', { nick });
+    $('#crew-nick').value = '';
+    toast(r.accepted ? 'Теперь вы подельники!' : r.already ? 'Вы уже подельники' : 'Заявка ушла. Ждём ответа');
+    await loadCrew();
+  }),
+  'crew-add-id': (el) => run(async () => {
+    const r = await post('/api/crew/add', { id: Number(el.dataset.id) });
+    toast(r.accepted ? 'Теперь вы подельники!' : 'Заявка в подельники ушла');
+    await loadCrew();
+  }),
+  'crew-accept': (el) => run(async () => { await post(`/api/crew/${el.dataset.id}/accept`); toast('Теперь вы подельники!'); await loadCrew(); await loadState(); }),
+  'crew-decline': (el) => run(async () => { await post(`/api/crew/${el.dataset.id}/remove`); await loadCrew(); await loadState(); }),
+  'crew-remove': (el) => run(async () => {
+    if (!confirmInline('crew-remove', 'Нажми ещё раз: переписка удалится у вас обоих')) return;
+    await post(`/api/crew/${el.dataset.id}/remove`);
+    S.dm = null; S.dmView = null; toast('Отпустили'); await loadCrew();
+  }),
+  'crew-block': (el) => run(async () => {
+    if (!confirmInline('crew-block', 'Нажми ещё раз: он больше не сможет писать и звать тебя')) return;
+    await post(`/api/crew/${el.dataset.id}/block`);
+    S.dm = null; S.dmView = null; toast('Заблокирован. Он об этом не узнает'); await loadCrew();
+  }),
+  'crew-unblock': (el) => run(async () => { await post(`/api/crew/${el.dataset.id}/unblock`); await loadCrew(); }),
+  'crew-share': async () => {
+    const link = S.crew.link;
+    const text = `Давай будем подельниками в Этаже: ${link}`;
+    try {
+      if (navigator.share) await navigator.share({ title: 'Этаж', text, url: link });
+      else { await navigator.clipboard.writeText(text); toast('Ссылка скопирована'); }
+    } catch {}
+  },
   report: (el) => run(async () => {
     if (!confirmInline('report-' + el.dataset.type + el.dataset.id, 'Нажми ещё раз, чтобы пожаловаться')) return;
     await post('/api/report', { type: el.dataset.type, id: Number(el.dataset.id) });
@@ -1077,7 +1267,7 @@ document.addEventListener('change', (e) => {
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.id) {
-    const map = { email: 'login-submit', code: 'code-submit', nick: 'nick-submit', 'chat-text': 'chat-send', 'thanks-text': 'thanks-send', 'lunch-place': 'lunch-create' };
+    const map = { email: 'login-submit', code: 'code-submit', nick: 'nick-submit', 'chat-text': 'chat-send', 'thanks-text': 'thanks-send', 'lunch-place': 'lunch-create', 'dm-text': 'dm-send', 'crew-nick': 'crew-add' };
     if (map[e.target.id]) { e.preventDefault(); actions[map[e.target.id]](); }
   }
   if (e.key === 'Escape' && S.sheet) actions.close();
@@ -1089,6 +1279,15 @@ setInterval(async () => {
   if (document.hidden || !S.me || !S.me.nick || typing() || S.sheet) return;
   try { await refresh(); render(); } catch {}
 }, 20000);
+setInterval(async () => {
+  if (document.hidden || !S.me || !S.me.nick || S.tab !== 'crew' || !S.dm || S.sheet) return;
+  const before = S.dmView ? S.dmView.messages.map((m) => m.id + ':' + (m.reply || '') + (m.read ? 'r' : '')).join() : '';
+  try {
+    await loadDm();
+    const after = S.dmView ? S.dmView.messages.map((m) => m.id + ':' + (m.reply || '') + (m.read ? 'r' : '')).join() : '';
+    if (after !== before) render();
+  } catch {}
+}, 6000);
 document.addEventListener('visibilitychange', async () => {
   if (!document.hidden && S.me && S.me.nick && !typing()) { try { await refresh(); render(); } catch {} }
 });
@@ -1099,12 +1298,21 @@ async function boot() {
   const hash = location.hash;
   if (hash.startsWith('#gang/')) { S.tab = 'gang'; S.activeGang = Number(hash.slice(6)) || S.activeGang; }
   if (hash === '#feed') S.tab = 'feed';
+  if (hash === '#crew') S.tab = 'crew';
+  if (hash.startsWith('#crew/')) { S.tab = 'crew'; S.dm = Number(hash.slice(6)) || null; }
   const join = /^#join=([A-Z0-9]{6})$/i.exec(hash);
   if (join) store.set('pendingJoin', join[1]);
+  const crewCode = /^#crew=([A-Z0-9]{6})$/i.exec(hash);
+  if (crewCode) store.set('pendingCrew', crewCode[1]);
   if (S.me && !S.me.nick && !S.onb.nicks.length) S.onb.nicks = (await get('/api/nick-suggestions')).nicks;
   if (S.me && S.me.nick) {
     const pending = store.get('pendingJoin', null);
     if (pending) { store.set('pendingJoin', null); try { await joinByCode(pending); } catch (e) { toast(e.message); } }
+    const pendingCrew = store.get('pendingCrew', null);
+    if (pendingCrew) {
+      store.set('pendingCrew', null); S.tab = 'crew';
+      try { const r = await post('/api/crew/add', { code: pendingCrew }); toast(r.accepted ? 'Теперь вы подельники!' : r.already ? 'Вы уже подельники' : 'Заявка ушла. Ждём ответа'); } catch (e) { toast(e.message); }
+    }
     await refresh({ all: true });
   }
   if (hash) history.replaceState(null, '', location.pathname + (location.search.includes('login=') ? '' : location.search));

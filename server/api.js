@@ -86,6 +86,7 @@ const DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт'];
 
 function createApi(db) {
   let features = null;
+  let crew = null;
   const q = (sql) => db.prepare(sql);
   const adminHashes = new Set(config.adminEmails.map((e) => U.hashEmail(e)));
 
@@ -500,7 +501,7 @@ function createApi(db) {
       canteen: office ? canteenEstimate(office) : null,
       inCanteen: !!canteenOpen,
       gangNow: { hasGang: gangs.length > 0, rows: rows.slice(0, 6), more: Math.max(0, rows.length - 6) },
-      badges: { chat: newChat, feed: newFeed }
+      badges: { chat: newChat, feed: newFeed, crew: crew ? crew.unread(u.id) : 0 }
     };
   });
 
@@ -774,13 +775,15 @@ function createApi(db) {
   // ---------- Жалобы ----------
   route('POST', '/api/report', async (req, body) => {
     const u = requireUser(req);
-    const type = ['gang', 'message', 'signal'].includes(body.type) ? body.type : null;
+    const type = ['gang', 'message', 'signal', 'dm'].includes(body.type) ? body.type : null;
     const id = Number(body.id);
     if (!type || !id) throw bad('Непонятно, на что жалоба.');
+    // На личное сообщение жалуется только тот, кому оно пришло. Модератор увидит только его
+    if (type === 'dm' && !q('SELECT 1 FROM dms WHERE id = ? AND to_id = ?').get(id, u.id)) throw bad('Сообщение не найдено.');
     q('INSERT OR IGNORE INTO reports (reporter_id, object_type, object_id, reason, at) VALUES (?, ?, ?, ?, ?)').run(u.id, type, id, U.cleanText(body.reason, 200) || null, U.now());
     const n = q("SELECT COUNT(DISTINCT reporter_id) AS n FROM reports WHERE object_type = ? AND object_id = ? AND status = 'open'").get(type, id).n;
     if (n >= 3) {
-      const table = { gang: 'gangs', message: 'messages', signal: 'signals' }[type];
+      const table = { gang: 'gangs', message: 'messages', signal: 'signals', dm: 'dms' }[type];
       q(`UPDATE ${table} SET hidden = 1 WHERE id = ?`).run(id);
     }
     return { ok: true };
@@ -871,6 +874,7 @@ function createApi(db) {
                        FROM reports WHERE status = 'open' GROUP BY object_type, object_id ORDER BY last DESC LIMIT 100`).all();
     const preview = (r) => {
       if (r.object_type === 'gang') { const g = q('SELECT name, motto, hidden FROM gangs WHERE id = ?').get(r.object_id); return g ? { text: `${g.name}${g.motto ? ' — «' + g.motto + '»' : ''}`, hidden: !!g.hidden } : null; }
+      if (r.object_type === 'dm') { const m = q('SELECT text, kind, opt, hidden FROM dms WHERE id = ?').get(r.object_id); return m ? { text: `[личное] ${m.text || `${m.kind} ${m.opt || ''}`}`, hidden: !!m.hidden } : null; }
       if (r.object_type === 'message') { const m = q('SELECT text, opt, kind, hidden FROM messages WHERE id = ?').get(r.object_id); return m ? { text: m.text || `${m.kind} ${m.opt || ''}`, hidden: !!m.hidden } : null; }
       const s = q('SELECT type, zone, comment, hidden FROM signals WHERE id = ?').get(r.object_id);
       return s ? { text: `${s.type} ${s.zone || ''} ${s.comment || ''}`, hidden: !!s.hidden } : null;
@@ -890,7 +894,7 @@ function createApi(db) {
 
   route('POST', '/api/admin/report', async (req, body) => {
     requireAdmin(req);
-    const table = { gang: 'gangs', message: 'messages', signal: 'signals' }[body.type];
+    const table = { gang: 'gangs', message: 'messages', signal: 'signals', dm: 'dms' }[body.type];
     if (!table) throw bad('Неизвестный тип.');
     const id = Number(body.id);
     if (body.action === 'hide') q(`UPDATE ${table} SET hidden = 1 WHERE id = ?`).run(id);
@@ -913,6 +917,11 @@ function createApi(db) {
   features = require('./features').register({
     db, q, route, requireUser, requireAdmin, bad, U, config, addBeans, spendBeans, notify, fireAndForget,
     isMember, gangMembers, myGangs, activeCheckin, readProfile, presenceOf, weekdayName, addDays, pushEvent, officeById
+  });
+
+  // ---------- Подельники: личные контакты ----------
+  crew = require('./crew').register({
+    db, q, route, requireUser, bad, U, config, notify, fireAndForget, rateLimit, memberStatus, HttpError
   });
 
   // ---------- Обработчик ----------
@@ -969,6 +978,7 @@ function createApi(db) {
       if (clean !== r.profile) q('UPDATE users SET profile = ? WHERE id = ?').run(clean, r.id);
     }
     if (features) features.cleanup();
+    if (crew) crew.cleanup();
   }
 
   return { handle, verifyLogin, cleanup, HttpError };
