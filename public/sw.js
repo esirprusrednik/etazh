@@ -1,5 +1,5 @@
 // Service worker: кэш оболочки приложения и показ пушей.
-const CACHE = 'etazh-v1';
+const CACHE = 'etazh-v2';
 const SHELL = ['/', '/index.html', '/css/app.css', '/js/app.js', '/js/building.js', '/manifest.webmanifest', '/icons/icon-192.png'];
 
 self.addEventListener('install', (e) => {
@@ -15,7 +15,7 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/api/') || url.pathname.startsWith('/auth/')) return;
   e.respondWith(
-    fetch(e.request)
+    fetch(e.request, { cache: 'no-cache' })
       .then((res) => {
         if (res.ok && SHELL.includes(url.pathname)) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(e.request, copy)); }
         return res;

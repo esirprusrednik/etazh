@@ -38,7 +38,9 @@ function sendJson(res, status, obj, extra = {}) {
   send(res, status, JSON.stringify(obj), { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...extra });
 }
 
-function serveStatic(res, pathname) {
+// Статика: браузер всегда сверяется с сервером (ETag → 304), поэтому после обновления новый код подхватывается сразу
+const crypto = require('node:crypto');
+function serveStatic(req, res, pathname) {
   let rel = decodeURIComponent(pathname);
   if (rel === '/') rel = '/index.html';
   const file = path.normalize(path.join(PUBLIC, rel));
@@ -46,10 +48,13 @@ function serveStatic(res, pathname) {
   fs.stat(file, (err, st) => {
     const target = !err && st.isFile() ? file : path.join(PUBLIC, 'index.html'); // SPA: всё неизвестное → index.html
     const ext = path.extname(target);
-    const cache = ext === '.html' || path.basename(target) === 'sw.js' ? 'no-cache' : 'public, max-age=3600';
+    const isImg = ['.png', '.svg', '.ico', '.webp', '.jpg'].includes(ext);
+    const cache = isImg ? 'public, max-age=86400' : 'no-cache';
     fs.readFile(target, (e, buf) => {
       if (e) return send(res, 404, 'Not found');
-      send(res, 200, buf, { 'Content-Type': TYPES[ext] || 'application/octet-stream', 'Cache-Control': cache });
+      const etag = '"' + crypto.createHash('sha1').update(buf).digest('base64url') + '"';
+      if (req.headers['if-none-match'] === etag) return send(res, 304, '', { ETag: etag, 'Cache-Control': cache });
+      send(res, 200, buf, { 'Content-Type': TYPES[ext] || 'application/octet-stream', 'Cache-Control': cache, ETag: etag });
     });
   });
 }
@@ -82,7 +87,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'Method not allowed');
-    return serveStatic(res, pathname);
+    return serveStatic(req, res, pathname);
   } catch (e) {
     if (e instanceof HttpError) return sendJson(res, e.status, { error: e.message });
     console.error(e);
