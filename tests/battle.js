@@ -47,6 +47,7 @@ async function step(name, fn) {
 const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3600e3).toISOString().slice(0, 10);
 
 const { randomFleet, fire, FLEET, N } = require('../server/battle');
+let winnerBeans = 0;
 
 (async () => {
   await step('флот: правильный состав, в поле, корабли не касаются', async () => {
@@ -127,6 +128,12 @@ const { randomFleet, fire, FLEET, N } = require('../server/battle');
     assert.notEqual(fa.winner, fb.winner);
     assert.ok(fa.oppShips && fa.oppShips.length === 10);
     assert.equal(fa.score.me + fa.score.opp, 1);
+    const winner = fa.winner === 'me' ? a : b;
+    const f = (await winner.get('/api/features')).json.achievements;
+    assert.ok(f.find((x) => x.id === 'sea_first').got, 'ачивка «Юнга»');
+    assert.ok(f.find((x) => x.id === 'sea_clean').got, 'соперник не стрелял — «Ни царапины»');
+    const ledger = winnerBeans = (await winner.get('/api/me')).json.user.beans;
+    assert.ok(ledger > 0);
   });
 
   await step('новая партия и сдача: победа сопернику', async () => {

@@ -1318,8 +1318,9 @@ const actions = {
         const r = await post(`/api/battle/${S.battle}/shoot`, { x: Number(el.dataset.x), y: Number(el.dataset.y) });
         setBattleView(r.view);
         const t = { miss: 'Мимо', hit: 'Ранил! Стреляй ещё', sunk: 'Потопил! Стреляй ещё' }[r.result];
-        S.bShout = { text: r.view.status === 'done' ? 'Победа!' : t, cls: r.view.status === 'done' ? 'sunk' : r.result, until: Date.now() + 1400, board: 'o' };
+        S.bShout = { text: r.view.status === 'done' ? (r.beans ? `Победа! +${r.beans} зёрен` : 'Победа!') : t, cls: r.view.status === 'done' ? 'sunk' : r.result, until: Date.now() + 1400, board: 'o' };
         if (navigator.vibrate) navigator.vibrate(r.result === 'miss' ? 15 : [30, 40, 60]);
+        if (r.view.status === 'done') { loadMe().catch(() => {}); loadFeatures().catch(() => {}); }
         setTimeout(() => { if (S.battle) render(); }, 1500);
       } finally { S.bBusy = false; }
     });

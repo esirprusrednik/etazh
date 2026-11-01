@@ -70,7 +70,7 @@ const sunkShips = (ships, shots) => {
 };
 
 function register(ctx) {
-  const { db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError } = ctx;
+  const { db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, onEvent } = ctx;
 
   db.exec(`
   CREATE TABLE IF NOT EXISTS battles (
@@ -231,9 +231,18 @@ function register(ctx) {
     q(`UPDATE battles SET ${s}_shots = ?, turn = ?, status = ?, winner = ?, seq = seq + 1, last = ?, updated_at = ? WHERE id = ?`)
       .run(JSON.stringify([...shots, ...res.add]), done ? null : turn, done ? 'done' : 'play', done ? u.id : null,
         JSON.stringify({ by: u.id, x, y, r: res.result }), t, g.id);
-    if (done) { addWin(u.id, g[o]); ping(g[o], g.id, `${u.nick} потопил весь твой флот. Реванш?`); }
+    if (done) {
+      const newRival = score(u.id, g[o]).me === 0;
+      const myShips = JSON.parse(g[s + '_ships']);
+      const clean = sunkShips(myShips, JSON.parse(g[o + '_shots'])).length === 0;
+      addWin(u.id, g[o]);
+      const before = q('SELECT beans FROM users WHERE id = ?').get(u.id).beans;
+      if (onEvent) onEvent('sea_win', u.id, { clean, newRival });
+      res.beans = q('SELECT beans FROM users WHERE id = ?').get(u.id).beans - before;
+      ping(g[o], g.id, `${u.nick} потопил весь твой флот. Реванш?`);
+    }
     else if (res.result === 'miss') ping(g[o], g.id, `${u.nick} промахнулся. Твой ход!`);
-    return { result: res.result, view: view(load(g.id, u.id), u.id) };
+    return { result: res.result, beans: res.beans || 0, view: view(load(g.id, u.id), u.id) };
   });
 
   route('POST', '/api/battle/:id/resign', async (req, body, query, params) => {

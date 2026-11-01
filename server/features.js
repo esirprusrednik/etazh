@@ -14,9 +14,14 @@ const ACH = [
   { id: 'thanks10', tier: 'rare', name: 'Душа банды', desc: 'Получить 10 спасибо', test: (c) => c.thanks_got >= 10 },
   { id: 'signals5', tier: 'rare', name: 'Глаза офиса', desc: '5 подтверждённых сигналов', test: (c) => c.signals >= 5 },
   { id: 'coffee', tier: 'rare', name: 'Новые лица', desc: 'Договориться о случайном кофе', test: (c) => c.coffee >= 1 },
+  { id: 'sea_first', tier: 'common', name: 'Юнга', desc: 'Выиграть морской бой', test: (c) => c.sea_wins >= 1 },
+  { id: 'sea_10', tier: 'rare', name: 'Капитан', desc: '10 побед в морском бою', test: (c) => c.sea_wins >= 10 },
+  { id: 'sea_clean', tier: 'rare', name: 'Ни царапины', desc: 'Победить, не потеряв ни одного корабля', test: (c) => c.sea_clean >= 1 },
+  { id: 'sea_rivals', tier: 'rare', name: 'Гроза морей', desc: 'Обыграть 5 разных подельников', test: (c) => c.sea_rivals >= 5 },
   { id: 'streak20', tier: 'legendary', name: 'Железная воля', desc: '20 рабочих дней подряд в офисе', test: (c) => c.streak >= 20 },
   { id: 'all_offices', tier: 'legendary', name: 'Все этажи', desc: 'Побывать во всех трёх офисах', test: (c) => c.offices >= 3 },
-  { id: 'thanks50', tier: 'legendary', name: 'Легенда банды', desc: 'Получить 50 спасибо', test: (c) => c.thanks_got >= 50 }
+  { id: 'thanks50', tier: 'legendary', name: 'Легенда банды', desc: 'Получить 50 спасибо', test: (c) => c.thanks_got >= 50 },
+  { id: 'sea_30', tier: 'legendary', name: 'Адмирал', desc: '30 побед в морском бою', test: (c) => c.sea_wins >= 30 }
 ];
 const ACH_REWARD = { common: 5, rare: 15, legendary: 40 };
 
@@ -138,7 +143,8 @@ function register(ctx) {
       thanks_got: counter(uid, 'thanks_got'), canteen: counter(uid, 'canteen'), signals: counter(uid, 'signals'), coffee: counter(uid, 'coffee'),
       gangs: q('SELECT COUNT(*) AS n FROM gang_members WHERE user_id = ?').get(uid).n,
       offices: q('SELECT COUNT(*) AS n FROM user_offices WHERE user_id = ?').get(uid).n,
-      streak: streakOf(uid)
+      streak: streakOf(uid),
+      sea_wins: counter(uid, 'sea_wins'), sea_clean: counter(uid, 'sea_clean'), sea_rivals: counter(uid, 'sea_rivals')
     };
     const got = [];
     for (const a of ACH) {
@@ -172,6 +178,13 @@ function register(ctx) {
       if (type === 'text') stat('messages');
       if (type === 'signal_confirmed') { bump(uid, 'signals'); stat('signals_confirmed'); }
       if (type === 'signal') stat('signals');
+      // Морской бой: в зачёт идут только победы потоплением всего флота — сдача соперника не считается
+      if (type === 'sea_win') {
+        bump(uid, 'sea_wins'); stat('sea_wins');
+        if (data.clean) bump(uid, 'sea_clean');
+        if (data.newRival) bump(uid, 'sea_rivals');
+        addBeans(uid, 'sea_win');
+      }
       checkAchievements(uid);
     } catch (e) {
       console.error('[features]', type, e.message);

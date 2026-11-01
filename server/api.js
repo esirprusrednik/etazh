@@ -973,7 +973,7 @@ function createApi(db) {
   crew = require('./crew').register({
     db, q, route, requireUser, bad, U, config, notify, fireAndForget, rateLimit, memberStatus, HttpError
   });
-  battle = require('./battle').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError });
+  battle = require('./battle').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
 
   // ---------- Обработчик ----------
   async function handle(req, res, pathname, query) {
