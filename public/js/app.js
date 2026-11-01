@@ -658,7 +658,7 @@ function renderChats() {
       return `<button class="chat-row" data-act="gang-open" data-id="${x.id}">
         <span class="chat-gang" style="background:${esc(x.color)}">${esc(x.name.slice(0, 1).toUpperCase())}</span>
         <span class="grow" style="min-width:0"><span class="chat-title">${esc(x.name)} <span class="small">· ${x.members}</span></span>
-          <span class="where ellipsis ${unread ? 'unread' : ''}">${x.last ? `${x.last.mine ? 'Ты' : esc(x.last.who || '')}: ${esc(x.last.text || '')}` : 'Чат банды · зовы и сообщения живут 24 часа'}</span></span>
+          <span class="where ellipsis ${unread ? 'unread' : ''}">${x.last ? `${x.last.mine ? 'Ты' : esc(x.last.who || '')}: ${esc(x.last.text || '')}` : 'Сообщений пока нет — начни первым'}</span></span>
         <span class="crew-side">${x.lastTime ? `<span class="small">${x.lastTime}</span>` : ''}${unread ? '<span class="crew-badge">•</span>' : ''}</span></button>`;
     }
     const [w, color] = whereText(x);
@@ -668,15 +668,22 @@ function renderChats() {
       <span class="grow" style="min-width:0"><span class="chat-title">${esc(x.nick)}</span><span class="where ellipsis ${x.unread ? 'unread' : ''}">${x.last ? `${x.last.mine ? 'Ты: ' : ''}${esc(x.last.text || '')}` : esc(w)}</span></span>
       <span class="crew-side">${turn ? '<span class="crew-turn" title="Твой ход в морском бою">⚓</span>' : ''}${x.lastTime ? `<span class="small">${x.lastTime}</span>` : ''}${x.unread ? `<span class="crew-badge">${x.unread > 9 ? '9+' : x.unread}</span>` : ''}</span></button>`;
   };
-  const list = c.items.length ? c.items.map(row).join('') : `<div class="empty"><div class="empty-ico">💬</div><p class="sub">Чатов пока нет. Сколоти банду для своей команды — у неё будет общий чат, а с каждым членом банды можно переписываться лично.</p></div>`;
+  const gangs = c.items.filter((x) => x.type === 'gang');
+  const dms = c.items.filter((x) => x.type !== 'gang');
+  const dmUnread = dms.reduce((a, x) => a + (x.unread || 0), 0);
+  const head = (title, n, act, label, hot) => `<div class="chats-head"><h3>${title}${n ? ` <span class="chats-n ${hot ? 'hot' : ''}">${n}</span>` : ''}</h3><button class="linkbtn" data-act="open" data-v="${act}">＋ ${label}</button></div>`;
+  const gangList = gangs.length ? gangs.map(row).join('')
+    : '<p class="sub chats-empty">Ты пока ни в одной банде. Сколоти свою — у неё будет общий чат и зовы на кофе и обед.</p><button class="btn" data-act="open" data-v="gang-new">Сколотить банду</button>';
+  const dmList = dms.length ? dms.map(row).join('')
+    : `<p class="sub chats-empty">${gangs.length ? 'Пока тихо. Напиши кому-нибудь из своих — один на один, банда не увидит.' : 'Лично можно писать тем, кто с тобой в банде. Сначала сколоти банду или вступи в неё.'}</p>`;
   return `${pageHead('Чаты', 'Общие чаты банд и личка с членами твоих банд')}
     ${findBar()}
     ${(S.invites || []).length ? `<section class="card"><h3>Тебя зовут в банду</h3>${S.invites.map((i) => `<div class="person2"><span class="chat-gang" style="background:${esc(i.gang.color)}">${esc(i.gang.name.slice(0, 1).toUpperCase())}</span>
       <div class="grow" style="min-width:0"><div style="font-weight:900">${esc(i.gang.name)}</div><div class="where">${i.gang.members} ${plural(i.gang.members, 'человек', 'человека', 'человек')} · зовёт ${esc(i.from)}</div></div>
       <button class="btn small" data-act="invite-accept" data-id="${i.id}">Вступить</button><button class="btn small ghost" data-act="invite-decline" data-id="${i.id}" aria-label="Отказаться">Нет</button></div>`).join('')}</section>` : ''}
     ${reqs}
-    <section class="card chats">${list}</section>
-    <div class="row chat-actions"><button class="btn small grow" data-act="open" data-v="gang-new">Сколотить банду</button><button class="btn small ghost grow" data-act="open" data-v="dm-pick">Написать в личку</button></div>`;
+    <section class="card chats">${head('Банды', gangs.length, 'gang-new', 'Сколотить')}<p class="small chats-hint">Общий чат на всю банду · сообщения живут 24 часа</p>${gangList}</section>
+    <section class="card chats">${head('Личка', dmUnread ? `${dmUnread} ${plural(dmUnread, 'новое', 'новых', 'новых')}` : '', 'dm-pick', 'Написать', true)}<p class="small chats-hint">Один на один · видите только вы двое</p>${dmList}</section>`;
 }
 
 // ===== Вкладка «Офис»: столовая, обед компанией, сигналы и лента =====
