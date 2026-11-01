@@ -391,7 +391,8 @@ function tabBtn(id, label, n) {
     feed: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
     crew: '<path d="M21 11.5a8.4 8.4 0 0 1-12.2 7.5L3 20.5l1.6-5.2A8.4 8.4 0 1 1 21 11.5z"/><path d="M8.5 11.5h.01M12.5 11.5h.01M16.5 11.5h.01"/>'
   };
-  return `<button class="tab ${S.tab === id ? 'on' : ''}" data-act="tab" data-v="${id}" aria-current="${S.tab === id}">
+  const focus = S.coach && COACH[S.coach] && COACH[S.coach].tab === id ? 'coach-focus' : '';
+  return `<button class="tab ${S.tab === id ? 'on' : ''} ${focus}" data-act="tab" data-v="${id}" aria-current="${S.tab === id}">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[id]}</svg>
     ${label}${n ? `<span class="badge" aria-label="новых: ${n}">${n > 9 ? '9+' : n}</span>` : ''}</button>`;
 }
@@ -1177,15 +1178,49 @@ function shopDot() {
   const seen = new Set(store.get('shopSeen', []));
   return aff.some((id) => !seen.has(id));
 }
-// Подсказка при первом запуске: где профиль и куда тратить зёрна. Один раз
+// Подсказки при первом запуске: профиль, зёрна и все нижние вкладки. Один раз
+const COACH = [
+  null,
+  { cls: 'left', title: 'Это твой профиль', text: 'Нажми на аватар или ник: внешность, имя, план недели, ачивки. Зелёное кольцо — насколько профиль заполнен.' },
+  { cls: 'right', title: 'Это твои зёрна', text: 'Их дают за отметки, ответы и квизы. Нажми — откроется Лавка со статусами и рамками.' },
+  { tab: 'office', i: 0, title: 'Офис', text: 'Отметься, где работаешь сегодня, — банда увидит, кто рядом. Тут же загрузка столовой, задания дня и квиз недели.' },
+  { tab: 'gang', i: 1, title: 'Банда', text: 'Твоя компания: зовы на кофе и обед, чат, неделя банды, «Спасибо» и «Угадай коллегу».' },
+  { tab: 'crew', i: 2, title: 'Подельники', text: 'Личные контакты один на один: переписка, зовы и морской бой.' },
+  { tab: 'feed', i: 3, title: 'События', text: 'Лента офиса: сигналы коллег, новые ачивки и что происходит в бандах.' }
+];
 function renderCoach() {
   if (!S.coach || S.sheet) return '';
-  const tip = S.coach === 1
-    ? { cls: 'left', title: 'Это твой профиль', text: 'Нажми на аватар или ник: внешность, имя, план недели, ачивки. Зелёное кольцо — насколько профиль заполнен.' }
-    : { cls: 'right', title: 'Это твои зёрна', text: 'Их дают за отметки, ответы и квизы. Нажми — откроется Лавка со статусами и рамками.' };
+  const tip = COACH[S.coach];
+  const total = COACH.length - S.coachStart, n = S.coach - S.coachStart + 1;
+  const last = S.coach === COACH.length - 1;
+  const pos = tip.tab ? 'bottom' : tip.cls;
+  const style = tip.tab ? ` style="--ax:${12.5 + tip.i * 25}%"` : '';
   return `<div class="coach-bg" data-act="coach-next"></div>
-    <div class="coach-tip ${tip.cls}" role="dialog" aria-label="${esc(tip.title)}"><b>${esc(tip.title)}</b><p>${esc(tip.text)}</p>
-      <div class="row" style="justify-content:space-between"><span class="small">${S.coach} из 2</span><button class="btn small" data-act="coach-next">${S.coach === 1 ? 'Дальше' : 'Понятно'}</button></div></div>`;
+    <div class="coach-tip ${pos}"${style} role="dialog" aria-label="${esc(tip.title)}"><b>${esc(tip.title)}</b><p>${esc(tip.text)}</p>
+      <div class="row" style="justify-content:space-between"><span class="small">${n} из ${total}</span>
+      <span class="row" style="gap:6px">${last ? '' : '<button class="linkbtn" data-act="coach-skip">Пропустить</button>'}<button class="btn small" data-act="coach-next">${last ? 'Понятно' : 'Дальше'}</button></span></div></div>`;
+}
+
+// Короткий звук при переключении вкладок. Синтезируем сами: без файлов, тихо, у каждой вкладки своя нота
+let audioCtx = null;
+const TAB_NOTES = { office: 523, gang: 587, crew: 659, feed: 784 };
+function tabSound(tab) {
+  if (!store.get('sound', true)) return;
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const t = audioCtx.currentTime;
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(TAB_NOTES[tab] || 600, t);
+    o.frequency.exponentialRampToValueAtTime((TAB_NOTES[tab] || 600) * 1.5, t + 0.05);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.07, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    o.connect(g).connect(audioCtx.destination);
+    o.start(t); o.stop(t + 0.13);
+  } catch {}
+  if (navigator.vibrate) navigator.vibrate(6);
 }
 
 // Кольцо заполненности профиля вокруг аватара
@@ -1297,6 +1332,7 @@ function renderProfile() {
   const privBody = `
     <label class="check"><input type="checkbox" data-act="toggle" data-k="shareOffice" ${me.shareOffice ? 'checked' : ''}> <span>Показывать банде, где я: офис, дома или в отпуске</span></label>
     <label class="check"><input type="checkbox" data-act="toggle" data-k="quiet" ${me.quiet ? 'checked' : ''}> <span>Тихие часы 19:00–09:00 — не присылать зовы</span></label>
+    <label class="check"><input type="checkbox" data-act="sound-toggle" ${store.get('sound', true) ? 'checked' : ''}> <span>Звук при переключении вкладок</span></label>
     <label class="check"><input type="checkbox" data-act="coffee-toggle" ${p.coffee ? 'checked' : ''}> <span>Участвовать в случайном кофе${p.home ? '' : ' (сначала укажи «Мой офис» в разделе «Работа»)'}</span></label>
     ${pushState === 'granted' && !(me.completion.steps.find((x) => x.id === 'push') || {}).done ? `<div class="note warn" style="margin:0">Браузер разрешил уведомления, но этот телефон не подключён к серверу — пуши не придут.</div><button class="btn blue" data-act="push-enable" ${S.vapidKey ? '' : 'disabled'}>Подключить уведомления</button>`
       : pushState === 'granted' ? '<div class="row"><span class="note good grow">Уведомления включены</span><button class="btn small ghost" data-act="push-test">Проверить</button></div>'
@@ -1429,6 +1465,7 @@ const actions = {
   },
 
   async tab(el) {
+    if (S.tab !== el.dataset.v) tabSound(el.dataset.v);
     S.tab = el.dataset.v; S.sheet = null; render();
     await run(() => refresh());
   },
@@ -1707,7 +1744,16 @@ const actions = {
     if (r.beans) { toast(`Верно! +${r.beans} зёрна`); loadMe().then(render).catch(() => {}); }
   }),
   // Шаг из карточки «заполни профиль»: раскрываем нужный раздел, прокручиваем к нему и ставим курсор в поле
-  'coach-next'() { if (S.coach === 1) S.coach = 2; else { S.coach = 0; store.set('coachDone', 1); } render(); },
+  'coach-next'() {
+    if (S.coach < COACH.length - 1) {
+      S.coach++;
+      const tip = COACH[S.coach];
+      if (tip.tab && S.tab !== tip.tab) { S.tab = tip.tab; render(); run(() => refresh()); return; }
+    } else { S.coach = 0; store.set('coachDone', 2); if (S.tab !== 'office') { S.tab = 'office'; run(() => refresh()); } }
+    render();
+  },
+  'coach-skip'() { S.coach = 0; store.set('coachDone', 2); if (S.tab !== 'office') { S.tab = 'office'; run(() => refresh()); } render(); },
+  'sound-toggle'(el) { store.set('sound', el.checked); if (el.checked) tabSound('feed'); },
   'open-sec'(el) {
     const v = el.dataset.v;
     const wasOpen = S.sheet === 'profile';
@@ -1878,7 +1924,8 @@ async function boot() {
       try { const r = await post('/api/crew/add', { code: pendingCrew }); toast(r.accepted ? 'Теперь вы подельники!' : r.already ? 'Вы уже подельники' : 'Заявка ушла. Ждём ответа'); } catch (e) { toast(e.message); }
     }
     await refresh({ all: true });
-    if (!store.get('coachDone', 0)) S.coach = 1;
+    const coachDone = Number(store.get('coachDone', 0));
+    if (coachDone < 2) { S.coach = coachDone === 1 ? 3 : 1; S.coachStart = S.coach; }
     syncPush().then(render).catch(() => {});
   }
   if (hash) history.replaceState(null, '', location.pathname + (location.search.includes('login=') ? '' : location.search));

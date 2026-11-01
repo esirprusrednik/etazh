@@ -431,3 +431,9 @@ body { font-weight: 500; }
 .coach-tip b { font-size: 16px; } .coach-tip p { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.35; }
 @keyframes coach-in { from { opacity: 0; transform: translateY(-6px); } }
 @media (prefers-reduced-motion: reduce) { .beans3d.gain, .bplus, .coach-focus, .bdot { animation: none !important; } }
+/* подсказки для нижних вкладок */
+.coach-tip.bottom { top: auto; bottom: calc(82px + env(safe-area-inset-bottom)); left: 0; right: 0; margin: 0 auto; width: min(448px, calc(100% - 32px)); }
+.coach-tip.bottom::before { bottom: auto; top: 100%; left: calc(var(--ax) - 9px); border-bottom-color: transparent; border-top-color: #fff; }
+.tabs:has(.coach-focus) { z-index: 31; }
+.tabs:has(.coach-focus) .tab { opacity: .3; pointer-events: none; }
+.tabs .tab.coach-focus { opacity: 1; pointer-events: none; border-radius: 14px; }
