@@ -59,7 +59,7 @@ async function step(name, fn) {
     assert.equal(r.status, 200); assert.ok(r.json.pending);
     assert.equal((await b.get('/api/state')).json.badges.crew, 1);
     const cb = (await b.get('/api/crew')).json;
-    assert.equal(cb.incoming[0].nick, '@бодрый_енот');
+    assert.equal(cb.incoming[0].nick, 'бодрый_енот');
     assert.equal((await a.get(`/api/crew/${b.id}`)).status, 404);
     assert.equal((await a.post(`/api/crew/${b.id}/messages`, { type: 'text', text: 'привет' })).status, 404);
   });
@@ -67,8 +67,8 @@ async function step(name, fn) {
   await step('принятие: оба видят друг друга в списке', async () => {
     assert.equal((await a.post(`/api/crew/${b.id}/accept`)).status, 400);
     assert.equal((await b.post(`/api/crew/${a.id}/accept`)).status, 200);
-    assert.equal((await a.get('/api/crew')).json.list[0].nick, '@ночной_филин');
-    assert.equal((await b.get('/api/crew')).json.list[0].nick, '@бодрый_енот');
+    assert.equal((await a.get('/api/crew')).json.list[0].nick, 'ночной_филин');
+    assert.equal((await b.get('/api/crew')).json.list[0].nick, 'бодрый_енот');
   });
 
   await step('личная ссылка сразу делает подельниками, встречная заявка — тоже', async () => {
@@ -130,7 +130,7 @@ async function step(name, fn) {
     assert.equal((await b.get('/api/crew')).json.incoming.length, 0);
     assert.equal((await a.get('/api/crew')).json.outgoing.some((x) => x.id === b.id), true);
     assert.equal((await b.get('/api/state')).json.badges.crew, 0);
-    assert.equal((await b.get('/api/crew')).json.blocked[0].nick, '@бодрый_енот');
+    assert.equal((await b.get('/api/crew')).json.blocked[0].nick, 'бодрый_енот');
     assert.equal((await b.post('/api/crew/add', { id: a.id })).status, 400);
     await b.post(`/api/crew/${a.id}/unblock`);
     assert.equal((await b.get('/api/crew')).json.blocked.length, 0);

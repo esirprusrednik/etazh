@@ -383,7 +383,7 @@ function createApi(db) {
     const out = new Set();
     let guard = 0;
     while (out.size < 4 && guard++ < 50) {
-      const n = '@' + adjs[Math.floor(Math.random() * adjs.length)] + '_' + nouns[Math.floor(Math.random() * nouns.length)];
+      const n = adjs[Math.floor(Math.random() * adjs.length)] + '_' + nouns[Math.floor(Math.random() * nouns.length)];
       if (!q('SELECT 1 FROM users WHERE nick = ?').get(n)) out.add(n);
     }
     return { nicks: [...out] };
@@ -391,13 +391,14 @@ function createApi(db) {
 
   route('POST', '/api/me/nick', async (req, body) => {
     const u = requireUser(req, { nick: false });
-    let nick = U.cleanText(body.nick, 21);
-    if (!nick.startsWith('@')) nick = '@' + nick;
-    if (!/^@[a-zA-Zа-яА-ЯёЁ0-9_]{3,20}$/.test(nick)) throw bad('От 3 до 20 символов: буквы, цифры и «_», без пробелов.');
-    const prob = U.moderationProblem(nick.slice(1));
+    const nick = U.cleanText(body.nick, 21).replace(/^@+/, '');
+    if (!/^[a-zA-Zа-яА-ЯёЁ0-9_]{3,20}$/.test(nick)) throw bad('От 3 до 20 символов: буквы, цифры и «_», без пробелов.');
+    const prob = U.moderationProblem(nick);
     if (prob) throw bad(prob);
     if (u.nick && nick === u.nick) throw bad('Это и так твой никнейм.');
-    if (q('SELECT 1 FROM users WHERE nick = ? COLLATE NOCASE AND id != ?').get(nick, u.id)) throw bad('Такой никнейм уже занят.');
+    // COLLATE NOCASE в SQLite не понимает кириллицу, поэтому занятость сверяем в JS без учёта регистра
+    const low = nick.toLocaleLowerCase('ru');
+    if (q('SELECT nick FROM users WHERE nick IS NOT NULL AND id != ? AND length(nick) = ?').all(u.id, nick.length).some((x) => x.nick.toLocaleLowerCase('ru') === low)) throw bad('Такой никнейм уже занят.');
     const first = !u.nick;
     if (!first && !spendBeans(u.id, NICK_PRICE, 'nick')) throw bad(`Смена никнейма стоит ${NICK_PRICE} зёрен. Пока не хватает.`);
     q('UPDATE users SET nick = ?, nick_changed_at = ? WHERE id = ?').run(nick, first ? null : U.now(), u.id);

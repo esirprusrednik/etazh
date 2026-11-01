@@ -106,7 +106,7 @@ async function waitUp() {
     assert.equal((await a.post('/api/me/nick', { nick: 'дурак_1' })).status, 400);
     assert.equal((await a.post('/api/me/nick', { nick: 'бодрый_енот' })).status, 200);
     const me = (await a.get('/api/me')).json.user;
-    assert.equal(me.nick, '@бодрый_енот');
+    assert.equal(me.nick, 'бодрый_енот');
     assert.equal(me.beans, 50);
   });
   await b.login('boris@mts.ru', 'ночной_филин');
@@ -173,17 +173,17 @@ async function waitUp() {
 
   await step('статус участника скрыт без согласия', async () => {
     const view = (await b.get(`/api/gangs/${a.gang}`)).json;
-    const anna = view.members.find((m) => m.nick === '@бодрый_енот');
+    const anna = view.members.find((m) => m.nick === 'бодрый_енот');
     assert.equal(anna.where, 'hidden');
     await a.post('/api/me/profile', { shareOffice: true });
     const view2 = (await b.get(`/api/gangs/${a.gang}`)).json;
-    const anna2 = view2.members.find((m) => m.nick === '@бодрый_енот');
+    const anna2 = view2.members.find((m) => m.nick === 'бодрый_енот');
     assert.ok(['office', 'none', 'night'].includes(anna2.where));
   });
 
   await step('статусы: план, «из дома», отпуск', async () => {
     const day = (n) => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3600e3 + n * 864e5).toISOString().slice(0, 10);
-    const status = async () => (await b.get(`/api/gangs/${a.gang}`)).json.members.find((m) => m.nick === '@бодрый_енот');
+    const status = async () => (await b.get(`/api/gangs/${a.gang}`)).json.members.find((m) => m.nick === 'бодрый_енот');
     // Анна в офисе (отметка) — факт важнее плана
     const plan = { Пн: 'home', Вт: 'home', Ср: 'home', Чт: 'home', Пт: 'home' };
     await a.post('/api/me/profile', { profile: { plan } });
@@ -298,7 +298,7 @@ async function waitUp() {
     assert.equal((await b.req('DELETE', '/api/me')).status, 200);
     assert.equal((await b.get('/api/me')).json.user, null);
     const view = (await a.get(`/api/gangs/${a.gang}`)).json;
-    assert.ok(!view.members.some((m) => m.nick === '@ночной_филин'));
+    assert.ok(!view.members.some((m) => m.nick === 'ночной_филин'));
   });
 
   console.log(`\nВсё прошло: ${passed} проверок`);

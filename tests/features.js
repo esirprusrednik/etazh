@@ -106,7 +106,7 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.equal((await b.get('/api/me')).json.user.beans - before, 10);
     assert.equal((await a.post('/api/gift', { to: c.id })).status, 400);
     const f = (await c.get('/api/features')).json;
-    assert.equal(f.birthdaysToday[0].nick, '@ночной_филин');
+    assert.equal(f.birthdaysToday[0].nick, 'ночной_филин');
   });
 
   await step('обед компанией: открыть, присоединиться, видно в офисе', async () => {
@@ -131,7 +131,7 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.equal(r.json.pairs, 1);
     const fd = (await d.get('/api/features')).json.coffee.pair;
     assert.ok(fd, 'у Дины есть пара');
-    assert.notEqual(fd.partner.nick, '@главный_бобр');
+    assert.notEqual(fd.partner.nick, 'главный_бобр');
     const partner = fd.partner.id === a.id ? a : b;
     assert.equal((await d.post('/api/coffee/ping', { opt: 'Сегодня в 15:00' })).status, 200);
     const fp = (await partner.get('/api/features')).json.coffee.pair;
@@ -184,7 +184,7 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
   await step('удаление аккаунта убирает его спасибо, ачивки и пары', async () => {
     assert.equal((await d.req('DELETE', '/api/me')).status, 200);
     const fp = (await a.get('/api/features')).json.coffee.pair;
-    assert.ok(!fp || fp.partner.nick !== '@смелый_ёж');
+    assert.ok(!fp || fp.partner.nick !== 'смелый_ёж');
   });
 
   console.log(`\nВсё прошло: ${passed} проверок`);

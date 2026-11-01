@@ -276,7 +276,7 @@ function renderNick() {
       <p class="sub">Его видят коллеги. Без ФИО и должностей — так веселее. Менять можно раз в 30 дней.</p>
       <div class="chips">${o.nicks.map((n) => `<button class="chip" data-act="nick-pick" data-v="${esc(n)}">${esc(n)}</button>`).join('')}
         <button class="chip" data-act="nick-more">Ещё варианты</button></div>
-      <label class="field">Никнейм<input id="nick" maxlength="21" autocomplete="off" placeholder="@бодрый_енот" value="${esc(o.nick || '')}"></label>
+      <label class="field">Никнейм<input id="nick" maxlength="21" autocomplete="off" placeholder="бодрый_енот" value="${esc(o.nick || '')}"></label>
       <div class="field">Аватар
         <div class="row">${['m', 'f'].map((p) => `<button class="chip ${(o.preset || 'm') === p ? 'on' : ''}" data-act="onb-preset" data-v="${p}">${avatar({ preset: p, hairStyle: p === 'f' ? 'long' : 'short' }, 28)} ${p === 'm' ? 'М' : 'Ж'}</button>`).join('')}</div>
       </div>
@@ -635,7 +635,7 @@ function renderCrew() {
   </section>
   <section class="card">
     <h3>Позвать в подельники</h3>
-    <div class="row"><label class="field grow" style="gap:0"><span class="hidden">Ник коллеги</span><input id="crew-nick" maxlength="21" placeholder="@ник коллеги" autocapitalize="off" autocomplete="off" aria-label="Ник коллеги"></label>
+    <div class="row"><label class="field grow" style="gap:0"><span class="hidden">Ник коллеги</span><input id="crew-nick" maxlength="21" placeholder="ник коллеги" autocapitalize="off" autocomplete="off" aria-label="Ник коллеги"></label>
       <button class="btn" data-act="crew-add">Позвать</button></div>
     <button class="btn blue" data-act="crew-share">Отправить свою ссылку</button>
     <p class="small">Кто откроет ссылку, сразу станет подельником, поэтому шли её лично, а не в общий чат. Заявка по нику ждёт согласия.</p>
@@ -1483,10 +1483,9 @@ const actions = {
   'name-vis': (el) => run(async () => { await post('/api/me/profile', { profile: { nameVis: el.dataset.v } }); await loadMe(); }),
   'name-save': () => run(async () => { await post('/api/me/profile', { profile: { firstName: $('#p-first').value, lastName: $('#p-last').value } }); await loadMe(); toast('Сохранено'); }),
   'nick-change'() {
-    let nick = $('#p-nick').value.trim();
-    if (!nick.startsWith('@')) nick = '@' + nick;
+    const nick = $('#p-nick').value.trim().replace(/^@+/, '');
     if (nick.toLowerCase() === S.me.nick.toLowerCase()) { S.error = 'Впиши новый никнейм'; render(); return; }
-    if (!/^@[a-zA-Zа-яА-ЯёЁ0-9_]{3,20}$/.test(nick)) { S.error = 'От 3 до 20 символов: буквы, цифры и «_», без пробелов.'; render(); return; }
+    if (!/^[a-zA-Zа-яА-ЯёЁ0-9_]{3,20}$/.test(nick)) { S.error = 'От 3 до 20 символов: буквы, цифры и «_», без пробелов.'; render(); return; }
     S.error = null; S.nickConfirm = nick; render();
   },
   'nick-no'() { S.nickConfirm = null; render(); },

@@ -142,8 +142,8 @@ function register(ctx) {
       if (!row) throw bad('Ссылка не найдена. Попроси прислать её ещё раз.');
       target = userRow(row.user_id);
     } else if (body.nick) {
-      // Ники хранятся с «@». COLLATE NOCASE в SQLite не понимает кириллицу, поэтому сверяем в JS
-      const nick = '@' + U.cleanText(body.nick, 40).replace(/^@+/, '');
+      // Ники хранятся без «@», но человек может его вписать. COLLATE NOCASE не понимает кириллицу — сверяем в JS
+      const nick = U.cleanText(body.nick, 40).replace(/^@+/, '');
       target = q('SELECT * FROM users WHERE nick = ?').get(nick);
       if (!target) {
         const low = nick.toLocaleLowerCase('ru');
