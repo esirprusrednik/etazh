@@ -1609,7 +1609,21 @@ const actions = {
     S.quiz = S.quiz.map((x) => (x.id === r.quiz.id ? r.quiz : x));
     if (r.beans) { toast(`Верно! +${r.beans} зёрна`); loadMe().then(render).catch(() => {}); }
   }),
-  'open-sec'(el) { S.sheet = 'profile'; S.sec.add(el.dataset.v); S.lastSheet = null; render(); run(loadFeatures); },
+  // Шаг из карточки «заполни профиль»: раскрываем нужный раздел, прокручиваем к нему и ставим курсор в поле
+  'open-sec'(el) {
+    const v = el.dataset.v;
+    const wasOpen = S.sheet === 'profile';
+    S.sheet = 'profile'; S.sec.add(v); if (!wasOpen) S.lastSheet = null;
+    render();
+    const focusId = { about: 'p-about' }[v];
+    requestAnimationFrame(() => {
+      const head = document.querySelector(`.psec-head[data-v="${v}"]`);
+      if (head) head.scrollIntoView({ block: 'start' });
+      const input = focusId && document.getElementById(focusId);
+      if (input && !input.value) setTimeout(() => input.focus({ preventScroll: true }), 350);
+    });
+    if (!S.fx) loadFeatures().catch(() => {}); // данные для ачивок; без перерисовки, чтобы не сбить прокрутку
+  },
   'compl-hide'() { store.set('complHideUntil', Date.now() + 7 * 864e5); render(); },
   sec(el) { const v = el.dataset.v; if (S.sec.has(v)) S.sec.delete(v); else S.sec.add(v); render(); },
   'name-vis': (el) => run(async () => { await post('/api/me/profile', { profile: { nameVis: el.dataset.v } }); await loadMe(); }),
