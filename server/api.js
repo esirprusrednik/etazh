@@ -97,6 +97,7 @@ const DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт'];
 function createApi(db) {
   let features = null;
   let crew = null;
+  let battle = null;
   const q = (sql) => db.prepare(sql);
   const adminHashes = new Set(config.adminEmails.map((e) => U.hashEmail(e)));
 
@@ -972,6 +973,7 @@ function createApi(db) {
   crew = require('./crew').register({
     db, q, route, requireUser, bad, U, config, notify, fireAndForget, rateLimit, memberStatus, HttpError
   });
+  battle = require('./battle').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError });
 
   // ---------- Обработчик ----------
   async function handle(req, res, pathname, query) {
@@ -1028,6 +1030,7 @@ function createApi(db) {
     }
     if (features) features.cleanup();
     if (crew) crew.cleanup();
+    if (battle) battle.cleanup();
   }
 
   return { handle, verifyLogin, cleanup, HttpError };

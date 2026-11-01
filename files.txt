@@ -27,6 +27,7 @@ scripts/backup.sh
 scripts/gen-secrets.js
 scripts/install.sh
 server/api.js
+server/battle.js
 server/catalog.js
 server/config.js
 server/crew.js
@@ -36,6 +37,7 @@ server/index.js
 server/mailer.js
 server/util.js
 server/webpush.js
+tests/battle.js
 tests/crew.js
 tests/features.js
 tests/smoke.js

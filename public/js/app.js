@@ -19,7 +19,8 @@ const S = {
   error: '', busy: false,
   seenChat: store.get('seenChat', 0), seenFeed: store.get('seenFeed', 0),
   fx: null, gx: null, thanksTo: null, lunchTime: '13:00', sec: new Set(),
-  crew: null, dm: null, dmView: null
+  crew: null, dm: null, dmView: null,
+  battles: [], battle: null, bv: null, bFresh: new Set(), bFreshUntil: 0, bShout: null
 };
 
 // ---------- API ----------
@@ -155,7 +156,24 @@ async function loadFeatures() {
     store.set('achSeen', S.fx.achievements.filter((a) => a.got).map((a) => a.id));
   }
 }
-async function loadCrew() { S.crew = await get('/api/crew'); }
+async function loadCrew() { S.crew = await get('/api/crew'); try { S.battles = (await get('/api/battles')).items; } catch { S.battles = []; } }
+// Морской бой: при обновлении запоминаем, какие клетки появились — их и анимируем
+const shotKeys = (v) => new Set([...v.myShots.map((t) => `o:${t.x},${t.y}`), ...v.oppShots.map((t) => `m:${t.x},${t.y}`)]);
+function setBattleView(v) {
+  const prev = S.bv && S.bv.id === v.id ? shotKeys(S.bv) : null;
+  if (prev) {
+    const fresh = [...shotKeys(v)].filter((k) => !prev.has(k));
+    if (fresh.length) { S.bFresh = new Set(fresh); S.bFreshUntil = Date.now() + 1400; }
+    if (v.last && !v.last.mine && v.seq !== S.bv.seq) {
+      S.bShout = { text: v.last.r === 'miss' ? `${v.opp.nick} промахнулся` : v.last.r === 'sunk' ? `${v.opp.nick} потопил твой корабль` : `${v.opp.nick} попал!`, cls: v.last.r, until: Date.now() + 1600, board: 'm' };
+    }
+  }
+  S.bv = v;
+}
+async function loadBattle() {
+  if (!S.battle) { S.bv = null; return; }
+  try { setBattleView(await get(`/api/battle/${S.battle}`)); } catch { S.battle = null; S.bv = null; }
+}
 async function loadDm() {
   if (!S.dm) { S.dmView = null; return; }
   try { S.dmView = await get(`/api/crew/${S.dm}`); } catch { S.dm = null; S.dmView = null; }
@@ -177,6 +195,7 @@ async function refresh({ all = false } = {}) {
   if (all || S.tab === 'office') jobs.push(loadFeatures());
   if (all || S.tab === 'feed' || S.tab === 'office') jobs.push(loadEvents());
   if (all || S.tab === 'crew' || S.tab === 'gang') jobs.push(loadCrew());
+  if (S.tab === 'crew' && S.battle) jobs.push(loadBattle());
   if (S.tab === 'crew' && S.dm) jobs.push(loadDm());
   await Promise.all(jobs);
   if (S.tab === 'crew' && S.dm && S.crew) { const f = S.crew.list.find((x) => x.id === S.dm); if (f) f.unread = 0; recountCrewBadge(); }
@@ -590,6 +609,7 @@ function crewAddBtn(id) {
 }
 
 function renderCrew() {
+  if (S.battle) return renderBattle();
   if (S.dm) return renderDm();
   const c = S.crew;
   if (!c) return '<div class="card"><p class="sub">Загружаем подельников…</p></div>';
@@ -604,7 +624,7 @@ function renderCrew() {
     return `<button class="person2 crew-row" data-act="dm-open" data-id="${f.id}">
       <span class="ava-wrap"><span class="ava-ring" style="border-color:${color}">${avatar(f.look, 32)}</span><span class="ava-dot" style="background:${color}"></span></span>
       <span class="grow" style="min-width:0"><span class="crew-nick">${esc(f.nick)}</span><span class="where ellipsis ${f.unread ? 'unread' : ''}">${esc(line)}</span></span>
-      <span class="crew-side">${f.lastTime ? `<span class="small">${f.lastTime}</span>` : ''}${f.unread ? `<span class="crew-badge">${f.unread > 9 ? '9+' : f.unread}</span>` : ''}</span>
+      <span class="crew-side">${(S.battles.find((b) => b.oppId === f.id && b.myTurn && b.status !== 'done')) ? '<span class="crew-turn" title="Твой ход в морском бою">⚓</span>' : ''}${f.lastTime ? `<span class="small">${f.lastTime}</span>` : ''}${f.unread ? `<span class="crew-badge">${f.unread > 9 ? '9+' : f.unread}</span>` : ''}</span>
     </button>`;
   }).join('');
   return `${incoming}
@@ -642,6 +662,7 @@ function renderDm() {
     ${away ? '<div class="note warn">Сейчас отдыхает: пуш не придёт, увидит, когда вернётся.</div>' : ''}
     <div class="chips">${v.calls.map((k) => `<button class="chip" data-act="dm-call-open" data-kind="${k}">${esc(S.cat.calls[k].label)}</button>`).join('')}</div>
   </section>
+  ${renderBattleInvite(f)}
   <section class="card">
     <div class="chat" id="dm-chat">${msgs}</div>
     <div class="row"><label class="field grow" style="gap:0"><span class="hidden">Сообщение</span><input id="dm-text" maxlength="500" placeholder="Написать ${esc(f.nick)}" aria-label="Личное сообщение"></label>
@@ -654,6 +675,99 @@ function renderDm() {
       <button class="linkbtn" data-act="crew-block" data-id="${f.id}">Заблокировать</button>
     </div>
   </section>`;
+}
+
+function renderBattleInvite(f) {
+  const g = S.battles.find((b) => b.oppId === f.id && b.status !== 'done');
+  const label = !g ? 'Вызвать на морской бой'
+    : g.status === 'setup' ? (g.myTurn ? 'Расставь флот — тебя вызвали' : 'Партия: ждём соперника')
+    : g.myTurn ? 'Твой ход в морском бою!' : 'Партия идёт: ход соперника';
+  return `<button class="battle-invite ${g && g.myTurn ? 'hot' : ''}" data-act="${g ? 'battle-open' : 'battle-new'}" data-id="${g ? g.id : f.id}">
+    <span class="bi-ico" aria-hidden="true">⚓</span><span class="grow"><b>${label}</b><span class="small">${g ? 'Нажми, чтобы открыть поле' : 'Пошагово, без спешки: ходите, когда удобно'}</span></span><span aria-hidden="true">›</span>
+  </button>`;
+}
+
+const B_COLS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К'];
+// Поле 10×10. kind: 'opp' — по нему стреляю я; 'me' — мой флот и выстрелы соперника
+function renderBoard(v, kind) {
+  const shots = kind === 'opp' ? v.myShots : v.oppShots;
+  const ships = kind === 'me' ? v.myShips : (v.oppShips || []);
+  const sunk = kind === 'opp' ? v.oppSunk : v.myShips.filter((sh) => sh.every(([x, y]) => v.oppShots.some((t) => t.x === x && t.y === y)));
+  const shipAt = new Map(); ships.forEach((sh, i) => sh.forEach(([x, y]) => shipAt.set(x * 10 + y, i)));
+  const sunkAt = new Set(); sunk.forEach((sh) => sh.forEach(([x, y]) => sunkAt.add(x * 10 + y)));
+  const shotAt = new Map(shots.map((t) => [t.x * 10 + t.y, t]));
+  const canShoot = kind === 'opp' && v.myTurn;
+  const fresh = Date.now() < S.bFreshUntil ? S.bFresh : new Set();
+  const pre = kind === 'opp' ? 'o' : 'm';
+  const cells = [];
+  for (let y = 0; y < 10; y++) for (let x = 0; x < 10; x++) {
+    const k = x * 10 + y;
+    const t = shotAt.get(k);
+    const isShip = shipAt.has(k);
+    const cls = ['bc'];
+    if (isShip && (kind === 'me' || v.status === 'done')) cls.push(kind === 'me' ? 'ship' : 'ghost');
+    if (t) cls.push(t.r === 'miss' ? (t.auto ? 'miss auto' : 'miss') : sunkAt.has(k) ? 'sunk' : 'hit');
+    if (fresh.has(`${pre}:${x},${y}`) && !(t && t.auto)) cls.push('fresh');
+    if (v.last && ((kind === 'opp' && v.last.mine) || (kind === 'me' && !v.last.mine)) && v.last.x === x && v.last.y === y) cls.push('lastshot');
+    const label = `${B_COLS[x]}${y + 1}`;
+    cells.push(canShoot && !t
+      ? `<button class="${cls.join(' ')} aim" data-act="bshoot" data-x="${x}" data-y="${y}" aria-label="Выстрел в ${label}"></button>`
+      : `<span class="${cls.join(' ')}" aria-label="${label}${t ? (t.r === 'miss' ? ' мимо' : ' попадание') : ''}"></span>`);
+  }
+  const shout = S.bShout && Date.now() < S.bShout.until && S.bShout.board === pre ? `<div class="b-shout ${S.bShout.cls}">${esc(S.bShout.text)}</div>` : '';
+  return `<div class="board-wrap ${kind}">
+    <div class="board-cols">${B_COLS.map((c) => `<span>${c}</span>`).join('')}</div>
+    <div class="board-rows">${Array.from({ length: 10 }, (_, i) => `<span>${i + 1}</span>`).join('')}</div>
+    <div class="board ${canShoot ? 'armed' : ''}">${cells.join('')}</div>${shout}
+  </div>`;
+}
+
+function fleetLeft(ships, shots) {
+  const hit = new Set(shots.filter((t) => t.r !== 'miss').map((t) => t.x * 10 + t.y));
+  return ships.map((sh) => ({ len: sh.length, sunk: sh.every(([x, y]) => hit.has(x * 10 + y)) }));
+}
+
+function renderBattle() {
+  const v = S.bv;
+  const back = `<button class="linkbtn back" data-act="battle-back">‹ К переписке</button>`;
+  if (!v) return back + '<div class="card"><p class="sub">Открываем поле…</p></div>';
+  const head = `<section class="card b-head">
+    <div class="row">${tap(v.opp.id, `<span class="ava-wrap">${avatar(v.opp.look, 36)}</span>`)}
+      <div class="grow" style="min-width:0"><div class="eyebrow">Морской бой</div><div style="font-weight:900;font-size:17px" class="ellipsis">ты против ${esc(v.opp.nick)}</div></div>
+      <div class="b-score" title="Счёт ваших партий"><b>${v.score.me}</b>:<b>${v.score.opp}</b></div></div>
+  </section>`;
+  if (v.status === 'setup') {
+    return `${back}${head}
+    <section class="card">
+      <span class="card-title">${v.ready ? 'Флот расставлен' : 'Расставь флот'}</span>
+      <p class="sub" style="margin:0">${v.ready ? (v.oppReady ? 'Начинаем…' : `Ждём, пока ${esc(v.opp.nick)} расставит корабли. Придёт уведомление.`) : 'Корабли стоят случайно. Не нравится — перемешай. Когда готов, жми «В бой».'}</p>
+      ${renderBoard(v, 'me')}
+      ${v.ready ? '' : `<div class="row"><button class="btn ghost grow" data-act="bshuffle">Перемешать</button><button class="btn grow" data-act="bready">В бой!</button></div>`}
+      <button class="linkbtn" data-act="bresign" style="align-self:center">Отказаться от партии</button>
+    </section>`;
+  }
+  const done = v.status === 'done';
+  const banner = done
+    ? `<div class="b-banner ${v.winner === 'me' ? 'win' : 'lose'}">${v.winner === 'me' ? (v.resigned ? `🏆 ${esc(v.opp.nick)} сдался. Победа!` : '🏆 Победа! Весь флот соперника на дне') : (v.resigned ? 'Ты сдался. Бывает' : `💥 ${esc(v.opp.nick)} потопил твой флот`)}</div>`
+    : v.myTurn ? '<div class="b-banner go">🎯 Твой ход — стреляй по полю соперника</div>'
+    : `<div class="b-banner wait">⏳ Ход ${esc(v.opp.nick)}. Придёт уведомление, когда выстрелит</div>`;
+  const left = (arr) => arr.sort((a, b) => b.len - a.len).map((s) => `<span class="fl ${s.sunk ? 'sunk' : ''}" style="width:${s.len * 9 + (s.len - 1) * 2}px" title="${s.len}-палубный${s.sunk ? ', потоплен' : ''}"></span>`).join('');
+  const oppFleet = v.fleet.map((len) => ({ len, sunk: false }));
+  // отмечаем потопленные по размерам
+  for (const sh of v.oppSunk) { const f = oppFleet.find((x) => x.len === sh.length && !x.sunk); if (f) f.sunk = true; }
+  return `${back}${head}
+  ${banner}
+  <section class="card b-card">
+    <div class="row" style="justify-content:space-between"><span class="card-title">Поле ${esc(v.opp.nick)}</span><span class="small">осталось кораблей: ${v.oppLeft}</span></div>
+    <div class="fleet">${left(oppFleet)}</div>
+    ${renderBoard(v, 'opp')}
+  </section>
+  <section class="card b-card">
+    <div class="row" style="justify-content:space-between"><span class="card-title">Мой флот</span><span class="small">цел: ${v.myLeft} из ${v.fleet.length}</span></div>
+    <div class="fleet">${left(fleetLeft(v.myShips, v.oppShots))}</div>
+    ${renderBoard(v, 'me')}
+  </section>
+  ${done ? `<button class="btn wide" data-act="battle-new" data-id="${v.opp.id}">Реванш</button>` : '<button class="linkbtn" data-act="bresign" style="margin:4px auto 0;display:block;color:#C9D3EA">Сдаться</button>'}`;
 }
 
 function renderDmMsg(m, f) {
@@ -1056,6 +1170,13 @@ function renderShop() {
 }
 
 // ---------- Действия ----------
+// Опасное действие подтверждается вторым нажатием в течение 4 секунд
+function confirmTwice(id, text) {
+  const t = Date.now();
+  if (S.confirmId === id && t - S.confirmAt < 4000) { S.confirmId = null; return true; }
+  S.confirmId = id; S.confirmAt = t; toast(text); return false;
+}
+
 async function run(fn, { rerender = true } = {}) {
   S.error = '';
   try { await fn(); } catch (e) {
@@ -1172,6 +1293,37 @@ const actions = {
     if (S.crew) { const f = S.crew.list.find((x) => x.id === S.dm); if (f) f.unread = 0; recountCrewBadge(); }
     window.scrollTo(0, 0);
   }),
+  'battle-new': (el) => run(async () => {
+    const r = await post('/api/battle', { to: Number(el.dataset.id) });
+    S.tab = 'crew'; S.dm = S.dm || Number(el.dataset.id); S.battle = r.id; S.bv = null; await loadBattle(); window.scrollTo(0, 0);
+    if (!r.existing) toast('Вызов отправлен. Расставляй флот');
+  }),
+  'battle-open': (el) => run(async () => { S.battle = Number(el.dataset.id); S.bv = null; await loadBattle(); window.scrollTo(0, 0); }),
+  'battle-back': () => run(async () => {
+    const opp = S.bv ? S.bv.opp.id : null; S.battle = null; S.bv = null;
+    if (opp && S.crew && S.crew.list.some((x) => x.id === opp)) { S.dm = opp; await loadDm(); } else S.dm = null;
+    await loadCrew();
+  }),
+  bshuffle: () => run(async () => { S.bv = await post(`/api/battle/${S.battle}/shuffle`); }),
+  bready: () => run(async () => { S.bv = await post(`/api/battle/${S.battle}/ready`); }),
+  bresign: () => run(async () => {
+    const playing = S.bv && S.bv.status === 'play';
+    if (!confirmTwice('bresign', playing ? 'Нажми ещё раз, чтобы сдаться' : 'Нажми ещё раз, чтобы отказаться')) return;
+    S.bv = await post(`/api/battle/${S.battle}/resign`);
+  }),
+  bshoot: (el) => {
+    if (S.bBusy) return; S.bBusy = true;
+    run(async () => {
+      try {
+        const r = await post(`/api/battle/${S.battle}/shoot`, { x: Number(el.dataset.x), y: Number(el.dataset.y) });
+        setBattleView(r.view);
+        const t = { miss: 'Мимо', hit: 'Ранил! Стреляй ещё', sunk: 'Потопил! Стреляй ещё' }[r.result];
+        S.bShout = { text: r.view.status === 'done' ? 'Победа!' : t, cls: r.view.status === 'done' ? 'sunk' : r.result, until: Date.now() + 1400, board: 'o' };
+        if (navigator.vibrate) navigator.vibrate(r.result === 'miss' ? 15 : [30, 40, 60]);
+        setTimeout(() => { if (S.battle) render(); }, 1500);
+      } finally { S.bBusy = false; }
+    });
+  },
   'dm-back': () => run(async () => { S.dm = null; S.dmView = null; await loadCrew(); await loadState(); }),
   'dm-send': () => run(async () => {
     const el = $('#dm-text');
@@ -1414,8 +1566,22 @@ setInterval(async () => {
   if (document.hidden || !S.me || !S.me.nick || typing() || S.sheet) return;
   try { await refresh(); render(); } catch {}
 }, 20000);
+// Морской бой: пока ждём соперника — опрашиваем часто, чтобы его выстрел появился почти сразу
 setInterval(async () => {
-  if (document.hidden || !S.me || !S.me.nick || S.tab !== 'crew' || !S.dm || S.sheet) return;
+  const v = S.bv;
+  if (document.hidden || !S.me || S.tab !== 'crew' || !S.battle || !v || S.sheet || S.bBusy) return;
+  if (v.status === 'done' || (v.status === 'play' && v.myTurn) || (v.status === 'setup' && !v.ready)) return;
+  try {
+    const nv = await get(`/api/battle/${S.battle}`);
+    if (nv.seq !== v.seq || nv.oppReady !== v.oppReady) {
+      setBattleView(nv); render();
+      setTimeout(() => { if (S.battle) render(); }, 1700);
+      if (navigator.vibrate && nv.last && !nv.last.mine && nv.last.r !== 'miss') navigator.vibrate([40, 30, 40]);
+    }
+  } catch {}
+}, 2500);
+setInterval(async () => {
+  if (document.hidden || !S.me || !S.me.nick || S.tab !== 'crew' || !S.dm || S.battle || S.sheet) return;
   const before = S.dmView ? S.dmView.messages.map((m) => m.id + ':' + (m.reply || '') + (m.read ? 'r' : '')).join() : '';
   try {
     await loadDm();
@@ -1435,6 +1601,7 @@ async function boot() {
   if (hash === '#feed') S.tab = 'feed';
   if (hash === '#crew') S.tab = 'crew';
   if (hash.startsWith('#crew/')) { S.tab = 'crew'; S.dm = Number(hash.slice(6)) || null; }
+  if (hash.startsWith('#battle/')) { S.tab = 'crew'; S.battle = Number(hash.slice(8)) || null; }
   const join = /^#join=([A-Z0-9]{6})$/i.exec(hash);
   if (join) store.set('pendingJoin', join[1]);
   const crewCode = /^#crew=([A-Z0-9]{6})$/i.exec(hash);

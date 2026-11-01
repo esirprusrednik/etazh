@@ -273,3 +273,60 @@ body { font-weight: 500; }
 .person-rows > div + div { border-top: 1px solid var(--line); }
 .person-rows b { font-size: 15px; display: flex; align-items: center; gap: 6px; }
 .person-card .chip { display: inline-flex; align-items: center; min-height: 34px; padding: 6px 14px; }
+
+/* ---- Морской бой ---- */
+.battle-invite { display: flex; align-items: center; gap: 12px; width: calc(100% - 32px); margin: 0 16px 12px; padding: 12px 14px; border-radius: 18px; text-align: left; color: #fff; background: linear-gradient(135deg, #1E4FA8, #0E7490); box-shadow: 0 4px 0 #0B3A70; }
+.battle-invite b { display: block; font-size: 15px; }
+.battle-invite .small { color: #CFE6FF; display: block; }
+.battle-invite.hot { background: linear-gradient(135deg, #E5484D, #F97316); box-shadow: 0 4px 0 #A8322B; animation: b-pulse 1.6s ease-in-out infinite; }
+.bi-ico { width: 38px; height: 38px; border-radius: 12px; background: rgba(255,255,255,.18); display: grid; place-items: center; font-size: 20px; flex: none; }
+@keyframes b-pulse { 50% { transform: translateY(-2px); } }
+.crew-turn { font-size: 15px; }
+.b-head .row { gap: 12px; }
+.b-score { font-size: 22px; color: var(--ink); background: #F1F3F8; border-radius: 12px; padding: 4px 10px; }
+.b-banner { margin: 0 16px 12px; padding: 12px 14px; border-radius: 16px; font-weight: 800; font-size: 15px; text-align: center; }
+.b-banner.go { background: #FFF1C2; color: #6B4500; box-shadow: 0 0 0 2px #FFC93C inset; }
+.b-banner.wait { background: rgba(255,255,255,.12); color: #DCE4FF; }
+.b-banner.win { background: var(--good-bg); color: var(--good-fg); font-size: 17px; }
+.b-banner.lose { background: var(--bad-bg); color: var(--bad-fg); font-size: 17px; }
+.fleet { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 8px; }
+.fl { height: 9px; border-radius: 4px; background: #34405F; }
+.fl.sunk { background: #E3E7F2; background-image: repeating-linear-gradient(45deg, transparent 0 3px, #E5484D 3px 4.5px); }
+
+.board-wrap { position: relative; display: grid; grid-template-columns: 18px 1fr; grid-template-rows: 16px 1fr; gap: 3px 7px; margin: 0 auto; width: 100%; max-width: 380px; }
+.board-wrap.me { max-width: 300px; }
+.b-card .board-wrap.me { max-width: 270px; }
+.board-cols { grid-column: 2; display: grid; grid-template-columns: repeat(10, 1fr); text-align: center; font-size: 10.5px; font-weight: 800; color: var(--muted); }
+.board-rows { grid-row: 2; display: grid; grid-template-rows: repeat(10, 1fr); align-items: center; text-align: right; font-size: 10.5px; font-weight: 800; color: var(--muted); }
+.board { grid-column: 2; grid-row: 2; display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; padding: 3px; border-radius: 10px; background: #9CC6F0; }
+.board.armed { background: #F4A72C; box-shadow: 0 0 0 3px #FFE38A; }
+.board:has(.fresh.hit), .board:has(.fresh.sunk) { animation: b-shake .45s ease; }
+.bc { position: relative; aspect-ratio: 1; border-radius: 4px; background: #DDEEFF; padding: 0; border: none; display: block; }
+.bc.aim { cursor: crosshair; background: #E9F4FF; }
+.bc.aim:active, .bc.aim:hover { background: #FFE38A; }
+.bc.ship { background: #34405F; }
+.bc.ghost { background: #B9C3DA; }
+.bc.miss::before { content: ''; position: absolute; inset: 0; margin: auto; width: 26%; height: 26%; border-radius: 50%; background: #3A6EA5; }
+.bc.miss.auto::before { background: #8FB2D6; width: 18%; height: 18%; }
+.bc.miss.auto { background: #CFE3F7; }
+.bc.hit { background: #FF6B4A; }
+.bc.sunk { background: #8A1C12; }
+.bc.hit::before, .bc.sunk::before { content: ''; position: absolute; inset: 18%; background:
+  linear-gradient(45deg, transparent 42%, #fff 42% 58%, transparent 58%), linear-gradient(-45deg, transparent 42%, #fff 42% 58%, transparent 58%); }
+.bc.lastshot { box-shadow: 0 0 0 2px #FFC93C; z-index: 1; }
+
+/* анимация: промах — всплеск кругами, попадание — вспышка и взрывная волна */
+.bc.fresh.miss::before { animation: b-drop .35s ease-out both; }
+.bc.fresh.miss::after { content: ''; position: absolute; inset: -40%; border-radius: 50%; border: 2px solid #fff; animation: b-splash .8s ease-out both; pointer-events: none; }
+.bc.fresh.hit, .bc.fresh.sunk { animation: b-flash .6s ease-out both; z-index: 2; }
+.bc.fresh.hit::after, .bc.fresh.sunk::after { content: ''; position: absolute; inset: -70%; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, #FFF6B0 0 18%, #FFB13B 30%, rgba(229,72,77,.75) 48%, rgba(229,72,77,0) 66%); animation: b-boom .75s ease-out both; }
+@keyframes b-drop { from { transform: scale(2.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes b-splash { from { transform: scale(.2); opacity: 1; } to { transform: scale(1.2); opacity: 0; } }
+@keyframes b-flash { 0% { background: #fff; transform: scale(1.5); } 40% { background: #FFD24A; transform: scale(1.15); } 100% { transform: scale(1); } }
+@keyframes b-boom { 0% { transform: scale(.2); opacity: 1; } 70% { opacity: .9; } 100% { transform: scale(1.4); opacity: 0; } }
+@keyframes b-shake { 20% { transform: translateX(-3px); } 40% { transform: translateX(3px); } 60% { transform: translateX(-2px); } 80% { transform: translateX(2px); } }
+.b-shout { position: absolute; left: 50%; top: 52%; transform: translate(-50%, -50%); padding: 10px 16px; border-radius: 14px; font-weight: 900; font-size: 18px; white-space: nowrap; pointer-events: none; z-index: 5; color: #fff; background: rgba(26,37,71,.92); animation: b-shout 1.4s ease both; }
+.b-shout.hit { background: #E5484D; } .b-shout.sunk { background: #8A1C12; } .b-shout.miss { background: #2563C9; }
+@keyframes b-shout { 0% { transform: translate(-50%, -50%) scale(.4); opacity: 0; } 15% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; } 25% { transform: translate(-50%, -50%) scale(1); } 80% { opacity: 1; } 100% { transform: translate(-50%, -80%); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .bc.fresh, .bc.fresh::before, .bc.fresh::after, .board, .b-shout, .battle-invite.hot { animation: none !important; } }
