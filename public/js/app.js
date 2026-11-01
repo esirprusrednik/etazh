@@ -585,7 +585,7 @@ function renderPeople() {
   if (!ps.length) {
     return `<section class="card empty"><div class="empty-ico">👋</div><h2>Пока здесь пусто</h2>
       <p class="sub">Тут появятся члены твоих банд: кто в офисе, кто дома, кто в отпуске. Сколоти банду и позови в неё коллег по ссылке — или вступи в банду по приглашению.</p>
-      <div class="row"><button class="btn grow" data-act="open" data-v="gang-new">🏴‍☠️ Сколотить банду</button></div></section>`;
+      <div class="row"><button class="btn grow" data-act="open" data-v="gang-new">Сколотить банду</button></div></section>`;
   }
   const st = S.state;
   const groups = [
@@ -603,7 +603,7 @@ function renderPeople() {
   }).join('');
   const hint = S.fx && S.fx.weekHint ? `<div class="week-hint">${ico('where', 16)}<span>${S.fx.weekHint.today ? 'Сегодня' : esc(S.fx.weekHint.label)} в офисе будут <b>${S.fx.weekHint.office} из ${S.fx.weekHint.total}</b> из банды</span></div>` : '';
   return `<section class="card people">${html}${hint}
-    <div class="row" style="justify-content:space-between">${S.me.gangs.length ? `<button class="linkbtn" data-act="gang-invite" data-id="${S.activeGang || S.me.gangs[0].id}">+ Позвать в банду</button>` : '<span></span>'}<button class="linkbtn" data-act="open" data-v="gang-new">🏴‍☠️ Сколотить банду</button></div></section>`;
+    <div class="row" style="justify-content:space-between">${S.me.gangs.length ? `<button class="linkbtn" data-act="gang-invite" data-id="${S.activeGang || S.me.gangs[0].id}">+ Позвать в банду</button>` : '<span></span>'}<button class="linkbtn" data-act="open" data-v="gang-new">Сколотить банду</button></div></section>`;
 }
 
 function renderNear() {
@@ -644,7 +644,7 @@ function renderChats() {
   return `${pageHead('Чаты', 'Общие чаты банд и личка с членами твоих банд')}
     ${reqs}
     <section class="card chats">${list}</section>
-    <div class="row chat-actions"><button class="btn small grow" data-act="open" data-v="gang-new">🏴‍☠️ Сколотить банду</button><button class="btn small ghost grow" data-act="open" data-v="dm-pick">✉️ Написать в личку</button></div>`;
+    <div class="row chat-actions"><button class="btn small grow" data-act="open" data-v="gang-new">Сколотить банду</button><button class="btn small ghost grow" data-act="open" data-v="dm-pick">Написать в личку</button></div>`;
 }
 
 // ===== Вкладка «Офис»: столовая, обед компанией, сигналы и лента =====
