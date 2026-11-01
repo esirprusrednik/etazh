@@ -181,6 +181,20 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.equal((await z.get('/api/users/99999')).status, 404);
   });
 
+  await step('оценка обеда: только после столовой, раз в день, коллеги видят сводку, комментарий — модератор', async () => {
+    assert.equal((await a.post('/api/canteen/rate', { up: true })).status, 400, 'не был в столовой');
+    await a.post('/api/canteen/in');
+    const r = (await a.post('/api/canteen/rate', { up: true, tags: ['Вкусно', 'Остыло', 'Горячее'], comment: 'Борщ огонь' })).json;
+    assert.equal(r.beans, 1); assert.deepEqual(r.food.mine.tags, ['Вкусно', 'Горячее']);
+    const r2 = (await a.post('/api/canteen/rate', { up: false, tags: ['Остыло'] })).json;
+    assert.equal(r2.beans, 0); assert.equal(r2.food.n, 1, 'повторная оценка заменяет первую');
+    const fb = (await b.get('/api/features')).json.food;
+    assert.equal(fb.n, 1); assert.equal(fb.upPct, 0); assert.ok(!('comment' in fb));
+    assert.equal((await a.get('/api/admin/food')).status, 403);
+    const adm = (await c.get('/api/admin/food')).json.offices[0];
+    assert.equal(adm.n, 1);
+  });
+
   await step('удаление аккаунта убирает его спасибо, ачивки и пары', async () => {
     assert.equal((await d.req('DELETE', '/api/me')).status, 200);
     const fp = (await a.get('/api/features')).json.coffee.pair;

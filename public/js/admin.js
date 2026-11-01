@@ -23,6 +23,17 @@ function metricsCard(m) {
   </div>`;
 }
 
+function foodCard(offices) {
+  return `<div class="card"><h2>Отзывы о столовых · 14 дней</h2>
+    <p class="small">Без имён: связь с человеком стирается на следующий день. Можно пересылать АХО и подрядчику как есть.</p>
+    ${offices.length ? offices.map((o) => `<div class="item" style="flex-direction:column;align-items:stretch;gap:4px">
+      <div><b>${esc(o.office)}</b> · 👍 ${o.upPct}% · оценок: ${o.n}</div>
+      ${o.tags.length ? `<div class="small">${o.tags.map(([t, n]) => `${esc(t)} — ${n}`).join(' · ')}</div>` : ''}
+      ${o.comments.map((c) => `<div class="small">${c.up ? '👍' : '👎'} ${esc(c.day)}: ${esc(c.text)}</div>`).join('')}
+    </div>`).join('') : '<p class="sub">Оценок пока нет.</p>'}
+  </div>`;
+}
+
 function quizCard(items) {
   const now = Date.now();
   return `<div class="card"><h2>Квиз недели</h2>
@@ -41,11 +52,12 @@ function quizCard(items) {
 
 async function load() {
   try {
-    const [d, m, qz] = await Promise.all([call('GET', '/api/admin/overview'), call('GET', '/api/admin/metrics').catch(() => null), call('GET', '/api/admin/quizzes').catch(() => ({ items: [] }))]);
+    const [d, m, qz, food] = await Promise.all([call('GET', '/api/admin/overview'), call('GET', '/api/admin/metrics').catch(() => null), call('GET', '/api/admin/quizzes').catch(() => ({ items: [] })), call('GET', '/api/admin/food').catch(() => ({ offices: [] }))]);
     root.innerHTML = `
     <div class="card"><h2>Сводка</h2><p class="sub">Пользователей: <b>${d.users}</b> · отмечались сегодня: <b>${d.activeToday}</b> · банд: <b>${d.gangs}</b></p></div>
     ${m ? metricsCard(m) : ''}
     ${quizCard(qz.items)}
+    ${foodCard(food.offices)}
     <div class="card"><h2>Жалобы</h2>${d.reports.length ? d.reports.map((r) => `
       <div class="item"><div class="grow"><div style="font-weight:900">${TYPES[r.object_type]} #${r.object_id} · жалоб: ${r.n}${r.preview && r.preview.hidden ? ' · скрыто' : ''}</div>
       <div class="where">${esc(r.preview ? r.preview.text : 'уже удалено')}</div>${r.reasons ? `<div class="small">${esc(r.reasons)}</div>` : ''}</div>

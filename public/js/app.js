@@ -581,7 +581,28 @@ function renderCanteen() {
     ${bars}
     <p class="note ${c.advice.tone}" style="margin:0">${esc(c.advice.text)}</p>
     ${c.lowData ? '<p class="small">Мало отметок за 15 минут, оценка примерная. Отмечайся в столовой, чтобы она стала точнее.</p>' : ''}
+    ${renderFood()}
   </section>`;
+}
+
+// Оценка обеда: 👍/👎, метки и комментарий для модератора. Коллеги видят только сводку
+function renderFood() {
+  const f = S.fx && S.fx.food;
+  if (!f) return '';
+  const sum = f.n ? `<div class="food-sum"><span class="food-pct ${f.upPct >= 60 ? 'good' : f.upPct >= 40 ? 'mid' : 'bad'}">👍 ${f.upPct}%</span><span>${f.n} ${plural(f.n, 'оценка', 'оценки', 'оценок')} сегодня${f.top.length ? ' · ' + f.top.map((t) => `«${esc(t.toLowerCase())}»`).join(', ') : ''}</span></div>` : '';
+  if (!f.canRate) return sum ? `<div class="food">${sum}</div>` : '';
+  const d = S.foodDraft;
+  if (f.mine && !d) {
+    return `<div class="food">${sum}<div class="row" style="justify-content:space-between"><span class="small" style="font-weight:700">Твоя оценка: ${f.mine.up ? '👍 понравилось' : '👎 не очень'}${f.mine.tags.length ? ' · ' + f.mine.tags.map(esc).join(', ').toLowerCase() : ''}</span><button class="linkbtn" data-act="food-edit">изменить</button></div></div>`;
+  }
+  if (!d) {
+    return `<div class="food">${sum}<div class="food-q">Как обед?</div><div class="row"><button class="btn grow food-up" data-act="food-pick" data-v="1">👍 Понравилось</button><button class="btn ghost grow" data-act="food-pick" data-v="0">👎 Не очень</button></div></div>`;
+  }
+  const tags = d.up ? f.tagsUp : f.tagsDown;
+  return `<div class="food">${sum}<div class="food-q">${d.up ? '👍 Что понравилось?' : '👎 Что не так?'} <span class="small">до 3</span></div>
+    <div class="chips">${tags.map((t) => `<button class="chip ${d.tags.includes(t) ? 'on' : ''}" data-act="food-tag" data-v="${esc(t)}">${esc(t)}</button>`).join('')}</div>
+    <label class="field" style="gap:4px"><span class="small">Пару слов для столовой — увидит только модератор, без имени</span><input id="food-comment" maxlength="140" value="${esc(d.comment || '')}" placeholder="${d.up ? 'Например: отличный борщ' : 'Например: суп был холодный'}"></label>
+    <div class="row"><button class="btn grow" data-act="food-send">Отправить${f.mine ? '' : ' · +1'}</button><button class="btn ghost" data-act="food-cancel">Отмена</button></div></div>`;
 }
 
 function renderSignalsMini() {
@@ -1751,7 +1772,7 @@ const actions = {
     await refresh({ all: true });
   }),
   checkout: () => run(async () => { await post('/api/checkout'); toast('Хорошего вечера!'); await refresh(); }),
-  'canteen-in': () => run(async () => { const r = await post('/api/canteen/in'); toast(r.beans ? `Приятного аппетита! +${r.beans}` : 'Приятного аппетита!'); await loadState(); }),
+  'canteen-in': () => run(async () => { const r = await post('/api/canteen/in'); toast(r.beans ? `Приятного аппетита! +${r.beans}` : 'Приятного аппетита!'); await Promise.all([loadState(), loadFeatures()]); }),
   'canteen-out': () => run(async () => { await post('/api/canteen/out'); await loadState(); }),
   'share-on': () => run(async () => { await post('/api/me/profile', { shareOffice: true }); S.me.shareOffice = true; await loadState(); }),
 
@@ -2066,6 +2087,21 @@ const actions = {
     if (r.beans) { toast(`Верно! +${r.beans} зёрна`); loadMe().then(render).catch(() => {}); }
   }),
   // Шаг из карточки «заполни профиль»: раскрываем нужный раздел, прокручиваем к нему и ставим курсор в поле
+  'food-pick'(el) { S.foodDraft = { up: el.dataset.v === '1', tags: [], comment: '' }; render(); },
+  'food-edit'() { const m = S.fx.food.mine; S.foodDraft = { up: m.up, tags: [...m.tags], comment: '' }; render(); },
+  'food-cancel'() { S.foodDraft = null; render(); },
+  'food-tag'(el) {
+    const d = S.foodDraft, t = el.dataset.v; const c = $('#food-comment'); if (c) d.comment = c.value;
+    if (d.tags.includes(t)) d.tags = d.tags.filter((x) => x !== t); else if (d.tags.length < 3) d.tags.push(t); else toast('Не больше трёх');
+    render();
+  },
+  'food-send': () => run(async () => {
+    const d = S.foodDraft; const c = $('#food-comment');
+    const r = await post('/api/canteen/rate', { up: d.up, tags: d.tags, comment: c ? c.value : '' });
+    S.foodDraft = null; S.fx.food = r.food;
+    toast(r.beans ? `Спасибо за оценку! +${r.beans} зерно` : 'Оценка обновлена');
+    if (r.beans) loadMe().then(render).catch(() => {});
+  }),
   'feed-kind'(el) { const off = new Set(store.get('feedOff', [])); if (off.has(el.dataset.v)) off.delete(el.dataset.v); else off.add(el.dataset.v); store.set('feedOff', [...off]); render(); },
   'feed-close'() { store.set('feedClose', !store.get('feedClose', false)); render(); },
   'coach-next'() {

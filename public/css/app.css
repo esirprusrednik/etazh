@@ -490,3 +490,11 @@ body { font-weight: 500; }
 .feed-f { margin-bottom: 4px; }
 .feed-f .chip { font-size: 13px; padding: 7px 12px; min-height: 36px; }
 @media (prefers-reduced-motion: reduce) { .vs-clock.low { animation: none; } }
+
+/* ---- Оценка обеда ---- */
+.food { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.food-sum { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--muted); font-weight: 600; }
+.food-pct { padding: 3px 9px; border-radius: 999px; font-weight: 900; font-size: 13px; }
+.food-pct.good { background: var(--good-bg); color: var(--good-fg); } .food-pct.mid { background: var(--warn-bg); color: var(--warn-fg); } .food-pct.bad { background: var(--bad-bg); color: var(--bad-fg); }
+.food-q { font-weight: 900; color: var(--ink); }
+.btn.food-up { background: var(--green); color: #fff; border-bottom-color: #145228; }

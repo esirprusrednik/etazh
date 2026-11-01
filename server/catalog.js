@@ -61,7 +61,8 @@ const EARN = {
   thanks: { amount: 1, perDay: 5 }, // получатель спасибо, не больше 5 зёрен в день
   sea_win: { amount: 5, perDay: 1 }, // победа в морском бое: зёрна только за первую победу в день
   guess: { amount: 1, perDay: 3 },   // «Угадай коллегу»: верный ответ
-  quiz: { amount: 3, perDay: 3 }     // квиз недели: верный ответ
+  quiz: { amount: 3, perDay: 3 },    // квиз недели: верный ответ
+  food_rate: { amount: 1, perDay: 1 } // оценка обеда
 };
 
 const GANG_DEPOSIT = 50;

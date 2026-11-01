@@ -42,9 +42,19 @@ const COFFEE_OPTS = ['Сегодня в 11:00', 'Сегодня в 15:00', 'За
 const COFFEE_REPLIES = ['Иду', 'Давай в другое время', 'Не смогу'];
 const LUNCH_TIMES = ['11:30', '11:45', '12:00', '12:15', '12:30', '12:45', '13:00', '13:15', '13:30', '13:45', '14:00', '14:15', '14:30'];
 const DAY_NAMES = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+// Оценка обеда: «понравилось / нет» и быстрые метки. Коллеги видят только сводку, комментарий — только модератор
+const FOOD_TAGS_UP = ['Вкусно', 'Горячее', 'Большие порции', 'Хороший выбор', 'Быстро обслужили'];
+const FOOD_TAGS_DOWN = ['Остыло', 'Пересолено', 'Мало выбора', 'Долго ждать', 'Дорого'];
 
 function migrate(db) {
   db.exec(`
+  -- Оценки обеда. Связь с человеком нужна только чтобы оценить один раз в день; на следующий день она стирается
+  CREATE TABLE IF NOT EXISTS canteen_rates (
+    id INTEGER PRIMARY KEY, day TEXT NOT NULL, office_id TEXT NOT NULL,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    up INTEGER NOT NULL, tags TEXT NOT NULL DEFAULT '[]', comment TEXT, at INTEGER NOT NULL
+  );
+  CREATE UNIQUE INDEX IF NOT EXISTS canteen_rates_once ON canteen_rates(day, office_id, user_id);
   -- Метрики пилота: только обезличенные агрегаты
   CREATE TABLE IF NOT EXISTS activity (day TEXT NOT NULL, uid TEXT NOT NULL, PRIMARY KEY (day, uid));
   CREATE TABLE IF NOT EXISTS stats (day TEXT NOT NULL, key TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (day, key));
@@ -472,11 +482,62 @@ function register(ctx) {
       coffee: { optIn: !!prof.coffee, hasHome: !!prof.home, pair: myPair(u.id) },
       lunches: lunchesFor(u.id),
       birthdaysToday: bdaysToday,
-      giftBeans: GIFT_BEANS
+      giftBeans: GIFT_BEANS,
+      food: (() => { const ci = activeCheckin(u.id); return ci ? foodSummary(ci.office_id, u.id) : null; })()
     };
   });
 
   // ---------- Админка: метрики ----------
+  // ---------- Оценка обеда ----------
+  function foodSummary(officeId, uid) {
+    const rows = q('SELECT up, tags, user_id FROM canteen_rates WHERE day = ? AND office_id = ?').all(today(), officeId);
+    const n = rows.length;
+    const ups = rows.filter((r) => r.up).length;
+    const cnt = {};
+    for (const r of rows) for (const t of JSON.parse(r.tags)) cnt[t] = (cnt[t] || 0) + 1;
+    const top = Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([t]) => t);
+    const ate = !!q('SELECT 1 FROM canteen WHERE user_id = ? AND office_id = ? AND at > ?').get(uid, officeId, dayStartTs(today()));
+    const mine = rows.find((r) => r.user_id === uid);
+    return { n, upPct: n ? Math.round((ups / n) * 100) : null, top, canRate: ate, mine: mine ? { up: !!mine.up, tags: JSON.parse(mine.tags) } : null, tagsUp: FOOD_TAGS_UP, tagsDown: FOOD_TAGS_DOWN };
+  }
+
+  route('POST', '/api/canteen/rate', async (req, body) => {
+    const u = requireUser(req);
+    const ci = activeCheckin(u.id);
+    const officeId = ci && ci.office_id;
+    if (!officeId || !q('SELECT 1 FROM canteen WHERE user_id = ? AND office_id = ? AND at > ?').get(u.id, officeId, dayStartTs(today()))) {
+      throw bad('Оценить обед можно после отметки «Я тут» в столовой.');
+    }
+    const up = !!body.up;
+    const allowed = up ? FOOD_TAGS_UP : FOOD_TAGS_DOWN;
+    const tags = (Array.isArray(body.tags) ? body.tags : []).filter((t) => allowed.includes(t)).slice(0, 3);
+    const comment = U.cleanText(body.comment || '', 140);
+    if (comment) { const prob = U.moderationProblem(comment); if (prob) throw bad(prob); }
+    const first = !q('SELECT 1 FROM canteen_rates WHERE day = ? AND office_id = ? AND user_id = ?').get(today(), officeId, u.id);
+    q(`INSERT INTO canteen_rates (day, office_id, user_id, up, tags, comment, at) VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(day, office_id, user_id) DO UPDATE SET up = excluded.up, tags = excluded.tags, comment = excluded.comment, at = excluded.at`)
+      .run(today(), officeId, u.id, up ? 1 : 0, JSON.stringify(tags), comment || null, U.now());
+    const beans = first ? addBeans(u.id, 'food_rate') || 0 : 0;
+    if (first) stat('food_rates');
+    return { ok: true, beans, food: foodSummary(officeId, u.id) };
+  });
+
+  // Модерация: сводка по столовым за две недели и комментарии без имён — можно передать АХО и подрядчику
+  route('GET', '/api/admin/food', async (req) => {
+    requireAdmin(req);
+    const from = addDays(today(), -13);
+    const rows = q('SELECT r.day, r.office_id, r.up, r.tags, r.comment, o.name AS office FROM canteen_rates r JOIN offices o ON o.id = r.office_id WHERE r.day >= ? ORDER BY r.at DESC').all(from);
+    const by = {};
+    for (const r of rows) {
+      const k = r.office;
+      by[k] = by[k] || { office: k, n: 0, up: 0, tags: {}, comments: [] };
+      by[k].n++; if (r.up) by[k].up++;
+      for (const t of JSON.parse(r.tags)) by[k].tags[t] = (by[k].tags[t] || 0) + 1;
+      if (r.comment && by[k].comments.length < 30) by[k].comments.push({ day: ddmm(r.day), up: !!r.up, text: r.comment });
+    }
+    return { offices: Object.values(by).map((o) => ({ ...o, upPct: Math.round((o.up / o.n) * 100), tags: Object.entries(o.tags).sort((a, b) => b[1] - a[1]) })) };
+  });
+
   route('GET', '/api/admin/metrics', async (req) => {
     requireAdmin(req);
     const days = [];
@@ -542,6 +603,8 @@ function register(ctx) {
   function cleanup() {
     const t = U.now();
     const d = today();
+    q('UPDATE canteen_rates SET user_id = NULL WHERE day < ? AND user_id IS NOT NULL').run(d);
+    q('DELETE FROM canteen_rates WHERE day < ?').run(addDays(d, -60));
     q('DELETE FROM activity WHERE day < ?').run(addDays(d, -35));
     q('DELETE FROM stats WHERE day < ?').run(addDays(d, -120));
     q('DELETE FROM thanks WHERE at < ?').run(t - 30 * 864e5);
