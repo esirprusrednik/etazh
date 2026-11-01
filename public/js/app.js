@@ -313,7 +313,9 @@ function setBattleView(v) {
     setTimeout(() => { if (S.battle) render(); }, 3300);
     if (navigator.vibrate) navigator.vibrate(20);
   } else if (oe && S.bEmoteSeen == null) S.bEmoteSeen = oe.at;
-  S.bv = v;
+  // Партия только что закончилась победой — канонада (один раз)
+  if (S.bv && S.bv.id === v.id && S.bv.status !== 'done' && v.status === 'done' && v.winner === 'me') sfx('fanfare');
+  S.bv = v; S.bvAt = Date.now();
 }
 async function loadBattle() {
   if (!S.battle) { S.bv = null; return; }
@@ -840,8 +842,13 @@ function renderBattleInvite(f) {
   const label = !g ? 'Вызвать на морской бой'
     : g.status === 'setup' ? (g.myTurn ? 'Расставь флот — тебя вызвали' : 'Партия: ждём соперника')
     : g.myTurn ? 'Твой ход в морском бою!' : 'Партия идёт: ход соперника';
-  return `<button class="battle-invite ${g && g.myTurn ? 'hot' : ''}" data-act="${g ? 'battle-open' : 'battle-new'}" data-id="${g ? g.id : f.id}">
-    <span class="bi-ico" aria-hidden="true">⚓</span><span class="grow"><b>${label}</b><span class="small">${g ? 'Нажми, чтобы открыть поле' : 'Пошагово, без спешки: ходите, когда удобно'}</span></span><span aria-hidden="true">›</span>
+  if (!g) {
+    return `<div class="battle-invite pick"><span class="bi-ico" aria-hidden="true">⚓</span><span class="grow"><b>Морской бой</b>
+      <span class="bi-modes"><button class="bi-mode" data-act="battle-new" data-id="${f.id}" data-mode="calm">🐢 Без спешки<small>ходите, когда удобно</small></button>
+      <button class="bi-mode fast" data-act="battle-new" data-id="${f.id}" data-mode="fast">⚡ Быстрая<small>по 1,5 мин у каждого</small></button></span></span></div>`;
+  }
+  return `<button class="battle-invite ${g.myTurn ? 'hot' : ''}" data-act="battle-open" data-id="${g.id}">
+    <span class="bi-ico" aria-hidden="true">${g.mode === 'fast' ? '⚡' : '⚓'}</span><span class="grow"><b>${label}</b><span class="small">${g.mode === 'fast' ? 'Быстрая партия · ' : ''}Нажми, чтобы открыть поле</span></span><span aria-hidden="true">›</span>
   </button>`;
 }
 
@@ -901,14 +908,39 @@ function fleetLeft(ships, shots) {
 }
 const fleetBars = (arr) => `<div class="fleet">${arr.sort((a, b) => b.len - a.len).map((s) => `<span class="fl ${s.sunk ? 'sunk' : ''}" title="${s.len}-палубный${s.sunk ? ', потоплен' : ''}">${'<i></i>'.repeat(s.len)}</span>`).join('')}</div>`;
 
+// Часы быстрой партии: сервер присылает остаток, дальше тикаем сами до следующего ответа
+function clockNow(v, who) {
+  if (!v.clock) return 0;
+  const running = v.status === 'play' && (who === 'me' ? v.myTurn : !v.myTurn);
+  return Math.max(0, v.clock[who] - (running ? Date.now() - (S.bvAt || Date.now()) : 0));
+}
+const fmtClock = (ms) => { const sec = Math.ceil(ms / 1000); return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`; };
+setInterval(() => {
+  const v = S.bv;
+  if (!S.battle || !v || !v.clock || v.status !== 'play') return;
+  for (const el of document.querySelectorAll('.vs-clock')) {
+    const ms = clockNow(v, el.dataset.who);
+    el.textContent = fmtClock(ms);
+    el.classList.toggle('low', ms <= 10000);
+    el.classList.toggle('warn', ms > 10000 && ms <= 30000);
+    el.classList.toggle('run', (el.dataset.who === 'me') === v.myTurn);
+  }
+  const mine = clockNow(v, 'me');
+  if (v.myTurn && mine <= 10000 && mine > 0) { const sec = Math.ceil(mine / 1000); if (S.lastTick !== sec) { S.lastTick = sec; sfx('tick'); } }
+  if (clockNow(v, v.myTurn ? 'me' : 'opp') <= 0 && !S.bBusy && !S.clockFetch) {
+    S.clockFetch = true;
+    get(`/api/battle/${S.battle}`).then((nv) => { setBattleView(nv); render(); }).catch(() => {}).finally(() => { S.clockFetch = false; });
+  }
+}, 250);
+
 // Шапка «ты против соперника»: аватары, счёт, чей ход, пузыри реакций
 function renderVersus(v) {
   const bubble = () => '';
   const myTurn = v.status === 'play' && v.myTurn, oppTurn = v.status === 'play' && !v.myTurn;
   return `<section class="b-vs">
-    <div class="vs-side ${myTurn ? 'turn' : ''}">${bubble('mine')}<span class="vs-ava">${avatar(S.me.look, 52)}</span><span class="vs-name">ты</span></div>
+    <div class="vs-side ${myTurn ? 'turn' : ''}">${bubble('mine')}<span class="vs-ava">${avatar(S.me.look, 52)}</span><span class="vs-name">ты</span>${v.clock ? `<span class="vs-clock" data-who="me">${fmtClock(clockNow(v, 'me'))}</span>` : ''}</div>
     <div class="vs-mid"><div class="vs-score"><b>${v.score.me}</b><span>:</span><b>${v.score.opp}</b></div><div class="vs-cap">${v.status === 'setup' ? 'расстановка' : v.status === 'done' ? 'партия окончена' : myTurn ? 'твой ход' : 'ход соперника'}</div></div>
-    <div class="vs-side ${oppTurn ? 'turn' : ''}">${bubble('opp')}${tap(v.opp.id, `<span class="vs-ava">${avatar(v.opp.look, 52)}</span>`)}<span class="vs-name ellipsis">${esc(v.opp.nick)}</span></div>
+    <div class="vs-side ${oppTurn ? 'turn' : ''}">${bubble('opp')}${tap(v.opp.id, `<span class="vs-ava">${avatar(v.opp.look, 52)}</span>`)}<span class="vs-name ellipsis">${esc(v.opp.nick)}</span>${v.clock ? `<span class="vs-clock" data-who="opp">${fmtClock(clockNow(v, 'opp'))}</span>` : ''}</div>
   </section>`;
 }
 
@@ -944,7 +976,7 @@ function renderBattle() {
   }
   const done = v.status === 'done';
   const banner = done
-    ? `<div class="b-banner ${v.winner === 'me' ? 'win' : 'lose'}">${v.winner === 'me' ? (v.resigned ? `🏆 ${esc(v.opp.nick)} сдался. Победа!` : '🏆 Победа! Весь флот соперника на дне') : (v.resigned ? 'Ты сдался. Бывает' : `💥 ${esc(v.opp.nick)} потопил твой флот`)}</div>`
+    ? `<div class="b-banner ${v.winner === 'me' ? 'win' : 'lose'}">${v.winner === 'me' ? (v.timeout ? `⏱ У ${esc(v.opp.nick)} кончилось время. Победа!` : v.resigned ? `🏆 ${esc(v.opp.nick)} сдался. Победа!` : '🏆 Победа! Весь флот соперника на дне') : (v.timeout ? '⏱ Время вышло. В следующий раз быстрее!' : v.resigned ? '🐔 Ты сдался. Бывает' : `💥 ${esc(v.opp.nick)} потопил твой флот`)}</div>`
     : v.myTurn ? '<div class="b-banner go">🎯 Твой ход — стреляй по полю соперника</div>'
     : `<div class="b-banner wait">⏳ Ход ${esc(v.opp.nick)}. Придёт уведомление, когда выстрелит</div>`;
   const oppFleet = v.fleet.map((len) => ({ len, sunk: false }));
@@ -962,7 +994,7 @@ function renderBattle() {
     ${fleetBars(fleetLeft(v.myShips, v.oppShots))}
     ${renderBoard(v, 'me')}
   </section>
-  ${done ? `<button class="btn wide" data-act="battle-new" data-id="${v.opp.id}">Реванш</button>` : '<button class="linkbtn b-quit" data-act="bresign">Сдаться</button>'}`;
+  ${done ? `<button class="btn wide" data-act="battle-new" data-id="${v.opp.id}" data-mode="${v.mode}">Реванш${v.mode === 'fast' ? ' · быстрая' : ''}</button>` : '<button class="linkbtn b-quit" data-act="bresign">Сдаться</button>'}`;
 }
 
 function renderDmMsg(m, f) {
@@ -1003,8 +1035,13 @@ function renderFeed() {
         <p class="small">Пожарная тревога и эвакуация — только по официальным каналам АХО и охраны, не здесь.</p>
       </section>`
     : '<section class="card"><h3>Сигналы офиса</h3><p class="sub">Отметься в офисе, чтобы видеть и отправлять сигналы: холодно, еда на кухне, кофе закончился.</p></section>';
-  const list = ev.events.length ? ev.events.map((e) => `<div class="item"><div class="grow"><div style="font-weight:700">${esc(e.text)}</div><div class="where">${e.time}${e.office ? ' · ' + esc(e.office) : ''}</div></div></div>`).join('') : '<p class="sub">Событий пока нет.</p>';
-  return `${sig}<section class="card"><h3>Лента</h3>${list}</section>`;
+  const off = new Set(store.get('feedOff', []));
+  const onlyClose = !!store.get('feedClose', false);
+  const kinds = [['office', 'В офисе'], ['join', 'Новички'], ['ach', 'Ачивки'], ['shop', 'Покупки']];
+  const shown = ev.events.filter((e) => !off.has(e.kind) && (!onlyClose || e.close));
+  const filters = `<div class="chips feed-f"><button class="chip ${onlyClose ? 'on' : ''}" data-act="feed-close">👥 Только свои</button>${kinds.map(([k, l]) => `<button class="chip ${off.has(k) ? '' : 'on'}" data-act="feed-kind" data-v="${k}">${l}</button>`).join('')}</div>`;
+  const list = shown.length ? shown.map((e) => `<div class="item"><div class="grow"><div style="font-weight:700">${esc(e.text)}</div><div class="where">${e.time}${e.office ? ' · ' + esc(e.office) : ''}</div></div></div>`).join('') : '<p class="sub">Событий пока нет.</p>';
+  return `${sig}<section class="card"><h3>Лента</h3>${filters}${list}${shown.length < ev.events.length ? `<p class="small" style="margin:0">Скрыто фильтром: ${ev.events.length - shown.length}</p>` : ''}</section>`;
 }
 
 // ----- Новые блоки: задания, обед, кофе, дни рождения, неделя, спасибо -----
@@ -1084,7 +1121,7 @@ function renderGangBirthdays() {
   </section>`;
 }
 
-const CELL = { office: ['О', 'Офис'], home: ['Д', 'Дома'], vacation: ['От', 'Отпуск'], sick: ['Б', 'Болеет'], unknown: ['·', 'Не указано'] };
+const CELL = { office: ['', 'Офис'], home: ['', 'Дома'], vacation: ['', 'Отпуск'], sick: ['', 'Болеет'], unknown: ['', 'Не указано'] };
 function renderWeek() {
   const x = S.gx;
   if (!x) return '';
@@ -1297,27 +1334,58 @@ function renderCoach() {
       <span class="row" style="gap:6px">${last ? '' : '<button class="linkbtn" data-act="coach-skip">Пропустить</button>'}<button class="btn small" data-act="coach-next">${last ? 'Понятно' : 'Дальше'}</button></span></div></div>`;
 }
 
-// Короткий звук при переключении вкладок. Синтезируем сами: без файлов, тихо, у каждой вкладки своя нота
+// Звуки интерфейса. Синтезируем в браузере: без файлов, тихо. Выключаются одной галочкой в профиле
 let audioCtx = null;
 const TAB_NOTES = { office: 523, gang: 587, crew: 659, feed: 784 };
-function tabSound(tab) {
-  if (!store.get('sound', true)) return;
+function actx() {
+  if (!store.get('sound', true)) return null;
   try {
     audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') audioCtx.resume();
-    const t = audioCtx.currentTime;
-    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-    o.type = 'triangle';
-    o.frequency.setValueAtTime(TAB_NOTES[tab] || 600, t);
-    o.frequency.exponentialRampToValueAtTime((TAB_NOTES[tab] || 600) * 1.5, t + 0.05);
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.07, t + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
-    o.connect(g).connect(audioCtx.destination);
-    o.start(t); o.stop(t + 0.13);
-  } catch {}
-  if (navigator.vibrate) navigator.vibrate(6);
+    return audioCtx;
+  } catch { return null; }
 }
+function tone(ctx, { f = 600, f2 = null, type = 'triangle', at = 0, dur = 0.12, vol = 0.07 }) {
+  const t = ctx.currentTime + at;
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t);
+  if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur * 0.8);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + dur + 0.02);
+}
+// Пушечный выстрел: короткий шум через низкочастотный фильтр
+function boom(ctx, at, vol = 0.5) {
+  const t = ctx.currentTime + at, len = 0.7;
+  const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * len), ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.5);
+  const src = ctx.createBufferSource(), lp = ctx.createBiquadFilter(), g = ctx.createGain();
+  src.buffer = buf; lp.type = 'lowpass'; lp.frequency.setValueAtTime(380, t); lp.frequency.exponentialRampToValueAtTime(60, t + len);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+  src.connect(lp).connect(g).connect(ctx.destination); src.start(t);
+}
+function sfx(name, arg) {
+  const ctx = actx();
+  if (!ctx) return;
+  try {
+    if (name === 'tab') { const f = TAB_NOTES[arg] || 600; tone(ctx, { f, f2: f * 1.5, dur: 0.12 }); }
+    if (name === 'click') { tone(ctx, { f: 1400, f2: 900, type: 'square', dur: 0.05, vol: 0.035 }); tone(ctx, { f: 2100, type: 'sine', at: 0.03, dur: 0.08, vol: 0.04 }); }
+    if (name === 'tick') tone(ctx, { f: 1800, type: 'sine', dur: 0.04, vol: 0.03 });
+    if (name === 'chicken') {
+      // «ко-ко-ко… кудах!»: короткие писклявые вскрики с резким подъёмом тона
+      [0, 0.17, 0.34].forEach((at) => tone(ctx, { f: 620, f2: 1250, type: 'square', at, dur: 0.11, vol: 0.05 }));
+      tone(ctx, { f: 700, f2: 1700, type: 'sawtooth', at: 0.56, dur: 0.16, vol: 0.06 });
+      tone(ctx, { f: 1500, f2: 520, type: 'sawtooth', at: 0.72, dur: 0.38, vol: 0.05 });
+    }
+    if (name === 'fanfare') {
+      [0, 0.35, 0.7].forEach((at) => boom(ctx, at, 0.45));
+      [[523, 1.0], [659, 1.12], [784, 1.24], [1047, 1.36]].forEach(([f, at]) => tone(ctx, { f, type: 'sawtooth', at, dur: 0.16, vol: 0.05 }));
+      [523, 659, 784, 1047].forEach((f) => tone(ctx, { f, type: 'triangle', at: 1.5, dur: 0.9, vol: 0.045 }));
+    }
+  } catch {}
+  if (navigator.vibrate) navigator.vibrate(name === 'fanfare' ? [60, 60, 60, 60, 200] : name === 'chicken' ? [30, 40, 30] : 6);
+}
+const tabSound = (tab) => sfx('tab', tab);
 
 // Кольцо заполненности профиля вокруг аватара
 function progressRing(pct, inner) {
@@ -1534,7 +1602,7 @@ function renderProfile() {
   const privBody = `
     <label class="check"><input type="checkbox" data-act="toggle" data-k="shareOffice" ${me.shareOffice ? 'checked' : ''}> <span>Показывать банде, где я: офис, дома или в отпуске</span></label>
     <label class="check"><input type="checkbox" data-act="toggle" data-k="quiet" ${me.quiet ? 'checked' : ''}> <span>Тихие часы 19:00–09:00 — не присылать зовы</span></label>
-    <label class="check"><input type="checkbox" data-act="sound-toggle" ${store.get('sound', true) ? 'checked' : ''}> <span>Звук при переключении вкладок</span></label>
+    <label class="check"><input type="checkbox" data-act="sound-toggle" ${store.get('sound', true) ? 'checked' : ''}> <span>Звуки интерфейса (вкладки, Лавка, морской бой)</span></label>
     <label class="check"><input type="checkbox" data-act="coffee-toggle" ${p.coffee ? 'checked' : ''}> <span>Участвовать в случайном кофе${p.home ? '' : ' (сначала укажи «Мой офис» в разделе «Работа»)'}</span></label>
     ${pushState === 'granted' && !(me.completion.steps.find((x) => x.id === 'push') || {}).done ? `<div class="note warn" style="margin:0">Браузер разрешил уведомления, но этот телефон не подключён к серверу — пуши не придут.</div><button class="btn blue" data-act="push-enable" ${S.vapidKey ? '' : 'disabled'}>Подключить уведомления</button>`
       : pushState === 'granted' ? '<div class="row"><span class="note good grow">Уведомления включены</span><button class="btn small ghost" data-act="push-test">Проверить</button></div>'
@@ -1746,9 +1814,9 @@ const actions = {
     window.scrollTo(0, 0);
   }),
   'battle-new': (el) => run(async () => {
-    const r = await post('/api/battle', { to: Number(el.dataset.id) });
+    const r = await post('/api/battle', { to: Number(el.dataset.id), mode: el.dataset.mode || 'calm' });
     S.tab = 'crew'; S.dm = S.dm || Number(el.dataset.id); S.battle = r.id; S.bv = null; await loadBattle(); window.scrollTo(0, 0);
-    if (!r.existing) toast('Вызов отправлен. Расставляй флот');
+    if (!r.existing) toast(el.dataset.mode === 'fast' ? 'Быстрая партия! Часы пойдут, когда оба нажмут «В бой»' : 'Вызов отправлен. Расставляй флот');
   }),
   'battle-open': (el) => run(async () => { S.battle = Number(el.dataset.id); S.bv = null; await loadBattle(); window.scrollTo(0, 0); }),
   'battle-back': () => run(async () => {
@@ -1764,12 +1832,13 @@ const actions = {
     render(); setTimeout(() => { if (S.battle) render(); }, 3300);
     post(`/api/battle/${S.battle}/emote`, { e }).catch(() => {});
   },
-  bshuffle: () => run(async () => { S.bv = await post(`/api/battle/${S.battle}/shuffle`); }),
-  bready: () => run(async () => { S.bv = await post(`/api/battle/${S.battle}/ready`); }),
+  bshuffle: () => run(async () => { setBattleView(await post(`/api/battle/${S.battle}/shuffle`)); }),
+  bready: () => run(async () => { setBattleView(await post(`/api/battle/${S.battle}/ready`)); }),
   bresign: () => run(async () => {
     const playing = S.bv && S.bv.status === 'play';
     if (!confirmTwice('bresign', playing ? 'Нажми ещё раз, чтобы сдаться' : 'Нажми ещё раз, чтобы отказаться')) return;
-    S.bv = await post(`/api/battle/${S.battle}/resign`);
+    S.bv = await post(`/api/battle/${S.battle}/resign`); S.bvAt = Date.now();
+    sfx('chicken');
   }),
   bshoot: (el) => {
     if (S.bBusy) return; S.bBusy = true;
@@ -1852,6 +1921,7 @@ const actions = {
     S.sheet = el.dataset.v; S.error = '';
     if (S.sheet === 'signal') S.signal = {};
     render();
+    if (S.sheet === 'shop') sfx('click');
     if (S.sheet === 'shop') { store.set('shopSeen', [...new Set([...store.get('shopSeen', []), ...((S.me && S.me.affordable) || [])])]); await run(async () => { S.shop = await get('/api/shop'); if (S.activeGang && !S.gang) await loadGang(); }); }
     if (S.sheet === 'profile' || S.sheet === 'lunch') await run(loadFeatures);
   },
@@ -1904,6 +1974,7 @@ const actions = {
     if (S.avaMode === 'vacation') await post('/api/me/profile', { profile: { vacationLook: pick } });
     else await post('/api/me/profile', { look: pick });
     await loadMe(); S.sheet = 'profile'; S.sec.add('look'); toast(S.avaMode === 'vacation' ? 'Образ для отпуска сохранён' : 'Аватар сохранён');
+    refresh({ all: true }).then(render).catch(() => {}); // чтобы новый аватар сразу был везде: банда, подельники, неделя
   }),
   'ava-save-vac': () => run(async () => {
     const pick = Object.fromEntries(Object.keys(S.cat.look).concat(['glasses', 'phones', 'freckles']).map((k) => [k, S.draft[k]]));
@@ -1995,6 +2066,8 @@ const actions = {
     if (r.beans) { toast(`Верно! +${r.beans} зёрна`); loadMe().then(render).catch(() => {}); }
   }),
   // Шаг из карточки «заполни профиль»: раскрываем нужный раздел, прокручиваем к нему и ставим курсор в поле
+  'feed-kind'(el) { const off = new Set(store.get('feedOff', [])); if (off.has(el.dataset.v)) off.delete(el.dataset.v); else off.add(el.dataset.v); store.set('feedOff', [...off]); render(); },
+  'feed-close'() { store.set('feedClose', !store.get('feedClose', false)); render(); },
   'coach-next'() {
     if (S.coach < COACH.length - 1) {
       S.coach++;
@@ -2004,7 +2077,7 @@ const actions = {
     render();
   },
   'coach-skip'() { S.coach = 0; store.set('coachDone', 2); if (S.tab !== 'office') { S.tab = 'office'; run(() => refresh()); } render(); },
-  'sound-toggle'(el) { store.set('sound', el.checked); if (el.checked) tabSound('feed'); },
+  'sound-toggle'(el) { store.set('sound', el.checked); if (el.checked) sfx('click'); },
   'open-sec'(el) {
     const v = el.dataset.v;
     const wasOpen = S.sheet === 'profile';
@@ -2125,10 +2198,13 @@ setInterval(async () => {
   if (document.hidden || !S.me || !S.me.nick || typing() || S.sheet) return;
   try { await refresh(); render(); } catch {}
 }, 20000);
-// Морской бой: пока ждём соперника — опрашиваем часто, чтобы его выстрел появился почти сразу
+// Морской бой: опрашиваем часто, чтобы выстрел соперника появился почти сразу. В быстрой партии — раз в секунду
+let battleTick = 0;
 setInterval(async () => {
   const v = S.bv;
   if (document.hidden || !S.me || S.tab !== 'crew' || !S.battle || !v || S.sheet || S.bBusy) return;
+  battleTick++;
+  if (!(v.mode === 'fast' && v.status !== 'done') && battleTick % 3) return;
   try {
     const nv = await get(`/api/battle/${S.battle}`);
     const oe = nv.emotes && nv.emotes.opp;
@@ -2138,7 +2214,7 @@ setInterval(async () => {
       if (navigator.vibrate && nv.last && !nv.last.mine && nv.last.r !== 'miss') navigator.vibrate([40, 30, 40]);
     }
   } catch {}
-}, 2500);
+}, 900);
 setInterval(async () => {
   if (document.hidden || !S.me || !S.me.nick || S.tab !== 'crew' || !S.dm || S.battle || S.sheet) return;
   const before = S.dmView ? S.dmView.messages.map((m) => m.id + ':' + (m.reply || '') + (m.read ? 'r' : '')).join() : '';

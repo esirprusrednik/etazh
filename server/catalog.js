@@ -12,7 +12,7 @@ const DEFAULT_REPLIES = ['Иду', 'Через 10 мин', 'Не могу'];
 const CALLS = {
   coffee: { label: 'На кофе', verb: 'зовёт на кофе', opts: ['Сейчас', 'Через 15 мин', 'В 16:00'], replies: DEFAULT_REPLIES },
   lunch: { label: 'На обед', verb: 'зовёт на обед', opts: ['Сейчас', '12:30', '13:00', '13:30'], replies: DEFAULT_REPLIES },
-  room: { label: 'В переговорку', verb: 'зовёт в переговорку', opts: ['Сейчас', 'Через 5 мин'], needsText: true, replies: DEFAULT_REPLIES },
+  room: { label: 'Переговорка', verb: 'зовёт в переговорку', opts: ['Сейчас', 'Через 5 мин'], needsText: true, replies: DEFAULT_REPLIES },
   home: { label: 'Домой', verb: 'собирается домой — кто с ним?', opts: ['Через 10 мин', 'В 18:00', 'В 19:00'], replies: ['Я с тобой', 'Чуть позже', 'Без меня'] },
   call: { label: 'Перезвони', verb: 'просит перезвонить', opts: ['Когда сможешь', 'Срочно'], replies: ['Перезвоню', 'Через 15 мин', 'Напиши лучше'] },
   where: { label: 'Ты где?', verb: 'спрашивает: ты где?', opts: [], replies: ['В офисе', 'Дома', 'На встрече', 'Скоро буду'] },

@@ -12,6 +12,9 @@ const IDLE_TTL_DAYS = 30;       // партия, где месяц никто н
 // Реакции во время партии — как эмоуты в Clash Royale. Только из списка, без свободного текста
 const EMOTES = ['lol', 'angry', 'bored', 'smart', 'oops', 'clap', 'mercy', 'easy'];
 const EMOTE_GAP_MS = 2500;      // не чаще одной реакции в 2,5 секунды
+// Быстрая партия: шахматные часы, у каждого полторы минуты — вся партия не дольше трёх.
+// Часы идут только в твой ход, поэтому выигрывать «на зависании» не выйдет: кто тянет, тот и проигрывает
+const FAST_MS = 90 * 1000;
 
 // ---------- Чистая логика (экспортируется для тестов) ----------
 const inside = (x, y) => x >= 0 && y >= 0 && x < N && y < N;
@@ -73,7 +76,7 @@ const sunkShips = (ships, shots) => {
 };
 
 function register(ctx) {
-  const { db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, onEvent } = ctx;
+  const { db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, onEvent, publicLook } = ctx;
 
   db.exec(`
   CREATE TABLE IF NOT EXISTS battles (
@@ -106,19 +109,42 @@ function register(ctx) {
   );
   `);
 
+  for (const col of ["mode TEXT NOT NULL DEFAULT 'calm'", 'clock_a INTEGER', 'clock_b INTEGER', 'turn_started INTEGER', 'timeout INTEGER NOT NULL DEFAULT 0']) {
+    try { db.exec(`ALTER TABLE battles ADD COLUMN ${col}`); } catch {}
+  }
+
   const areCrew = (x, y) => {
     const [lo, hi] = x < y ? [x, y] : [y, x];
     return !!q("SELECT 1 FROM crew WHERE lo = ? AND hi = ? AND status = 'ok'").get(lo, hi);
   };
-  const userRow = (id) => q('SELECT id, nick, look FROM users WHERE id = ?').get(id);
-  const pub = (u) => (u ? { id: u.id, nick: u.nick, look: JSON.parse(u.look || '{}') } : { id: 0, nick: 'удалённый аккаунт', look: {} });
+  const userRow = (id) => q('SELECT id, nick, look, profile, share_office FROM users WHERE id = ?').get(id);
+  const pub = (u) => (u ? { id: u.id, nick: u.nick, look: publicLook(u) } : { id: 0, nick: 'удалённый аккаунт', look: {} });
   const side = (g, uid) => (g.a === uid ? 'a' : g.b === uid ? 'b' : null);
   const other = (s) => (s === 'a' ? 'b' : 'a');
   const load = (id, uid) => {
-    const g = q('SELECT * FROM battles WHERE id = ?').get(Number(id));
+    let g = q('SELECT * FROM battles WHERE id = ?').get(Number(id));
     if (!g || !side(g, uid)) throw new HttpError(404, 'Партия не найдена.');
+    if (checkTimeout(g)) g = q('SELECT * FROM battles WHERE id = ?').get(g.id);
     return g;
   };
+  // Сколько осталось на часах у игрока прямо сейчас
+  const clockLeft = (g, who) => {
+    const base = g['clock_' + who] ?? FAST_MS;
+    return g.status === 'play' && g.turn === g[who] ? base - (U.now() - (g.turn_started || U.now())) : base;
+  };
+  // Флажок упал: у того, чей ход, кончилось время — победа сопернику
+  function checkTimeout(g) {
+    if (g.mode !== 'fast' || g.status !== 'play') return false;
+    const who = g.turn === g.a ? 'a' : 'b';
+    if (clockLeft(g, who) > 0) return false;
+    const winner = g[other(who)];
+    q(`UPDATE battles SET status = 'done', winner = ?, timeout = 1, clock_${who} = 0, turn = NULL, seq = seq + 1, updated_at = ? WHERE id = ? AND status = 'play'`).run(winner, U.now(), g.id);
+    addWin(winner, g[who]);
+    const loser = userRow(g[who]);
+    ping(winner, g.id, `${loser ? loser.nick : 'Соперник'} не успел — время вышло. Победа твоя!`);
+    ping(g[who], g.id, 'Время вышло — партия проиграна');
+    return true;
+  }
   const score = (x, y) => {
     const [lo, hi] = x < y ? [x, y] : [y, x];
     const r = q('SELECT * FROM battle_scores WHERE lo = ? AND hi = ?').get(lo, hi);
@@ -151,7 +177,9 @@ function register(ctx) {
       myLeft: left(myShips, oppShots), oppLeft: left(oppShips, myShots),
       oppShips: g.status === 'done' ? oppShips : null,
       winner: g.status === 'done' ? (g.winner === uid ? 'me' : 'opp') : null,
-      resigned: !!g.resigned,
+      resigned: !!g.resigned, timeout: !!g.timeout,
+      mode: g.mode || 'calm',
+      clock: g.mode === 'fast' ? { me: Math.max(0, clockLeft(g, s)), opp: Math.max(0, clockLeft(g, o)), total: FAST_MS } : null,
       last: last ? { mine: last.by === uid, x: last.x, y: last.y, r: last.r } : null,
       score: score(uid, oppId),
       fleet: FLEET,
@@ -164,13 +192,15 @@ function register(ctx) {
   // Активная партия с подельником (для кнопки в переписке)
   route('GET', '/api/battles', async (req) => {
     const u = requireUser(req);
-    const rows = q(`SELECT * FROM battles WHERE (a = ? OR b = ?) AND (status != 'done' OR updated_at > ?) ORDER BY updated_at DESC`)
+    const pick = () => q(`SELECT * FROM battles WHERE (a = ? OR b = ?) AND (status != 'done' OR updated_at > ?) ORDER BY updated_at DESC`)
       .all(u.id, u.id, U.now() - 864e5);
+    let rows = pick();
+    if (rows.some((g) => checkTimeout(g))) rows = pick();
     return {
       items: rows.map((g) => {
         const s = side(g, u.id);
         return {
-          id: g.id, status: g.status, oppId: g[other(s)],
+          id: g.id, status: g.status, oppId: g[other(s)], mode: g.mode || 'calm',
           myTurn: (g.status === 'play' && g.turn === u.id) || (g.status === 'setup' && !g[s + '_ready']),
           winner: g.status === 'done' ? (g.winner === u.id ? 'me' : 'opp') : null
         };
@@ -188,9 +218,10 @@ function register(ctx) {
     const active = q("SELECT COUNT(*) AS n FROM battles WHERE status != 'done' AND (a = ? OR b = ?)").get(u.id, u.id).n;
     if (active >= MAX_ACTIVE) throw bad(`Одновременно можно вести ${MAX_ACTIVE} партий. Доиграй какую-нибудь.`);
     const t = U.now();
-    const r = q('INSERT INTO battles (a, b, status, a_ships, b_ships, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .run(u.id, to, 'setup', JSON.stringify(randomFleet()), JSON.stringify(randomFleet()), t, t);
-    ping(to, Number(r.lastInsertRowid), `${u.nick} вызывает на морской бой`);
+    const mode = body.mode === 'fast' ? 'fast' : 'calm';
+    const r = q('INSERT INTO battles (a, b, status, a_ships, b_ships, created_at, updated_at, mode, clock_a, clock_b) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(u.id, to, 'setup', JSON.stringify(randomFleet()), JSON.stringify(randomFleet()), t, t, mode, FAST_MS, FAST_MS);
+    ping(to, Number(r.lastInsertRowid), mode === 'fast' ? `${u.nick} зовёт на быструю партию в морской бой — 3 минуты` : `${u.nick} вызывает на морской бой`);
     return { id: Number(r.lastInsertRowid) };
   });
 
@@ -217,7 +248,7 @@ function register(ctx) {
     q(`UPDATE battles SET ${s}_ready = 1, updated_at = ? WHERE id = ?`).run(U.now(), g.id);
     if (g[o + '_ready']) {
       const first = Math.random() < 0.5 ? g.a : g.b;
-      q("UPDATE battles SET status = 'play', turn = ?, seq = seq + 1 WHERE id = ?").run(first, g.id);
+      q("UPDATE battles SET status = 'play', turn = ?, turn_started = ?, seq = seq + 1 WHERE id = ?").run(first, U.now(), g.id);
       ping(g[o], g.id, first === g[o] ? `${u.nick} готов. Твой выстрел первый!` : `${u.nick} готов и стреляет первым`);
     } else {
       ping(g[o], g.id, `${u.nick} расставил флот и ждёт тебя`);
@@ -240,9 +271,11 @@ function register(ctx) {
     const t = U.now();
     const done = res.allSunk;
     const turn = res.result === 'miss' ? g[o] : u.id;
-    q(`UPDATE battles SET ${s}_shots = ?, turn = ?, status = ?, winner = ?, seq = seq + 1, last = ?, updated_at = ? WHERE id = ?`)
+    // Быстрая партия: списываем с часов стрелявшего потраченное время, часы соперника запускаем заново
+    const myClock = g.mode === 'fast' ? Math.max(0, clockLeft(g, s)) : g['clock_' + s];
+    q(`UPDATE battles SET ${s}_shots = ?, turn = ?, status = ?, winner = ?, seq = seq + 1, last = ?, updated_at = ?, clock_${s} = ?, turn_started = ? WHERE id = ?`)
       .run(JSON.stringify([...shots, ...res.add]), done ? null : turn, done ? 'done' : 'play', done ? u.id : null,
-        JSON.stringify({ by: u.id, x, y, r: res.result }), t, g.id);
+        JSON.stringify({ by: u.id, x, y, r: res.result }), t, myClock, t, g.id);
     if (done) {
       const newRival = score(u.id, g[o]).me === 0;
       const myShips = JSON.parse(g[s + '_ships']);

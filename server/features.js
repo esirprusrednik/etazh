@@ -87,7 +87,7 @@ function migrate(db) {
 
 function register(ctx) {
   const { db, q, route, requireUser, requireAdmin, bad, U, config, addBeans, spendBeans, notify, fireAndForget,
-    isMember, gangMembers, myGangs, activeCheckin, readProfile, presenceOf, fullName, weekdayName, addDays, pushEvent, officeById, profilePct } = ctx;
+    isMember, gangMembers, myGangs, activeCheckin, readProfile, presenceOf, fullName, weekdayName, addDays, pushEvent, officeById, profilePct, publicLook } = ctx;
   migrate(db);
 
   const meta = {
@@ -107,7 +107,7 @@ function register(ctx) {
   const dayStartTs = (day) => Date.parse(day + 'T00:00:00Z') - config.tzOffsetHours * 3600e3;
   const ddmm = (day) => `${day.slice(8, 10)}.${day.slice(5, 7)}`;
   const userRow = (id) => q('SELECT id, nick, look, profile, share_office FROM users WHERE id = ?').get(id);
-  const lookOf = (row) => JSON.parse(row.look || '{}');
+  const lookOf = (row) => (publicLook ? publicLook(row) : JSON.parse(row.look || '{}'));
 
   // ---------- Метрики ----------
   const seenToday = new Set();
@@ -157,7 +157,7 @@ function register(ctx) {
       if (have.has(a.id) || !a.test(c)) continue;
       q('INSERT OR IGNORE INTO achievements (user_id, ach, at) VALUES (?, ?, ?)').run(uid, a.id, U.now());
       addBeans(uid, 'ach', ACH_REWARD[a.tier]);
-      pushEvent(null, uid, `${u.nick} получил ачивку «${a.name}»`);
+      pushEvent(null, uid, `${u.nick} получил ачивку «${a.name}»`, 'ach');
       got.push(a.id);
     }
     return got;

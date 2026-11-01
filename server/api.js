@@ -284,12 +284,20 @@ function createApi(db) {
   const isMember = (gangId, userId) => !!q('SELECT 1 FROM gang_members WHERE gang_id = ? AND user_id = ?').get(gangId, userId);
   const memberCount = (gangId) => q('SELECT COUNT(*) AS n FROM gang_members WHERE gang_id = ?').get(gangId).n;
 
+  // Как аватар человека видят другие — одно правило для всех экранов (банда, подельники, бой, кофе, квизы).
+  // Отпускной образ — только если человек в отпуске и сам показывает банде, где он.
+  function publicLook(row) {
+    const look = { ...DEFAULT_LOOK, ...JSON.parse(row.look || '{}') };
+    if (row.profile === undefined || !row.share_office) return look;
+    const prof = readProfile(row.profile);
+    if (!prof.vacationLook || presenceOf(prof, activeCheckin(row.id), row.id).where !== 'vacation') return look;
+    return { ...look, ...prof.vacationLook, status: look.status, frame: look.frame, crown: look.crown };
+  }
+
   function memberStatus(member) {
     const prof = readProfile(member.profile);
-    let look = { ...DEFAULT_LOOK, ...JSON.parse(member.look || '{}') };
     const pr = member.share_office ? presenceOf(prof, activeCheckin(member.id), member.id) : { where: 'hidden' };
-    // В отпуске коллеги видят отпускной образ (рамка, корона и статус остаются свои)
-    if (pr.where === 'vacation' && prof.vacationLook) look = { ...look, ...prof.vacationLook, status: look.status, frame: look.frame, crown: look.crown };
+    const look = publicLook(member);
     return {
       id: member.id, nick: member.nick, name: fullName(prof, 'gang'), mood: MOODS[prof.mood] || '', where: pr.where, office: pr.office || null,
       until: pr.until || null, planned: !!pr.planned, joke: pr.joke ?? null, look, status: statusName(look.status)
@@ -322,9 +330,10 @@ function createApi(db) {
 
   const fireAndForget = (p) => p.catch((e) => console.error('[push]', e.message));
 
-  function pushEvent(officeId, userId, text) {
-    q('INSERT INTO events (office_id, user_id, text, at) VALUES (?, ?, ?, ?)').run(officeId, userId, text, U.now());
+  function pushEvent(officeId, userId, text, kind = null) {
+    q('INSERT INTO events (office_id, user_id, text, at, kind) VALUES (?, ?, ?, ?, ?)').run(officeId, userId, text, U.now(), kind);
   }
+  const eventKind = (e) => e.kind || (e.office_id ? 'office' : /ачивк/.test(e.text) ? 'ach' : /купил/.test(e.text) ? 'shop' : /присоединил/.test(e.text) ? 'join' : 'other');
 
   // ---------- Маршруты ----------
   const routes = [];
@@ -454,7 +463,7 @@ function createApi(db) {
     if (first && !u.welcomed) {
       addBeans(u.id, 'welcome');
       q('UPDATE users SET welcomed = 1 WHERE id = ?').run(u.id);
-      pushEvent(null, u.id, `${nick} присоединился к Этажу`);
+      pushEvent(null, u.id, `${nick} присоединился к Этажу`, 'join');
     }
     return { ok: true, nick };
   });
@@ -589,7 +598,7 @@ function createApi(db) {
     if (u.profile.today) q('UPDATE users SET profile = ? WHERE id = ?').run(JSON.stringify({ ...u.profile, today: null }), u.id);
     const got = addBeans(u.id, 'checkin');
     if (features) features.onEvent('checkin', u.id, { office: office.id });
-    if (u.share_office) pushEvent(office.id, u.id, `${u.nick} в офисе`);
+    if (u.share_office) pushEvent(office.id, u.id, `${u.nick} в офисе`, 'office');
     return { ok: true, beans: got };
   });
 
@@ -815,10 +824,13 @@ function createApi(db) {
     const signals = officeId
       ? q('SELECT * FROM signals WHERE office_id = ? AND hidden = 0 AND expires_at > ? ORDER BY at DESC').all(officeId, U.now())
       : [];
+    // «Свои» — из общих банд и подельники: для фильтра «только свои»
+    const close = new Set(q(`SELECT b.user_id AS id FROM gang_members a JOIN gang_members b ON a.gang_id = b.gang_id WHERE a.user_id = ?`).all(u.id).map((r) => r.id));
+    try { for (const r of q("SELECT CASE WHEN lo = ? THEN hi ELSE lo END AS id FROM crew WHERE (lo = ? OR hi = ?) AND status = 'ok'").all(u.id, u.id, u.id)) close.add(r.id); } catch {}
     const votes = (id) => q('SELECT COALESCE(SUM(vote = 1), 0) AS up, COALESCE(SUM(vote = -1), 0) AS down FROM signal_votes WHERE signal_id = ?').get(id);
     return {
       office: officeId,
-      events: events.map((e) => ({ id: e.id, text: e.text, at: e.at, time: U.msk(e.at).hhmm, office: e.office_name || null })),
+      events: events.map((e) => ({ id: e.id, text: e.text, at: e.at, time: U.msk(e.at).hhmm, office: e.office_name || null, kind: eventKind(e), close: e.user_id === u.id || close.has(e.user_id) })),
       signals: signals.map((s) => {
         const v = votes(s.id);
         const my = q('SELECT vote FROM signal_votes WHERE signal_id = ? AND user_id = ?').get(s.id, u.id);
@@ -925,7 +937,7 @@ function createApi(db) {
     if (it.kind === 'frame') look.frame = it.id;
     if (it.kind === 'crown') look.crown = true;
     q('UPDATE users SET look = ? WHERE id = ?').run(JSON.stringify(look), u.id);
-    pushEvent(null, u.id, `${u.nick} купил в лавке «${it.name}»`);
+    pushEvent(null, u.id, `${u.nick} купил в лавке «${it.name}»`, 'shop');
     return { ok: true };
   });
 
@@ -1016,16 +1028,16 @@ function createApi(db) {
   // ---------- Функции второго этапа ----------
   features = require('./features').register({
     db, q, route, requireUser, requireAdmin, bad, U, config, addBeans, spendBeans, notify, fireAndForget,
-    isMember, gangMembers, myGangs, activeCheckin, readProfile, presenceOf, fullName, weekdayName, addDays, pushEvent, officeById,
+    isMember, gangMembers, myGangs, activeCheckin, readProfile, presenceOf, fullName, weekdayName, addDays, pushEvent, officeById, publicLook,
     profilePct: (row) => profileCompletion({ ...DEFAULT_LOOK, ...JSON.parse(row.look || '{}') }, readProfile(row.profile), !!q('SELECT 1 FROM push_subs WHERE user_id = ?').get(row.id)).pct
   });
 
   // ---------- Подельники: личные контакты ----------
   crew = require('./crew').register({
-    db, q, route, requireUser, bad, U, config, notify, fireAndForget, rateLimit, memberStatus, HttpError
+    db, q, route, requireUser, bad, U, config, notify, fireAndForget, rateLimit, memberStatus, HttpError, publicLook
   });
-  quiz = require('./quiz').register({ db, q, route, requireUser, requireAdmin, bad, U, addBeans, isMember, gangMembers, readProfile, HttpError, DEFAULT_LOOK, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
-  battle = require('./battle').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
+  quiz = require('./quiz').register({ db, q, route, requireUser, requireAdmin, bad, U, addBeans, isMember, gangMembers, readProfile, HttpError, DEFAULT_LOOK, publicLook, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
+  battle = require('./battle').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, publicLook, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
 
   // ---------- Обработчик ----------
   async function handle(req, res, pathname, query) {

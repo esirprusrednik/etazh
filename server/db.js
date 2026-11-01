@@ -9,6 +9,8 @@ function openDb(file) {
   const db = new DatabaseSync(file);
   db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
   migrate(db);
+  // Тип события для фильтра ленты (старые записи определяются по тексту)
+  try { db.exec('ALTER TABLE events ADD COLUMN kind TEXT'); } catch {}
   // Ники раньше хранились с «@» впереди — убираем знак (разово, повторный запуск ничего не меняет)
   db.exec("UPDATE users SET nick = substr(nick, 2) WHERE nick LIKE '@%'");
   seed(db);

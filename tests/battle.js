@@ -145,6 +145,24 @@ let winnerBeans = 0;
     assert.equal((await c.post(`/api/battle/${id}/emote`, { e: 'lol' })).status, 404);
   });
 
+  await step('быстрая партия: часы идут только в свой ход, флажок падает — победа сопернику', async () => {
+    // доигрываем/закрываем прошлую, если есть
+    for (const it of (await a.get('/api/battles')).json.items) if (it.status !== 'done') await a.post(`/api/battle/${it.id}/resign`);
+    const fid = (await a.post('/api/battle', { to: b.id, mode: 'fast' })).json.id;
+    await a.post(`/api/battle/${fid}/ready`); await b.post(`/api/battle/${fid}/ready`);
+    let v = (await a.get(`/api/battle/${fid}`)).json;
+    assert.equal(v.mode, 'fast'); assert.ok(v.clock.me > 85000 && v.clock.me <= 90000);
+    // подкручиваем время старта хода в прошлое — как будто игрок думал 2 минуты
+    const { DatabaseSync } = require('node:sqlite');
+    const db = new DatabaseSync(path.join(dir, 'db.sqlite'));
+    db.prepare('UPDATE battles SET turn_started = ? WHERE id = ?').run(Date.now() - 120000, fid);
+    db.close();
+    const whoseTurn = v.myTurn ? 'a' : 'b';
+    v = (await a.get(`/api/battle/${fid}`)).json;
+    assert.equal(v.status, 'done'); assert.ok(v.timeout);
+    assert.equal(v.winner, whoseTurn === 'a' ? 'opp' : 'me');
+  });
+
   await step('новая партия и сдача: победа сопернику', async () => {
     const nid = (await b.post('/api/battle', { to: a.id })).json.id;
     assert.notEqual(nid, id);
@@ -157,7 +175,7 @@ let winnerBeans = 0;
     assert.ok((await ot.get(`/api/battle/${nid}`)).json.myTurn);
     const v = (await a.post(`/api/battle/${nid}/resign`)).json;
     assert.equal(v.winner, 'opp'); assert.ok(v.resigned);
-    assert.equal((await b.get(`/api/battle/${nid}`)).json.score.me + (await b.get(`/api/battle/${nid}`)).json.score.opp, 2);
+    assert.equal((await b.get(`/api/battle/${nid}`)).json.score.me + (await b.get(`/api/battle/${nid}`)).json.score.opp, 3);
     const list = (await a.get('/api/battles')).json.items;
     assert.ok(list.length >= 1);
   });

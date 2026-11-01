@@ -11,7 +11,7 @@ const PENDING_TTL_DAYS = 30;    // неотвеченная заявка сго�
 const DM_CALLS = ['coffee', 'lunch', 'call', 'where', 'online', 'wait', 'room']; // «Домой — кто с ним?» в личке не нужен
 
 function register(ctx) {
-  const { db, q, route, requireUser, bad, U, config, notify, fireAndForget, rateLimit, memberStatus, HttpError } = ctx;
+  const { db, q, route, requireUser, bad, U, config, notify, fireAndForget, rateLimit, memberStatus, HttpError, publicLook } = ctx;
 
   db.exec(`
   -- Пара хранится упорядоченно: lo < hi. status: pending | ok
@@ -109,7 +109,7 @@ function register(ctx) {
     const incoming = [];
     const outgoing = [];
     for (const r of rows) {
-      const person = { id: r.uid, nick: r.nick, look: { ...JSON.parse(r.look || '{}') } };
+      const person = { id: r.uid, nick: r.nick, look: publicLook({ id: r.uid, look: r.look, profile: r.profile, share_office: r.share_office }) };
       if (r.status === 'pending') {
         if (r.from_id === u.id) outgoing.push({ ...person, at: r.at });
         else if (!blocked(u.id, r.uid)) incoming.push({ ...person, at: r.at });

@@ -14,7 +14,7 @@ function shuffle(arr) {
 }
 
 function register(ctx) {
-  const { db, q, route, requireUser, requireAdmin, bad, U, addBeans, isMember, gangMembers, readProfile, HttpError, onEvent, DEFAULT_LOOK } = ctx;
+  const { db, q, route, requireUser, requireAdmin, bad, U, addBeans, isMember, gangMembers, readProfile, HttpError, onEvent, DEFAULT_LOOK, publicLook } = ctx;
 
   db.exec(`
   CREATE TABLE IF NOT EXISTS guess_q (
@@ -41,12 +41,12 @@ function register(ctx) {
   );
   `);
 
-  const lookOf = (row) => ({ ...DEFAULT_LOOK, ...JSON.parse(row.look || '{}') });
+  const lookOf = (row) => publicLook(row);
   const nickOf = (id) => (q('SELECT nick FROM users WHERE id = ?').get(id) || { nick: 'удалённый аккаунт' }).nick;
 
   // ---------- Угадай коллегу ----------
   function guessView(row, uid) {
-    const t = q('SELECT id, nick, look, profile FROM users WHERE id = ?').get(row.target_id);
+    const t = q('SELECT id, nick, look, profile, share_office FROM users WHERE id = ?').get(row.target_id);
     const prof = t ? readProfile(t.profile) : { about: '', tags: [] };
     const options = JSON.parse(row.options).map((id) => ({ id, nick: nickOf(id) }));
     const base = { id: row.id, kind: row.kind, options, answered: row.pick != null };
