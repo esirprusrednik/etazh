@@ -213,7 +213,7 @@ function register(ctx) {
     const u = requireUser(req);
     const to = Number(body.to);
     if (!to || to === u.id) throw bad('С кем играем?');
-    if (!areCrew(u.id, to)) throw bad('Морской бой — с подельниками и участниками твоих банд.');
+    if (!areCrew(u.id, to)) throw bad('Морской бой — с членами твоих банд.');
     const ex = q(`SELECT id FROM battles WHERE status != 'done' AND ((a = ? AND b = ?) OR (a = ? AND b = ?))`).get(u.id, to, to, u.id);
     if (ex) return { id: ex.id, existing: true };
     const active = q("SELECT COUNT(*) AS n FROM battles WHERE status != 'done' AND (a = ? OR b = ?)").get(u.id, u.id).n;

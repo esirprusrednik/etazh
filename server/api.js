@@ -42,9 +42,10 @@ const LOOK = {
   outfit: ['hoodie', 'tee', 'dev', 'shirt', 'suit'],
   neck: ['none', 'tie', 'tie_crooked', 'bow', 'badge', 'tie_gold'],
   hat: ['none', 'beanie', 'cap', 'headset'],
-  prop: ['none', 'mug', 'papers', 'sign', 'laptop', 'mug_best']
+  prop: ['none', 'mug', 'papers', 'sign', 'laptop', 'mug_best'],
+  bg: ['auto', 'sky', 'mint', 'peach', 'lilac', 'sun', 'slate', 'office', 'meeting', 'home', 'street', 'cafe']
 };
-const LOOK_ENUMS = ['preset', 'face', 'eyes', 'mouth', 'beard', 'hairStyle', 'hair', 'skin', 'hoodie', 'eyeShape', 'outfit', 'neck', 'hat', 'prop'];
+const LOOK_ENUMS = ['preset', 'face', 'eyes', 'mouth', 'beard', 'hairStyle', 'hair', 'skin', 'hoodie', 'eyeShape', 'outfit', 'neck', 'hat', 'prop', 'bg'];
 // Платные детали: значение слота → предмет Лавки, который нужно купить
 const PAID_PARTS = Object.fromEntries(SHOP.filter((it) => it.kind === 'part').map((it) => [`${it.slot}:${it.value}`, it.id]));
 // Собрать внешность из присланного: только допустимые значения и только купленные платные детали
@@ -68,7 +69,7 @@ const BUILD = (() => {
   for (const f of ['js/app.js', 'js/building.js', 'css/app.css']) { try { h.update(fs.readFileSync(path.join(__dirname, '..', 'public', f))); } catch {} }
   return h.digest('hex').slice(0, 10);
 })();
-const DEFAULT_LOOK = { preset: 'm', face: 'oval', eyes: '#22252D', mouth: 'smile', beard: 'none', freckles: false, eyeShape: 'normal', outfit: 'hoodie', neck: 'none', hat: 'none', prop: 'none', hairStyle: 'short', hair: '#2B1D14', skin: '#E8B48A', hoodie: 'blue', glasses: false, phones: false, status: null, frame: null, crown: false };
+const DEFAULT_LOOK = { preset: 'm', face: 'oval', eyes: '#22252D', mouth: 'smile', beard: 'none', freckles: false, eyeShape: 'normal', outfit: 'hoodie', neck: 'none', hat: 'none', prop: 'none', bg: 'auto', hairStyle: 'short', hair: '#2B1D14', skin: '#E8B48A', hoodie: 'blue', glasses: false, phones: false, status: null, frame: null, crown: false };
 // plan — где обычно работаю по дням недели: { Пн: 'office' | 'home' }
 // today — ручной статус на сегодня: { kind: 'home' | 'vacation', day: 'YYYY-MM-DD' }
 // vacations — график отпусков: [{ from: 'YYYY-MM-DD', to: 'YYYY-MM-DD' }]
@@ -86,7 +87,7 @@ function fullName(prof, scope) {
 
 // Заполненность профиля. Первый шаг — ник — засчитан сразу: начатое дело люди доводят до конца охотнее.
 // Имя, фамилия и день рождения в процент не входят: личные данные — только по желанию, без давления.
-const LOOK_KEYS = ['face', 'hairStyle', 'hair', 'skin', 'eyes', 'hoodie', 'mouth', 'beard', 'glasses', 'phones', 'freckles', 'preset', 'eyeShape', 'outfit', 'neck', 'hat', 'prop'];
+const LOOK_KEYS = ['face', 'hairStyle', 'hair', 'skin', 'eyes', 'hoodie', 'mouth', 'beard', 'glasses', 'phones', 'freckles', 'preset', 'eyeShape', 'outfit', 'neck', 'hat', 'prop', 'bg'];
 function profileCompletion(look, prof, hasPush) {
   const steps = [
     { id: 'nick', label: 'Выбрать ник', done: true },

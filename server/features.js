@@ -21,7 +21,7 @@ const ACH = [
   { id: 'sea_first', tier: 'common', name: 'Юнга', desc: 'Выиграть морской бой', test: (c) => c.sea_wins >= 1 },
   { id: 'sea_10', tier: 'rare', name: 'Капитан', desc: '10 побед в морском бою', test: (c) => c.sea_wins >= 10 },
   { id: 'sea_clean', tier: 'rare', name: 'Ни царапины', desc: 'Победить, не потеряв ни одного корабля', test: (c) => c.sea_clean >= 1 },
-  { id: 'sea_rivals', tier: 'rare', name: 'Гроза морей', desc: 'Обыграть 5 разных подельников', test: (c) => c.sea_rivals >= 5 },
+  { id: 'sea_rivals', tier: 'rare', name: 'Гроза морей', desc: 'Обыграть 5 разных соперников', test: (c) => c.sea_rivals >= 5 },
   { id: 'streak20', tier: 'legendary', name: 'Железная воля', desc: '20 рабочих дней подряд в офисе', test: (c) => c.streak >= 20 },
   { id: 'all_offices', tier: 'legendary', name: 'Все этажи', desc: 'Побывать во всех трёх офисах', test: (c) => c.offices >= 3 },
   { id: 'thanks50', tier: 'legendary', name: 'Легенда банды', desc: 'Получить 50 спасибо', test: (c) => c.thanks_got >= 50 },

@@ -191,6 +191,20 @@ function propLayer(p) {
   return '';
 }
 
+// Фон аватара: цвет или простая сцена. Сцены приглушённые, чтобы лицо оставалось главным даже в маленьком кружке
+const BG_COLORS = { sky: '#BFD9FF', mint: '#BFECD6', peach: '#FFD9B8', lilac: '#DCCDFF', sun: '#FFE7A3', slate: '#5B6B8C' };
+function skinIsLight(skin) { const n = parseInt(String(skin || '#E8B48A').slice(1), 16); return (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) > 175; }
+function bgLayer(bg, skin) {
+  if (!bg || bg === 'auto') return `<rect x="-5" y="-5" width="110" height="110" fill="${skinIsLight(skin) ? '#C9DEFF' : '#FFE7B3'}"/>`;
+  if (BG_COLORS[bg]) return `<rect x="-5" y="-5" width="110" height="110" fill="${BG_COLORS[bg]}"/>`;
+  if (bg === 'office') return '<rect x="-5" y="-5" width="110" height="110" fill="#D6E2F0"/><rect x="60" y="6" width="34" height="30" rx="2" fill="#A9D2F5"/><path d="M77 6v30M60 21h34" stroke="#fff" stroke-width="2"/><rect x="-5" y="62" width="110" height="3" fill="#B8C7DA"/><rect x="6" y="48" width="9" height="12" rx="2" fill="#B0703C"/><path d="M10.5 48c-6-6-4-14 0-16 4 2 6 10 0 16z" fill="#3E9B58"/>';
+  if (bg === 'meeting') return '<rect x="-5" y="-5" width="110" height="110" fill="#E3DDF5"/><rect x="6" y="8" width="40" height="26" rx="2" fill="#fff" stroke="#B7AEDB" stroke-width="1.5"/><path d="M11 16h20M11 22h28M11 28h14" stroke="#7C6BD6" stroke-width="2" stroke-linecap="round"/><path d="M34 27l4-6 4 3 3-7" fill="none" stroke="#E5484D" stroke-width="1.6"/><circle cx="84" cy="16" r="7" fill="#fff" stroke="#B7AEDB" stroke-width="1.5"/><path d="M84 12v4l3 2" stroke="#7C6BD6" stroke-width="1.5" fill="none"/>';
+  if (bg === 'home') return '<rect x="-5" y="-5" width="110" height="110" fill="#F4DFC8"/><rect x="66" y="10" width="22" height="17" rx="1.5" fill="#fff" stroke="#C9A27A" stroke-width="2"/><path d="M69 24l6-7 4 4 3-3 4 6z" fill="#7FBF8E"/><path d="M12 6v12" stroke="#C9A27A" stroke-width="1.4"/><path d="M6 26l6-8 6 8z" fill="#FFC93C"/><rect x="-5" y="64" width="110" height="40" fill="#E6C9A8"/>';
+  if (bg === 'street') return '<rect x="-5" y="-5" width="110" height="110" fill="#BFE3FF"/><circle cx="86" cy="14" r="8" fill="#FFE38A"/><path d="M-5 70V38h14v-8h12v40M74 70V30h12v10h16v30" fill="#9DB1CC"/><path d="M2 44h4M2 52h4M14 36h4M78 36h4M78 46h4M90 46h4" stroke="#E6EEF8" stroke-width="2"/><ellipse cx="22" cy="20" rx="10" ry="4" fill="#fff" opacity=".9"/>';
+  if (bg === 'cafe') return '<rect x="-5" y="-5" width="110" height="110" fill="#E9D3B8"/><rect x="62" y="8" width="30" height="24" rx="2" fill="#3B3B3B"/><path d="M66 15h14M66 20h18M66 25h10" stroke="#F4F1DE" stroke-width="1.6" stroke-linecap="round"/><path d="M16 -5v13M30 -5v9" stroke="#8B6B4A" stroke-width="1.2"/><path d="M10 14a6 6 0 0 1 12 0z M25 10a5 5 0 0 1 10 0z" fill="#FFC93C"/>';
+  return '';
+}
+
 // Внутренности SVG аватара — пригодятся и для кружка, и для мем-открытки
 function avatarInner(look = {}) {
   const hair = look.hair || '#2B1D14';
@@ -212,7 +226,7 @@ function avatarInner(look = {}) {
   // Под шапкой видны только длинные пряди и хвост; ирокез, пучок и афро-макушка прячутся
   const hairBack = HAIR_BACK[hs] && !(hat && hat !== 'headset' && (hs === 'bun' || hs === 'afro')) ? HAIR_BACK[hs](hair) : '';
   const hairFront = hat && hat !== 'headset' ? (['long', 'bob', 'curly', 'afro'].includes(hs) ? `<path d="M29 44 Q29 36 33 34 L33 47 Z M71 44 Q71 36 67 34 L67 47 Z" fill="${hair}"/>` : '') : (HAIR_FRONT[hs] || HAIR_FRONT.short)(hair);
-  return `${hairBack}
+  return `${bgLayer(look.bg, skin)}${hairBack}
     ${outfitLayer(look.outfit, hood, skin)}
     ${neckLayer(look.neck)}
     <ellipse cx="${50 - rx - 0.5}" cy="49" rx="3.6" ry="5" fill="${skin}"/><ellipse cx="${50 + rx + 0.5}" cy="49" rx="3.6" ry="5" fill="${skin}"/>
@@ -557,7 +571,7 @@ function personRow(p) {
     : away ? '<span class="small">отдыхает</span>'
     : sameOffice ? `<button class="btn small" data-act="pcall" data-id="${p.id}" data-kind="coffee">На кофе</button>`
     : `<button class="btn small ghost" data-act="pcall-open" data-id="${p.id}">Позвать</button>`;
-  const tagline = [p.mood && p.where === 'office' ? p.mood : '', p.gangs.length ? p.gangs.map((g) => g.name).join(', ') : p.crew ? 'подельник' : ''].filter(Boolean).join(' · ');
+  const tagline = [p.mood && p.where === 'office' ? p.mood : '', p.gangs.length ? p.gangs.map((g) => g.name).join(', ') : ''].filter(Boolean).join(' · ');
   return `<div class="person2">
     ${tap(p.id, `<span class="ava-wrap" style="opacity:${away ? 0.6 : 1}"><span class="ava-ring" style="border-color:${color}">${avatar(p.look, 32)}</span><span class="ava-dot" style="background:${color}"></span></span>`)}
     <div class="grow" style="min-width:0"><div class="tapname" style="font-weight:800;font-size:15px" data-act="person" data-id="${p.id}">${esc(p.nick)}</div>${p.name ? `<div class="realname">${esc(p.name)}</div>` : ''}
@@ -570,8 +584,8 @@ function renderPeople() {
   if (!ps) return '<div class="card"><p class="sub">Загружаем твоих людей…</p></div>';
   if (!ps.length) {
     return `<section class="card empty"><div class="empty-ico">👋</div><h2>Пока здесь пусто</h2>
-      <p class="sub">Тут появятся твои люди: кто в офисе, кто дома, кто в отпуске. Создай банду для команды или позови коллегу лично.</p>
-      <div class="row"><button class="btn grow" data-act="open" data-v="gang-new">Создать банду</button><button class="btn ghost grow" data-act="open" data-v="crew-new">Позвать коллегу</button></div></section>`;
+      <p class="sub">Тут появятся члены твоих банд: кто в офисе, кто дома, кто в отпуске. Сколоти банду и позови в неё коллег по ссылке — или вступи в банду по приглашению.</p>
+      <div class="row"><button class="btn grow" data-act="open" data-v="gang-new">🏴‍☠️ Сколотить банду</button></div></section>`;
   }
   const st = S.state;
   const groups = [
@@ -589,7 +603,7 @@ function renderPeople() {
   }).join('');
   const hint = S.fx && S.fx.weekHint ? `<div class="week-hint">${ico('where', 16)}<span>${S.fx.weekHint.today ? 'Сегодня' : esc(S.fx.weekHint.label)} в офисе будут <b>${S.fx.weekHint.office} из ${S.fx.weekHint.total}</b> из банды</span></div>` : '';
   return `<section class="card people">${html}${hint}
-    <div class="row" style="justify-content:space-between"><button class="linkbtn" data-act="open" data-v="crew-new">+ Позвать коллегу</button><button class="linkbtn" data-act="open" data-v="gang-new">+ Банда</button></div></section>`;
+    <div class="row" style="justify-content:space-between">${S.me.gangs.length ? `<button class="linkbtn" data-act="gang-invite" data-id="${S.activeGang || S.me.gangs[0].id}">+ Позвать в банду</button>` : '<span></span>'}<button class="linkbtn" data-act="open" data-v="gang-new">🏴‍☠️ Сколотить банду</button></div></section>`;
 }
 
 function renderNear() {
@@ -626,11 +640,11 @@ function renderChats() {
       <span class="grow" style="min-width:0"><span class="chat-title">${esc(x.nick)}</span><span class="where ellipsis ${x.unread ? 'unread' : ''}">${x.last ? `${x.last.mine ? 'Ты: ' : ''}${esc(x.last.text || '')}` : esc(w)}</span></span>
       <span class="crew-side">${turn ? '<span class="crew-turn" title="Твой ход в морском бою">⚓</span>' : ''}${x.lastTime ? `<span class="small">${x.lastTime}</span>` : ''}${x.unread ? `<span class="crew-badge">${x.unread > 9 ? '9+' : x.unread}</span>` : ''}</span></button>`;
   };
-  const list = c.items.length ? c.items.map(row).join('') : `<div class="empty"><div class="empty-ico">💬</div><p class="sub">Чатов пока нет. Банда — общий чат для команды. Личная переписка открывается с любым участником твоих банд или с подельником.</p></div>`;
-  return `${pageHead('Чаты', 'Банды — общие чаты. Личные переписки — с участниками твоих банд и подельниками')}
+  const list = c.items.length ? c.items.map(row).join('') : `<div class="empty"><div class="empty-ico">💬</div><p class="sub">Чатов пока нет. Сколоти банду для своей команды — у неё будет общий чат, а с каждым членом банды можно переписываться лично.</p></div>`;
+  return `${pageHead('Чаты', 'Общие чаты банд и личка с членами твоих банд')}
     ${reqs}
     <section class="card chats">${list}</section>
-    <div class="row chat-actions"><button class="btn small grow" data-act="open" data-v="gang-new">+ Банда</button><button class="btn small ghost grow" data-act="open" data-v="crew-new">+ Коллега лично</button></div>`;
+    <div class="row chat-actions"><button class="btn small grow" data-act="open" data-v="gang-new">🏴‍☠️ Сколотить банду</button><button class="btn small ghost grow" data-act="open" data-v="dm-pick">✉️ Написать в личку</button></div>`;
 }
 
 // ===== Вкладка «Офис»: столовая, обед компанией, сигналы и лента =====
@@ -1029,7 +1043,7 @@ function renderDm() {
   <section class="card">
     <p class="small">Переписку видите только вы двое. Модератор увидит сообщение, только если на него пожалуются (⚑).</p>
     <div class="row" style="justify-content:space-between">
-      <button class="linkbtn" data-act="crew-remove" data-id="${f.id}">Отпустить подельника</button>
+      ${f.crew ? `<button class="linkbtn" data-act="crew-remove" data-id="${f.id}">Удалить контакт</button>` : '<span></span>'}
       <button class="linkbtn" data-act="crew-block" data-id="${f.id}">Заблокировать</button>
     </div>
   </section>`;
@@ -1385,10 +1399,11 @@ function renderSheet() {
     case 'pcall': return sheetWrap('Позвать ' + (((S.people || []).find((p) => p.id === S.pcallTo) || (S.person && S.person.id === S.pcallTo ? S.person : null) || {}).nick || ''), `<p class="sub">Лично, придёт пуш. Тихие часы 19:00–09:00 уважаем.</p>
       <div class="calls">${['coffee', 'lunch', 'room', 'call', 'where', 'online', 'wait'].map((k) => `<button class="call" style="background:${CALL_STYLE[k]}" data-act="pcall" data-id="${S.pcallTo}" data-kind="${k}">${esc(S.cat.calls[k].label)}</button>`).join('')}</div>
       <button class="btn ghost" data-act="dm-open" data-id="${S.pcallTo}">💬 Написать сообщение</button>`);
-    case 'battle-pick': return sheetWrap('С кем сыграть?', (S.people || []).length ? (S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${esc(p.nick)}</span><span class="where">${esc(whereText(p)[0])}</span></span><span aria-hidden="true">›</span></button>`).join('') + '<p class="small">Откроется переписка — там выбери «Без спешки» или «Быстрая».</p>' : '<p class="sub">Сначала создай банду или позови коллегу.</p>');
+    case 'dm-pick': return sheetWrap('Написать в личку', (S.people || []).length ? '<p class="sub">Лично можно писать любому члену твоих банд.</p>' + (S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${esc(p.nick)}</span><span class="where">${esc(p.gangs.map((g) => g.name).join(', ') || whereText(p)[0])}</span></span><span aria-hidden="true">›</span></button>`).join('') : '<p class="sub">Пока некому писать. Сколоти банду и позови в неё коллег.</p>');
+    case 'battle-pick': return sheetWrap('С кем сыграть?', (S.people || []).length ? (S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${esc(p.nick)}</span><span class="where">${esc(whereText(p)[0])}</span></span><span aria-hidden="true">›</span></button>`).join('') + '<p class="small">Откроется переписка — там выбери «Без спешки» или «Быстрая».</p>' : '<p class="sub">Сначала сколоти банду и позови в неё коллег.</p>');
     case 'whatsnew': return sheetWrap('Что поменялось', `<div class="wn">
       <div class="wn-i"><span>👥</span><div><b>Рядом</b><p>Главный экран: где ты сегодня и все твои люди одним списком — кто в офисе, кто дома, кто в отпуске.</p></div></div>
-      <div class="wn-i"><span>💬</span><div><b>Чаты</b><p>Банды и личные переписки вместе. Участникам своей банды теперь можно писать лично — без заявки.</p></div></div>
+      <div class="wn-i"><span>💬</span><div><b>Чаты</b><p>Банды и личка вместе. Членам своей банды теперь можно писать лично — без заявки.</p></div></div>
       <div class="wn-i"><span>🏢</span><div><b>Офис</b><p>Столовая, обед компанией, сигналы и лента событий.</p></div></div>
       <div class="wn-i"><span>🎮</span><div><b>Игры</b><p>Задания, квизы, морской бой, случайный кофе, ачивки и Лавка — всё в одном месте.</p></div></div>
       <button class="btn wide" data-act="whatsnew-ok">Понятно, покажи</button></div>`);
@@ -1537,7 +1552,7 @@ const COACH = [
   { cls: 'left', title: 'Это твой профиль', text: 'Нажми на аватар или ник: внешность, имя, план недели, ачивки. Зелёное кольцо — насколько профиль заполнен.' },
   { cls: 'right', title: 'Это твои зёрна', text: 'Их дают за отметки, ответы и квизы. Нажми — откроется Лавка со статусами и рамками.' },
   { tab: 'near', i: 0, title: 'Рядом', text: 'Главный экран. Отметься, где работаешь сегодня, — и увидишь всех своих людей: кто в офисе, кто дома, кто в отпуске. Позвать на кофе — одна кнопка.' },
-  { tab: 'chats', i: 1, title: 'Чаты', text: 'Банды — общие чаты команды. Участникам своих банд можно писать лично. Тут же зовы и морской бой.' },
+  { tab: 'chats', i: 1, title: 'Чаты', text: 'Банды — общие чаты команды. Членам своих банд можно писать в личку. Тут же зовы и морской бой.' },
   { tab: 'office', i: 2, title: 'Офис', text: 'Загрузка столовой и оценка обеда, обед компанией, сигналы коллег и лента событий.' },
   { tab: 'games', i: 3, title: 'Игры', text: 'Задания дня, квиз недели, «Угадай коллегу», морской бой и случайный кофе. За всё дают зёрна — их тратят в Лавке.' }
 ];
@@ -1636,7 +1651,8 @@ const NECK_NAMES = { none: 'Ничего', tie: 'Галстук', tie_crooked: '
 const HAT_NAMES = { none: 'Без шапки', beanie: 'Шапка', cap: 'Кепка', headset: 'Гарнитура' };
 const EYE_NAMES = { normal: 'Обычные', tired: 'После совещания', sly: 'Хитрые', wide: 'Удивлённые', happy: 'Довольные' };
 const PROP_NAMES = { none: 'Ничего', mug: 'Кружка', papers: 'Квартальный отчёт', sign: 'Табличка', laptop: 'Ноутбук', mug_best: 'Лучший сотрудник' };
-const AVA_CATS = [['face', 'Лицо'], ['hair', 'Волосы'], ['eyes', 'Глаза'], ['mouth', 'Рот'], ['beard', 'Борода'], ['outfit', 'Одежда'], ['acc', 'Аксессуары'], ['meme', 'Мемы']];
+const AVA_CATS = [['face', 'Лицо'], ['hair', 'Волосы'], ['eyes', 'Глаза'], ['mouth', 'Рот'], ['beard', 'Борода'], ['outfit', 'Одежда'], ['acc', 'Аксессуары'], ['bg', 'Фон'], ['meme', 'Мемы']];
+const BG_NAMES = { auto: 'Под кожу', sky: 'Небо', mint: 'Мята', peach: 'Персик', lilac: 'Лаванда', sun: 'Солнце', slate: 'Графит', office: 'Офис', meeting: 'Переговорка', home: 'Дом', street: 'Улица', cafe: 'Кафе' };
 // Мемные пресеты меняют одежду, аксессуары и выражение лица, а лицо, кожу и причёску оставляют твоими
 const AVA_PRESETS = [
   { id: 'boss', name: 'Начальник отдела', look: { outfit: 'suit', hoodie: 'navy', neck: 'tie', hat: 'none', prop: 'none', mouth: 'smirk', eyeShape: 'sly', glasses: false } },
@@ -1662,6 +1678,7 @@ function randomLook() {
   r.neck = Math.random() < 0.45 ? pick(free('neck').filter((v) => v !== 'none')) : 'none';
   r.hat = Math.random() < 0.25 ? pick(free('hat').filter((v) => v !== 'none')) : 'none';
   r.prop = Math.random() < 0.4 ? pick(free('prop').filter((v) => v !== 'none')) : 'none';
+  r.bg = Math.random() < 0.5 ? 'auto' : pick(L.bg);
   r.glasses = Math.random() < 0.3; r.freckles = Math.random() < 0.2; r.phones = r.hat === 'none' && Math.random() < 0.12;
   return r;
 }
@@ -1701,12 +1718,12 @@ async function svgToPng(svg, w, h) {
 }
 function renderMemeMaker() {
   const m = S.meme;
-  const crew = (S.crew && S.crew.list) || [];
+  const crew = S.people || (S.crew && S.crew.list) || [];
   return `<div class="meme-ed">
     <div class="meme-prev">${memeSvg(S.me.look, m.scene, m.emo, 230)}</div>
     <div class="field">Ситуация<div class="scenes">${S.cat.memes.map((x) => `<button class="scene ${m.scene === x.id ? 'on' : ''}" style="background:linear-gradient(160deg, ${x.bg[0]}, ${x.bg[1]})" data-act="meme-scene" data-v="${x.id}">${esc(x.caption)}</button>`).join('')}</div></div>
     <div class="field">Эмоция<div class="chips">${Object.entries(S.cat.memeEmos).map(([k, v]) => `<button class="chip ${m.emo === k ? 'on' : ''}" data-act="meme-emo" data-v="${k}">${esc(v.label)}</button>`).join('')}</div></div>
-    ${crew.length ? `<div class="field">Кому отправить<div class="chips">${crew.map((f) => `<button class="chip ${m.to === f.id ? 'on' : ''}" data-act="meme-to" data-v="${f.id}">${esc(f.nick)}</button>`).join('')}</div></div>` : '<p class="small" style="margin:0">Отправлять мемы можно подельникам. А картинкой — куда угодно.</p>'}
+    ${crew.length ? `<div class="field">Кому отправить<div class="chips">${crew.map((f) => `<button class="chip ${m.to === f.id ? 'on' : ''}" data-act="meme-to" data-v="${f.id}">${esc(f.nick)}</button>`).join('')}</div></div>` : '<p class="small" style="margin:0">Отправлять мемы можно членам твоих банд. А картинкой — куда угодно.</p>'}
     <div class="row">${m.to ? `<button class="btn grow" data-act="meme-send">Отправить ${esc((crew.find((f) => f.id === m.to) || {}).nick || '')}</button>` : ''}<button class="btn ${m.to ? 'ghost' : ''} grow" data-act="meme-share">${navigator.share ? 'Поделиться картинкой' : 'Скачать картинку'}</button></div>
     <p class="small" style="margin:0">На открытке твой текущий аватар. Подписи — из готового списка, чтобы мемы оставались добрыми.</p>
   </div>`;
@@ -1730,6 +1747,7 @@ function renderAvatarEditor() {
     beard: `<div class="field">Борода и усы${tiles('beard', L.beard, BEARD_NAMES, true)}</div>`,
     outfit: `<div class="field">Одежда${tiles('outfit', L.outfit, OUTFIT_NAMES)}</div><div class="field">Цвет${sw('hoodie', L.hoodie)}</div>`,
     acc: `<div class="field">На шее${tiles('neck', L.neck, NECK_NAMES)}</div><div class="field">На голове${tiles('hat', L.hat, HAT_NAMES)}</div><div class="chips">${tog('phones', 'Наушники')}</div>`,
+    bg: `<div class="field">Фон${tiles('bg', L.bg, BG_NAMES)}</div><p class="small" style="margin:0">«Под кожу» сам подбирает цвет, на котором лицо не сливается с фоном.</p>`,
     meme: `<div class="field">В руках${tiles('prop', L.prop, PROP_NAMES)}</div><p class="small" style="margin:0">Детали с ценой можно примерить бесплатно, а сохранить — после покупки в Лавке. Корона и рамки — тоже в Лавке.</p>`
   }[cat];
   const locked = draftLocked();
@@ -1751,7 +1769,7 @@ function renderAvatarEditor() {
 
 const MOUTH_NAMES = { smile: 'Улыбка', grin: 'До ушей', smirk: 'Ухмылка', neutral: 'Серьёзный', wow: 'Удивлён' };
 const BEARD_NAMES = { none: 'Нет', stubble: 'Щетина', beard: 'Борода', mustache: 'Усы', goatee: 'Эспаньолка' };
-const VIS_NAMES = { all: 'Всем', gang: 'Бандам и подельникам', hidden: 'Никому' };
+const VIS_NAMES = { all: 'Всем', gang: 'Членам моих банд', hidden: 'Никому' };
 function section(id, title, summary, body, opts = {}) {
   const open = S.sec.has(id);
   return `<section class="psec ${open ? 'open' : ''}">
@@ -1795,7 +1813,7 @@ function renderProfile() {
       <label class="field grow">Фамилия<input id="p-last" maxlength="30" value="${esc(p.lastName)}" autocomplete="family-name"></label>
     </div>
     <div class="field">Кто видит имя и фамилию<div class="chips">${Object.entries(VIS_NAMES).map(([k, l]) => `<button class="chip ${p.nameVis === k ? 'on' : ''}" data-act="name-vis" data-v="${k}">${l}</button>`).join('')}</div>
-      <span class="small" style="font-weight:600">${p.nameVis === 'all' ? 'Увидят и коллеги не из твоих банд, например пара в случайном кофе.' : p.nameVis === 'gang' ? 'Видят участники твоих банд и подельники. Остальные — только ник.' : 'Все видят только ник.'}</span></div>
+      <span class="small" style="font-weight:600">${p.nameVis === 'all' ? 'Увидят и коллеги не из твоих банд, например пара в случайном кофе.' : p.nameVis === 'gang' ? 'Видят члены твоих банд. Остальные — только ник.' : 'Все видят только ник.'}</span></div>
     <button class="btn ghost" data-act="name-save">Сохранить имя</button>`;
 
   const workBody = `
@@ -1873,7 +1891,7 @@ function renderPerson() {
     ${x.about ? `<p class="person-about">«${esc(x.about)}»</p>` : ''}
     ${x.tags && x.tags.length ? `<div class="chips" style="justify-content:center">${x.tags.map((t) => `<span class="chip on" style="cursor:default">${esc(t)}</span>`).join('')}</div>` : ''}
     ${rows.length ? `<div class="person-rows">${rows.map(([k, v]) => `<div><span class="small">${k}</span><b>${v}</b></div>`).join('')}</div>` : ''}
-    ${!x.full ? '<p class="small" style="text-align:center">Подробности видят участники общих банд и подельники.</p>' : ''}
+    ${!x.full ? '<p class="small" style="text-align:center">Подробности видят члены общих банд.</p>' : ''}
     ${x.me ? '<button class="btn ghost" data-act="open" data-v="profile">Редактировать мой профиль</button>'
       : x.full ? `<div class="row"><button class="btn grow" data-act="dm-open" data-id="${x.id}">💬 Написать</button><button class="btn ghost grow" data-act="pcall-open" data-id="${x.id}">📣 Позвать</button></div>` : ''}
   </div>`;
@@ -2082,6 +2100,7 @@ const actions = {
     const sg = store.get('seenGang', {}); sg[S.activeGang] = Date.now(); store.set('seenGang', sg);
     render(); await Promise.all([loadGang(), loadGangExtra()]); markSeen('chat'); window.scrollTo(0, 0);
   }),
+  'gang-invite': (el) => run(async () => { S.activeGang = Number(el.dataset.id); if (!S.gang || S.gang.gang.id !== S.activeGang) await loadGang(); await actions['invite-share'](); }, { rerender: false }),
   'pcall-open'(el) { S.pcallTo = Number(el.dataset.id); S.sheet = 'pcall'; S.lastSheet = null; render(); },
   pcall(el) {
     const id = Number(el.dataset.id), kind = el.dataset.kind, def = S.cat.calls[kind];
@@ -2110,12 +2129,12 @@ const actions = {
     if (!nick) throw new Error('Впиши ник коллеги');
     const r = await post('/api/crew/add', { nick });
     $('#crew-nick').value = '';
-    toast(r.accepted ? 'Теперь вы подельники!' : r.already ? 'Вы уже подельники' : 'Заявка ушла. Ждём ответа');
+    toast(r.accepted ? 'Теперь можно переписываться!' : r.already ? 'Вы уже на связи' : 'Заявка ушла. Ждём ответа');
     await loadCrew();
   }),
   'crew-add-id': (el) => run(async () => {
     const r = await post('/api/crew/add', { id: Number(el.dataset.id) });
-    toast(r.accepted ? 'Теперь вы подельники!' : 'Заявка в подельники ушла');
+    toast(r.accepted ? 'Теперь можно переписываться!' : 'Заявка ушла');
     await loadCrew();
   }),
   'crew-accept': (el) => run(async () => { await post(`/api/crew/${el.dataset.id}/accept`); toast('Теперь можно переписываться!'); await Promise.all([loadCrew(), loadChats(), loadState()]); }),
@@ -2161,7 +2180,7 @@ const actions = {
     if (S.sheet === 'shop') { store.set('shopSeen', [...new Set([...store.get('shopSeen', []), ...((S.me && S.me.affordable) || [])])]); await run(async () => { S.shop = await get('/api/shop'); if (S.activeGang && !S.gang) await loadGang(); }); }
     if (S.sheet === 'profile' || S.sheet === 'lunch') await run(loadFeatures);
     if (S.sheet === 'crew-new' && !S.crew) await run(loadCrew);
-    if (S.sheet === 'battle-pick' && !S.people) await run(loadPeople);
+    if ((S.sheet === 'battle-pick' || S.sheet === 'dm-pick') && !S.people) await run(loadPeople);
   },
   close() { S.sheet = null; S.error = ''; render(); },
   'close-bg'(el, e) { if (e.target === el) actions.close(); },
@@ -2180,7 +2199,7 @@ const actions = {
   'meme-open'(el) {
     S.meme = { scene: (S.meme && S.meme.scene) || S.cat.memes[0].id, emo: (S.meme && S.meme.emo) || 'calm', to: el && el.dataset.to ? Number(el.dataset.to) : null };
     S.sheet = 'meme'; S.lastSheet = null; render();
-    if (!S.crew) loadCrew().then(render).catch(() => {});
+    if (!S.people) loadPeople().then(render).catch(() => {});
   },
   'meme-scene'(el) { S.meme.scene = el.dataset.v; render(); },
   'meme-emo'(el) { S.meme.emo = el.dataset.v; render(); },
@@ -2504,7 +2523,7 @@ async function boot() {
     const pendingCrew = store.get('pendingCrew', null);
     if (pendingCrew) {
       store.set('pendingCrew', null); S.tab = 'chats';
-      try { const r = await post('/api/crew/add', { code: pendingCrew }); toast(r.accepted ? 'Теперь вы подельники!' : r.already ? 'Вы уже подельники' : 'Заявка ушла. Ждём ответа'); } catch (e) { toast(e.message); }
+      try { const r = await post('/api/crew/add', { code: pendingCrew }); toast(r.accepted ? 'Теперь можно переписываться!' : r.already ? 'Вы уже на связи' : 'Заявка ушла. Ждём ответа'); } catch (e) { toast(e.message); }
     }
     await refresh({ all: true });
     const coachDone = Number(store.get('coachDone', 0));

@@ -88,7 +88,7 @@ function register(ctx) {
 
   function friendOr404(u, id) {
     const f = userRow(Number(id));
-    if (!f || !canTalk(u.id, f.id)) throw new HttpError(404, 'Писать можно подельникам и участникам твоих банд.');
+    if (!f || !canTalk(u.id, f.id)) throw new HttpError(404, 'Писать можно членам твоих банд.');
     return f;
   }
 
@@ -345,7 +345,7 @@ function register(ctx) {
     if (body.type === 'meme') {
       if (!MEMES.some((x) => x.id === body.kind) || !MEME_EMOS[body.opt]) throw bad('Выбери ситуацию и эмоцию из списка.');
       if (q("SELECT COUNT(*) AS n FROM dms WHERE from_id = ? AND to_id = ? AND type = 'meme' AND at > ?").get(u.id, f.id, U.now() - 3600e3).n >= 10) {
-        throw bad('Не больше 10 мемов в час одному подельнику.');
+        throw bad('Не больше 10 мемов в час одному человеку.');
       }
       ins.run(lo, hi, u.id, f.id, 'meme', body.kind, body.opt, JSON.stringify(u.look || {}), U.now());
       fireAndForget(notify([f.id], { title: u.nick, body: 'Прислал мем-открытку', url: `/#crew/${u.id}`, tag: `dm-${u.id}` }));
@@ -354,7 +354,7 @@ function register(ctx) {
     const def = CALLS[body.kind];
     if (body.type !== 'call' || !def || !DM_CALLS.includes(body.kind)) throw bad('Неизвестный тип сообщения.');
     if (q("SELECT COUNT(*) AS n FROM dms WHERE from_id = ? AND to_id = ? AND type = 'call' AND at > ?").get(u.id, f.id, U.now() - 3600e3).n >= 5) {
-      throw bad('Не больше 5 зовов в час одному подельнику.');
+      throw bad('Не больше 5 зовов в час одному человеку.');
     }
     const opt = def.opts.includes(body.opt) ? body.opt : def.opts[0] || null;
     let text = null;
