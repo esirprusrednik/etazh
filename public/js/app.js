@@ -1149,7 +1149,8 @@ function renderProfile() {
   const pushState = !('Notification' in window) ? 'unsupported' : Notification.permission;
   const name = [p.firstName, p.lastName].filter(Boolean).join(' ');
   const got = S.fx ? S.fx.achievements.filter((a) => a.got).length : null;
-  const plan = S.cat.days.map((d) => (p.plan[d] === 'office' ? 'О' : p.plan[d] === 'home' ? 'Д' : '·')).join(' ');
+  const planDays = (k) => S.cat.days.filter((d) => p.plan[d] === k);
+  const plan = [planDays('office').length ? `${planDays('office').join(' ')} — офис` : '', planDays('home').length ? `${planDays('home').join(' ')} — дома` : ''].filter(Boolean).join(', ') || 'план не заполнен';
   const office = (S.cat.offices.find((o) => o.id === p.home) || {}).name;
 
   const lookBody = `
@@ -1210,7 +1211,8 @@ function renderProfile() {
     <label class="check"><input type="checkbox" data-act="toggle" data-k="shareOffice" ${me.shareOffice ? 'checked' : ''}> <span>Показывать банде, где я: офис, дома или в отпуске</span></label>
     <label class="check"><input type="checkbox" data-act="toggle" data-k="quiet" ${me.quiet ? 'checked' : ''}> <span>Тихие часы 19:00–09:00 — не присылать зовы</span></label>
     <label class="check"><input type="checkbox" data-act="coffee-toggle" ${p.coffee ? 'checked' : ''}> <span>Участвовать в случайном кофе${p.home ? '' : ' (сначала укажи «Мой офис» в разделе «Работа»)'}</span></label>
-    ${pushState === 'granted' ? '<div class="row"><span class="note good grow">Уведомления включены</span><button class="btn small ghost" data-act="push-test">Проверить</button></div>'
+    ${pushState === 'granted' && !(me.completion.steps.find((x) => x.id === 'push') || {}).done ? `<div class="note warn" style="margin:0">Браузер разрешил уведомления, но этот телефон не подключён к серверу — пуши не придут.</div><button class="btn blue" data-act="push-enable" ${S.vapidKey ? '' : 'disabled'}>Подключить уведомления</button>`
+      : pushState === 'granted' ? '<div class="row"><span class="note good grow">Уведомления включены</span><button class="btn small ghost" data-act="push-test">Проверить</button></div>'
       : pushState === 'unsupported' ? `<div class="note warn">${isIOS() && !isStandalone() ? 'На iPhone уведомления работают только из установленного приложения.' : 'Этот браузер не поддерживает уведомления.'}</div>`
       : pushState === 'denied' ? '<div class="note warn">Уведомления запрещены в настройках браузера.</div>'
       : `<button class="btn blue" data-act="push-enable" ${S.vapidKey ? '' : 'disabled'}>Включить уведомления</button>`}
@@ -1683,7 +1685,25 @@ async function enablePush() {
   const reg = await navigator.serviceWorker.ready;
   const sub = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8(S.vapidKey) }));
   await post('/api/push/subscribe', { subscription: sub.toJSON() });
+  await loadMe();
   toast('Уведомления включены');
+}
+
+// Браузер помнит разрешение, а сервер может потерять подписку (переустановка, смена ключей, протухший адрес).
+// Тихо сверяем при каждом запуске: если разрешение есть, а сервер подписку не знает — отправляем заново.
+async function syncPush() {
+  if (!S.vapidKey || !('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window) || Notification.permission !== 'granted') return;
+  if (S.me.completion && S.me.completion.steps.find((x) => x.id === 'push' && x.done)) return;
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  const key = urlB64ToUint8(S.vapidKey);
+  if (sub && sub.options && sub.options.applicationServerKey) {
+    const old = new Uint8Array(sub.options.applicationServerKey);
+    if (old.length !== key.length || old.some((b, i) => b !== key[i])) { await sub.unsubscribe(); sub = null; }
+  }
+  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+  await post('/api/push/subscribe', { subscription: sub.toJSON() });
+  await loadMe();
 }
 
 // ---------- События DOM ----------
@@ -1762,6 +1782,7 @@ async function boot() {
       try { const r = await post('/api/crew/add', { code: pendingCrew }); toast(r.accepted ? 'Теперь вы подельники!' : r.already ? 'Вы уже подельники' : 'Заявка ушла. Ждём ответа'); } catch (e) { toast(e.message); }
     }
     await refresh({ all: true });
+    syncPush().then(render).catch(() => {});
   }
   if (hash) history.replaceState(null, '', location.pathname + (location.search.includes('login=') ? '' : location.search));
   render();
