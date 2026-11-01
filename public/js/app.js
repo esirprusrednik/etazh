@@ -922,7 +922,7 @@ function renderProfile() {
   const lookBody = `
     <div class="ava-preview">${avatar(look, 96)}</div>
     <div class="eyebrow">Лицо</div>
-    <div class="chips">${['m', 'f'].map((v) => `<button class="chip ${look.preset === v ? 'on' : ''}" data-act="look" data-k="preset" data-v="${v}">${v === 'm' ? 'Без ресниц' : 'С ресницами'}</button>`).join('')}</div>
+    <div class="chips">${['m', 'f'].map((v) => `<button class="chip ${look.preset === v ? 'on' : ''}" data-act="look" data-k="preset" data-v="${v}">${v === 'm' ? 'М' : 'Ж'}</button>`).join('')}</div>
     <div class="field">Форма лица${tiles('face', L.face, FACE_NAMES)}</div>
     <div class="field">Кожа${sw('skin', L.skin)}</div>
     <div class="field">Глаза${sw('eyes', L.eyes)}</div>
