@@ -36,10 +36,12 @@ server/db.js
 server/features.js
 server/index.js
 server/mailer.js
+server/quiz.js
 server/util.js
 server/webpush.js
 tests/battle.js
 tests/crew.js
 tests/features.js
+tests/quiz.js
 tests/smoke.js
 tests/unit.js

@@ -33,12 +33,14 @@ const LOOK = {
   hairStyle: ['short', 'long', 'tail', 'curly', 'bob', 'bun', 'side', 'mohawk', 'afro', 'bald'],
   hair: ['#2B1D14', '#6B3E26', '#E0B04B', '#C2412F', '#9AA3B5', '#F2E6C9', '#7C4DFF', '#FF6FA8'],
   face: ['oval', 'round', 'square', 'long', 'heart'],
+  mouth: ['smile', 'grin', 'smirk', 'neutral', 'wow'],
+  beard: ['none', 'stubble', 'beard', 'mustache', 'goatee'],
   eyes: ['#22252D', '#6B4226', '#3A7BD5', '#3C8D5A', '#8A8F9C'],
   skin: ['#FBE3CF', '#F6D3B3', '#E8B48A', '#C98E62', '#8D5A3B', '#5E3A26'],
   hoodie: ['red', 'blue', 'green', 'violet', 'navy']
 };
 const NICK_PRICE = 50;
-const DEFAULT_LOOK = { preset: 'm', face: 'oval', eyes: '#22252D', hairStyle: 'short', hair: '#2B1D14', skin: '#E8B48A', hoodie: 'blue', glasses: false, phones: false, status: null, frame: null, crown: false };
+const DEFAULT_LOOK = { preset: 'm', face: 'oval', eyes: '#22252D', mouth: 'smile', beard: 'none', freckles: false, hairStyle: 'short', hair: '#2B1D14', skin: '#E8B48A', hoodie: 'blue', glasses: false, phones: false, status: null, frame: null, crown: false };
 // plan — где обычно работаю по дням недели: { Пн: 'office' | 'home' }
 // today — ручной статус на сегодня: { kind: 'home' | 'vacation', day: 'YYYY-MM-DD' }
 // vacations — график отпусков: [{ from: 'YYYY-MM-DD', to: 'YYYY-MM-DD' }]
@@ -52,6 +54,23 @@ function fullName(prof, scope) {
   const vis = prof.nameVis || 'gang';
   if (vis === 'hidden' || (vis === 'gang' && scope !== 'gang')) return '';
   return [prof.firstName, prof.lastName].filter(Boolean).join(' ');
+}
+
+// Заполненность профиля. Первый шаг — ник — засчитан сразу: начатое дело люди доводят до конца охотнее.
+// Имя, фамилия и день рождения в процент не входят: личные данные — только по желанию, без давления.
+const LOOK_KEYS = ['face', 'hairStyle', 'hair', 'skin', 'eyes', 'hoodie', 'mouth', 'beard', 'glasses', 'phones', 'freckles', 'preset'];
+function profileCompletion(look, prof, hasPush) {
+  const steps = [
+    { id: 'nick', label: 'Выбрать ник', done: true },
+    { id: 'look', label: 'Настроить аватар', sec: 'look', done: LOOK_KEYS.some((k) => look[k] !== undefined && look[k] !== DEFAULT_LOOK[k]) },
+    { id: 'home', label: 'Указать свой офис', sec: 'work', done: !!prof.home },
+    { id: 'plan', label: 'Заполнить план недели', sec: 'work', done: Object.keys(prof.plan || {}).length >= 3 },
+    { id: 'tags', label: 'Выбрать 2 интереса', sec: 'about', done: (prof.tags || []).length >= 2 },
+    { id: 'about', label: 'Написать пару слов о себе', sec: 'about', done: !!prof.about },
+    { id: 'push', label: 'Включить уведомления', sec: 'priv', done: !!hasPush }
+  ];
+  const done = steps.filter((s) => s.done).length;
+  return { pct: Math.round((done / steps.length) * 100), steps };
 }
 
 function readProfile(json) {
@@ -98,6 +117,7 @@ function createApi(db) {
   let features = null;
   let crew = null;
   let battle = null;
+  let quiz = null;
   const q = (sql) => db.prepare(sql);
   const adminHashes = new Set(config.adminEmails.map((e) => U.hashEmail(e)));
 
@@ -358,8 +378,10 @@ function createApi(db) {
     }
     const earned = q('SELECT COALESCE(SUM(amount), 0) AS s FROM ledger WHERE user_id = ? AND amount > 0').get(u.id).s;
     const level = 1 + Math.floor(Math.sqrt(earned / 15));
+    const completion = profileCompletion(u.look, u.profile, !!q('SELECT 1 FROM push_subs WHERE user_id = ?').get(u.id));
     return {
       user: {
+        completion,
         id: u.id, nick: u.nick, beans: u.beans, look: u.look, profile: u.profile, shareOffice: !!u.share_office, quiet: !!u.quiet,
         welcomed: !!u.welcomed, isAdmin: u.isAdmin, owned, status: statusName(u.look.status), streak, level,
         nickChangeableAt: u.nick_changed_at ? u.nick_changed_at + 30 * 864e5 : null,
@@ -415,9 +437,10 @@ function createApi(db) {
     const look = { ...u.look };
     if (body.look) {
       const l = body.look;
-      for (const k of ['preset', 'face', 'eyes', 'hairStyle', 'hair', 'skin', 'hoodie']) if (l[k] !== undefined && LOOK[k].includes(l[k])) look[k] = l[k];
+      for (const k of ['preset', 'face', 'eyes', 'mouth', 'beard', 'hairStyle', 'hair', 'skin', 'hoodie']) if (l[k] !== undefined && LOOK[k].includes(l[k])) look[k] = l[k];
       if (l.glasses !== undefined) look.glasses = !!l.glasses;
       if (l.phones !== undefined) look.phones = !!l.phones;
+      if (l.freckles !== undefined) look.freckles = !!l.freckles;
     }
     const prof = { ...u.profile };
     if (body.profile) {
@@ -482,6 +505,7 @@ function createApi(db) {
     const share = body.shareOffice === undefined ? u.share_office : body.shareOffice ? 1 : 0;
     const quiet = body.quiet === undefined ? u.quiet : body.quiet ? 1 : 0;
     q('UPDATE users SET look = ?, profile = ?, share_office = ?, quiet = ? WHERE id = ?').run(JSON.stringify(look), JSON.stringify(prof), share, quiet, u.id);
+    if (features) features.onEvent('profile', u.id);
     return { ok: true };
   });
 
@@ -903,6 +927,7 @@ function createApi(db) {
     q(`INSERT INTO push_subs (user_id, endpoint, p256dh, auth, created_at) VALUES (?, ?, ?, ?, ?)
        ON CONFLICT(endpoint) DO UPDATE SET user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth`)
       .run(u.id, endpoint, s.keys.p256dh, s.keys.auth, U.now());
+    if (features) features.onEvent('profile', u.id);
     return { ok: true };
   });
 
@@ -967,13 +992,15 @@ function createApi(db) {
   // ---------- Функции второго этапа ----------
   features = require('./features').register({
     db, q, route, requireUser, requireAdmin, bad, U, config, addBeans, spendBeans, notify, fireAndForget,
-    isMember, gangMembers, myGangs, activeCheckin, readProfile, presenceOf, fullName, weekdayName, addDays, pushEvent, officeById
+    isMember, gangMembers, myGangs, activeCheckin, readProfile, presenceOf, fullName, weekdayName, addDays, pushEvent, officeById,
+    profilePct: (row) => profileCompletion({ ...DEFAULT_LOOK, ...JSON.parse(row.look || '{}') }, readProfile(row.profile), !!q('SELECT 1 FROM push_subs WHERE user_id = ?').get(row.id)).pct
   });
 
   // ---------- Подельники: личные контакты ----------
   crew = require('./crew').register({
     db, q, route, requireUser, bad, U, config, notify, fireAndForget, rateLimit, memberStatus, HttpError
   });
+  quiz = require('./quiz').register({ db, q, route, requireUser, requireAdmin, bad, U, addBeans, isMember, gangMembers, readProfile, HttpError, DEFAULT_LOOK, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   battle = require('./battle').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
 
   // ---------- Обработчик ----------
@@ -1032,6 +1059,7 @@ function createApi(db) {
     if (features) features.cleanup();
     if (crew) crew.cleanup();
     if (battle) battle.cleanup();
+    if (quiz) quiz.cleanup();
   }
 
   return { handle, verifyLogin, cleanup, HttpError };

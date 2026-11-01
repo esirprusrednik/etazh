@@ -4,6 +4,7 @@
 const crypto = require('node:crypto');
 
 const ACH = [
+  { id: 'profile_full', tier: 'rare', name: 'Открытая книга', desc: 'Заполнить профиль на 100%', test: (c) => c.profile >= 100 },
   { id: 'first_checkin', tier: 'common', name: 'Первый шаг', desc: 'Отметиться в офисе', test: (c) => c.checkins >= 1 },
   { id: 'gang', tier: 'common', name: 'В банде', desc: 'Вступить в банду или создать свою', test: (c) => c.gangs >= 1 },
   { id: 'reply', tier: 'common', name: 'На связи', desc: 'Ответить на зов банды', test: (c) => c.replies >= 1 },
@@ -14,6 +15,9 @@ const ACH = [
   { id: 'thanks10', tier: 'rare', name: 'Душа банды', desc: 'Получить 10 спасибо', test: (c) => c.thanks_got >= 10 },
   { id: 'signals5', tier: 'rare', name: 'Глаза офиса', desc: '5 подтверждённых сигналов', test: (c) => c.signals >= 5 },
   { id: 'coffee', tier: 'rare', name: 'Новые лица', desc: 'Договориться о случайном кофе', test: (c) => c.coffee >= 1 },
+  { id: 'quiz_first', tier: 'common', name: 'Первый квиз', desc: 'Ответить на квиз недели', test: (c) => c.quiz_any >= 1 },
+  { id: 'guess10', tier: 'rare', name: 'Знаток банды', desc: '10 раз угадать коллегу', test: (c) => c.guess_ok >= 10 },
+  { id: 'quiz5', tier: 'rare', name: 'Эрудит', desc: '5 верных ответов в квизах недели', test: (c) => c.quiz_ok >= 5 },
   { id: 'sea_first', tier: 'common', name: 'Юнга', desc: 'Выиграть морской бой', test: (c) => c.sea_wins >= 1 },
   { id: 'sea_10', tier: 'rare', name: 'Капитан', desc: '10 побед в морском бою', test: (c) => c.sea_wins >= 10 },
   { id: 'sea_clean', tier: 'rare', name: 'Ни царапины', desc: 'Победить, не потеряв ни одного корабля', test: (c) => c.sea_clean >= 1 },
@@ -83,7 +87,7 @@ function migrate(db) {
 
 function register(ctx) {
   const { db, q, route, requireUser, requireAdmin, bad, U, config, addBeans, spendBeans, notify, fireAndForget,
-    isMember, gangMembers, myGangs, activeCheckin, readProfile, presenceOf, fullName, weekdayName, addDays, pushEvent, officeById } = ctx;
+    isMember, gangMembers, myGangs, activeCheckin, readProfile, presenceOf, fullName, weekdayName, addDays, pushEvent, officeById, profilePct } = ctx;
   migrate(db);
 
   const meta = {
@@ -144,6 +148,8 @@ function register(ctx) {
       gangs: q('SELECT COUNT(*) AS n FROM gang_members WHERE user_id = ?').get(uid).n,
       offices: q('SELECT COUNT(*) AS n FROM user_offices WHERE user_id = ?').get(uid).n,
       streak: streakOf(uid),
+      profile: profilePct ? profilePct(u) : 0,
+      guess_ok: counter(uid, 'guess_ok'), quiz_ok: counter(uid, 'quiz_ok'), quiz_any: counter(uid, 'quiz_any'),
       sea_wins: counter(uid, 'sea_wins'), sea_clean: counter(uid, 'sea_clean'), sea_rivals: counter(uid, 'sea_rivals')
     };
     const got = [];
@@ -178,6 +184,9 @@ function register(ctx) {
       if (type === 'text') stat('messages');
       if (type === 'signal_confirmed') { bump(uid, 'signals'); stat('signals_confirmed'); }
       if (type === 'signal') stat('signals');
+      if (type === 'guess_ok') { bump(uid, 'guess_ok'); stat('guess_ok'); }
+      if (type === 'quiz_ok') bump(uid, 'quiz_ok');
+      if (type === 'quiz_any') { bump(uid, 'quiz_any'); stat('quiz_answers'); }
       // Морской бой: в зачёт идут только победы потоплением всего флота — сдача соперника не считается
       if (type === 'sea_win') {
         bump(uid, 'sea_wins'); stat('sea_wins');

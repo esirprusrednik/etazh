@@ -80,28 +80,75 @@ const HAIR_FRONT = {
   afro: (h) => `<path d="M29 42 Q29 22 50 22 Q71 22 71 42 Q63 31 50 32 Q37 31 29 42 Z" fill="${h}"/>`,
   bald: () => '<path d="M41 29 Q47 26 52 27" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="2.4" stroke-linecap="round"/>'
 };
-function avatar(look = {}, size = 42) {
+// Затемнить или осветлить цвет #RRGGBB (k < 0 — темнее)
+function shade(hex, k) {
+  const n = parseInt(String(hex).slice(1), 16);
+  const f = (c) => Math.max(0, Math.min(255, Math.round(k < 0 ? c * (1 + k) : c + (255 - c) * k)));
+  return '#' + [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => f(c).toString(16).padStart(2, '0')).join('');
+}
+const FACE_RX = { oval: 19.5, round: 21.5, square: 20, long: 16, heart: 20.5 };
+const MOUTHS = {
+  smile: () => '<path d="M44.5 56 Q50 61.5 55.5 56" fill="none" stroke="#2A1A1A" stroke-width="2.4" stroke-linecap="round"/>',
+  grin: () => '<path d="M43.8 55.3 Q50 64 56.2 55.3 Z" fill="#5A1F24"/><path d="M45 55.6 L55 55.6 L54.3 57.4 L45.7 57.4 Z" fill="#fff"/><path d="M47 60 Q50 61.6 53 60 Q50 59 47 60 Z" fill="#E86B7A"/>',
+  smirk: () => '<path d="M45 57.6 Q51 59.4 56 54.6" fill="none" stroke="#2A1A1A" stroke-width="2.4" stroke-linecap="round"/>',
+  neutral: () => '<path d="M45.5 57 L54.5 57" stroke="#2A1A1A" stroke-width="2.4" stroke-linecap="round"/>',
+  wow: () => '<ellipse cx="50" cy="57.5" rx="3" ry="3.6" fill="#5A1F24"/>'
+};
+const BEARD = 'M30.5 49 Q31.5 69.5 50 69.5 Q68.5 69.5 69.5 49 Q67 60 59 60.5 Q55 58.5 50 59.5 Q45 58.5 41 60.5 Q33 60 30.5 49 Z';
+const MUSTACHE = 'M42.5 55.2 Q46 52 50 53.6 Q54 52 57.5 55.2 Q54 56.4 50 55.3 Q46 56.4 42.5 55.2 Z';
+const BEARDS = {
+  none: () => '',
+  stubble: (h) => `<path d="${BEARD}" fill="${h}" opacity=".22"/><path d="${MUSTACHE}" fill="${h}" opacity=".3"/>`,
+  beard: (h) => `<path d="${BEARD}" fill="${h}"/><path d="${MUSTACHE}" fill="${h}"/><path d="M44 63 Q50 65.5 56 63" fill="none" stroke="#fff" stroke-opacity=".15" stroke-width="1.6" stroke-linecap="round"/>`,
+  mustache: (h) => `<path d="${MUSTACHE}" fill="${h}"/>`,
+  goatee: (h) => `<path d="M45 60.5 Q50 59.5 55 60.5 Q55.5 66.5 50 68 Q44.5 66.5 45 60.5 Z" fill="${h}"/><path d="${MUSTACHE}" fill="${h}"/>`
+};
+
+function avatar(look = {}, size = 42, zoom = false) {
   const hair = look.hair || '#2B1D14';
   const skin = look.skin || '#E8B48A';
   const eyes = look.eyes || '#22252D';
   const hs = look.hairStyle || 'short';
   const ring = FRAMES[look.frame] || '#FFFFFF';
+  const hood = HOODIE[look.hoodie] || HOODIE.blue;
+  const rx = FACE_RX[look.face] || FACE_RX.oval;
   const face = (FACES[look.face] || FACES.oval)(skin);
-  const lash = look.preset === 'f' ? '<path d="M38.5 41 L41 39.5 M61.5 41 L59 39.5" stroke="#22252D" stroke-width="2" stroke-linecap="round"/>' : '';
+  const skinDark = shade(skin, -0.16);
+  const brow = shade(hair === '#F2E6C9' || hair === '#9AA3B5' ? '#8A7A66' : hair, -0.1);
+  const kx = (rx / 19.5).toFixed(3);
+  const beard = (BEARDS[look.beard] || BEARDS.none)(hair);
+  const lash = look.preset === 'f' ? '<path d="M38 43.6 L40.2 42.2 M62 43.6 L59.8 42.2" stroke="#22252D" stroke-width="1.8" stroke-linecap="round"/>' : '';
+  const freckles = look.freckles ? [[39.5, 52.5], [42, 54], [38.8, 55], [60.5, 52.5], [58, 54], [61.2, 55]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r=".85" fill="${shade(skin, -0.38)}"/>`).join('') : '';
+  const shine = ['short', 'long', 'tail', 'bob', 'side', 'afro', 'curly', 'bun'].includes(hs) ? '<path d="M39 29 Q45 25 53 25.5" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width="2.6" stroke-linecap="round"/>' : '';
   return `<span class="ava" style="width:${size + 6}px;height:${size + 6}px;border:3px solid ${ring}">
-  <svg width="${size}" height="${size}" viewBox="0 0 100 100" aria-hidden="true">
+  <svg width="${size}" height="${size}" viewBox="${zoom ? '24 28 52 52' : '0 0 100 100'}" aria-hidden="true">
     ${HAIR_BACK[hs] ? HAIR_BACK[hs](hair) : ''}
-    <path d="M12 104 Q14 74 50 71 Q86 74 88 104 Z" fill="${HOODIE[look.hoodie] || HOODIE.blue}"/>
-    <rect x="44" y="58" width="12" height="16" rx="3" fill="${skin}"/>
+    <path d="M12 104 Q14 74 50 71 Q86 74 88 104 Z" fill="${hood}"/>
+    <path d="M50 71 Q86 74 88 104 L62 104 Q66 86 50 80 Z" fill="#000" opacity=".1"/>
+    <path d="M33 76 Q50 92 67 76 Q60 71.5 50 71.5 Q40 71.5 33 76 Z" fill="${shade(hood, -0.25)}"/>
+    <rect x="44" y="58" width="12" height="17" rx="3" fill="${skin}"/>
+    <ellipse cx="50" cy="64.5" rx="7" ry="3.2" fill="#000" opacity=".12"/>
+    <path d="M45.5 80 L44.5 92 M54.5 80 L55.5 92" stroke="#fff" stroke-opacity=".85" stroke-width="1.6" stroke-linecap="round"/>
+    <rect x="43.3" y="91" width="2.4" height="3.4" rx="1" fill="#fff" opacity=".85"/><rect x="54.3" y="91" width="2.4" height="3.4" rx="1" fill="#fff" opacity=".85"/>
+    <ellipse cx="${50 - rx - 0.5}" cy="49" rx="3.6" ry="5" fill="${skin}"/><ellipse cx="${50 + rx + 0.5}" cy="49" rx="3.6" ry="5" fill="${skin}"/>
+    <ellipse cx="${50 - rx - 0.3}" cy="49.3" rx="1.6" ry="2.8" fill="${skinDark}"/><ellipse cx="${50 + rx + 0.3}" cy="49.3" rx="1.6" ry="2.8" fill="${skinDark}"/>
     ${face}
-    <circle cx="43" cy="48" r="3.2" fill="${eyes}"/><circle cx="57" cy="48" r="3.2" fill="${eyes}"/>
-    <circle cx="44" cy="47" r="1" fill="#fff"/><circle cx="58" cy="47" r="1" fill="#fff"/>
-    <path d="M44.5 56 Q50 61 55.5 56" fill="none" stroke="#22252D" stroke-width="2.6" stroke-linecap="round"/>
+    <circle cx="38" cy="55" r="3.3" fill="#FF7A8A" opacity=".22"/><circle cx="62" cy="55" r="3.3" fill="#FF7A8A" opacity=".22"/>
+    ${freckles}
+    <ellipse cx="43" cy="48" rx="4.1" ry="3.7" fill="#fff"/><ellipse cx="57" cy="48" rx="4.1" ry="3.7" fill="#fff"/>
+    <circle cx="43.4" cy="48.3" r="2.7" fill="${eyes}"/><circle cx="57.4" cy="48.3" r="2.7" fill="${eyes}"/>
+    <circle cx="43.4" cy="48.3" r="1.3" fill="#111"/><circle cx="57.4" cy="48.3" r="1.3" fill="#111"/>
+    <circle cx="44.4" cy="47.2" r=".9" fill="#fff"/><circle cx="58.4" cy="47.2" r=".9" fill="#fff"/>
     ${lash}
+    <path d="M38.6 42.4 Q43 39.6 47.2 41.6 M52.8 41.6 Q57 39.6 61.4 42.4" fill="none" stroke="${brow}" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M49.4 50.2 Q48 54 50.8 54.4" fill="none" stroke="#000" stroke-opacity=".2" stroke-width="1.6" stroke-linecap="round"/>
+    ${beard ? `<g transform="translate(50 0) scale(${kx} 1) translate(-50 0)">${beard}</g>` : ''}
+    ${(MOUTHS[look.mouth] || MOUTHS.smile)()}
     ${(HAIR_FRONT[hs] || HAIR_FRONT.short)(hair)}
-    ${look.glasses ? '<rect x="36.5" y="43" width="13" height="10" rx="3.5" fill="none" stroke="#22252D" stroke-width="3"/><rect x="50.5" y="43" width="13" height="10" rx="3.5" fill="none" stroke="#22252D" stroke-width="3"/>' : ''}
-    ${look.phones ? '<path d="M29 47 Q27 15 50 15 Q73 15 71 47" fill="none" stroke="#2B2B3A" stroke-width="6" stroke-linecap="round"/><rect x="23" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="67" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/>' : ''}
-    ${look.crown ? '<path d="M33 19 L37 5 L44 13 L50 3 L56 13 L63 5 L67 19 Z" fill="#FFC93C" stroke="#D99A0B" stroke-width="2" stroke-linejoin="round"/>' : ''}
+    ${shine}
+    ${look.glasses ? '<rect x="36.3" y="43" width="13.2" height="10" rx="3.5" fill="#fff" fill-opacity=".18" stroke="#22252D" stroke-width="2.6"/><rect x="50.5" y="43" width="13.2" height="10" rx="3.5" fill="#fff" fill-opacity=".18" stroke="#22252D" stroke-width="2.6"/><path d="M49.5 47 L50.5 47" stroke="#22252D" stroke-width="2.6"/><path d="M38.5 45 L41 44.6" stroke="#fff" stroke-opacity=".7" stroke-width="1.3" stroke-linecap="round"/>' : ''}
+    ${look.phones ? '<path d="M29 47 Q27 15 50 15 Q73 15 71 47" fill="none" stroke="#2B2B3A" stroke-width="6" stroke-linecap="round"/><path d="M33 26 Q40 18 50 17.5" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/><rect x="23" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="67" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="25" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/><rect x="72" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/>' : ''}
+    ${look.crown ? '<path d="M33 19 L37 5 L44 13 L50 3 L56 13 L63 5 L67 19 Z" fill="#FFC93C" stroke="#D99A0B" stroke-width="2" stroke-linejoin="round"/><circle cx="50" cy="13" r="2" fill="#E5484D"/>' : ''}
   </svg></span>`;
 }
 
@@ -186,13 +233,15 @@ function recountCrewBadge() {
 async function loadGangExtra() {
   if (!S.activeGang) { S.gx = null; return; }
   try { S.gx = await get(`/api/gangs/${S.activeGang}/extra`); } catch { S.gx = null; }
+  try { S.guess = await get(`/api/gangs/${S.activeGang}/guess`); } catch { S.guess = null; }
 }
+async function loadQuiz() { try { S.quiz = (await get('/api/quiz')).items; } catch { S.quiz = []; } }
 
 async function refresh({ all = false } = {}) {
   if (!S.me || !S.me.nick) return;
   const jobs = [loadState()];
   if (all || S.tab === 'gang') jobs.push(loadGang(), loadGangExtra());
-  if (all || S.tab === 'office') jobs.push(loadFeatures());
+  if (all || S.tab === 'office') jobs.push(loadFeatures(), loadQuiz());
   if (all || S.tab === 'feed' || S.tab === 'office') jobs.push(loadEvents());
   if (all || S.tab === 'crew' || S.tab === 'gang') jobs.push(loadCrew());
   if (S.tab === 'crew' && S.battle) jobs.push(loadBattle());
@@ -353,7 +402,7 @@ function renderOffice() {
         <button class="btn ghost" data-act="open" data-v="vacation">🌴 В отпуске</button>
         <button class="btn ghost" data-act="today" data-v="slack">😏 Отлыниваю</button></div>
         <p class="small">Не отметишься и ничего не выберешь — после 11:00 банда увидит шуточный статус вроде «в астрале».</p>`}
-    </div>${renderBirthdays()}${renderQuests()}${renderCoffee()}${renderGangNow()}`;
+    </div>${renderBirthdays()}${renderQuests()}${renderCompletion()}${renderQuiz()}${renderCoffee()}${renderGangNow()}`;
   }
   const here = st.gangNow.rows.filter((r) => r.where === 'office' && r.office === st.checkin.office).length;
   const hour = Number(st.msk.slice(0, 2));
@@ -375,6 +424,8 @@ function renderOffice() {
   </section>
   ${renderBirthdays()}
   ${renderQuests()}
+  ${renderCompletion()}
+  ${renderQuiz()}
   ${renderQuickCalls()}
   ${renderCanteen()}
   ${renderLunches()}
@@ -564,6 +615,7 @@ function renderGang() {
   </section>
   ${renderGangBirthdays()}
   ${renderWeek()}
+  ${renderGuess()}
   ${renderThanks(v)}
   <section class="card">
     <h3>Чат</h3>
@@ -1008,10 +1060,73 @@ function renderInstall() {
     <p class="sub">${ios ? 'Chrome → меню ⋮ → «Установить приложение».' : 'Safari → «Поделиться» → «На экран “Домой”».'}</p>`;
 }
 
+// «Угадай коллегу»: вопросы из профилей банды
+function renderGuess() {
+  const r = S.guess;
+  if (!r) return '';
+  const head = '<div class="row" style="justify-content:space-between"><span class="card-title">Угадай коллегу</span>' + (r.question ? `<span class="small">осталось ${r.question.left} из 3 сегодня</span>` : '') + '</div>';
+  if (r.small) return `<section class="card guess">${head}<p class="small" style="margin:0">Игра откроется, когда в банде будет хотя бы 4 человека. Позови ещё ${r.need} ${plural(r.need, 'коллегу', 'коллег', 'коллег')} по ссылке ниже.</p></section>`;
+  if (!r.question) return `<section class="card guess">${head}<p class="small" style="margin:0">На сегодня всё, завтра будут новые вопросы. Они собираются из профилей банды: чем больше коллеги расскажут о себе, тем интереснее угадывать.</p></section>`;
+  const x = r.question;
+  const prompt = x.kind === 'avatar' ? `<div class="guess-ava">${avatar(x.look, 110)}</div><div class="guess-q">Кто из банды так выглядит?</div>`
+    : x.kind === 'about' ? `<div class="guess-quote">«${esc(x.about)}»</div><div class="guess-q">Кто написал это о себе?</div>`
+    : `<div class="chips" style="justify-content:center">${x.tags.map((t) => `<span class="chip on" style="cursor:default">${esc(t)}</span>`).join('')}</div><div class="guess-q">Чьи это интересы?</div>`;
+  const opts = x.options.map((o) => {
+    let cls = '';
+    if (x.answered) cls = o.id === x.answer ? 'ok' : o.id === x.pick ? 'bad' : 'dim';
+    return `<button class="gopt ${cls}" ${x.answered ? 'disabled' : `data-act="guess-pick" data-id="${x.id}" data-v="${o.id}"`}>${esc(o.nick)}</button>`;
+  }).join('');
+  const after = x.answered ? `<div class="note ${x.correct ? 'good' : 'warn'}" style="margin:0">${x.correct ? `Верно!${S.guessBeans ? ` +${S.guessBeans} ${plural(S.guessBeans, 'зерно', 'зерна', 'зёрен')}` : ''}` : `Это ${esc(x.answerNick)}`}</div>
+    <div class="row">${x.left > 0 ? '<button class="btn small grow" data-act="guess-next">Следующий вопрос</button>' : ''}<button class="btn small ghost grow" data-act="person" data-id="${x.answer}">Профиль ${esc(x.answerNick)}</button></div>` : '';
+  return `<section class="card guess">${head}${prompt}<div class="gopts">${opts}</div>${after}</section>`;
+}
+
+// Квиз недели от модератора
+function renderQuiz() {
+  const z = (S.quiz || [])[0];
+  if (!z) return '';
+  const more = (S.quiz || []).filter((x) => !x.answered).length - (z.answered ? 0 : 1);
+  const opts = z.options.map((o, i) => {
+    if (!z.answered) return `<button class="gopt" data-act="quiz-pick" data-id="${z.id}" data-v="${i}">${esc(o)}</button>`;
+    const st = z.stats[i];
+    const cls = i === z.correct ? 'ok' : i === z.pick ? 'bad' : '';
+    return `<div class="qres ${cls}"><span class="qbar" style="width:${st.pct}%"></span><span class="qtxt">${i === z.correct ? '✓ ' : ''}${esc(o)}</span><span class="qpct">${st.pct}%</span></div>`;
+  }).join('');
+  return `<section class="card quiz">
+    <div class="row" style="justify-content:space-between"><span class="eyebrow" style="margin:0">Квиз недели</span><span class="small">${z.answered ? `ответили ${z.total}` : '+3 за верный ответ'}</span></div>
+    <div class="quiz-q">${esc(z.text)}</div>
+    <div class="gopts">${opts}</div>
+    ${z.answered ? `<div class="note ${z.pick === z.correct ? 'good' : 'warn'}" style="margin:0">${z.pick === z.correct ? 'Верно!' : 'Мимо.'}${z.explain ? ' ' + esc(z.explain) : ''}</div>` : ''}
+    ${more > 0 ? `<p class="small" style="margin:0">Ещё ${more} ${plural(more, 'квиз ждёт', 'квиза ждут', 'квизов ждут')} ответа</p>` : ''}
+  </section>`;
+}
+
+// Кольцо заполненности профиля вокруг аватара
+function progressRing(pct, inner) {
+  return `<span class="pring" style="--p:${pct}">${inner}<span class="pring-num">${pct}%</span></span>`;
+}
+// Карточка «заполни профиль»: следующий шаг, а не список всего недоделанного
+function renderCompletion(inProfile) {
+  const c = S.me && S.me.completion;
+  if (!c || c.pct >= 100) return '';
+  if (!inProfile && Number(store.get('complHideUntil', 0)) > Date.now()) return '';
+  const left = c.steps.filter((x) => !x.done);
+  const next = left[0];
+  return `<section class="${inProfile ? 'compl in' : 'card compl'}">
+    <div class="row" style="justify-content:space-between"><span class="card-title">Профиль заполнен на ${c.pct}%</span>${inProfile ? '' : '<button class="linkbtn" data-act="compl-hide" aria-label="Скрыть на неделю">позже</button>'}</div>
+    <div class="cbar"><span style="width:${c.pct}%"></span></div>
+    <div class="csteps">${c.steps.map((x) => `<span class="cstep ${x.done ? 'done' : ''}" title="${esc(x.label)}"></span>`).join('')}</div>
+    <p class="small" style="margin:0">Ещё ${left.length} ${plural(left.length, 'шаг', 'шага', 'шагов')} до ачивки «Открытая книга» и +15 зёрен. Коллегам проще позвать тебя на кофе, когда видно, чем ты живёшь.</p>
+    <button class="btn small ${inProfile ? 'ghost' : ''}" data-act="open-sec" data-v="${next.sec}">${esc(next.label)} →</button>
+  </section>`;
+}
+
 // Профиль собран из раскрывающихся секций: в заголовке — краткая сводка и карандаш, внутри — редактирование
 const PENCIL = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>';
 const HAIR_NAMES = { short: 'Короткие', long: 'Длинные', tail: 'Хвост', curly: 'Кудри', bob: 'Каре', bun: 'Пучок', side: 'Набок', mohawk: 'Ирокез', afro: 'Афро', bald: 'Без волос' };
 const FACE_NAMES = { oval: 'Овал', round: 'Круглое', square: 'Квадрат', long: 'Вытянутое', heart: 'Сердечко' };
+const MOUTH_NAMES = { smile: 'Улыбка', grin: 'До ушей', smirk: 'Ухмылка', neutral: 'Серьёзный', wow: 'Удивлён' };
+const BEARD_NAMES = { none: 'Нет', stubble: 'Щетина', beard: 'Борода', mustache: 'Усы', goatee: 'Эспаньолка' };
 const VIS_NAMES = { all: 'Всем', gang: 'Бандам и подельникам', hidden: 'Никому' };
 function section(id, title, summary, body, opts = {}) {
   const open = S.sec.has(id);
@@ -1030,7 +1145,7 @@ function renderProfile() {
   const look = me.look;
   const p = me.profile;
   const sw = (key, vals) => `<div class="row" style="flex-wrap:wrap;gap:8px">${vals.map((v) => `<button class="swatch ${look[key] === v ? 'on' : ''}" style="background:${HOODIE[v] || v}" data-act="look" data-k="${key}" data-v="${v}" aria-label="${key} ${v}"></button>`).join('')}</div>`;
-  const tiles = (key, vals, names) => `<div class="ava-tiles">${vals.map((v) => `<button class="ava-tile ${look[key] === v ? 'on' : ''}" data-act="look" data-k="${key}" data-v="${v}">${avatar({ ...look, [key]: v, frame: null, crown: false }, 60)}<span>${names[v] || v}</span></button>`).join('')}</div>`;
+  const tiles = (key, vals, names) => `<div class="ava-tiles">${vals.map((v) => `<button class="ava-tile ${look[key] === v ? 'on' : ''}" data-act="look" data-k="${key}" data-v="${v}">${avatar({ ...look, [key]: v, frame: null, crown: false }, 60, ['mouth', 'beard'].includes(key))}<span>${names[v] || v}</span></button>`).join('')}</div>`;
   const pushState = !('Notification' in window) ? 'unsupported' : Notification.permission;
   const name = [p.firstName, p.lastName].filter(Boolean).join(' ');
   const got = S.fx ? S.fx.achievements.filter((a) => a.got).length : null;
@@ -1044,6 +1159,9 @@ function renderProfile() {
     <div class="field">Форма лица${tiles('face', L.face, FACE_NAMES)}</div>
     <div class="field">Кожа${sw('skin', L.skin)}</div>
     <div class="field">Глаза${sw('eyes', L.eyes)}</div>
+    <div class="field">Рот${tiles('mouth', L.mouth, MOUTH_NAMES)}</div>
+    <div class="field">Борода и усы${tiles('beard', L.beard, BEARD_NAMES)}</div>
+    <div class="chips"><button class="chip ${look.freckles ? 'on' : ''}" data-act="look-toggle" data-k="freckles">Веснушки</button></div>
     <div class="eyebrow">Волосы</div>
     <div class="field">Причёска${tiles('hairStyle', L.hairStyle, HAIR_NAMES)}</div>
     <div class="field">Цвет${sw('hair', L.hair)}</div>
@@ -1099,11 +1217,12 @@ function renderProfile() {
     <button class="btn ghost" data-act="open" data-v="install">Как установить на телефон</button>`;
 
   return `
-    <div class="prof-hero">${avatar(look, 72)}<div class="grow">
+    <div class="prof-hero">${progressRing(me.completion.pct, avatar(look, 72))}<div class="grow">
       <div class="nick" style="color:var(--ink)">${esc(me.nick)}</div>
       ${name ? `<div class="small" style="font-weight:700">${esc(name)}</div>` : ''}
       ${me.status ? `<div class="status" style="color:#B7791F">${esc(me.status)}</div>` : ''}
       <div class="small">${me.beans} ${plural(me.beans, 'зерно', 'зерна', 'зёрен')}</div></div></div>
+    ${renderCompletion(true)}
     ${section('look', 'Внешность', `${FACE_NAMES[look.face] || 'Овал'} · ${(HAIR_NAMES[look.hairStyle] || '').toLowerCase()}${look.glasses ? ' · очки' : ''}`, lookBody)}
     ${section('name', 'Ник, имя и фамилия', name ? `${esc(name)} · видят: ${VIS_NAMES[p.nameVis].toLowerCase()}` : 'Имя не указано', nameBody)}
     ${section('ach', 'Ачивки', got == null ? '' : `${got} из ${S.fx.achievements.length}`, renderAchievements())}
@@ -1479,6 +1598,19 @@ const actions = {
     await post('/api/me/profile', { profile: { tags: [...t] } }); await loadMe();
   }),
   person: (el) => { S.person = null; S.sheet = 'person'; render(); run(async () => { S.person = await get(`/api/users/${el.dataset.id}`); }); },
+  'guess-pick': (el) => run(async () => {
+    const r = await post(`/api/guess/${el.dataset.id}`, { pick: Number(el.dataset.v) });
+    S.guess = { question: r.question }; S.guessBeans = r.beans;
+    if (r.beans) loadMe().then(render).catch(() => {});
+  }),
+  'guess-next': () => run(async () => { S.guessBeans = 0; S.guess = await get(`/api/gangs/${S.activeGang}/guess`); }),
+  'quiz-pick': (el) => run(async () => {
+    const r = await post(`/api/quiz/${el.dataset.id}/answer`, { pick: Number(el.dataset.v) });
+    S.quiz = S.quiz.map((x) => (x.id === r.quiz.id ? r.quiz : x));
+    if (r.beans) { toast(`Верно! +${r.beans} зёрна`); loadMe().then(render).catch(() => {}); }
+  }),
+  'open-sec'(el) { S.sheet = 'profile'; S.sec.add(el.dataset.v); S.lastSheet = null; render(); run(loadFeatures); },
+  'compl-hide'() { store.set('complHideUntil', Date.now() + 7 * 864e5); render(); },
   sec(el) { const v = el.dataset.v; if (S.sec.has(v)) S.sec.delete(v); else S.sec.add(v); render(); },
   'name-vis': (el) => run(async () => { await post('/api/me/profile', { profile: { nameVis: el.dataset.v } }); await loadMe(); }),
   'name-save': () => run(async () => { await post('/api/me/profile', { profile: { firstName: $('#p-first').value, lastName: $('#p-last').value } }); await loadMe(); toast('Сохранено'); }),
