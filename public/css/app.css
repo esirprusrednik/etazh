@@ -501,3 +501,31 @@ body { font-weight: 500; }
 .food-q { font-weight: 900; color: var(--ink); }
 .btn.food-up { background: var(--green); color: #fff; border-bottom-color: #145228; }
 .upd-bar { display: block; width: calc(100% - 32px); margin: 0 16px 10px; padding: 10px 14px; border-radius: 14px; background: linear-gradient(90deg, #7ED957, #2FA84F); color: #fff; font-weight: 900; font-size: 14px; text-align: center; box-shadow: 0 3px 0 #1F7A3A; }
+
+/* ---- Новая структура: заголовки вкладок, люди, чаты, игры ---- */
+.page-head { padding: 2px 18px 10px; color: #fff; }
+.page-head h1 { margin: 0; font-size: 26px; font-weight: 900; letter-spacing: -.01em; }
+.page-head p { margin: 2px 0 0; font-size: 14px; color: #B9C6E6; line-height: 1.35; }
+.people { display: flex; flex-direction: column; gap: 4px; }
+.pgroup { display: flex; flex-direction: column; }
+.pgroup + .pgroup { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.pgroup .eyebrow { margin-bottom: 2px; }
+.chats { padding-top: 6px; padding-bottom: 6px; }
+.chat-row { width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px 0; background: none; text-align: left; color: var(--ink); border-bottom: 1px solid var(--line); }
+.chat-row:last-child { border-bottom: none; }
+.chat-title { display: block; font-weight: 900; font-size: 15px; }
+.chat-gang { width: 48px; height: 48px; flex: none; border-radius: 16px; display: grid; place-items: center; color: #fff; font-weight: 900; font-size: 20px; box-shadow: inset 0 -3px 0 rgba(0,0,0,.18); }
+.chat-actions { margin: 0 16px 12px; gap: 8px; }
+.empty { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.empty-ico { font-size: 38px; }
+.empty .row { width: 100%; }
+.games-sea { display: flex; flex-direction: column; gap: 8px; }
+.wn { display: flex; flex-direction: column; gap: 12px; }
+.wn-i { display: flex; gap: 12px; align-items: flex-start; }
+.wn-i > span { font-size: 28px; line-height: 1; }
+.wn-i b { font-size: 16px; } .wn-i p { margin: 2px 0 0; color: var(--muted); font-size: 14px; line-height: 1.35; }
+.person2 .btn.small { white-space: nowrap; }
+.chat-row .where { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-row .grow { overflow: hidden; }
+.calls .call { font-size: 13px; padding-left: 4px; padding-right: 4px; word-break: keep-all; overflow-wrap: normal; }
+.calls .call { font-size: 12.5px; letter-spacing: -.01em; }

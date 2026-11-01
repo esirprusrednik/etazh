@@ -13,7 +13,7 @@ const store = {
 const S = {
   me: null, cat: null, vapidKey: null, domains: ['mts.ru'],
   state: null, gang: null, events: null, shop: null,
-  tab: 'office', activeGang: store.get('activeGang', null),
+  tab: 'near', activeGang: store.get('activeGang', null), people: null, chats: null, chatGang: false,
   sheet: null, compose: null, signal: null,
   onb: { step: 'email', email: '', error: '', devLink: null, devCode: null, nicks: [] },
   error: '', busy: false,
@@ -350,19 +350,26 @@ async function loadGangExtra() {
 }
 async function loadQuiz() { try { S.quiz = (await get('/api/quiz')).items; } catch { S.quiz = []; } }
 
+async function loadPeople() { try { S.people = (await get('/api/people')).people; } catch { S.people = []; } }
+async function loadChats() { try { S.chats = await get('/api/chats'); } catch { S.chats = { items: [], requests: [] }; } }
+// Вкладки: «Рядом» — кто где, «Чаты» — банды и личка, «Офис» — столовая и лента, «Игры» — всё игровое
 async function refresh({ all = false } = {}) {
   if (!S.me || !S.me.nick) return;
+  const t = S.tab;
   const jobs = [loadState()];
-  if (all || S.tab === 'gang') jobs.push(loadGang(), loadGangExtra());
-  if (all || S.tab === 'office') jobs.push(loadFeatures(), loadQuiz());
-  if (all || S.tab === 'feed' || S.tab === 'office') jobs.push(loadEvents());
-  if (all || S.tab === 'crew' || S.tab === 'gang') jobs.push(loadCrew());
-  if (S.tab === 'crew' && S.battle) jobs.push(loadBattle());
-  if (S.tab === 'crew' && S.dm) jobs.push(loadDm());
+  if (all || t === 'near') jobs.push(loadPeople());
+  if (all || t === 'near' || t === 'office' || t === 'games') jobs.push(loadFeatures());
+  if (all || t === 'chats') jobs.push(loadChats());
+  if (all || t === 'chats' || t === 'games') jobs.push(loadCrew());
+  if (all || (t === 'chats' && S.chatGang) || t === 'games') jobs.push(loadGang(), loadGangExtra());
+  if (all || t === 'office') jobs.push(loadEvents());
+  if (all || t === 'games') jobs.push(loadQuiz());
+  if (t === 'chats' && S.battle) jobs.push(loadBattle());
+  if (t === 'chats' && S.dm) jobs.push(loadDm());
   await Promise.all(jobs);
-  if (S.tab === 'crew' && S.dm && S.crew) { const f = S.crew.list.find((x) => x.id === S.dm); if (f) f.unread = 0; recountCrewBadge(); }
-  if (S.tab === 'gang') markSeen('chat');
-  if (S.tab === 'feed') markSeen('feed');
+  if (t === 'chats' && S.dm && S.crew) { const f = S.crew.list.find((x) => x.id === S.dm); if (f) f.unread = 0; recountCrewBadge(); }
+  if (t === 'chats' && S.chatGang) markSeen('chat');
+  if (t === 'office') markSeen('feed');
 }
 function markSeen(kind) {
   const t = S.state ? S.state.now : Date.now();
@@ -481,10 +488,10 @@ function renderApp() {
         <button class="btn small blue" data-act="open" data-v="install">Как?</button>
         <button class="x" style="background:none" data-act="install-hide" aria-label="Скрыть на сутки">×</button>
       </div>` : ''}
-      ${S.tab === 'office' ? renderOffice() : S.tab === 'gang' ? renderGang() : S.tab === 'crew' ? renderCrew() : renderFeed()}
+      ${S.tab === 'near' ? renderNear() : S.tab === 'chats' ? renderChats() : S.tab === 'office' ? renderOfficeTab() : renderGames()}
     </main>
     <nav class="tabs"><div class="in">
-      ${tabBtn('office', 'Офис', 0)}${tabBtn('gang', 'Банда', b.chat)}${tabBtn('crew', 'Подельники', b.crew || 0)}${tabBtn('feed', 'События', b.feed)}
+      ${tabBtn('near', 'Рядом', 0)}${tabBtn('chats', 'Чаты', (b.chat || 0) + (b.crew || 0))}${tabBtn('office', 'Офис', 0)}${tabBtn('games', 'Игры', (S.quiz || []).filter((z) => !z.answered).length + (S.battles || []).filter((x) => x.myTurn && x.status !== 'done').length)}
     </div></nav>
   </div>
   ${S.sheet ? renderSheet() : ''}`;
@@ -492,6 +499,9 @@ function renderApp() {
 
 function tabBtn(id, label, n) {
   const icons = {
+    near: '<circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6M15 14.5c3 0 5.5 2 5.5 5.5"/>',
+    chats: '<path d="M21 11.5a8.4 8.4 0 0 1-12.2 7.5L3 20.5l1.6-5.2A8.4 8.4 0 1 1 21 11.5z"/><path d="M8.5 11.5h.01M12.5 11.5h.01M16.5 11.5h.01"/>',
+    games: '<rect x="2.5" y="7" width="19" height="11" rx="5.5"/><path d="M7.5 10.5v4M5.5 12.5h4M15.5 11.5h.01M18 13.5h.01"/>',
     office: '<path d="M4 21V5l8-3 8 3v16z"/><path d="M9 21v-5h6v5M8 8h2M14 8h2M8 12h2M14 12h2"/>',
     gang: '<circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6M15 14.5c3 0 5.5 2 5.5 5.5"/>',
     feed: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
@@ -504,6 +514,159 @@ function tabBtn(id, label, n) {
 }
 
 // ----- Офис -----
+// ===== Вкладка «Рядом»: мой статус и все мои люди одним списком =====
+const pageHead = (title, sub) => `<div class="page-head"><h1>${title}</h1><p>${sub}</p></div>`;
+function renderStatusBlock() {
+  const st = S.state;
+  if (st.night) return `${renderToday()}<div class="card"><h2>Офисы засыпают</h2><p class="sub">После 19:00 отметки сбрасываются. Утром отметься снова — увидишь, кто из твоих рядом.</p></div>`;
+  if (!st.checkin) {
+    return `${renderToday()}<div class="card">
+      <h2>${['home', 'vacation', 'sick', 'slack'].includes(st.presence.where) ? 'Всё-таки в офисе?' : 'Где ты сегодня?'}</h2>
+      ${S.cat.offices.map((o) => `<button class="office-btn" style="background:${OFFICE_BG[o.id] || o.color}" data-act="checkin" data-v="${o.id}">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V5l8-3 8 3v16z"/><path d="M9 21v-5h6v5M8 8h2M14 8h2M8 12h2M14 12h2"/></svg>
+        <span class="grow">${esc(o.name)}</span></button>`).join('')}
+      ${['home', 'vacation', 'sick', 'slack'].includes(st.presence.where) ? '' : `<div class="today-grid">
+        <button class="btn ghost" data-act="today" data-v="home">🏠 Из дома</button>
+        <button class="btn ghost" data-act="open" data-v="sick">🤒 Болею</button>
+        <button class="btn ghost" data-act="open" data-v="vacation">🌴 В отпуске</button>
+        <button class="btn ghost" data-act="today" data-v="slack">😏 Отлыниваю</button></div>`}
+      <p class="small">Отметка в офисе — до 19:00, +5 зёрен за первую за день. Твои люди увидят, где ты.</p>
+    </div>`;
+  }
+  const here = (S.people || []).filter((r) => r.where === 'office' && r.office === st.checkin.office).length;
+  const hour = Number(st.msk.slice(0, 2));
+  return `<section class="office-card">
+    <div class="office-pic">${officeSvg({ office: st.checkin.office, crowd: here, hour, label: esc('Офис ' + st.checkin.name) })}</div>
+    <div class="office-info">
+      <div class="row" style="align-items:flex-start;justify-content:space-between;gap:8px">
+        <div style="display:flex;flex-direction:column;gap:2px"><span class="eyebrow">Ты в офисе</span><span class="office-name">${esc(st.checkin.name)}</span></div>
+        <button class="icon-btn" data-act="open" data-v="office" aria-label="Сменить офис">${ico('swap', 16)}</button>
+      </div>
+      <span class="small">с ${st.checkin.since || ''} · твоих здесь <b style="color:#1F7A3A">${here}</b> · до 19:00</span>
+      <button class="btn small ghost" style="align-self:flex-start" data-act="checkout">Ушёл домой</button>
+    </div>
+  </section>`;
+}
+
+function personRow(p) {
+  const [w, color] = whereText(p);
+  const st = S.state;
+  const sameOffice = st.checkin && p.where === 'office' && p.office === st.checkin.office;
+  const away = p.where === 'vacation' || p.where === 'sick';
+  const action = p.unread ? `<button class="btn small" data-act="dm-open" data-id="${p.id}">💬 ${p.unread}</button>`
+    : away ? '<span class="small">отдыхает</span>'
+    : sameOffice ? `<button class="btn small" data-act="pcall" data-id="${p.id}" data-kind="coffee">На кофе</button>`
+    : `<button class="btn small ghost" data-act="pcall-open" data-id="${p.id}">Позвать</button>`;
+  const tagline = [p.mood && p.where === 'office' ? p.mood : '', p.gangs.length ? p.gangs.map((g) => g.name).join(', ') : p.crew ? 'подельник' : ''].filter(Boolean).join(' · ');
+  return `<div class="person2">
+    ${tap(p.id, `<span class="ava-wrap" style="opacity:${away ? 0.6 : 1}"><span class="ava-ring" style="border-color:${color}">${avatar(p.look, 32)}</span><span class="ava-dot" style="background:${color}"></span></span>`)}
+    <div class="grow" style="min-width:0"><div class="tapname" style="font-weight:800;font-size:15px" data-act="person" data-id="${p.id}">${esc(p.nick)}</div>${p.name ? `<div class="realname">${esc(p.name)}</div>` : ''}
+      <div class="where ellipsis">${esc(w)}${tagline ? ' · ' + esc(tagline) : ''}</div></div>
+    ${action}</div>`;
+}
+
+function renderPeople() {
+  const ps = S.people;
+  if (!ps) return '<div class="card"><p class="sub">Загружаем твоих людей…</p></div>';
+  if (!ps.length) {
+    return `<section class="card empty"><div class="empty-ico">👋</div><h2>Пока здесь пусто</h2>
+      <p class="sub">Тут появятся твои люди: кто в офисе, кто дома, кто в отпуске. Создай банду для команды или позови коллегу лично.</p>
+      <div class="row"><button class="btn grow" data-act="open" data-v="gang-new">Создать банду</button><button class="btn ghost grow" data-act="open" data-v="crew-new">Позвать коллегу</button></div></section>`;
+  }
+  const st = S.state;
+  const groups = [
+    ['Со мной в офисе', (p) => st.checkin && p.where === 'office' && p.office === st.checkin.office],
+    ['В офисе', (p) => p.where === 'office' || p.where === 'plan_office'],
+    ['Работают из дома', (p) => p.where === 'home' || p.where === 'slack'],
+    ['Отдыхают', (p) => p.where === 'vacation' || p.where === 'sick'],
+    ['Пока не отметились', () => true]
+  ];
+  const left = [...ps];
+  const html = groups.map(([title, test]) => {
+    const g = left.filter(test);
+    for (const x of g) left.splice(left.indexOf(x), 1);
+    return g.length ? `<div class="pgroup"><div class="eyebrow">${title} · ${g.length}</div>${g.map(personRow).join('')}</div>` : '';
+  }).join('');
+  const hint = S.fx && S.fx.weekHint ? `<div class="week-hint">${ico('where', 16)}<span>${S.fx.weekHint.today ? 'Сегодня' : esc(S.fx.weekHint.label)} в офисе будут <b>${S.fx.weekHint.office} из ${S.fx.weekHint.total}</b> из банды</span></div>` : '';
+  return `<section class="card people">${html}${hint}
+    <div class="row" style="justify-content:space-between"><button class="linkbtn" data-act="open" data-v="crew-new">+ Позвать коллегу</button><button class="linkbtn" data-act="open" data-v="gang-new">+ Банда</button></div></section>`;
+}
+
+function renderNear() {
+  if (!S.state) return '<div class="card"><p class="sub">Загружаем…</p></div>';
+  return `${pageHead('Рядом', 'Где ты сегодня и кто из твоих людей рядом')}
+    ${renderStatusBlock()}
+    ${renderQuickCalls()}
+    ${renderBirthdays()}
+    ${renderPeople()}`;
+}
+
+// ===== Вкладка «Чаты»: банды и личные переписки одним списком =====
+function renderChats() {
+  if (S.dm) return S.battle ? renderBattle() : renderDm();
+  if (S.chatGang) return `<button class="linkbtn back" data-act="chats-back">‹ Все чаты</button>${renderGang()}`;
+  const c = S.chats;
+  if (!c) return pageHead('Чаты', 'Банды и личные переписки') + '<div class="card"><p class="sub">Загружаем…</p></div>';
+  const seenG = store.get('seenGang', {});
+  const reqs = c.requests.length ? `<section class="card"><h3>Хотят переписываться</h3>${c.requests.map((p) => `<div class="person2">${tap(p.id, avatar(p.look, 36))}<div class="grow ellipsis" style="font-weight:800;min-width:0">${esc(p.nick)}</div>
+      <button class="btn small" data-act="crew-accept" data-id="${p.id}">Принять</button><button class="btn small ghost" data-act="crew-decline" data-id="${p.id}" aria-label="Отклонить">✕</button></div>`).join('')}</section>` : '';
+  const row = (x) => {
+    if (x.type === 'gang') {
+      const unread = x.last && !x.last.mine && x.lastAt > (seenG[x.id] || 0);
+      return `<button class="chat-row" data-act="gang-open" data-id="${x.id}">
+        <span class="chat-gang" style="background:${esc(x.color)}">${esc(x.name.slice(0, 1).toUpperCase())}</span>
+        <span class="grow" style="min-width:0"><span class="chat-title">${esc(x.name)} <span class="small">· ${x.members}</span></span>
+          <span class="where ellipsis ${unread ? 'unread' : ''}">${x.last ? `${x.last.mine ? 'Ты' : esc(x.last.who || '')}: ${esc(x.last.text || '')}` : 'Чат банды · зовы и сообщения живут 24 часа'}</span></span>
+        <span class="crew-side">${x.lastTime ? `<span class="small">${x.lastTime}</span>` : ''}${unread ? '<span class="crew-badge">•</span>' : ''}</span></button>`;
+    }
+    const [w, color] = whereText(x);
+    const turn = (S.battles || []).find((b) => b.oppId === x.id && b.myTurn && b.status !== 'done');
+    return `<button class="chat-row" data-act="dm-open" data-id="${x.id}">
+      <span class="ava-wrap"><span class="ava-ring" style="border-color:${color}">${avatar(x.look, 32)}</span><span class="ava-dot" style="background:${color}"></span></span>
+      <span class="grow" style="min-width:0"><span class="chat-title">${esc(x.nick)}</span><span class="where ellipsis ${x.unread ? 'unread' : ''}">${x.last ? `${x.last.mine ? 'Ты: ' : ''}${esc(x.last.text || '')}` : esc(w)}</span></span>
+      <span class="crew-side">${turn ? '<span class="crew-turn" title="Твой ход в морском бою">⚓</span>' : ''}${x.lastTime ? `<span class="small">${x.lastTime}</span>` : ''}${x.unread ? `<span class="crew-badge">${x.unread > 9 ? '9+' : x.unread}</span>` : ''}</span></button>`;
+  };
+  const list = c.items.length ? c.items.map(row).join('') : `<div class="empty"><div class="empty-ico">💬</div><p class="sub">Чатов пока нет. Банда — общий чат для команды. Личная переписка открывается с любым участником твоих банд или с подельником.</p></div>`;
+  return `${pageHead('Чаты', 'Банды — общие чаты. Личные переписки — с участниками твоих банд и подельниками')}
+    ${reqs}
+    <section class="card chats">${list}</section>
+    <div class="row chat-actions"><button class="btn small grow" data-act="open" data-v="gang-new">+ Банда</button><button class="btn small ghost grow" data-act="open" data-v="crew-new">+ Коллега лично</button></div>`;
+}
+
+// ===== Вкладка «Офис»: столовая, обед компанией, сигналы и лента =====
+function renderOfficeTab() {
+  const st = S.state;
+  if (!st) return '<div class="card"><p class="sub">Загружаем…</p></div>';
+  const where = st.checkin ? `Ты в офисе «${esc(st.checkin.name)}»` : 'Отметься на вкладке «Рядом», чтобы видеть свой офис';
+  return `${pageHead('Офис', where)}
+    ${st.checkin && st.canteen ? renderCanteen() : `<section class="card empty"><div class="empty-ico">🍽</div><p class="sub">Загрузка столовой, обед компанией и сигналы видны тем, кто отметился в офисе.</p><button class="btn" data-act="tab" data-v="near">Отметиться</button></section>`}
+    ${st.checkin ? renderLunches() : ''}
+    ${renderFeed()}`;
+}
+
+// ===== Вкладка «Игры»: задания, квизы, морской бой, кофе, ачивки, Лавка =====
+function renderGames() {
+  const f = S.fx;
+  const got = f ? f.achievements.filter((a) => a.got).length : 0;
+  const active = (S.battles || []).filter((b) => b.status !== 'done');
+  const nickOf = (id) => ((S.people || []).find((p) => p.id === id) || (S.crew && S.crew.list.find((p) => p.id === id)) || {}).nick || 'соперник';
+  const battle = `<section class="card games-sea">
+    <div class="row" style="justify-content:space-between"><span class="card-title">⚓ Морской бой</span><span class="small">по 1 на 1</span></div>
+    ${active.length ? active.map((b) => `<button class="chat-row" data-act="battle-go" data-id="${b.id}" data-opp="${b.oppId}"><span class="grow"><span class="chat-title">${esc(nickOf(b.oppId))}</span><span class="where">${b.mode === 'fast' ? '⚡ быстрая · ' : ''}${b.status === 'setup' ? 'расстановка' : b.myTurn ? 'твой ход!' : 'ход соперника'}</span></span>${b.myTurn ? '<span class="crew-badge">!</span>' : ''}</button>`).join('') : '<p class="small" style="margin:0">Нет активных партий.</p>'}
+    <button class="btn small" data-act="open" data-v="battle-pick">Вызвать на бой</button>
+  </section>`;
+  return `${pageHead('Игры', 'Задания, квизы и бои с коллегами. За всё дают зёрна, их тратят в Лавке')}
+    ${renderQuests()}
+    ${renderQuiz()}
+    ${S.me.gangs.length > 1 ? `<div class="chips dark">${S.me.gangs.map((g) => `<button class="chip ${g.id === S.activeGang ? 'on' : ''}" data-act="gang-select" data-v="${g.id}">${esc(g.name)}</button>`).join('')}</div>` : ''}
+    ${renderGuess()}
+    ${battle}
+    ${renderCoffee()}
+    ${renderCompletion()}
+    <section class="card"><div class="row" style="justify-content:space-between"><span class="card-title">🏅 Ачивки</span><span class="small">${got} из ${f ? f.achievements.length : 0}</span></div>
+      <div class="row"><button class="btn small ghost grow" data-act="open-sec" data-v="ach">Мои ачивки</button><button class="btn small grow" data-act="open" data-v="shop">🛒 Лавка</button></div></section>`;
+}
+
 function renderOffice() {
   const st = S.state;
   if (!st) return '<div class="card"><p class="sub">Загружаем…</p></div>';
@@ -562,7 +725,7 @@ function renderQuickCalls() {
   const items = [['coffee', 'На кофе', '#8B5A2B', '#5E3B1A'], ['lunch', 'На обед', '#1F7A3A', '#155C2B'], ['where', 'Ты где?', '#0E7490', '#0A5468']];
   return `<section class="qcalls" aria-label="Быстрые зовы банде">
     ${items.map(([k, label, bg, shade]) => `<button class="qcall" style="background:${bg};border-bottom-color:${shade}" data-act="call-open" data-kind="${k}" data-gang="${gang}">${ico(k, 22)}${label}</button>`).join('')}
-    <button class="qcall" style="background:#4B5563;border-bottom-color:#2F3640" data-act="tab" data-v="gang">${ico('more', 22)}Ещё</button>
+    <button class="qcall" style="background:#4B5563;border-bottom-color:#2F3640" data-act="gang-open" data-id="${gang}">${ico('more', 22)}Ещё</button>
   </section>`;
 }
 
@@ -634,7 +797,7 @@ function renderSignalsMini() {
         <div class="small">${[s.zone, s.time, s.up ? 'подтвердили ' + s.up : ''].filter(Boolean).map(esc).join(' · ')}</div></div>
       ${s.mine || s.myVote === 1 ? '' : `<button class="btn small ghost" data-act="vote" data-id="${s.id}" data-v="1">Есть</button>`}
     </div>`).join('') : '<p class="small" style="margin:0">Пока тихо. Холодно, на кухне еда или кофе закончился — сообщи коллегам.</p>'}
-    ${ev.signals.length > 2 ? `<button class="linkbtn" style="align-self:flex-start" data-act="tab" data-v="feed">Все сигналы (${ev.signals.length})</button>` : ''}
+    ${ev.signals.length > 2 ? `<button class="linkbtn" style="align-self:flex-start" data-act="tab" data-v="office">Все сигналы (${ev.signals.length})</button>` : ''}
   </section>`;
 }
 
@@ -700,7 +863,7 @@ function renderGangNow() {
   const g = S.state.gangNow;
   if (!g.hasGang) {
     return `<section class="card"><h3>Моя банда сейчас</h3><p class="sub">Ты пока ни в одной банде. Создай свою или вступи по ссылке от коллеги.</p>
-      <button class="btn blue" data-act="tab" data-v="gang">К бандам</button></section>`;
+      <button class="btn blue" data-act="open" data-v="gang-new">Создать банду</button></section>`;
   }
   const dnd = S.cat.moods.dnd;
   const rows = g.rows.map((r) => {
@@ -719,7 +882,7 @@ function renderGangNow() {
       ${action}</div>`;
   }).join('');
   const gangName = (S.me.gangs.find((x) => x.id === (S.activeGang || S.me.gangs[0].id)) || {}).name || '';
-  return `<section class="card"><div class="row" style="justify-content:space-between"><span class="card-title">Моя банда сейчас</span><button class="linkbtn" data-act="tab" data-v="gang">${esc(gangName)} ›</button></div>
+  return `<section class="card"><div class="row" style="justify-content:space-between"><span class="card-title">Моя банда сейчас</span><button class="linkbtn" data-act="gang-open" data-id="${S.activeGang || S.me.gangs[0].id}">${esc(gangName)} ›</button></div>
     ${rows || '<p class="sub">В банде пока только ты. Позови коллег ссылкой из вкладки «Моя банда».</p>'}
     ${g.more ? `<p class="small">и ещё ${g.more} — все во вкладке «Моя банда»</p>` : ''}
     ${S.fx && S.fx.weekHint ? `<div class="week-hint">${ico('where', 16)}<span>${S.fx.weekHint.today ? 'Сегодня' : esc(S.fx.weekHint.label)} в офисе будут <b>${S.fx.weekHint.office} из ${S.fx.weekHint.total}</b>${S.fx.weekHint.today ? '' : ' — хороший день, чтобы собраться'}</span></div>` : ''}
@@ -730,7 +893,7 @@ function renderGangNow() {
 // ----- Банда -----
 function renderGang() {
   const gangs = S.me.gangs;
-  const chips = gangs.length ? `<div class="chips dark">${gangs.map((g) => `<button class="chip ${g.id === S.activeGang ? 'on' : ''}" data-act="gang-select" data-v="${g.id}">${esc(g.name)}</button>`).join('')}</div>` : '';
+  let chips = gangs.length ? `<div class="chips dark">${gangs.map((g) => `<button class="chip ${g.id === S.activeGang ? 'on' : ''}" data-act="gang-select" data-v="${g.id}">${esc(g.name)}</button>`).join('')}</div>` : '';
   const create = `<section class="card">${gangs.length ? '<details><summary style="font-weight:900;cursor:pointer;min-height:32px">Создать ещё банду или вступить по ссылке</summary><div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">' : '<h3>Банды</h3>'}
     <p class="sub">Банда — твои люди: команда, соседи по этажу, кофейный клуб. Создание стоит ${50} зёрен залога — они вернутся, когда в банде будет 3 человека.</p>
     <label class="field">Название новой банды<input id="gang-name" maxlength="30" placeholder="Например, Пятничный кофе"></label>
@@ -739,6 +902,7 @@ function renderGang() {
     <button class="btn ghost" data-act="gang-join">Вступить</button>
   ${gangs.length ? '</div></details>' : ''}</section>`;
   if (!gangs.length) return create;
+  if (S.chatGang) chips = ''; // в чатах банду выбирают из списка — переключатель не нужен
   const v = S.gang;
   if (!v) return chips + '<div class="card"><p class="sub">Загружаем банду…</p></div>' + create;
   const g = v.gang;
@@ -746,7 +910,7 @@ function renderGang() {
     const [w, color] = whereText(m);
     return `<div class="person">${tap(m.id, avatar(m.look, 34))}<div class="grow"><div style="font-weight:900" class="tapname" data-act="person" data-id="${m.id}">${esc(m.nick)}${m.me ? ' (ты)' : ''}</div>${m.name ? `<div class="realname">${esc(m.name)}</div>` : ''}
       <div class="where"><span class="dot" style="background:${color}"></span>${esc(w)}${m.mood && m.where === 'office' ? ' · ' + esc(m.mood) : ''}${m.status ? ' · ' + esc(m.status) : ''}</div></div>
-      ${m.me ? '' : `${crewAddBtn(m.id)}<button class="btn small ghost" data-act="call-open" data-kind="where" data-to="${m.id}" data-gang="${g.id}">Позвать</button>`}</div>`;
+      ${m.me ? '' : `<button class="btn small ghost" data-act="dm-open" data-id="${m.id}" aria-label="Написать лично">💬</button><button class="btn small ghost" data-act="call-open" data-kind="where" data-to="${m.id}" data-gang="${g.id}">Позвать</button>`}</div>`;
   }).join('');
   const msgs = v.messages.map(renderMsg).join('') || '<p class="sub">Сообщения и зовы живут 24 часа. Начни первым.</p>';
   return `${chips}
@@ -756,17 +920,16 @@ function renderGang() {
     ${g.depositPending ? '<div class="note warn">Залог 50 зёрен вернётся, когда в банде будет 3 человека.</div>' : ''}
     <div class="calls">${Object.entries(S.cat.calls).map(([k, c]) => `<button class="call" style="background:${CALL_STYLE[k]}" data-act="call-open" data-kind="${k}" data-gang="${g.id}">${esc(c.label)}</button>`).join('')}</div>
   </section>
-  ${renderGangBirthdays()}
-  ${renderWeek()}
-  ${renderGuess()}
-  ${renderThanks(v)}
   <section class="card">
     <h3>Чат</h3>
     <div class="chat" id="chat">${msgs}</div>
     <div class="row"><label class="field grow" style="gap:0"><span class="hidden">Сообщение</span><input id="chat-text" maxlength="300" placeholder="Написать банде" aria-label="Сообщение банде"></label>
       <button class="btn" data-act="chat-send" aria-label="Отправить">→</button></div>
   </section>
-  <section class="card"><h3>Участники</h3>${members}
+  ${renderWeek()}
+  ${renderThanks(v)}
+  ${renderGangBirthdays()}
+  <section class="card"><h3>Участники</h3><p class="small" style="margin:0">Нажми на человека, чтобы написать ему лично.</p>${members}
     <button class="btn blue" data-act="invite-share">Позвать в банду по ссылке</button>
     <p class="small">Ссылка: ${esc(g.link)}. Отправь её в рабочий мессенджер — вступить смогут только коллеги с рабочей почтой.</p>
     <div class="row" style="justify-content:space-between">
@@ -848,7 +1011,7 @@ function renderDm() {
   const msgs = v.messages.map((m) => renderDmMsg(m, f)).join('') || `<p class="sub">Тут пусто. Напиши первым или позови на кофе. Сообщения живут ${v.ttlDays} ${plural(v.ttlDays, 'день', 'дня', 'дней')}.</p>`;
   const away = f.where === 'vacation' || f.where === 'sick';
   return `
-  <button class="linkbtn back" data-act="dm-back">‹ Все подельники</button>
+  <button class="linkbtn back" data-act="dm-back">‹ Все чаты</button>
   <section class="card">
     <div class="row">
       <span class="ava-wrap"><span class="ava-ring" style="border-color:${color}">${avatar(f.look, 32)}</span><span class="ava-dot" style="background:${color}"></span></span>
@@ -1075,8 +1238,9 @@ function renderFeed() {
   const kinds = [['office', 'В офисе'], ['join', 'Новички'], ['ach', 'Ачивки'], ['shop', 'Покупки']];
   const shown = ev.events.filter((e) => !off.has(e.kind) && (!onlyClose || e.close));
   const filters = `<div class="chips feed-f"><button class="chip ${onlyClose ? 'on' : ''}" data-act="feed-close">👥 Только свои</button>${kinds.map(([k, l]) => `<button class="chip ${off.has(k) ? '' : 'on'}" data-act="feed-kind" data-v="${k}">${l}</button>`).join('')}</div>`;
-  const list = shown.length ? shown.map((e) => `<div class="item"><div class="grow"><div style="font-weight:700">${esc(e.text)}</div><div class="where">${e.time}${e.office ? ' · ' + esc(e.office) : ''}</div></div></div>`).join('') : '<p class="sub">Событий пока нет.</p>';
-  return `${sig}<section class="card"><h3>Лента</h3>${filters}${list}${shown.length < ev.events.length ? `<p class="small" style="margin:0">Скрыто фильтром: ${ev.events.length - shown.length}</p>` : ''}</section>`;
+  const lim = S.feedAll ? shown.length : 15;
+  const list = shown.length ? shown.slice(0, lim).map((e) => `<div class="item"><div class="grow"><div style="font-weight:700">${esc(e.text)}</div><div class="where">${e.time}${e.office ? ' · ' + esc(e.office) : ''}</div></div></div>`).join('') : '<p class="sub">Событий пока нет.</p>';
+  return `${sig}<section class="card"><h3>Лента</h3>${filters}${list}${shown.length < ev.events.length ? `<p class="small" style="margin:0">Скрыто фильтром: ${ev.events.length - shown.length}</p>` : ''}${shown.length > lim ? `<button class="linkbtn" data-act="feed-more">Показать ещё ${shown.length - lim}</button>` : ''}</section>`;
 }
 
 // ----- Новые блоки: задания, обед, кофе, дни рождения, неделя, спасибо -----
@@ -1207,6 +1371,27 @@ function renderSheet() {
   switch (S.sheet) {
     case 'profile': return sheetWrap('Профиль', renderProfile());
     case 'person': return sheetWrap('Профиль коллеги', renderPerson());
+    case 'gang-new': return sheetWrap('Банда', `<p class="sub">Банда — твои люди: команда, соседи по этажу, кофейный клуб. Общий чат, зовы на кофе и обед, неделя офиса. Создание стоит 50 зёрен залога — они вернутся, когда в банде будет 3 человека.</p>
+      <label class="field">Название новой банды<input id="gang-name" maxlength="30" placeholder="Например, Пятничный кофе"></label>
+      <button class="btn violet" data-act="gang-create">Создать банду · залог 50</button>
+      <label class="field">Или вставь ссылку-приглашение<input id="gang-code" placeholder="https://…/g/ABC123"></label>
+      <button class="btn ghost" data-act="gang-join">Вступить</button>`);
+    case 'crew-new': return sheetWrap('Позвать коллегу лично', `<p class="sub">С участниками твоих банд переписываться можно сразу. Коллегу не из банды позови по нику или личной ссылкой.</p>
+      <div class="row"><label class="field grow" style="gap:0"><span class="hidden">Ник коллеги</span><input id="crew-nick" maxlength="21" placeholder="ник коллеги" autocapitalize="off" autocomplete="off" aria-label="Ник коллеги"></label><button class="btn" data-act="crew-add">Позвать</button></div>
+      <button class="btn blue" data-act="crew-share">Отправить свою ссылку</button>
+      <p class="small">Кто откроет ссылку, сразу сможет тебе писать, поэтому шли её лично, а не в общий чат.</p>
+      ${S.crew && S.crew.outgoing.length ? `<div class="crew-out"><span class="small">Ждём ответа:</span> ${S.crew.outgoing.map((p) => `<span class="rep">${esc(p.nick)} <button class="linkbtn" data-act="crew-decline" data-id="${p.id}" aria-label="Отменить заявку">✕</button></span>`).join(' ')}</div>` : ''}
+      ${S.crew && S.crew.blocked.length ? `<details><summary class="small" style="cursor:pointer;min-height:32px">Заблокированные (${S.crew.blocked.length})</summary>${S.crew.blocked.map((p) => `<div class="row" style="justify-content:space-between"><span>${esc(p.nick)}</span><button class="linkbtn" data-act="crew-unblock" data-id="${p.id}">Разблокировать</button></div>`).join('')}</details>` : ''}`);
+    case 'pcall': return sheetWrap('Позвать ' + (((S.people || []).find((p) => p.id === S.pcallTo) || (S.person && S.person.id === S.pcallTo ? S.person : null) || {}).nick || ''), `<p class="sub">Лично, придёт пуш. Тихие часы 19:00–09:00 уважаем.</p>
+      <div class="calls">${['coffee', 'lunch', 'room', 'call', 'where', 'online', 'wait'].map((k) => `<button class="call" style="background:${CALL_STYLE[k]}" data-act="pcall" data-id="${S.pcallTo}" data-kind="${k}">${esc(S.cat.calls[k].label)}</button>`).join('')}</div>
+      <button class="btn ghost" data-act="dm-open" data-id="${S.pcallTo}">💬 Написать сообщение</button>`);
+    case 'battle-pick': return sheetWrap('С кем сыграть?', (S.people || []).length ? (S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${esc(p.nick)}</span><span class="where">${esc(whereText(p)[0])}</span></span><span aria-hidden="true">›</span></button>`).join('') + '<p class="small">Откроется переписка — там выбери «Без спешки» или «Быстрая».</p>' : '<p class="sub">Сначала создай банду или позови коллегу.</p>');
+    case 'whatsnew': return sheetWrap('Что поменялось', `<div class="wn">
+      <div class="wn-i"><span>👥</span><div><b>Рядом</b><p>Главный экран: где ты сегодня и все твои люди одним списком — кто в офисе, кто дома, кто в отпуске.</p></div></div>
+      <div class="wn-i"><span>💬</span><div><b>Чаты</b><p>Банды и личные переписки вместе. Участникам своей банды теперь можно писать лично — без заявки.</p></div></div>
+      <div class="wn-i"><span>🏢</span><div><b>Офис</b><p>Столовая, обед компанией, сигналы и лента событий.</p></div></div>
+      <div class="wn-i"><span>🎮</span><div><b>Игры</b><p>Задания, квизы, морской бой, случайный кофе, ачивки и Лавка — всё в одном месте.</p></div></div>
+      <button class="btn wide" data-act="whatsnew-ok">Понятно, покажи</button></div>`);
     case 'avatar': return sheetWrap(S.avaMode === 'vacation' ? 'Образ для отпуска' : 'Конструктор', renderAvatarEditor());
     case 'meme': return sheetWrap('Мем-открытка', renderMemeMaker());
     case 'shop': return sheetWrap('Лавка', renderShop());
@@ -1236,9 +1421,9 @@ function renderCompose() {
   const c = S.compose;
   const def = S.cat.calls[c.kind];
   if (c.dm) {
-    const nick = S.dmView ? S.dmView.friend.nick : '';
+    const nick = c.nick || (S.dmView ? S.dmView.friend.nick : '');
     return `
-    <p class="sub">Подельнику <b>${esc(nick)}</b>, лично. Придёт пуш, тихие часы 19:00–09:00 уважаем.</p>
+    <p class="sub"><b>${esc(nick)}</b>, лично. Придёт пуш, тихие часы 19:00–09:00 уважаем.</p>
     ${def.opts.length ? `<div class="field">Когда / где<div class="chips">${def.opts.map((o) => `<button class="chip ${c.opt === o ? 'on' : ''}" data-act="c-opt" data-v="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>` : ''}
     ${def.textLabel ? `<label class="field">${esc(def.textLabel)}<input id="c-text" maxlength="40" placeholder="${esc(def.textHint)}" value="${esc(c.text || '')}"></label>` : ''}
     <button class="btn wide" data-act="call-send">Позвать</button>
@@ -1351,10 +1536,10 @@ const COACH = [
   null,
   { cls: 'left', title: 'Это твой профиль', text: 'Нажми на аватар или ник: внешность, имя, план недели, ачивки. Зелёное кольцо — насколько профиль заполнен.' },
   { cls: 'right', title: 'Это твои зёрна', text: 'Их дают за отметки, ответы и квизы. Нажми — откроется Лавка со статусами и рамками.' },
-  { tab: 'office', i: 0, title: 'Офис', text: 'Отметься, где работаешь сегодня, — банда увидит, кто рядом. Тут же загрузка столовой, задания дня и квиз недели.' },
-  { tab: 'gang', i: 1, title: 'Банда', text: 'Твоя компания: зовы на кофе и обед, чат, неделя банды, «Спасибо» и «Угадай коллегу».' },
-  { tab: 'crew', i: 2, title: 'Подельники', text: 'Личные контакты один на один: переписка, зовы и морской бой.' },
-  { tab: 'feed', i: 3, title: 'События', text: 'Лента офиса: сигналы коллег, новые ачивки и что происходит в бандах.' }
+  { tab: 'near', i: 0, title: 'Рядом', text: 'Главный экран. Отметься, где работаешь сегодня, — и увидишь всех своих людей: кто в офисе, кто дома, кто в отпуске. Позвать на кофе — одна кнопка.' },
+  { tab: 'chats', i: 1, title: 'Чаты', text: 'Банды — общие чаты команды. Участникам своих банд можно писать лично. Тут же зовы и морской бой.' },
+  { tab: 'office', i: 2, title: 'Офис', text: 'Загрузка столовой и оценка обеда, обед компанией, сигналы коллег и лента событий.' },
+  { tab: 'games', i: 3, title: 'Игры', text: 'Задания дня, квиз недели, «Угадай коллегу», морской бой и случайный кофе. За всё дают зёрна — их тратят в Лавке.' }
 ];
 function renderCoach() {
   if (!S.coach || S.sheet) return '';
@@ -1689,7 +1874,8 @@ function renderPerson() {
     ${x.tags && x.tags.length ? `<div class="chips" style="justify-content:center">${x.tags.map((t) => `<span class="chip on" style="cursor:default">${esc(t)}</span>`).join('')}</div>` : ''}
     ${rows.length ? `<div class="person-rows">${rows.map(([k, v]) => `<div><span class="small">${k}</span><b>${v}</b></div>`).join('')}</div>` : ''}
     ${!x.full ? '<p class="small" style="text-align:center">Подробности видят участники общих банд и подельники.</p>' : ''}
-    ${x.me ? '<button class="btn ghost" data-act="open" data-v="profile">Редактировать мой профиль</button>' : ''}
+    ${x.me ? '<button class="btn ghost" data-act="open" data-v="profile">Редактировать мой профиль</button>'
+      : x.full ? `<div class="row"><button class="btn grow" data-act="dm-open" data-id="${x.id}">💬 Написать</button><button class="btn ghost grow" data-act="pcall-open" data-id="${x.id}">📣 Позвать</button></div>` : ''}
   </div>`;
 }
 
@@ -1825,15 +2011,15 @@ const actions = {
     const c = S.compose;
     if (c.dm) {
       const r = await post(`/api/crew/${c.dm}/messages`, { type: 'call', kind: c.kind, opt: c.opt, text: c.text });
-      S.sheet = null; S.tab = 'crew';
+      S.sheet = null;
       toast(r.quiet ? 'Отправлено. Сейчас тихие часы — пуш может не прийти' : 'Зов отправлен');
-      await loadDm();
+      if (S.tab === 'chats' && S.dm) await loadDm();
       return;
     }
     const r = await post(`/api/gangs/${c.gang}/messages`, { type: 'call', kind: c.kind, to: c.to, opt: c.opt, text: c.text });
-    S.sheet = null; S.tab = 'gang';
+    S.sheet = null;
     toast(r.away ? `Зов отправлен. ${r.away === 1 && c.to ? 'Человек в отпуске' : 'Кто-то в отпуске'} — пуш не придёт, увидит в чате` : r.quiet ? 'Отправлено. Сейчас тихие часы — у кого они включены, пуш не придёт' : 'Зов отправлен');
-    await loadGang(); markSeen('chat');
+    await loadGang(); if (S.tab === 'chats' && S.chatGang) markSeen('chat');
   }),
   reply: (el) => run(async () => { const r = await post(`/api/messages/${el.dataset.id}/reply`, { label: el.dataset.v }); if (r.beans) toast(`+${r.beans} зерно`); await loadGang(); }),
   'chat-send': () => run(async () => {
@@ -1843,21 +2029,21 @@ const actions = {
     await loadGang(); markSeen('chat');
   }),
   'dm-open': (el) => run(async () => {
-    S.tab = 'crew'; S.dm = Number(el.dataset.id); S.dmView = null; render();
+    S.tab = 'chats'; S.chatGang = false; S.battle = null; S.sheet = null; S.dm = Number(el.dataset.id); S.dmView = null; render();
     await Promise.all([loadDm(), S.crew ? null : loadCrew()]);
     if (S.crew) { const f = S.crew.list.find((x) => x.id === S.dm); if (f) f.unread = 0; recountCrewBadge(); }
     window.scrollTo(0, 0);
   }),
   'battle-new': (el) => run(async () => {
     const r = await post('/api/battle', { to: Number(el.dataset.id), mode: el.dataset.mode || 'calm' });
-    S.tab = 'crew'; S.dm = S.dm || Number(el.dataset.id); S.battle = r.id; S.bv = null; await loadBattle(); window.scrollTo(0, 0);
+    S.tab = 'chats'; S.chatGang = false; S.sheet = null; S.dm = S.dm || Number(el.dataset.id); S.battle = r.id; S.bv = null; await loadBattle(); window.scrollTo(0, 0);
     if (!r.existing) toast(el.dataset.mode === 'fast' ? 'Быстрая партия! Часы пойдут, когда оба нажмут «В бой»' : 'Вызов отправлен. Расставляй флот');
   }),
   'battle-open': (el) => run(async () => { S.battle = Number(el.dataset.id); S.bv = null; await loadBattle(); window.scrollTo(0, 0); }),
   'battle-back': () => run(async () => {
     const opp = S.bv ? S.bv.opp.id : null; S.battle = null; S.bv = null;
-    if (opp && S.crew && S.crew.list.some((x) => x.id === opp)) { S.dm = opp; await loadDm(); } else S.dm = null;
-    await loadCrew();
+    if (opp) { S.dm = opp; await loadDm(); } else S.dm = null;
+    await Promise.all([loadCrew(), loadChats()]);
   }),
   bemote: (el) => {
     const e = el.dataset.v;
@@ -1889,7 +2075,22 @@ const actions = {
       } finally { S.bBusy = false; }
     });
   },
-  'dm-back': () => run(async () => { S.dm = null; S.dmView = null; await loadCrew(); await loadState(); }),
+  'dm-back': () => run(async () => { S.dm = null; S.dmView = null; await Promise.all([loadChats(), loadCrew(), loadState()]); }),
+  'chats-back': () => run(async () => { S.chatGang = false; await Promise.all([loadChats(), loadState()]); }),
+  'gang-open': (el) => run(async () => {
+    S.tab = 'chats'; S.dm = null; S.chatGang = true; S.activeGang = Number(el.dataset.id); store.set('activeGang', S.activeGang);
+    const sg = store.get('seenGang', {}); sg[S.activeGang] = Date.now(); store.set('seenGang', sg);
+    render(); await Promise.all([loadGang(), loadGangExtra()]); markSeen('chat'); window.scrollTo(0, 0);
+  }),
+  'pcall-open'(el) { S.pcallTo = Number(el.dataset.id); S.sheet = 'pcall'; S.lastSheet = null; render(); },
+  pcall(el) {
+    const id = Number(el.dataset.id), kind = el.dataset.kind, def = S.cat.calls[kind];
+    const p = (S.people || []).find((x) => x.id === id) || (S.person && S.person.id === id ? S.person : null) || ((S.chats && S.chats.items) || []).find((x) => x.type === 'dm' && x.id === id) || {};
+    S.compose = { kind, dm: id, nick: p.nick, opt: def.opts[0] || null, text: '' };
+    S.sheet = 'compose'; S.error = ''; render();
+  },
+  'battle-go': (el) => run(async () => { S.tab = 'chats'; S.chatGang = false; S.dm = Number(el.dataset.opp); S.battle = Number(el.dataset.id); S.bv = null; render(); await loadBattle(); window.scrollTo(0, 0); }),
+  'whatsnew-ok'() { store.set('ia2', 1); S.sheet = null; S.coach = 3; S.coachStart = 3; S.tab = 'near'; render(); },
   'dm-send': () => run(async () => {
     const el = $('#dm-text');
     const text = el.value;
@@ -1917,8 +2118,8 @@ const actions = {
     toast(r.accepted ? 'Теперь вы подельники!' : 'Заявка в подельники ушла');
     await loadCrew();
   }),
-  'crew-accept': (el) => run(async () => { await post(`/api/crew/${el.dataset.id}/accept`); toast('Теперь вы подельники!'); await loadCrew(); await loadState(); }),
-  'crew-decline': (el) => run(async () => { await post(`/api/crew/${el.dataset.id}/remove`); await loadCrew(); await loadState(); }),
+  'crew-accept': (el) => run(async () => { await post(`/api/crew/${el.dataset.id}/accept`); toast('Теперь можно переписываться!'); await Promise.all([loadCrew(), loadChats(), loadState()]); }),
+  'crew-decline': (el) => run(async () => { await post(`/api/crew/${el.dataset.id}/remove`); await Promise.all([loadCrew(), loadChats(), loadState()]); }),
   'crew-remove': (el) => run(async () => {
     if (!confirmInline('crew-remove', 'Нажми ещё раз: переписка удалится у вас обоих')) return;
     await post(`/api/crew/${el.dataset.id}/remove`);
@@ -1959,6 +2160,8 @@ const actions = {
     if (S.sheet === 'shop') sfx('click');
     if (S.sheet === 'shop') { store.set('shopSeen', [...new Set([...store.get('shopSeen', []), ...((S.me && S.me.affordable) || [])])]); await run(async () => { S.shop = await get('/api/shop'); if (S.activeGang && !S.gang) await loadGang(); }); }
     if (S.sheet === 'profile' || S.sheet === 'lunch') await run(loadFeatures);
+    if (S.sheet === 'crew-new' && !S.crew) await run(loadCrew);
+    if (S.sheet === 'battle-pick' && !S.people) await run(loadPeople);
   },
   close() { S.sheet = null; S.error = ''; render(); },
   'close-bg'(el, e) { if (e.target === el) actions.close(); },
@@ -1986,7 +2189,7 @@ const actions = {
     const to = S.meme.to;
     await post(`/api/crew/${to}/messages`, { type: 'meme', kind: S.meme.scene, opt: S.meme.emo });
     S.sheet = null; toast('Мем отправлен');
-    if (S.tab === 'crew' && S.dm === to) await loadDm();
+    if (S.tab === 'chats' && S.dm === to) await loadDm();
   }),
   'meme-share': () => run(async () => {
     const svg = memeSvg(S.me.look, S.meme.scene, S.meme.emo, 720, true);
@@ -2117,6 +2320,7 @@ const actions = {
     if (r.beans) loadMe().then(render).catch(() => {});
   }),
   'feed-kind'(el) { const off = new Set(store.get('feedOff', [])); if (off.has(el.dataset.v)) off.delete(el.dataset.v); else off.add(el.dataset.v); store.set('feedOff', [...off]); render(); },
+  'feed-more'() { S.feedAll = true; render(); },
   'feed-close'() { store.set('feedClose', !store.get('feedClose', false)); render(); },
   reload() { location.reload(); },
   'coach-next'() {
@@ -2124,10 +2328,10 @@ const actions = {
       S.coach++;
       const tip = COACH[S.coach];
       if (tip.tab && S.tab !== tip.tab) { S.tab = tip.tab; render(); run(() => refresh()); return; }
-    } else { S.coach = 0; store.set('coachDone', 2); if (S.tab !== 'office') { S.tab = 'office'; run(() => refresh()); } }
+    } else { S.coach = 0; store.set('coachDone', 2); store.set('ia2', 1); if (S.tab !== 'near') { S.tab = 'near'; run(() => refresh()); } }
     render();
   },
-  'coach-skip'() { S.coach = 0; store.set('coachDone', 2); if (S.tab !== 'office') { S.tab = 'office'; run(() => refresh()); } render(); },
+  'coach-skip'() { S.coach = 0; store.set('coachDone', 2); store.set('ia2', 1); if (S.tab !== 'near') { S.tab = 'near'; run(() => refresh()); } render(); },
   'sound-toggle'(el) { store.set('sound', el.checked); if (el.checked) sfx('click'); },
   'open-sec'(el) {
     const v = el.dataset.v;
@@ -2184,7 +2388,7 @@ function saveSignalText() { if (!S.signal) S.signal = {}; const z = $('#s-zone')
 
 async function joinByCode(code) {
   const r = await post('/api/gangs/join', { code });
-  S.activeGang = r.id; store.set('activeGang', r.id); S.tab = 'gang';
+  S.activeGang = r.id; store.set('activeGang', r.id); S.tab = 'chats'; S.chatGang = true; S.dm = null; S.sheet = null;
   await loadMe(); await loadGang();
   toast(r.already ? 'Ты уже в этой банде' : 'Ты в банде!');
 }
@@ -2253,7 +2457,7 @@ setInterval(async () => {
 let battleTick = 0;
 setInterval(async () => {
   const v = S.bv;
-  if (document.hidden || !S.me || S.tab !== 'crew' || !S.battle || !v || S.sheet || S.bBusy) return;
+  if (document.hidden || !S.me || S.tab !== 'chats' || !S.battle || !v || S.sheet || S.bBusy) return;
   battleTick++;
   if (!(v.mode === 'fast' && v.status !== 'done') && battleTick % 3) return;
   try {
@@ -2267,7 +2471,7 @@ setInterval(async () => {
   } catch {}
 }, 900);
 setInterval(async () => {
-  if (document.hidden || !S.me || !S.me.nick || S.tab !== 'crew' || !S.dm || S.battle || S.sheet) return;
+  if (document.hidden || !S.me || !S.me.nick || S.tab !== 'chats' || !S.dm || S.battle || S.sheet) return;
   const before = S.dmView ? S.dmView.messages.map((m) => m.id + ':' + (m.reply || '') + (m.read ? 'r' : '')).join() : '';
   try {
     await loadDm();
@@ -2284,11 +2488,11 @@ document.addEventListener('visibilitychange', async () => {
 async function boot() {
   await loadMe();
   const hash = location.hash;
-  if (hash.startsWith('#gang/')) { S.tab = 'gang'; S.activeGang = Number(hash.slice(6)) || S.activeGang; }
-  if (hash === '#feed') S.tab = 'feed';
-  if (hash === '#crew') S.tab = 'crew';
-  if (hash.startsWith('#crew/')) { S.tab = 'crew'; S.dm = Number(hash.slice(6)) || null; }
-  if (hash.startsWith('#battle/')) { S.tab = 'crew'; S.battle = Number(hash.slice(8)) || null; }
+  if (hash.startsWith('#gang/')) { S.tab = 'chats'; S.chatGang = true; S.activeGang = Number(hash.slice(6)) || S.activeGang; }
+  if (hash === '#feed') S.tab = 'office';
+  if (hash === '#crew') S.tab = 'chats';
+  if (hash.startsWith('#crew/')) { S.tab = 'chats'; S.dm = Number(hash.slice(6)) || null; }
+  if (hash.startsWith('#battle/')) { S.tab = 'chats'; S.battle = Number(hash.slice(8)) || null; }
   const join = /^#join=([A-Z0-9]{6})$/i.exec(hash);
   if (join) store.set('pendingJoin', join[1]);
   const crewCode = /^#crew=([A-Z0-9]{6})$/i.exec(hash);
@@ -2299,12 +2503,13 @@ async function boot() {
     if (pending) { store.set('pendingJoin', null); try { await joinByCode(pending); } catch (e) { toast(e.message); } }
     const pendingCrew = store.get('pendingCrew', null);
     if (pendingCrew) {
-      store.set('pendingCrew', null); S.tab = 'crew';
+      store.set('pendingCrew', null); S.tab = 'chats';
       try { const r = await post('/api/crew/add', { code: pendingCrew }); toast(r.accepted ? 'Теперь вы подельники!' : r.already ? 'Вы уже подельники' : 'Заявка ушла. Ждём ответа'); } catch (e) { toast(e.message); }
     }
     await refresh({ all: true });
     const coachDone = Number(store.get('coachDone', 0));
     if (coachDone < 2) { S.coach = coachDone === 1 ? 3 : 1; S.coachStart = S.coach; }
+    else if (!store.get('ia2', 0)) { S.sheet = 'whatsnew'; } // уже знакомы с приложением — коротко покажем, что поменялось
     syncPush().then(render).catch(() => {});
   }
   if (hash) history.replaceState(null, '', location.pathname + (location.search.includes('login=') ? '' : location.search));

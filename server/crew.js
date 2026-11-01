@@ -62,6 +62,10 @@ function register(ctx) {
   const pair = (a, b) => (a < b ? [a, b] : [b, a]);
   const link = (a, b) => q('SELECT * FROM crew WHERE lo = ? AND hi = ?').get(...pair(a, b)) || null;
   const areCrew = (a, b) => { const l = link(a, b); return !!l && l.status === 'ok'; };
+  // Участники общей банды могут писать друг другу лично без заявки
+  const shareGang = (a, b) => !!q(`SELECT 1 FROM gang_members x JOIN gang_members y ON x.gang_id = y.gang_id JOIN gangs g ON g.id = x.gang_id
+                                   WHERE x.user_id = ? AND y.user_id = ? AND g.hidden = 0`).get(a, b);
+  const canTalk = (a, b) => areCrew(a, b) || shareGang(a, b);
   const blocked = (by, who) => !!q('SELECT 1 FROM crew_blocks WHERE user_id = ? AND blocked_id = ?').get(by, who);
   const crewCount = (uid) => q("SELECT COUNT(*) AS n FROM crew WHERE (lo = ? OR hi = ?) AND status = 'ok'").get(uid, uid).n;
   const userRow = (id) => q('SELECT * FROM users WHERE id = ? AND nick IS NOT NULL').get(id);
@@ -84,7 +88,7 @@ function register(ctx) {
 
   function friendOr404(u, id) {
     const f = userRow(Number(id));
-    if (!f || !areCrew(u.id, f.id)) throw new HttpError(404, 'Это не твой подельник.');
+    if (!f || !canTalk(u.id, f.id)) throw new HttpError(404, 'Писать можно подельникам и участникам твоих банд.');
     return f;
   }
 
@@ -98,6 +102,73 @@ function register(ctx) {
     if (m.type === 'meme') return '🖼 мем: «' + ((MEMES.find((x) => x.id === m.kind) || {}).caption || '') + '»';
     return m.text;
   }
+
+  // ---------- Мои люди: все из моих банд и подельники, одним списком ----------
+  function myPeople(uid) {
+    const map = new Map();
+    const gangRows = q(`SELECT u.*, g.id AS gid, g.name AS gname FROM gang_members me JOIN gang_members m ON m.gang_id = me.gang_id
+                        JOIN gangs g ON g.id = me.gang_id JOIN users u ON u.id = m.user_id
+                        WHERE me.user_id = ? AND m.user_id != ? AND g.hidden = 0 AND u.nick IS NOT NULL`).all(uid, uid);
+    for (const r of gangRows) {
+      const p = map.get(r.id) || { row: r, gangs: [], crew: false };
+      p.gangs.push({ id: r.gid, name: r.gname });
+      map.set(r.id, p);
+    }
+    const crewRows = q(`SELECT u.* FROM crew c JOIN users u ON u.id = CASE WHEN c.lo = ? THEN c.hi ELSE c.lo END
+                        WHERE (c.lo = ? OR c.hi = ?) AND c.status = 'ok' AND u.nick IS NOT NULL`).all(uid, uid, uid);
+    for (const r of crewRows) { const p = map.get(r.id) || { row: r, gangs: [], crew: false }; p.crew = true; map.set(r.id, p); }
+    for (const id of map.keys()) if (blocked(uid, id)) map.delete(id);
+    return map;
+  }
+
+  route('GET', '/api/people', async (req) => {
+    const u = requireUser(req);
+    const people = [...myPeople(u.id).values()].map(({ row, gangs, crew }) => {
+      const [lo, hi] = pair(u.id, row.id);
+      const unreadN = q('SELECT COUNT(*) AS n FROM dms WHERE lo = ? AND hi = ? AND to_id = ? AND read_at IS NULL AND hidden = 0').get(lo, hi, u.id).n;
+      return { ...memberStatus(row), gangs, crew, unread: unreadN };
+    });
+    return { people };
+  });
+
+  // ---------- Чаты: банды и личные переписки в одном списке ----------
+  route('GET', '/api/chats', async (req) => {
+    const u = requireUser(req);
+    const items = [];
+    const gangs = q(`SELECT g.* FROM gangs g JOIN gang_members m ON m.gang_id = g.id WHERE m.user_id = ? AND g.hidden = 0 ORDER BY m.joined_at`).all(u.id);
+    for (const g of gangs) {
+      const last = q('SELECT m.*, u.nick FROM messages m LEFT JOIN users u ON u.id = m.user_id WHERE m.gang_id = ? AND m.hidden = 0 ORDER BY m.at DESC LIMIT 1').get(g.id);
+      const n = q('SELECT COUNT(*) AS n FROM gang_members WHERE gang_id = ?').get(g.id).n;
+      items.push({
+        type: 'gang', id: g.id, name: g.name, color: g.color, members: n, lastAt: last ? last.at : g.created_at || 0,
+        lastTime: last ? U.msk(last.at).hhmm : null,
+        last: last ? { mine: last.user_id === u.id, who: last.nick, text: last.type === 'call' ? (CALLS[last.kind] || {}).verb || 'зов' : last.text } : null
+      });
+    }
+    const people = myPeople(u.id);
+    // Переписки: со всеми, с кем уже есть сообщения, и со всеми подельниками
+    const threads = q(`SELECT CASE WHEN lo = ? THEN hi ELSE lo END AS other, MAX(at) AS at FROM dms WHERE (lo = ? OR hi = ?) AND hidden = 0 GROUP BY other`).all(u.id, u.id, u.id);
+    const ids = new Set(threads.map((t) => t.other));
+    for (const [id, p] of people) if (p.crew) ids.add(id);
+    for (const id of ids) {
+      const p = people.get(id);
+      if (!p) continue; // писать можно только своим людям
+      const [lo, hi] = pair(u.id, id);
+      const last = q('SELECT * FROM dms WHERE lo = ? AND hi = ? AND hidden = 0 ORDER BY at DESC LIMIT 1').get(lo, hi);
+      const un = q('SELECT COUNT(*) AS n FROM dms WHERE lo = ? AND hi = ? AND to_id = ? AND read_at IS NULL AND hidden = 0').get(lo, hi, u.id).n;
+      const st = memberStatus(p.row);
+      items.push({
+        type: 'dm', id, nick: st.nick, look: st.look, where: st.where, office: st.office, until: st.until, crew: p.crew,
+        unread: un, lastAt: last ? last.at : 0, lastTime: last ? U.msk(last.at).hhmm : null,
+        last: last ? { mine: last.from_id === u.id, text: preview(last) } : null
+      });
+    }
+    items.sort((a, b) => (b.unread || 0) - (a.unread || 0) || b.lastAt - a.lastAt);
+    const requests = q(`SELECT u.id, u.nick, u.look, u.profile, u.share_office FROM crew c JOIN users u ON u.id = c.from_id
+                        WHERE (c.lo = ? OR c.hi = ?) AND c.status = 'pending' AND c.from_id != ?`).all(u.id, u.id, u.id)
+      .filter((r) => !blocked(u.id, r.id)).map((r) => ({ id: r.id, nick: r.nick, look: publicLook(r) }));
+    return { items, requests };
+  });
 
   // ---------- Список, заявки, ссылка ----------
   route('GET', '/api/crew', async (req) => {

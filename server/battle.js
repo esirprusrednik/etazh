@@ -115,7 +115,8 @@ function register(ctx) {
 
   const areCrew = (x, y) => {
     const [lo, hi] = x < y ? [x, y] : [y, x];
-    return !!q("SELECT 1 FROM crew WHERE lo = ? AND hi = ? AND status = 'ok'").get(lo, hi);
+    return !!q("SELECT 1 FROM crew WHERE lo = ? AND hi = ? AND status = 'ok'").get(lo, hi)
+      || !!q('SELECT 1 FROM gang_members a JOIN gang_members b ON a.gang_id = b.gang_id WHERE a.user_id = ? AND b.user_id = ?').get(x, y);
   };
   const userRow = (id) => q('SELECT id, nick, look, profile, share_office FROM users WHERE id = ?').get(id);
   const pub = (u) => (u ? { id: u.id, nick: u.nick, look: publicLook(u) } : { id: 0, nick: 'удалённый аккаунт', look: {} });
@@ -212,7 +213,7 @@ function register(ctx) {
     const u = requireUser(req);
     const to = Number(body.to);
     if (!to || to === u.id) throw bad('С кем играем?');
-    if (!areCrew(u.id, to)) throw bad('Морской бой — только с подельниками.');
+    if (!areCrew(u.id, to)) throw bad('Морской бой — с подельниками и участниками твоих банд.');
     const ex = q(`SELECT id FROM battles WHERE status != 'done' AND ((a = ? AND b = ?) OR (a = ? AND b = ?))`).get(u.id, to, to, u.id);
     if (ex) return { id: ex.id, existing: true };
     const active = q("SELECT COUNT(*) AS n FROM battles WHERE status != 'done' AND (a = ? OR b = ?)").get(u.id, u.id).n;

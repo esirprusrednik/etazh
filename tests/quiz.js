@@ -151,6 +151,19 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.ok(list.last.text.includes('Пятница'));
   });
 
+  await step('новая структура: личка в банде без заявки, «мои люди», единый список чатов', async () => {
+    assert.equal((await c.post(`/api/crew/${d.id}/messages`, { type: 'text', text: 'Привет из банды' })).status, 200, 'c и d в одной банде');
+    const people = (await d.get('/api/people')).json.people;
+    assert.ok(people.find((p) => p.id === c.id && p.gangs.length && !p.crew));
+    const chats = (await d.get('/api/chats')).json;
+    assert.ok(chats.items.find((x) => x.type === 'gang' && x.id === g.id));
+    const dm = chats.items.find((x) => x.type === 'dm' && x.id === c.id);
+    assert.equal(dm.unread, 1); assert.ok(dm.last.text.includes('Привет'));
+    const z = await new Client().login('zed@mts.ru', 'чужак_зет');
+    assert.equal((await z.post(`/api/crew/${d.id}/messages`, { type: 'text', text: 'эй' })).status, 404, 'чужим нельзя');
+    assert.equal((await c.post('/api/battle', { to: d.id })).status, 200, 'бой с участником банды');
+  });
+
   console.log(`\nВсё прошло: ${passed} проверок`);
 })()
   .catch((e) => { console.error('\nПровал:', e.message, '\n--- лог ---\n' + log.slice(-2000)); process.exitCode = 1; })
