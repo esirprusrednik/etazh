@@ -71,5 +71,15 @@ const { b64url, fromB64url, moderationProblem, emailDomainAllowed } = require('.
   assert.ok(!emailDomainAllowed('a@mts.ru.evil.com'));
   assert.ok(!emailDomainAllowed('a@sub.mts.ru'));
   console.log('  ✓ модерация и домены');
+  // go.sh качает только файлы из files.txt — забытый файл роняет сервер после обновления (502)
+  {
+    const fsx = require('node:fs'); const px = require('node:path');
+    const root = px.join(__dirname, '..');
+    const listed = new Set(fsx.readFileSync(px.join(root, 'files.txt'), 'utf8').split('\n').filter(Boolean));
+    const walk = (d) => fsx.readdirSync(px.join(root, d), { withFileTypes: true }).flatMap((e) => e.isDirectory() ? walk(d + '/' + e.name) : [d + '/' + e.name]);
+    const missing = ['server', 'public', 'scripts'].flatMap(walk).filter((f) => !listed.has(f));
+    assert.deepEqual(missing, [], 'нет в files.txt: ' + missing.join(', '));
+    console.log('  ✓ files.txt содержит все файлы сервера и клиента');
+  }
   console.log('\nВсё прошло');
 })().catch((e) => { console.error('Провал:', e); process.exitCode = 1; });
