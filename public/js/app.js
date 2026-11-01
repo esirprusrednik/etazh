@@ -442,7 +442,8 @@ function whereText(r) {
 function renderToday() {
   const st = S.state;
   const p = st.presence;
-  const next = st.nextVacation ? `<p class="small">Следующий отпуск: ${ddmm(st.nextVacation.from)}–${ddmm(st.nextVacation.to)}</p>` : '';
+  const vacIn = st.nextVacation ? Math.round((Date.parse(st.nextVacation.from) - Date.parse(st.today)) / 864e5) : 0;
+  const next = st.nextVacation ? `<p class="small">Следующий отпуск: ${ddmm(st.nextVacation.from)}–${ddmm(st.nextVacation.to)} · ${vacIn === 1 ? 'уже завтра 🌴' : `через ${vacIn} ${plural(vacIn, 'день', 'дня', 'дней')}`}</p>` : '';
   if (p.where === 'vacation') {
     return `<section class="card" style="background:#FFF4E0">
       <h2>🌴 Ты в отпуске${p.until === st.today ? ' сегодня' : ` до ${ddmm(p.until)}`}</h2>

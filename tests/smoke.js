@@ -235,7 +235,7 @@ async function waitUp() {
     assert.equal((await a.post('/api/shop/buy', { item: 'st_night' })).status, 400);
     assert.equal((await a.post('/api/shop/buy', { item: 'crown' })).status, 400);
     const me = (await a.get('/api/me')).json.user;
-    assert.equal(me.status, 'Ночной дозор');
+    assert.equal(me.status, 'Салага');
     assert.equal((await a.post('/api/shop/equip', { item: 'st_night', on: false })).status, 200);
     assert.equal((await a.get('/api/me')).json.user.status, null);
   });
