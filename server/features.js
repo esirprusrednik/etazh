@@ -8,7 +8,7 @@ const ACH = [
   { id: 'first_checkin', tier: 'common', name: 'Первый шаг', desc: 'Отметиться в офисе', test: (c) => c.checkins >= 1 },
   { id: 'gang', tier: 'common', name: 'В банде', desc: 'Вступить в банду или создать свою', test: (c) => c.gangs >= 1 },
   { id: 'reply', tier: 'common', name: 'На связи', desc: 'Ответить на зов банды', test: (c) => c.replies >= 1 },
-  { id: 'thanks_give', tier: 'common', name: 'Вежливость', desc: 'Сказать коллеге спасибо', test: (c) => c.thanks_given >= 1 },
+  { id: 'thanks_give', tier: 'common', name: 'Вежливость', desc: 'Сказать спасибо кому-то из банды', test: (c) => c.thanks_given >= 1 },
   { id: 'canteen5', tier: 'common', name: 'Завсегдатай', desc: '5 раз отметиться в столовой', test: (c) => c.canteen >= 5 },
   { id: 'streak5', tier: 'rare', name: 'Пятидневка', desc: '5 рабочих дней подряд в офисе', test: (c) => c.streak >= 5 },
   { id: 'two_offices', tier: 'rare', name: 'Путешественник', desc: 'Побывать в двух офисах', test: (c) => c.offices >= 2 },
@@ -16,7 +16,7 @@ const ACH = [
   { id: 'signals5', tier: 'rare', name: 'Глаза офиса', desc: '5 подтверждённых сигналов', test: (c) => c.signals >= 5 },
   { id: 'coffee', tier: 'rare', name: 'Новые лица', desc: 'Договориться о случайном кофе', test: (c) => c.coffee >= 1 },
   { id: 'quiz_first', tier: 'common', name: 'Первый квиз', desc: 'Ответить на квиз недели', test: (c) => c.quiz_any >= 1 },
-  { id: 'guess10', tier: 'rare', name: 'Знаток банды', desc: '10 раз угадать коллегу', test: (c) => c.guess_ok >= 10 },
+  { id: 'guess10', tier: 'rare', name: 'Знаток банды', desc: '10 раз угадать, кто из наших', test: (c) => c.guess_ok >= 10 },
   { id: 'quiz5', tier: 'rare', name: 'Эрудит', desc: '5 верных ответов в квизах недели', test: (c) => c.quiz_ok >= 5 },
   { id: 'sea_first', tier: 'common', name: 'Юнга', desc: 'Выиграть морской бой', test: (c) => c.sea_wins >= 1 },
   { id: 'sea_10', tier: 'rare', name: 'Капитан', desc: '10 побед в морском бою', test: (c) => c.sea_wins >= 10 },
@@ -283,7 +283,7 @@ function register(ctx) {
     const u = requireUser(req);
     const gangId = Number(body.gang);
     const toId = Number(body.to);
-    if (!isMember(gangId, u.id) || !isMember(gangId, toId)) throw bad('Спасибо можно сказать только коллеге из своей банды.');
+    if (!isMember(gangId, u.id) || !isMember(gangId, toId)) throw bad('Спасибо можно сказать только своим — тем, кто с тобой в банде.');
     if (toId === u.id) throw bad('Себе спасибо не говорят — только другим.');
     if (thanksLeft(u.id) <= 0) throw bad(`Не больше ${THANKS_PER_DAY} спасибо в день — так они ценнее.`);
     const text = U.cleanText(body.text, 80) || null;
@@ -316,7 +316,7 @@ function register(ctx) {
     const to = userRow(toId);
     if (!to || toId === u.id) throw bad('Некому дарить.');
     const shared = myGangs(u.id).some((g) => isMember(g.id, toId));
-    if (!shared) throw bad('Подарить можно только коллеге из своей банды.');
+    if (!shared) throw bad('Подарить можно только своим — тем, кто с тобой в банде.');
     const prof = readProfile(to.profile);
     if (!prof.showBday || bdayInDays(prof.bday) !== 0) throw bad('Подарок можно отправить только в день рождения.');
     if (q('SELECT 1 FROM gifts WHERE from_id = ? AND to_id = ? AND day = ?').get(u.id, toId, today())) throw bad('Ты уже поздравил.');

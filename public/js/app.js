@@ -447,10 +447,10 @@ function renderLogin() {
   }
   return `<div class="onb">
     <div class="logo">Этаж<span>.</span></div>
-    <p class="sub" style="color:#C9D1EA">Неофициальное приложение для коллег: кто из твоей банды в офисе, есть ли очередь в столовой, позвать на кофе одной кнопкой.</p>
+    <p class="sub" style="color:#C9D1EA">Неофициальное приложение для своих: кто из твоей банды в офисе, есть ли очередь в столовой, позвать на кофе одной кнопкой.</p>
     <div class="card">
       <h2>Вход по рабочей почте</h2>
-      <p class="sub">Только ${S.domains.map((d) => '@' + esc(d)).join(', ')}. Почту мы не храним — только её зашифрованный отпечаток. Коллеги видят лишь твой никнейм.</p>
+      <p class="sub">Только ${S.domains.map((d) => '@' + esc(d)).join(', ')}. Почту мы не храним — только её зашифрованный отпечаток. Остальные видят только твой ник.</p>
       ${expired ? '<div class="err">Ссылка устарела или уже использована. Запроси новую.</div>' : ''}
       <label class="field">Рабочая почта<input id="email" type="email" inputmode="email" autocomplete="email" placeholder="name@${esc(S.domains[0])}" value="${esc(o.email)}"></label>
       <label class="check"><input id="consent" type="checkbox"> <span>Согласен с <a href="/privacy.html" target="_blank" rel="noopener">политикой обработки данных</a> и <a href="/rules.html" target="_blank" rel="noopener">правилами</a></span></label>
@@ -466,7 +466,7 @@ function renderNick() {
     <div class="logo">Этаж<span>.</span></div>
     <div class="card">
       <h2>Придумай никнейм</h2>
-      <p class="sub">Его видят коллеги. Без ФИО и должностей — так веселее. Менять можно раз в 30 дней.</p>
+      <p class="sub">Его видят все на Этаже. Без ФИО и должностей — так веселее. Менять можно раз в 30 дней.</p>
       <div class="chips">${o.nicks.map((n) => `<button class="chip" data-act="nick-pick" data-v="${esc(n)}">${esc(n)}</button>`).join('')}
         <button class="chip" data-act="nick-more">Ещё варианты</button></div>
       <label class="field">Никнейм<input id="nick" maxlength="21" autocomplete="off" placeholder="бодрый_енот" value="${esc(o.nick || '')}"></label>
@@ -588,7 +588,7 @@ function renderPeople() {
   if (!ps) return '<div class="card"><p class="sub">Загружаем твоих людей…</p></div>';
   if (!ps.length) {
     return `<section class="card empty"><div class="empty-ico">👋</div><h2>Пока здесь пусто</h2>
-      <p class="sub">Тут появятся члены твоих банд: кто в офисе, кто дома, кто в отпуске. Сколоти банду и позови в неё коллег по ссылке — или вступи в банду по приглашению.</p>
+      <p class="sub">Тут появятся члены твоих банд: кто в офисе, кто дома, кто в отпуске. Сколоти банду и позови в неё своих по ссылке — или вступи в банду по приглашению.</p>
       <div class="row"><button class="btn grow" data-act="open" data-v="gang-new">Сколотить банду</button></div></section>`;
   }
   const st = S.state;
@@ -620,7 +620,7 @@ function renderNear() {
     ${renderPeople()}`;
 }
 
-const findBar = () => `<button class="find-bar" data-act="find-open">${ico('search', 18)}<span>Найти коллегу по нику, имени или почте</span></button>`;
+const findBar = () => `<button class="find-bar" data-act="find-open">${ico('search', 18)}<span>Найти своих: по нику, имени или почте</span></button>`;
 
 function renderFind() {
   const f = S.find || {};
@@ -696,7 +696,7 @@ function renderGames() {
     ${active.length ? active.map((b) => `<button class="chat-row" data-act="battle-go" data-id="${b.id}" data-opp="${b.oppId}"><span class="grow"><span class="chat-title">${esc(nickOf(b.oppId))}</span><span class="where">${b.mode === 'fast' ? '⚡ быстрая · ' : ''}${b.status === 'setup' ? 'расстановка' : b.myTurn ? 'твой ход!' : 'ход соперника'}</span></span>${b.myTurn ? '<span class="crew-badge">!</span>' : ''}</button>`).join('') : '<p class="small" style="margin:0">Нет активных партий.</p>'}
     <button class="btn small" data-act="open" data-v="battle-pick">Вызвать на бой</button>
   </section>`;
-  return `${pageHead('Игры', 'Задания, квизы и бои с коллегами. За всё дают зёрна, их тратят в Лавке')}
+  return `${pageHead('Игры', 'Задания, квизы и бои со своими. За всё дают зёрна, их тратят в Лавке')}
     ${renderQuests()}
     ${renderQuiz()}
     ${S.me.gangs.length > 1 ? `<div class="chips dark">${S.me.gangs.map((g) => `<button class="chip ${g.id === S.activeGang ? 'on' : ''}" data-act="gang-select" data-v="${g.id}">${esc(g.name)}</button>`).join('')}</div>` : ''}
@@ -837,7 +837,7 @@ function renderSignalsMini() {
       <div class="grow"><div style="font-weight:700">${esc(s.label)}${s.confirmed ? ' ✓' : ''}</div>
         <div class="small">${[s.zone, s.time, s.up ? 'подтвердили ' + s.up : ''].filter(Boolean).map(esc).join(' · ')}</div></div>
       ${s.mine || s.myVote === 1 ? '' : `<button class="btn small ghost" data-act="vote" data-id="${s.id}" data-v="1">Есть</button>`}
-    </div>`).join('') : '<p class="small" style="margin:0">Пока тихо. Холодно, на кухне еда или кофе закончился — сообщи коллегам.</p>'}
+    </div>`).join('') : '<p class="small" style="margin:0">Пока тихо. Холодно, на кухне еда или кофе закончился — сообщи всем на этаже.</p>'}
     ${ev.signals.length > 2 ? `<button class="linkbtn" style="align-self:flex-start" data-act="tab" data-v="office">Все сигналы (${ev.signals.length})</button>` : ''}
   </section>`;
 }
@@ -903,7 +903,7 @@ const officeName = (id) => (S.cat.offices.find((o) => o.id === id) || {}).name |
 function renderGangNow() {
   const g = S.state.gangNow;
   if (!g.hasGang) {
-    return `<section class="card"><h3>Моя банда сейчас</h3><p class="sub">Ты пока ни в одной банде. Создай свою или вступи по ссылке от коллеги.</p>
+    return `<section class="card"><h3>Моя банда сейчас</h3><p class="sub">Ты пока ни в одной банде. Сколоти свою или вступи по ссылке от своих.</p>
       <button class="btn blue" data-act="open" data-v="gang-new">Создать банду</button></section>`;
   }
   const dnd = S.cat.moods.dnd;
@@ -924,7 +924,7 @@ function renderGangNow() {
   }).join('');
   const gangName = (S.me.gangs.find((x) => x.id === (S.activeGang || S.me.gangs[0].id)) || {}).name || '';
   return `<section class="card"><div class="row" style="justify-content:space-between"><span class="card-title">Моя банда сейчас</span><button class="linkbtn" data-act="gang-open" data-id="${S.activeGang || S.me.gangs[0].id}">${esc(gangName)} ›</button></div>
-    ${rows || '<p class="sub">В банде пока только ты. Позови коллег ссылкой из вкладки «Моя банда».</p>'}
+    ${rows || '<p class="sub">В банде пока только ты. Позови своих по ссылке из банды.</p>'}
     ${g.more ? `<p class="small">и ещё ${g.more} — все во вкладке «Моя банда»</p>` : ''}
     ${S.fx && S.fx.weekHint ? `<div class="week-hint">${ico('where', 16)}<span>${S.fx.weekHint.today ? 'Сегодня' : esc(S.fx.weekHint.label)} в офисе будут <b>${S.fx.weekHint.office} из ${S.fx.weekHint.total}</b>${S.fx.weekHint.today ? '' : ' — хороший день, чтобы собраться'}</span></div>` : ''}
     ${!S.me.shareOffice ? '<div class="note warn">Банда не видит, где ты: офис, дома или в отпуске. <button class="linkbtn" data-act="share-on">Показывать банде</button></div>' : ''}
@@ -972,7 +972,7 @@ function renderGang() {
   ${renderGangBirthdays()}
   <section class="card"><h3>Участники</h3><p class="small" style="margin:0">Нажми на человека, чтобы написать ему лично.</p>${members}
     <button class="btn blue" data-act="invite-share">Позвать в банду по ссылке</button>
-    <p class="small">Ссылка: ${esc(g.link)}. Отправь её в рабочий мессенджер — вступить смогут только коллеги с рабочей почтой.</p>
+    <p class="small">Ссылка: ${esc(g.link)}. Отправь её в рабочий мессенджер — вступить смогут только свои — с рабочей почтой.</p>
     <div class="row" style="justify-content:space-between">
       <button class="linkbtn" data-act="report" data-type="gang" data-id="${g.id}">Пожаловаться на банду</button>
       <button class="linkbtn" data-act="gang-leave">Выйти из банды</button>
@@ -1030,11 +1030,11 @@ function renderCrew() {
   <section class="card">
     <div class="row" style="justify-content:space-between"><h2>Подельники</h2><span class="small">${c.list.length} из ${c.max}</span></div>
     <p class="sub">Твои люди один на один, без банды. Переписку и зовы видите только вы двое, сообщения живут ${c.ttlDays} ${plural(c.ttlDays, 'день', 'дня', 'дней')}.</p>
-    ${rows || '<p class="sub"><b>Пока никого.</b> Позови коллегу по нику или отправь ему свою ссылку. Ещё можно нажать «＋» у человека в составе банды.</p>'}
+    ${rows || '<p class="sub"><b>Пока никого.</b> Позови по нику или скинь свою ссылку. Ещё можно нажать «＋» у человека в составе банды.</p>'}
   </section>
   <section class="card">
     <h3>Позвать в подельники</h3>
-    <div class="row"><label class="field grow" style="gap:0"><span class="hidden">Ник коллеги</span><input id="crew-nick" maxlength="21" placeholder="ник коллеги" autocapitalize="off" autocomplete="off" aria-label="Ник коллеги"></label>
+    <div class="row"><label class="field grow" style="gap:0"><span class="hidden">Ник</span><input id="crew-nick" maxlength="21" placeholder="ник" autocapitalize="off" autocomplete="off" aria-label="Ник"></label>
       <button class="btn" data-act="crew-add">Позвать</button></div>
     <button class="btn blue" data-act="crew-share">Отправить свою ссылку</button>
     <p class="small">Кто откроет ссылку, сразу станет подельником, поэтому шли её лично, а не в общий чат. Заявка по нику ждёт согласия.</p>
@@ -1270,7 +1270,7 @@ function renderFeed() {
           ${s.mine ? '<span class="small">твой</span>' : `<div class="row" style="gap:4px">
             <button class="chip ${s.myVote === 1 ? 'on' : ''}" data-act="vote" data-id="${s.id}" data-v="1" aria-label="Подтверждаю">Да</button>
             <button class="chip ${s.myVote === -1 ? 'on' : ''}" data-act="vote" data-id="${s.id}" data-v="-1" aria-label="Уже неактуально">Уже нет</button></div>`}
-        </div>`).join('') : '<p class="sub">Пока тихо. Заметил, что холодно, на кухне яблоки или кофе закончился — сообщи коллегам.</p>'}
+        </div>`).join('') : '<p class="sub">Пока тихо. Заметил, что холодно, на кухне яблоки или кофе закончился — сообщи всем на этаже.</p>'}
         <p class="small">Пожарная тревога и эвакуация — только по официальным каналам АХО и охраны, не здесь.</p>
       </section>`
     : '<section class="card"><h3>Сигналы офиса</h3><p class="sub">Отметься в офисе, чтобы видеть и отправлять сигналы: холодно, еда на кухне, кофе закончился.</p></section>';
@@ -1329,7 +1329,7 @@ function renderCoffee() {
   if (!c.optIn) {
     return `<section class="card coffee">
       <div class="row" style="gap:12px"><span class="coffee-ico">${ico('coffee', 22)}</span>
-      <div class="grow"><div class="card-title">Случайный кофе</div><div class="small">Раз в неделю знакомим с коллегой из твоего офиса, но не из твоей банды.</div></div></div>
+      <div class="grow"><div class="card-title">Случайный кофе</div><div class="small">Раз в неделю знакомим с соседом по офису — не из твоих банд.</div></div></div>
       ${c.hasHome ? '<button class="btn small" data-act="coffee-on">Участвовать</button>' : '<button class="btn small ghost" data-act="open" data-v="profile">Укажи свой офис в профиле</button>'}
     </section>`;
   }
@@ -1411,14 +1411,14 @@ function sheetWrap(title, body) {
 function renderSheet() {
   switch (S.sheet) {
     case 'profile': return sheetWrap('Профиль', renderProfile());
-    case 'person': return sheetWrap('Профиль коллеги', renderPerson());
+    case 'person': return sheetWrap('Досье', renderPerson());
     case 'gang-new': return sheetWrap('Банда', `<p class="sub">Банда — твои люди: команда, соседи по этажу, кофейный клуб. Общий чат, зовы на кофе и обед, неделя офиса. Создание стоит 50 зёрен залога — они вернутся, когда в банде будет 3 человека.</p>
       <label class="field">Название новой банды<input id="gang-name" maxlength="30" placeholder="Например, Пятничный кофе"></label>
       <button class="btn violet" data-act="gang-create">Создать банду · залог 50</button>
       <label class="field">Или вставь ссылку-приглашение<input id="gang-code" placeholder="https://…/g/ABC123"></label>
       <button class="btn ghost" data-act="gang-join">Вступить</button>`);
-    case 'crew-new': return sheetWrap('Позвать коллегу лично', `<p class="sub">С участниками твоих банд переписываться можно сразу. Коллегу не из банды позови по нику или личной ссылкой.</p>
-      <div class="row"><label class="field grow" style="gap:0"><span class="hidden">Ник коллеги</span><input id="crew-nick" maxlength="21" placeholder="ник коллеги" autocapitalize="off" autocomplete="off" aria-label="Ник коллеги"></label><button class="btn" data-act="crew-add">Позвать</button></div>
+    case 'crew-new': return sheetWrap('Позвать в личку', `<p class="sub">С участниками твоих банд переписываться можно сразу. Тех, кто не в банде, зови по нику или личной ссылкой.</p>
+      <div class="row"><label class="field grow" style="gap:0"><span class="hidden">Ник</span><input id="crew-nick" maxlength="21" placeholder="ник" autocapitalize="off" autocomplete="off" aria-label="Ник"></label><button class="btn" data-act="crew-add">Позвать</button></div>
       <button class="btn blue" data-act="crew-share">Отправить свою ссылку</button>
       <p class="small">Кто откроет ссылку, сразу сможет тебе писать, поэтому шли её лично, а не в общий чат.</p>
       ${S.crew && S.crew.outgoing.length ? `<div class="crew-out"><span class="small">Ждём ответа:</span> ${S.crew.outgoing.map((p) => `<span class="rep">${esc(p.nick)} <button class="linkbtn" data-act="crew-decline" data-id="${p.id}" aria-label="Отменить заявку">✕</button></span>`).join(' ')}</div>` : ''}
@@ -1426,9 +1426,9 @@ function renderSheet() {
     case 'pcall': return sheetWrap('Позвать ' + (((S.people || []).find((p) => p.id === S.pcallTo) || (S.person && S.person.id === S.pcallTo ? S.person : null) || {}).nick || ''), `<p class="sub">Лично, придёт пуш. Тихие часы 19:00–09:00 уважаем.</p>
       <div class="calls">${['coffee', 'lunch', 'room', 'call', 'where', 'online', 'wait'].map((k) => `<button class="call" style="background:${CALL_STYLE[k]}" data-act="pcall" data-id="${S.pcallTo}" data-kind="${k}">${esc(S.cat.calls[k].label)}</button>`).join('')}</div>
       <button class="btn ghost" data-act="dm-open" data-id="${S.pcallTo}">💬 Написать сообщение</button>`);
-    case 'find': return sheetWrap('Найти коллегу', renderFind());
-    case 'dm-pick': return sheetWrap('Написать в личку', (S.people || []).length ? '<p class="sub">Лично можно писать любому члену твоих банд.</p>' + (S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${esc(p.nick)}</span><span class="where">${esc(p.gangs.map((g) => g.name).join(', ') || whereText(p)[0])}</span></span><span aria-hidden="true">›</span></button>`).join('') : '<p class="sub">Пока некому писать. Сколоти банду и позови в неё коллег.</p>');
-    case 'battle-pick': return sheetWrap('С кем сыграть?', (S.people || []).length ? (S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${esc(p.nick)}</span><span class="where">${esc(whereText(p)[0])}</span></span><span aria-hidden="true">›</span></button>`).join('') + '<p class="small">Откроется переписка — там выбери «Без спешки» или «Быстрая».</p>' : '<p class="sub">Сначала сколоти банду и позови в неё коллег.</p>');
+    case 'find': return sheetWrap('Найти своих', renderFind());
+    case 'dm-pick': return sheetWrap('Написать в личку', (S.people || []).length ? '<p class="sub">Лично можно писать любому члену твоих банд.</p>' + (S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${esc(p.nick)}</span><span class="where">${esc(p.gangs.map((g) => g.name).join(', ') || whereText(p)[0])}</span></span><span aria-hidden="true">›</span></button>`).join('') : '<p class="sub">Пока некому писать. Сколоти банду и позови в неё своих.</p>');
+    case 'battle-pick': return sheetWrap('С кем сыграть?', (S.people || []).length ? (S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${esc(p.nick)}</span><span class="where">${esc(whereText(p)[0])}</span></span><span aria-hidden="true">›</span></button>`).join('') + '<p class="small">Откроется переписка — там выбери «Без спешки» или «Быстрая».</p>' : '<p class="sub">Сначала сколоти банду и позови в неё своих.</p>');
     case 'whatsnew': return sheetWrap('Что поменялось', `<div class="wn">
       <div class="wn-i"><span>👥</span><div><b>Рядом</b><p>Главный экран: где ты сегодня и все твои люди одним списком — кто в офисе, кто дома, кто в отпуске.</p></div></div>
       <div class="wn-i"><span>💬</span><div><b>Чаты</b><p>Банды и личка вместе. Членам своей банды теперь можно писать лично — без заявки.</p></div></div>
@@ -1493,7 +1493,7 @@ function renderSignal() {
     <label class="field">Где (этаж, зона)<input id="s-zone" maxlength="30" placeholder="3 этаж, кухня" value="${esc(s.zone || '')}"></label>
     <label class="field">Комментарий<input id="s-comment" maxlength="60" placeholder="Принесли яблоки" value="${esc(s.comment || '')}"></label>
     <button class="btn wide" data-act="signal-send" ${s.type ? '' : 'disabled'}>Отправить сигнал</button>
-    <p class="small">Когда двое коллег подтвердят — сигнал получат все отмеченные в офисе, а ты +2 зерна. Ложные сигналы скрываются после трёх «Уже нет».</p>`;
+    <p class="small">Когда ещё двое подтвердят — сигнал получат все отмеченные в офисе, а ты +2 зерна. Ложные сигналы скрываются после трёх «Уже нет».</p>`;
 }
 
 function renderInstall() {
@@ -1513,9 +1513,9 @@ function renderInstall() {
 function renderGuess() {
   const r = S.guess;
   if (!r) return '';
-  const head = '<div class="row" style="justify-content:space-between"><span class="card-title">Угадай коллегу</span>' + (r.question ? `<span class="small">осталось ${r.question.left} из 3 сегодня</span>` : '') + '</div>';
-  if (r.small) return `<section class="card guess">${head}<p class="small" style="margin:0">Игра откроется, когда в банде будет хотя бы 4 человека. Позови ещё ${r.need} ${plural(r.need, 'коллегу', 'коллег', 'коллег')} по ссылке ниже.</p></section>`;
-  if (!r.question) return `<section class="card guess">${head}<p class="small" style="margin:0">На сегодня всё, завтра будут новые вопросы. Они собираются из профилей банды: чем больше коллеги расскажут о себе, тем интереснее угадывать.</p></section>`;
+  const head = '<div class="row" style="justify-content:space-between"><span class="card-title">Кто из наших?</span>' + (r.question ? `<span class="small">осталось ${r.question.left} из 3 сегодня</span>` : '') + '</div>';
+  if (r.small) return `<section class="card guess">${head}<p class="small" style="margin:0">Игра откроется, когда в банде будет хотя бы 4 человека. Позови ещё ${r.need} ${plural(r.need, 'человека', 'человек', 'человек')} по ссылке ниже.</p></section>`;
+  if (!r.question) return `<section class="card guess">${head}<p class="small" style="margin:0">На сегодня всё, завтра будут новые вопросы. Они собираются из профилей банды: чем больше свои расскажут о себе, тем интереснее угадывать.</p></section>`;
   const x = r.question;
   const prompt = x.kind === 'avatar' ? `<div class="guess-ava">${avatar(x.look, 110)}</div><div class="guess-q">Кто из банды так выглядит?</div>`
     : x.kind === 'about' ? `<div class="guess-quote">«${esc(x.about)}»</div><div class="guess-q">Кто написал это о себе?</div>`
@@ -1581,8 +1581,8 @@ const COACH = [
   { cls: 'right', title: 'Это твои зёрна', text: 'Их дают за отметки, ответы и квизы. Нажми — откроется Лавка со статусами и рамками.' },
   { tab: 'near', i: 0, title: 'Рядом', text: 'Главный экран. Отметься, где работаешь сегодня, — и увидишь всех своих людей: кто в офисе, кто дома, кто в отпуске. Позвать на кофе — одна кнопка.' },
   { tab: 'chats', i: 1, title: 'Чаты', text: 'Банды — общие чаты команды. Членам своих банд можно писать в личку. Тут же зовы и морской бой.' },
-  { tab: 'office', i: 2, title: 'Офис', text: 'Загрузка столовой и оценка обеда, обед компанией, сигналы коллег и лента событий.' },
-  { tab: 'games', i: 3, title: 'Игры', text: 'Задания дня, квиз недели, «Угадай коллегу», морской бой и случайный кофе. За всё дают зёрна — их тратят в Лавке.' }
+  { tab: 'office', i: 2, title: 'Офис', text: 'Загрузка столовой и оценка обеда, обед компанией, сигналы с этажа и лента событий.' },
+  { tab: 'games', i: 3, title: 'Игры', text: 'Задания дня, квиз недели, «Кто из наших?», морской бой и случайный кофе. За всё дают зёрна — их тратят в Лавке.' }
 ];
 function renderCoach() {
   if (!S.coach || S.sheet) return '';
@@ -1665,7 +1665,7 @@ function renderCompletion(inProfile) {
     <div class="row" style="justify-content:space-between"><span class="card-title">Профиль заполнен на ${c.pct}%</span>${inProfile ? '' : '<button class="linkbtn" data-act="compl-hide" aria-label="Скрыть на неделю">позже</button>'}</div>
     <div class="cbar"><span style="width:${c.pct}%"></span></div>
     <div class="csteps">${c.steps.map((x) => `<span class="cstep ${x.done ? 'done' : ''}" title="${esc(x.label)}"></span>`).join('')}</div>
-    <p class="small" style="margin:0">Ещё ${left.length} ${plural(left.length, 'шаг', 'шага', 'шагов')} до ачивки «Открытая книга» и +15 зёрен. Коллегам проще позвать тебя на кофе, когда видно, чем ты живёшь.</p>
+    <p class="small" style="margin:0">Ещё ${left.length} ${plural(left.length, 'шаг', 'шага', 'шагов')} до ачивки «Открытая книга» и +15 зёрен. Своим проще позвать тебя на кофе, когда видно, чем ты живёшь.</p>
     <button class="btn small ${inProfile ? 'ghost' : ''}" data-act="open-sec" data-v="${next.sec}">${esc(next.label)} →</button>
   </section>`;
 }
@@ -1841,7 +1841,7 @@ function renderProfile() {
       <label class="field grow">Фамилия<input id="p-last" maxlength="30" value="${esc(p.lastName)}" autocomplete="family-name"></label>
     </div>
     <div class="field">Кто видит имя и фамилию<div class="chips">${Object.entries(VIS_NAMES).map(([k, l]) => `<button class="chip ${p.nameVis === k ? 'on' : ''}" data-act="name-vis" data-v="${k}">${l}</button>`).join('')}</div>
-      <span class="small" style="font-weight:600">${p.nameVis === 'all' ? 'Увидят и коллеги не из твоих банд, например пара в случайном кофе.' : p.nameVis === 'gang' ? 'Видят члены твоих банд. Остальные — только ник.' : 'Все видят только ник.'}</span></div>
+      <span class="small" style="font-weight:600">${p.nameVis === 'all' ? 'Увидят и те, кто не в твоих бандах, например пара в случайном кофе.' : p.nameVis === 'gang' ? 'Видят члены твоих банд. Остальные — только ник.' : 'Все видят только ник.'}</span></div>
     <button class="btn ghost" data-act="name-save">Сохранить имя</button>`;
 
   const workBody = `
@@ -2028,7 +2028,7 @@ const actions = {
     const r = await post('/api/gangs', { name: $('#gang-name').value });
     S.activeGang = r.id; store.set('activeGang', r.id);
     await loadMe(); await loadGang();
-    toast('Банда создана. Позови коллег по ссылке');
+    toast('Банда сколочена. Зови своих по ссылке');
   }),
   'gang-join': () => run(async () => joinByCode($('#gang-code').value)),
   'gang-leave': () => run(async () => {
@@ -2172,7 +2172,7 @@ const actions = {
   'dm-reply': (el) => run(async () => { await post(`/api/dm/${el.dataset.id}/reply`, { label: el.dataset.v }); await loadDm(); }),
   'crew-add': () => run(async () => {
     const nick = $('#crew-nick').value.trim();
-    if (!nick) throw new Error('Впиши ник коллеги');
+    if (!nick) throw new Error('Впиши ник');
     const r = await post('/api/crew/add', { nick });
     $('#crew-nick').value = '';
     toast(r.accepted ? 'Теперь можно переписываться!' : r.already ? 'Вы уже на связи' : 'Заявка ушла. Ждём ответа');

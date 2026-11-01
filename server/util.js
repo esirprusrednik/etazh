@@ -69,7 +69,7 @@ function normalizeForFilter(s) {
 
 function moderationProblem(text, { allowAt = false } = {}) {
   const raw = String(text || '');
-  if (!allowAt && raw.includes('@')) return 'Нельзя упоминать коллег через @.';
+  if (!allowAt && raw.includes('@')) return 'Через @ никого упоминать нельзя.';
   const n = normalizeForFilter(raw);
   if (STOP_ROOTS.some((r) => n.includes(r.replace(/ё/g, 'е')))) return 'Такой текст не пройдёт модерацию.';
   return null;
