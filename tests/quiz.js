@@ -189,6 +189,28 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.ok((await z.get('/api/me')).json.user.gangs.find((x) => x.id === g.id));
   });
 
+  await step('идеи и ошибки: отправка, видит модератор, ответ, зёрна один раз, бейдж', async () => {
+    assert.equal((await c.post('/api/feedback', { kind: 'bug', text: 'ой' })).status, 400, 'слишком коротко');
+    const r = await c.post('/api/feedback', { kind: 'bug', text: 'Не приходит зов на кофе', tab: 'chats' });
+    assert.equal(r.status, 200);
+    assert.equal(r.json.items[0].status, 'new');
+    assert.equal((await c.get('/api/admin/feedback')).status, 403, 'не модератор — нельзя');
+    const adm = (await boss.get('/api/admin/feedback')).json.items;
+    const it = adm.find((x) => x.text === 'Не приходит зов на кофе');
+    assert.equal(it.nick, 'хитрый_кот');
+    assert.ok(it.device && !/\d/.test(it.device), 'устройство без версий');
+    const before = (await c.get('/api/me')).json.user.beans;
+    assert.equal((await boss.post(`/api/admin/feedback/${it.id}`, { status: 'planned', reply: 'Чиним' })).json.beans, 10);
+    assert.equal((await boss.post(`/api/admin/feedback/${it.id}`, { status: 'done', reply: 'Починили' })).json.beans, 0, 'второй раз не платим');
+    assert.equal((await c.get('/api/me')).json.user.beans, before + 10);
+    assert.equal((await c.get('/api/state')).json.badges.feedback, 1);
+    const mine = (await c.get('/api/feedback')).json.items[0];
+    assert.equal(mine.status, 'done'); assert.equal(mine.reply, 'Починили'); assert.ok(mine.unseen);
+    assert.equal((await c.get('/api/state')).json.badges.feedback, 0, 'открыл — бейдж погас');
+    for (let i = 0; i < 4; i++) await c.post('/api/feedback', { text: 'идея номер ' + i });
+    assert.equal((await c.post('/api/feedback', { text: 'шестая за день' })).status, 400, 'лимит 5 в день');
+  });
+
   console.log(`\nВсё прошло: ${passed} проверок`);
 })()
   .catch((e) => { console.error('\nПровал:', e.message, '\n--- лог ---\n' + log.slice(-2000)); process.exitCode = 1; })

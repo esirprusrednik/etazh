@@ -534,3 +534,18 @@ body { font-weight: 500; }
 .find-row { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .find-row:last-of-type { border-bottom: none; }
 .find-row .chips .chip { font-size: 13px; }
+
+/* Идеи и ошибки */
+.fb-entry { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: var(--card); color: var(--ink); border: 2px dashed #C9D1EA; border-radius: 16px; padding: 12px 14px; font: inherit; cursor: pointer; }
+.fb-entry b { display: block; font-size: 15px; }
+.fb-entry .chev { font-size: 22px; color: var(--muted); }
+.fb-count { min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: #E5484D; color: #fff; font-size: 12px; font-weight: 900; display: flex; align-items: center; justify-content: center; }
+#fb-text { resize: vertical; min-height: 110px; }
+.fb-item { border: 1px solid #E3E8F4; border-radius: 14px; padding: 10px 12px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 6px; }
+.fb-item.new { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(255,201,60,.35); }
+.fb-text { font-size: 14px; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
+.fb-reply { font-size: 14px; line-height: 1.4; background: #F2F5FC; border-radius: 10px; padding: 8px 10px; }
+.fb-st { font-size: 12px; font-weight: 800; padding: 3px 8px; border-radius: 999px; background: #FFF4D6; color: #8A5A00; white-space: nowrap; }
+.fb-st.blue { background: #E3EDFF; color: #1E4FA8; }
+.fb-st.good { background: var(--good-bg); color: var(--good-fg); }
+.fb-st.muted { background: #EEF0F5; color: var(--muted); }

@@ -34,6 +34,24 @@ function foodCard(offices) {
   </div>`;
 }
 
+function feedbackCard(fb) {
+  const items = fb.items || [];
+  const st = fb.statuses || {};
+  const fresh = items.filter((x) => x.status === 'new').length;
+  return `<div class="card"><h2>Идеи и ошибки${fresh ? ` · новых: ${fresh}` : ''}</h2>
+    <p class="small">Ответ и статус человек увидит в приложении и получит пуш. «Взяли в работу» или «Сделано» — автоматически +${fb.reward || 10} зёрен автору, один раз.</p>
+    ${items.length ? items.map((x) => `<div class="item" style="flex-direction:column;align-items:stretch;gap:6px">
+      <div><b>${x.kind === 'bug' ? '🐞 Ошибка' : '💡 Идея'}</b> · ${esc(x.nick)} · ${new Date(x.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}${x.rewarded ? ' · зёрна выданы' : ''}</div>
+      <div style="white-space:pre-wrap">${esc(x.text)}</div>
+      <div class="small">${esc(x.device || '')} · вкладка «${esc(({ near: 'Рядом', chats: 'Чаты', office: 'Офис', games: 'Игры' })[x.tab] || x.tab || '—')}» · сборка ${esc(x.build || '—')}</div>
+      <div class="row" style="gap:6px;flex-wrap:wrap;align-items:flex-end">
+        <label class="field" style="width:170px">Статус<select id="fb-st-${x.id}">${Object.entries(st).map(([k, v]) => `<option value="${k}" ${k === x.status ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+        <label class="field" style="flex:1;min-width:200px">Ответ<input id="fb-re-${x.id}" maxlength="500" value="${esc(x.reply)}" placeholder="Спасибо! Сделаем к пятнице"></label>
+        <button class="btn small" data-a="fb-save" data-id="${x.id}">Сохранить</button>
+      </div></div>`).join('') : '<p class="sub">Пока ничего не прислали.</p>'}
+  </div>`;
+}
+
 function quizCard(items) {
   const now = Date.now();
   return `<div class="card"><h2>Квиз недели</h2>
@@ -52,9 +70,10 @@ function quizCard(items) {
 
 async function load() {
   try {
-    const [d, m, qz, food] = await Promise.all([call('GET', '/api/admin/overview'), call('GET', '/api/admin/metrics').catch(() => null), call('GET', '/api/admin/quizzes').catch(() => ({ items: [] })), call('GET', '/api/admin/food').catch(() => ({ offices: [] }))]);
+    const [d, m, qz, food, fb] = await Promise.all([call('GET', '/api/admin/overview'), call('GET', '/api/admin/metrics').catch(() => null), call('GET', '/api/admin/quizzes').catch(() => ({ items: [] })), call('GET', '/api/admin/food').catch(() => ({ offices: [] })), call('GET', '/api/admin/feedback').catch(() => ({ items: [] }))]);
     root.innerHTML = `
     <div class="card"><h2>Сводка</h2><p class="sub">Пользователей: <b>${d.users}</b> · отмечались сегодня: <b>${d.activeToday}</b> · банд: <b>${d.gangs}</b></p></div>
+    ${feedbackCard(fb)}
     ${m ? metricsCard(m) : ''}
     ${quizCard(qz.items)}
     ${foodCard(food.offices)}
@@ -84,6 +103,10 @@ document.addEventListener('click', async (e) => {
       if (!options[okIdx]) throw new Error('Правильный вариант пустой');
       const filled = options.map((o, i) => ({ o, i })).filter((x) => x.o);
       await call('POST', '/api/admin/quizzes', { text: document.getElementById('qz-text').value, options: filled.map((x) => x.o), correct: filled.findIndex((x) => x.i === okIdx), explain: document.getElementById('qz-explain').value, days: Number(document.getElementById('qz-days').value) });
+    } else if (b.dataset.a === 'fb-save') {
+      const id = b.dataset.id;
+      const r = await call('POST', `/api/admin/feedback/${id}`, { status: document.getElementById('fb-st-' + id).value, reply: document.getElementById('fb-re-' + id).value });
+      if (r.beans) alert(`Автору начислено ${r.beans} зёрен`);
     } else if (b.dataset.a === 'quiz-close') {
       await call('POST', `/api/admin/quizzes/${b.dataset.id}/close`);
     } else if (b.dataset.a === 'coffee-now') {

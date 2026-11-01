@@ -365,6 +365,11 @@ async function loadGangExtra() {
 }
 async function loadQuiz() { try { S.quiz = (await get('/api/quiz')).items; } catch { S.quiz = []; } }
 
+async function loadFeedback() {
+  S.fbItems = (await get('/api/feedback')).items;
+  if (S.state && S.state.badges) S.state.badges.feedback = 0;
+}
+
 async function loadPeople() { try { S.people = (await get('/api/people')).people; } catch { S.people = []; } }
 async function loadChats() {
   try { S.chats = await get('/api/chats'); } catch { S.chats = { items: [], requests: [] }; }
@@ -487,7 +492,7 @@ function renderApp() {
   <div class="app">
     <header class="top">
       <button class="who" data-act="open" data-v="profile" aria-label="Мой профиль, уровень ${me.level || 1}">
-        <span class="me-ava ${S.coach === 1 ? 'coach-focus' : ''}">${me.completion && me.completion.pct < 100 ? `<span class="pring sm" style="--p:${me.completion.pct}" title="Профиль заполнен на ${me.completion.pct}%">${avatar(me.look, 40)}</span>` : avatar(me.look, 40)}<span class="lvl" aria-hidden="true">${me.level || 1}</span></span>
+        <span class="me-ava ${S.coach === 1 ? 'coach-focus' : ''}">${b.feedback ? '<span class="bdot" aria-hidden="true"></span>' : ''}${me.completion && me.completion.pct < 100 ? `<span class="pring sm" style="--p:${me.completion.pct}" title="Профиль заполнен на ${me.completion.pct}%">${avatar(me.look, 40)}</span>` : avatar(me.look, 40)}<span class="lvl" aria-hidden="true">${me.level || 1}</span></span>
         <span style="min-width:0;display:flex;flex-direction:column;gap:3px">
           <span class="nick-row"><span class="nick">${esc(me.nick)}</span><span class="chev" aria-hidden="true">›</span></span>
           <span class="row" style="gap:6px">
@@ -1427,6 +1432,7 @@ function renderSheet() {
       <div class="calls">${['coffee', 'lunch', 'room', 'call', 'where', 'online', 'wait'].map((k) => `<button class="call" style="background:${CALL_STYLE[k]}" data-act="pcall" data-id="${S.pcallTo}" data-kind="${k}">${esc(S.cat.calls[k].label)}</button>`).join('')}</div>
       <button class="btn ghost" data-act="dm-open" data-id="${S.pcallTo}">💬 Написать сообщение</button>`);
     case 'find': return sheetWrap('Найти своих', renderFind());
+    case 'feedback': return sheetWrap('Идеи и ошибки', renderFeedback());
     case 'dm-pick': return sheetWrap('Написать в личку', (S.people || []).length ? '<p class="sub">Лично можно писать любому члену твоих банд.</p>' + (S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${esc(p.nick)}</span><span class="where">${esc(p.gangs.map((g) => g.name).join(', ') || whereText(p)[0])}</span></span><span aria-hidden="true">›</span></button>`).join('') : '<p class="sub">Пока некому писать. Сколоти банду и позови в неё своих.</p>');
     case 'battle-pick': return sheetWrap('С кем сыграть?', (S.people || []).length ? (S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${esc(p.nick)}</span><span class="where">${esc(whereText(p)[0])}</span></span><span aria-hidden="true">›</span></button>`).join('') + '<p class="small">Откроется переписка — там выбери «Без спешки» или «Быстрая».</p>' : '<p class="sub">Сначала сколоти банду и позови в неё своих.</p>');
     case 'whatsnew': return sheetWrap('Что поменялось', `<div class="wn">
@@ -1809,6 +1815,28 @@ function section(id, title, summary, body, opts = {}) {
   </section>`;
 }
 
+// Идеи и ошибки: форма + мои сообщения с ответами модератора
+const FB_STATUS_CLS = { new: '', planned: 'blue', done: 'good', declined: 'muted' };
+function renderFeedback() {
+  const f = S.fb || (S.fb = { kind: 'idea', text: '' });
+  const bug = f.kind === 'bug';
+  const items = S.fbItems;
+  return `<p class="sub" style="margin-top:0">Этаж делают для своих — пиши, что бесит, чего не хватает и что сломалось. Отвечаем каждому. Если идею возьмём в работу или подтвердим баг — +10 зёрен.</p>
+    <div class="chips">
+      <button class="chip ${bug ? '' : 'on'}" data-act="fb-kind" data-v="idea" aria-pressed="${!bug}">Идея</button>
+      <button class="chip ${bug ? 'on' : ''}" data-act="fb-kind" data-v="bug" aria-pressed="${bug}">Ошибка</button>
+    </div>
+    <label class="field"><span class="hidden">Текст</span><textarea id="fb-text" rows="5" maxlength="1000" placeholder="${bug ? 'Что делал → что ожидал → что получилось. Например: открыл чат банды, нажал «На кофе», ничего не пришло' : 'Чего не хватает или что сделать удобнее. Например: хочу видеть, кто сегодня обедает в столовой'}">${esc(f.text)}</textarea></label>
+    <button class="btn" data-act="fb-send">Отправить</button>
+    <p class="small" style="margin:0">${bug ? 'К сообщению приложим версию приложения и тип телефона и браузера — чтобы повторить ошибку. ' : ''}Видит только модератор.</p>
+    <h3 style="margin:18px 0 6px">Мои сообщения</h3>
+    ${!items ? '<p class="small">Загружаем…</p>' : items.length ? items.map((x) => `<div class="fb-item ${x.unseen ? 'new' : ''}">
+      <div class="row" style="justify-content:space-between;gap:8px"><span class="small"><b>${x.kind === 'bug' ? 'Ошибка' : 'Идея'}</b> · ${ddmm(new Date(x.at).toISOString().slice(0, 10))}</span><span class="fb-st ${FB_STATUS_CLS[x.status] || ''}">${esc(x.statusName)}${x.rewarded ? ' · +10' : ''}</span></div>
+      <div class="fb-text">${esc(x.text)}</div>
+      ${x.reply ? `<div class="fb-reply"><b>Ответ:</b> ${esc(x.reply)}</div>` : ''}
+    </div>`).join('') : '<p class="small">Пока пусто. Первое сообщение — самое ценное.</p>'}`;
+}
+
 function renderProfile() {
   const me = S.me;
   const L = S.cat.look;
@@ -1892,6 +1920,7 @@ function renderProfile() {
     ${section('vac', 'Отпуска', p.vacations.length ? p.vacations.map((v) => `${ddmm(v.from)}–${ddmm(v.to)}`).join(', ') : 'не запланированы', vacBody)}
     ${section('about', 'О себе', [p.about && esc(p.about), p.bday && 'ДР ' + esc(p.bday)].filter(Boolean).join(' · ') || 'интересы, пара слов, день рождения', aboutBody)}
     ${section('priv', 'Приватность и уведомления', `${me.shareOffice ? 'банда видит, где я' : 'где я — скрыто'}${me.quiet ? ' · тихие часы' : ''}`, privBody)}
+    <button class="fb-entry" data-act="open" data-v="feedback"><span class="grow"><b>Есть идея или нашёл ошибку?</b><span class="small">Напиши — ответим. За принятую идею +10 зёрен</span></span>${(S.state && S.state.badges && S.state.badges.feedback) ? `<span class="fb-count">${S.state.badges.feedback}</span>` : '<span class="chev" aria-hidden="true">›</span>'}</button>
     ${me.isAdmin ? '<a class="btn violet" style="display:flex;align-items:center;justify-content:center;text-decoration:none" href="/admin.html">Модерация</a>' : ''}
     <div class="row" style="justify-content:space-between">
       <button class="linkbtn" data-act="logout">Выйти</button>
@@ -2225,9 +2254,18 @@ const actions = {
     if (S.sheet === 'shop') sfx('click');
     if (S.sheet === 'shop') { store.set('shopSeen', [...new Set([...store.get('shopSeen', []), ...((S.me && S.me.affordable) || [])])]); await run(async () => { S.shop = await get('/api/shop'); if (S.activeGang && !S.gang) await loadGang(); }); }
     if (S.sheet === 'profile' || S.sheet === 'lunch') await run(loadFeatures);
+    if (S.sheet === 'feedback') await run(loadFeedback);
     if (S.sheet === 'crew-new' && !S.crew) await run(loadCrew);
     if ((S.sheet === 'battle-pick' || S.sheet === 'dm-pick') && !S.people) await run(loadPeople);
   },
+  'fb-kind'(el) { const t = $('#fb-text'); S.fb = { kind: el.dataset.v, text: t ? t.value : '' }; render(); },
+  'fb-send': () => run(async () => {
+    const text = ($('#fb-text') || {}).value || '';
+    if (text.trim().length < 5) throw new Error('Напиши хотя бы пару слов');
+    const r = await post('/api/feedback', { kind: (S.fb || {}).kind || 'idea', text, tab: S.tab });
+    S.fb = { kind: (S.fb || {}).kind || 'idea', text: '' }; S.fbItems = r.items;
+    toast('Спасибо! Ответим здесь и пушем');
+  }),
   close() { S.sheet = null; S.error = ''; render(); },
   'close-bg'(el, e) { if (e.target === el) actions.close(); },
   'shop-gang'(el) { S.shopGang = Number(el.dataset.v); render(); },
@@ -2551,14 +2589,32 @@ document.addEventListener('visibilitychange', async () => {
 });
 
 // ---------- Старт ----------
+// Ссылки из пушей: #gang/ID, #crew/ID, #battle/ID, #feed, #feedback
+function applyHash(hash) {
+  if (hash.startsWith('#gang/')) { S.tab = 'chats'; S.chatGang = true; S.dm = null; S.activeGang = Number(hash.slice(6)) || S.activeGang; }
+  if (hash === '#feed') S.tab = 'office';
+  if (hash === '#crew' || hash === '#chats') S.tab = 'chats';
+  if (hash.startsWith('#crew/')) { S.tab = 'chats'; S.dm = Number(hash.slice(6)) || null; }
+  if (hash.startsWith('#battle/')) { S.tab = 'chats'; S.battle = Number(hash.slice(8)) || null; }
+}
+
+// Открытое приложение: пуш меняет только хэш, страница не перезагружается — разбираем его здесь
+window.addEventListener('hashchange', async () => {
+  const hash = location.hash;
+  if (!hash || !S.me || !S.me.nick || /^#(join|crew)=/i.test(hash)) return;
+  applyHash(hash);
+  history.replaceState(null, '', location.pathname + location.search);
+  if (hash === '#feedback') { S.sheet = 'feedback'; render(); await run(loadFeedback); return; }
+  S.sheet = null;
+  try { await refresh(); } catch {}
+  render();
+});
+
 async function boot() {
   await loadMe();
   const hash = location.hash;
-  if (hash.startsWith('#gang/')) { S.tab = 'chats'; S.chatGang = true; S.activeGang = Number(hash.slice(6)) || S.activeGang; }
-  if (hash === '#feed') S.tab = 'office';
-  if (hash === '#crew') S.tab = 'chats';
-  if (hash.startsWith('#crew/')) { S.tab = 'chats'; S.dm = Number(hash.slice(6)) || null; }
-  if (hash.startsWith('#battle/')) { S.tab = 'chats'; S.battle = Number(hash.slice(8)) || null; }
+  applyHash(hash);
+  const openFeedback = hash === '#feedback';
   const join = /^#join=([A-Z0-9]{6})$/i.exec(hash);
   if (join) store.set('pendingJoin', join[1]);
   const crewCode = /^#crew=([A-Z0-9]{6})$/i.exec(hash);
@@ -2577,6 +2633,7 @@ async function boot() {
     if (coachDone < 2) { S.coach = coachDone === 1 ? 3 : 1; S.coachStart = S.coach; }
     else if (!store.get('ia2', 0)) { S.sheet = 'whatsnew'; } // уже знакомы с приложением — коротко покажем, что поменялось
     syncPush().then(render).catch(() => {});
+    if (openFeedback) { S.sheet = 'feedback'; loadFeedback().then(render).catch(() => {}); }
   }
   if (hash) history.replaceState(null, '', location.pathname + (location.search.includes('login=') ? '' : location.search));
   render();
