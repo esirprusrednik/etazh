@@ -136,6 +136,15 @@ let winnerBeans = 0;
     assert.ok(ledger > 0);
   });
 
+  await step('реакции: только из списка, не чаще раза в 2,5 с, сопернику видно', async () => {
+    assert.equal((await a.post(`/api/battle/${id}/emote`, { e: 'хаха' })).status, 400);
+    assert.equal((await a.post(`/api/battle/${id}/emote`, { e: 'lol' })).status, 200);
+    assert.equal((await a.post(`/api/battle/${id}/emote`, { e: 'clap' })).status, 400);
+    const vb = (await b.get(`/api/battle/${id}`)).json;
+    assert.equal(vb.emotes.opp.e, 'lol');
+    assert.equal((await c.post(`/api/battle/${id}/emote`, { e: 'lol' })).status, 404);
+  });
+
   await step('новая партия и сдача: победа сопернику', async () => {
     const nid = (await b.post('/api/battle', { to: a.id })).json.id;
     assert.notEqual(nid, id);

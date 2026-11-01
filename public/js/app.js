@@ -215,6 +215,14 @@ function setBattleView(v) {
       S.bShout = { text: v.last.r === 'miss' ? `${v.opp.nick} промахнулся` : v.last.r === 'sunk' ? `${v.opp.nick} потопил твой корабль` : `${v.opp.nick} попал!`, cls: v.last.r, until: Date.now() + 1600, board: 'm' };
     }
   }
+  // Реакция соперника: показываем пузырь, если она новее последней увиденной
+  const oe = v.emotes && v.emotes.opp;
+  if (oe && oe.at !== S.bEmoteSeen && v.now - oe.at < 8000) {
+    S.bEmoteSeen = oe.at;
+    S.bEmote = { ...(S.bEmote || {}), opp: { e: oe.e, until: Date.now() + 3200 } };
+    setTimeout(() => { if (S.battle) render(); }, 3300);
+    if (navigator.vibrate) navigator.vibrate(20);
+  } else if (oe && S.bEmoteSeen == null) S.bEmoteSeen = oe.at;
   S.bv = v;
 }
 async function loadBattle() {
@@ -740,12 +748,26 @@ function renderBattleInvite(f) {
 }
 
 const B_COLS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К'];
+const EMOTES = { lol: ['😂', 'Ха-ха!'], angry: ['😡', 'Ну всё!'], bored: ['😴', 'Скукота'], smart: ['🧠', 'Умный ход'], oops: ['😱', 'Ой-ой'], clap: ['👏', 'Браво'], mercy: ['🙏', 'Пощади'], easy: ['😎', 'Изи'] };
+
+// Части корпуса: нос, середина, корма — чтобы корабль выглядел кораблём, а не набором квадратов
+function hullParts(ships) {
+  const m = new Map();
+  for (const sh of ships) {
+    if (sh.length === 1) { m.set(sh[0][0] * 10 + sh[0][1], 'solo'); continue; }
+    const horiz = sh[0][1] === sh[1][1];
+    const sorted = [...sh].sort((p, q) => (horiz ? p[0] - q[0] : p[1] - q[1]));
+    sorted.forEach(([x, y], i) => m.set(x * 10 + y, `${horiz ? 'h' : 'v'} ${i === 0 ? 'bow' : i === sorted.length - 1 ? 'stern' : 'mid'}`));
+  }
+  return m;
+}
+
 // Поле 10×10. kind: 'opp' — по нему стреляю я; 'me' — мой флот и выстрелы соперника
 function renderBoard(v, kind) {
   const shots = kind === 'opp' ? v.myShots : v.oppShots;
-  const ships = kind === 'me' ? v.myShips : (v.oppShips || []);
+  const shown = kind === 'me' ? v.myShips : (v.oppShips || v.oppSunk);
   const sunk = kind === 'opp' ? v.oppSunk : v.myShips.filter((sh) => sh.every(([x, y]) => v.oppShots.some((t) => t.x === x && t.y === y)));
-  const shipAt = new Map(); ships.forEach((sh, i) => sh.forEach(([x, y]) => shipAt.set(x * 10 + y, i)));
+  const hull = hullParts(shown);
   const sunkAt = new Set(); sunk.forEach((sh) => sh.forEach(([x, y]) => sunkAt.add(x * 10 + y)));
   const shotAt = new Map(shots.map((t) => [t.x * 10 + t.y, t]));
   const canShoot = kind === 'opp' && v.myTurn;
@@ -755,16 +777,17 @@ function renderBoard(v, kind) {
   for (let y = 0; y < 10; y++) for (let x = 0; x < 10; x++) {
     const k = x * 10 + y;
     const t = shotAt.get(k);
-    const isShip = shipAt.has(k);
     const cls = ['bc'];
-    if (isShip && (kind === 'me' || v.status === 'done')) cls.push(kind === 'me' ? 'ship' : 'ghost');
+    const part = hull.get(k);
+    if (part) cls.push('ship', ...part.split(' '), kind === 'opp' && !sunkAt.has(k) ? 'ghost' : '');
     if (t) cls.push(t.r === 'miss' ? (t.auto ? 'miss auto' : 'miss') : sunkAt.has(k) ? 'sunk' : 'hit');
     if (fresh.has(`${pre}:${x},${y}`) && !(t && t.auto)) cls.push('fresh');
     if (v.last && ((kind === 'opp' && v.last.mine) || (kind === 'me' && !v.last.mine)) && v.last.x === x && v.last.y === y) cls.push('lastshot');
     const label = `${B_COLS[x]}${y + 1}`;
+    const inner = t && t.r !== 'miss' ? `<i>${sunkAt.has(k) ? '' : '🔥'}</i>` : '';
     cells.push(canShoot && !t
       ? `<button class="${cls.join(' ')} aim" data-act="bshoot" data-x="${x}" data-y="${y}" aria-label="Выстрел в ${label}"></button>`
-      : `<span class="${cls.join(' ')}" aria-label="${label}${t ? (t.r === 'miss' ? ' мимо' : ' попадание') : ''}"></span>`);
+      : `<span class="${cls.join(' ').trim()}" aria-label="${label}${t ? (t.r === 'miss' ? ' мимо' : ' попадание') : ''}">${inner}</span>`);
   }
   const shout = S.bShout && Date.now() < S.bShout.until && S.bShout.board === pre ? `<div class="b-shout ${S.bShout.cls}">${esc(S.bShout.text)}</div>` : '';
   return `<div class="board-wrap ${kind}">
@@ -778,48 +801,70 @@ function fleetLeft(ships, shots) {
   const hit = new Set(shots.filter((t) => t.r !== 'miss').map((t) => t.x * 10 + t.y));
   return ships.map((sh) => ({ len: sh.length, sunk: sh.every(([x, y]) => hit.has(x * 10 + y)) }));
 }
+const fleetBars = (arr) => `<div class="fleet">${arr.sort((a, b) => b.len - a.len).map((s) => `<span class="fl ${s.sunk ? 'sunk' : ''}" title="${s.len}-палубный${s.sunk ? ', потоплен' : ''}">${'<i></i>'.repeat(s.len)}</span>`).join('')}</div>`;
+
+// Шапка «ты против соперника»: аватары, счёт, чей ход, пузыри реакций
+function renderVersus(v) {
+  const bubble = () => '';
+  const myTurn = v.status === 'play' && v.myTurn, oppTurn = v.status === 'play' && !v.myTurn;
+  return `<section class="b-vs">
+    <div class="vs-side ${myTurn ? 'turn' : ''}">${bubble('mine')}<span class="vs-ava">${avatar(S.me.look, 52)}</span><span class="vs-name">ты</span></div>
+    <div class="vs-mid"><div class="vs-score"><b>${v.score.me}</b><span>:</span><b>${v.score.opp}</b></div><div class="vs-cap">${v.status === 'setup' ? 'расстановка' : v.status === 'done' ? 'партия окончена' : myTurn ? 'твой ход' : 'ход соперника'}</div></div>
+    <div class="vs-side ${oppTurn ? 'turn' : ''}">${bubble('opp')}${tap(v.opp.id, `<span class="vs-ava">${avatar(v.opp.look, 52)}</span>`)}<span class="vs-name ellipsis">${esc(v.opp.nick)}</span></div>
+  </section>`;
+}
+
+// Пузыри реакций закреплены на экране: видно, даже если прокрутил к своему полю
+function renderEmoteLayer(v) {
+  const one = (who, look) => {
+    const e = S.bEmote && S.bEmote[who];
+    if (!e || Date.now() > e.until) return '';
+    const [em, label] = EMOTES[e.e] || ['', ''];
+    return `<div class="emo-float ${who}"><span class="emo-mini">${avatar(look, 30)}</span><span class="emo-bubble"><b>${em}</b><span>${esc(label)}</span></span></div>`;
+  };
+  return one('opp', v.opp.look) + one('mine', S.me.look);
+}
+
+function renderEmoteBar() {
+  return `<div class="b-emotes" role="group" aria-label="Реакции">${Object.entries(EMOTES).map(([k, [em, label]]) => `<button class="emo" data-act="bemote" data-v="${k}" aria-label="${label}" title="${label}">${em}</button>`).join('')}</div>`;
+}
 
 function renderBattle() {
   const v = S.bv;
   const back = `<button class="linkbtn back" data-act="battle-back">‹ К переписке</button>`;
   if (!v) return back + '<div class="card"><p class="sub">Открываем поле…</p></div>';
-  const head = `<section class="card b-head">
-    <div class="row">${tap(v.opp.id, `<span class="ava-wrap">${avatar(v.opp.look, 36)}</span>`)}
-      <div class="grow" style="min-width:0"><div class="eyebrow">Морской бой</div><div style="font-weight:900;font-size:17px" class="ellipsis">ты против ${esc(v.opp.nick)}</div></div>
-      <div class="b-score" title="Счёт ваших партий"><b>${v.score.me}</b>:<b>${v.score.opp}</b></div></div>
-  </section>`;
   if (v.status === 'setup') {
-    return `${back}${head}
-    <section class="card">
-      <span class="card-title">${v.ready ? 'Флот расставлен' : 'Расставь флот'}</span>
-      <p class="sub" style="margin:0">${v.ready ? (v.oppReady ? 'Начинаем…' : `Ждём, пока ${esc(v.opp.nick)} расставит корабли. Придёт уведомление.`) : 'Корабли стоят случайно. Не нравится — перемешай. Когда готов, жми «В бой».'}</p>
+    return `${back}${renderEmoteLayer(v)}${renderVersus(v)}
+    <section class="b-sea">
+      <div class="sea-title">${v.ready ? 'Флот расставлен' : 'Расставь флот'}</div>
+      <p class="sea-sub">${v.ready ? (v.oppReady ? 'Начинаем…' : `Ждём, пока ${esc(v.opp.nick)} расставит корабли. Придёт уведомление.`) : 'Корабли стоят случайно. Не нравится — перемешай. Готов — жми «В бой!».'}</p>
       ${renderBoard(v, 'me')}
-      ${v.ready ? '' : `<div class="row"><button class="btn ghost grow" data-act="bshuffle">Перемешать</button><button class="btn grow" data-act="bready">В бой!</button></div>`}
-      <button class="linkbtn" data-act="bresign" style="align-self:center">Отказаться от партии</button>
-    </section>`;
+      ${v.ready ? '' : `<div class="row"><button class="btn ghost grow" data-act="bshuffle">🎲 Перемешать</button><button class="btn grow" data-act="bready">⚓ В бой!</button></div>`}
+    </section>
+    ${renderEmoteBar()}
+    <button class="linkbtn b-quit" data-act="bresign">Отказаться от партии</button>`;
   }
   const done = v.status === 'done';
   const banner = done
     ? `<div class="b-banner ${v.winner === 'me' ? 'win' : 'lose'}">${v.winner === 'me' ? (v.resigned ? `🏆 ${esc(v.opp.nick)} сдался. Победа!` : '🏆 Победа! Весь флот соперника на дне') : (v.resigned ? 'Ты сдался. Бывает' : `💥 ${esc(v.opp.nick)} потопил твой флот`)}</div>`
     : v.myTurn ? '<div class="b-banner go">🎯 Твой ход — стреляй по полю соперника</div>'
     : `<div class="b-banner wait">⏳ Ход ${esc(v.opp.nick)}. Придёт уведомление, когда выстрелит</div>`;
-  const left = (arr) => arr.sort((a, b) => b.len - a.len).map((s) => `<span class="fl ${s.sunk ? 'sunk' : ''}" style="width:${s.len * 9 + (s.len - 1) * 2}px" title="${s.len}-палубный${s.sunk ? ', потоплен' : ''}"></span>`).join('');
   const oppFleet = v.fleet.map((len) => ({ len, sunk: false }));
-  // отмечаем потопленные по размерам
   for (const sh of v.oppSunk) { const f = oppFleet.find((x) => x.len === sh.length && !x.sunk); if (f) f.sunk = true; }
-  return `${back}${head}
+  return `${back}${renderEmoteLayer(v)}${renderVersus(v)}
   ${banner}
-  <section class="card b-card">
-    <div class="row" style="justify-content:space-between"><span class="card-title">Поле ${esc(v.opp.nick)}</span><span class="small">осталось кораблей: ${v.oppLeft}</span></div>
-    <div class="fleet">${left(oppFleet)}</div>
+  <section class="b-sea">
+    <div class="row" style="justify-content:space-between"><span class="sea-title">Воды ${esc(v.opp.nick)}</span><span class="sea-sub">на плаву: ${v.oppLeft}</span></div>
+    ${fleetBars(oppFleet)}
     ${renderBoard(v, 'opp')}
   </section>
-  <section class="card b-card">
-    <div class="row" style="justify-content:space-between"><span class="card-title">Мой флот</span><span class="small">цел: ${v.myLeft} из ${v.fleet.length}</span></div>
-    <div class="fleet">${left(fleetLeft(v.myShips, v.oppShots))}</div>
+  ${renderEmoteBar()}
+  <section class="b-sea mine">
+    <div class="row" style="justify-content:space-between"><span class="sea-title">Мой флот</span><span class="sea-sub">цел: ${v.myLeft} из ${v.fleet.length}</span></div>
+    ${fleetBars(fleetLeft(v.myShips, v.oppShots))}
     ${renderBoard(v, 'me')}
   </section>
-  ${done ? `<button class="btn wide" data-act="battle-new" data-id="${v.opp.id}">Реванш</button>` : '<button class="linkbtn" data-act="bresign" style="margin:4px auto 0;display:block;color:#C9D3EA">Сдаться</button>'}`;
+  ${done ? `<button class="btn wide" data-act="battle-new" data-id="${v.opp.id}">Реванш</button>` : '<button class="linkbtn b-quit" data-act="bresign">Сдаться</button>'}`;
 }
 
 function renderDmMsg(m, f) {
@@ -1425,6 +1470,14 @@ const actions = {
     if (opp && S.crew && S.crew.list.some((x) => x.id === opp)) { S.dm = opp; await loadDm(); } else S.dm = null;
     await loadCrew();
   }),
+  bemote: (el) => {
+    const e = el.dataset.v;
+    if (S.bEmoteAt && Date.now() - S.bEmoteAt < 2500) return;
+    S.bEmoteAt = Date.now();
+    S.bEmote = { ...(S.bEmote || {}), mine: { e, until: Date.now() + 3200 } };
+    render(); setTimeout(() => { if (S.battle) render(); }, 3300);
+    post(`/api/battle/${S.battle}/emote`, { e }).catch(() => {});
+  },
   bshuffle: () => run(async () => { S.bv = await post(`/api/battle/${S.battle}/shuffle`); }),
   bready: () => run(async () => { S.bv = await post(`/api/battle/${S.battle}/ready`); }),
   bresign: () => run(async () => {
@@ -1736,10 +1789,10 @@ setInterval(async () => {
 setInterval(async () => {
   const v = S.bv;
   if (document.hidden || !S.me || S.tab !== 'crew' || !S.battle || !v || S.sheet || S.bBusy) return;
-  if (v.status === 'done' || (v.status === 'play' && v.myTurn) || (v.status === 'setup' && !v.ready)) return;
   try {
     const nv = await get(`/api/battle/${S.battle}`);
-    if (nv.seq !== v.seq || nv.oppReady !== v.oppReady) {
+    const oe = nv.emotes && nv.emotes.opp;
+    if (nv.seq !== v.seq || nv.oppReady !== v.oppReady || (oe && oe.at !== S.bEmoteSeen)) {
       setBattleView(nv); render();
       setTimeout(() => { if (S.battle) render(); }, 1700);
       if (navigator.vibrate && nv.last && !nv.last.mine && nv.last.r !== 'miss') navigator.vibrate([40, 30, 40]);

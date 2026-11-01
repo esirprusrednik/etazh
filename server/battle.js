@@ -9,6 +9,9 @@ const FLEET = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1];
 const MAX_ACTIVE = 10;          // одновременных партий у одного человека
 const DONE_TTL_DAYS = 7;        // законченная партия хранится неделю (чтобы посмотреть итог)
 const IDLE_TTL_DAYS = 30;       // партия, где месяц никто не ходил, удаляется
+// Реакции во время партии — как эмоуты в Clash Royale. Только из списка, без свободного текста
+const EMOTES = ['lol', 'angry', 'bored', 'smart', 'oops', 'clap', 'mercy', 'easy'];
+const EMOTE_GAP_MS = 2500;      // не чаще одной реакции в 2,5 секунды
 
 // ---------- Чистая логика (экспортируется для тестов) ----------
 const inside = (x, y) => x >= 0 && y >= 0 && x < N && y < N;
@@ -89,6 +92,12 @@ function register(ctx) {
   );
   CREATE INDEX IF NOT EXISTS battles_a ON battles(a, status);
   CREATE INDEX IF NOT EXISTS battles_b ON battles(b, status);
+  CREATE TABLE IF NOT EXISTS battle_emotes (
+    battle_id INTEGER NOT NULL REFERENCES battles(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    emote TEXT NOT NULL, at INTEGER NOT NULL,
+    PRIMARY KEY (battle_id, user_id)
+  );
   CREATE TABLE IF NOT EXISTS battle_scores (
     lo INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     hi INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -145,7 +154,10 @@ function register(ctx) {
       resigned: !!g.resigned,
       last: last ? { mine: last.by === uid, x: last.x, y: last.y, r: last.r } : null,
       score: score(uid, oppId),
-      fleet: FLEET
+      fleet: FLEET,
+      emotes: Object.fromEntries(q('SELECT user_id, emote, at FROM battle_emotes WHERE battle_id = ?').all(g.id)
+        .map((r) => [r.user_id === uid ? 'mine' : 'opp', { e: r.emote, at: r.at }])),
+      now: U.now()
     };
   }
 
@@ -243,6 +255,19 @@ function register(ctx) {
     }
     else if (res.result === 'miss') ping(g[o], g.id, `${u.nick} промахнулся. Твой ход!`);
     return { result: res.result, beans: res.beans || 0, view: view(load(g.id, u.id), u.id) };
+  });
+
+  route('POST', '/api/battle/:id/emote', async (req, body, query, params) => {
+    const u = requireUser(req);
+    const g = load(params.id, u.id);
+    const e = String(body.e || '');
+    if (!EMOTES.includes(e)) throw bad('Такой реакции нет.');
+    const last = q('SELECT at FROM battle_emotes WHERE battle_id = ? AND user_id = ?').get(g.id, u.id);
+    const t = U.now();
+    if (last && t - last.at < EMOTE_GAP_MS) throw bad('Не так часто 🙂');
+    q(`INSERT INTO battle_emotes (battle_id, user_id, emote, at) VALUES (?, ?, ?, ?)
+       ON CONFLICT(battle_id, user_id) DO UPDATE SET emote = excluded.emote, at = excluded.at`).run(g.id, u.id, e, t);
+    return { ok: true, at: t };
   });
 
   route('POST', '/api/battle/:id/resign', async (req, body, query, params) => {
