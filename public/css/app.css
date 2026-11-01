@@ -402,3 +402,32 @@ body { font-weight: 500; }
 .b-shout.hit { background: #E5484D; } .b-shout.sunk { background: #8A1C12; } .b-shout.miss { background: #2563C9; }
 @keyframes b-shout { 0% { transform: translate(-50%, -50%) scale(.4); opacity: 0; } 15% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; } 25% { transform: translate(-50%, -50%) scale(1); } 80% { opacity: 1; } 100% { transform: translate(-50%, -80%); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .bc.fresh, .bc.fresh::before, .bc.fresh::after, .board, .b-shout, .battle-invite.hot, .vs-side.turn .vs-ava, .emo-float, .emo-bubble b { animation: none !important; } }
+
+/* ---- Шапка: подсказки, что аватар и зёрна нажимаются ---- */
+.nick-row { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.chev { flex: none; font-size: 20px; line-height: 1; font-weight: 900; color: #8FA7CF; transform: translateY(-1px); }
+.who:active .me-ava, .who:active .nick-row { transform: scale(.96); }
+.pring.sm { padding: 3px; }
+.pring.sm > .ava { border-width: 2px !important; }
+.beans3d { position: relative; }
+.bcart { display: inline-flex; margin-left: 2px; padding-left: 7px; border-left: 2px solid rgba(26,37,71,.18); opacity: .8; }
+.bdot { position: absolute; top: -3px; right: -3px; width: 13px; height: 13px; border-radius: 50%; background: #E5484D; border: 2px solid var(--bg); animation: bdot-in .4s ease both; }
+@keyframes bdot-in { from { transform: scale(0); } 60% { transform: scale(1.3); } to { transform: scale(1); } }
+.beans3d.gain { animation: bean-pulse .5s ease 2; }
+@keyframes bean-pulse { 50% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(255,201,60,.3); } }
+.bplus { position: absolute; left: 50%; top: 100%; transform: translateX(-50%); padding: 2px 8px; border-radius: 999px; background: var(--green); color: #fff; font-size: 13px; font-weight: 900; white-space: nowrap; pointer-events: none; animation: bplus-up 1.4s ease both; }
+@keyframes bplus-up { 0% { opacity: 0; transform: translate(-50%, 6px) scale(.6); } 15% { opacity: 1; transform: translate(-50%, 4px) scale(1.1); } 70% { opacity: 1; transform: translate(-50%, 8px); } 100% { opacity: 0; transform: translate(-50%, 16px); } }
+/* подсказка первого запуска */
+.coach-bg { position: fixed; inset: 0; z-index: 30; background: rgba(8,14,32,.72); }
+.top:has(.coach-focus) { z-index: 31; }
+.top:has(.coach-focus) .who, .top:has(.coach-focus) .beans3d { opacity: .25; pointer-events: none; }
+.top .who:has(.coach-focus), .top .beans3d.coach-focus { opacity: 1; pointer-events: auto; }
+.coach-focus { animation: coach-ring 1.4s ease-in-out infinite; border-radius: 999px; }
+@keyframes coach-ring { 50% { box-shadow: 0 0 0 6px rgba(255,201,60,.45); } }
+.coach-tip { position: fixed; z-index: 32; top: calc(78px + env(safe-area-inset-top)); width: min(300px, calc(100% - 32px)); padding: 14px; border-radius: 18px; background: #fff; color: var(--ink); box-shadow: 0 12px 30px rgba(0,0,0,.4); display: flex; flex-direction: column; gap: 6px; animation: coach-in .3s ease both; }
+.coach-tip.left { left: max(16px, calc(50% - 224px)); } .coach-tip.right { right: max(16px, calc(50% - 224px)); }
+.coach-tip::before { content: ''; position: absolute; bottom: 100%; border: 9px solid transparent; border-bottom-color: #fff; }
+.coach-tip.left::before { left: 22px; } .coach-tip.right::before { right: 30px; }
+.coach-tip b { font-size: 16px; } .coach-tip p { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.35; }
+@keyframes coach-in { from { opacity: 0; transform: translateY(-6px); } }
+@media (prefers-reduced-motion: reduce) { .beans3d.gain, .bplus, .coach-focus, .bdot { animation: none !important; } }

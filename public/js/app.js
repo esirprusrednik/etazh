@@ -276,10 +276,16 @@ function render() {
   const sheetEl = document.querySelector('.sheet');
   const keepSheet = sheetEl && S.lastSheet === S.sheet ? sheetEl.scrollTop : 0;
   S.lastSheet = S.sheet;
+  // Зёрна прибавились — покажем «+N» и пересчитаем число вверх
+  if (S.me && S.me.nick) {
+    if (S.shownBeans != null && S.me.beans > S.shownBeans && !S.beanFx) S.beanFx = { from: S.shownBeans, to: S.me.beans, fresh: true };
+    S.shownBeans = S.me.beans;
+  }
   if (!S.me) root.innerHTML = renderLogin();
   else if (!S.me.nick) root.innerHTML = renderNick();
   else root.innerHTML = renderApp();
   window.scrollTo(0, keepScroll);
+  if (S.beanFx && S.beanFx.fresh) runBeanFx();
   if (focused) {
     const el = document.getElementById(focused.id);
     if (el) { el.value = focused.v; el.focus({ preventScroll: true }); try { el.setSelectionRange(focused.s, focused.s); } catch {} }
@@ -351,17 +357,18 @@ function renderApp() {
   <div class="app">
     <header class="top">
       <button class="who" data-act="open" data-v="profile" aria-label="Мой профиль, уровень ${me.level || 1}">
-        <span class="me-ava">${avatar(me.look, 40)}<span class="lvl" aria-hidden="true">${me.level || 1}</span></span>
+        <span class="me-ava ${S.coach === 1 ? 'coach-focus' : ''}">${me.completion && me.completion.pct < 100 ? `<span class="pring sm" style="--p:${me.completion.pct}" title="Профиль заполнен на ${me.completion.pct}%">${avatar(me.look, 40)}</span>` : avatar(me.look, 40)}<span class="lvl" aria-hidden="true">${me.level || 1}</span></span>
         <span style="min-width:0;display:flex;flex-direction:column;gap:3px">
-          <span class="nick">${esc(me.nick)}</span>
+          <span class="nick-row"><span class="nick">${esc(me.nick)}</span><span class="chev" aria-hidden="true">›</span></span>
           <span class="row" style="gap:6px">
             ${me.status ? `<span class="status-chip">${esc(me.status)}</span>` : ''}
             ${me.streak ? `<span class="streak" title="Дней подряд с отметкой в офисе">${FLAME}${me.streak} ${plural(me.streak, 'день', 'дня', 'дней')}</span>` : ''}
           </span>
         </span>
       </button>
-      <button class="beans3d" data-act="open" data-v="shop" aria-label="Зёрна: ${me.beans}. Открыть лавку">${BEAN}<span>${me.beans}</span></button>
+      <button class="beans3d ${S.beanFx ? 'gain' : ''} ${S.coach === 2 ? 'coach-focus' : ''}" data-act="open" data-v="shop" aria-label="Зёрна: ${me.beans}. Открыть лавку${shopDot() ? '. Есть что купить' : ''}">${BEAN}<span class="bnum">${S.beanFx ? S.beanFx.from : me.beans}</span><span class="bcart"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11h10.2L20 8H6.3"/><circle cx="9.5" cy="19.5" r="1.4"/><circle cx="16.5" cy="19.5" r="1.4"/></svg></span>${shopDot() ? '<span class="bdot" aria-hidden="true"></span>' : ''}${S.beanFx ? `<span class="bplus" aria-hidden="true">+${S.beanFx.to - S.beanFx.from}</span>` : ''}</button>
     </header>
+    ${renderCoach()}
     <main>
       ${showBanner ? `<div class="banner">
         <div class="grow"><div style="font-weight:900;font-size:15px">Установи на телефон</div><div style="font-size:12px;font-weight:600">Иконка на экране — и придут зовы банды</div></div>
@@ -1146,6 +1153,41 @@ function renderQuiz() {
   </section>`;
 }
 
+function runBeanFx() {
+  const fx = S.beanFx; fx.fresh = false;
+  const t0 = performance.now(), dur = 700;
+  const step = (t) => {
+    const el = document.querySelector('.beans3d .bnum');
+    const k = Math.min(1, (t - t0) / dur);
+    if (el) el.textContent = Math.round(fx.from + (fx.to - fx.from) * (1 - Math.pow(1 - k, 3)));
+    if (k < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+  setTimeout(() => {
+    if (S.beanFx !== fx) return;
+    S.beanFx = null;
+    const b = document.querySelector('.beans3d');
+    if (b) { b.classList.remove('gain'); const p = b.querySelector('.bplus'); if (p) p.remove(); const n = b.querySelector('.bnum'); if (n && S.me) n.textContent = S.me.beans; }
+  }, 1500);
+}
+
+// Точка на зёрнах: появилось что-то новое, на что хватает. Гаснет, когда заглянул в Лавку
+function shopDot() {
+  const aff = (S.me && S.me.affordable) || [];
+  const seen = new Set(store.get('shopSeen', []));
+  return aff.some((id) => !seen.has(id));
+}
+// Подсказка при первом запуске: где профиль и куда тратить зёрна. Один раз
+function renderCoach() {
+  if (!S.coach || S.sheet) return '';
+  const tip = S.coach === 1
+    ? { cls: 'left', title: 'Это твой профиль', text: 'Нажми на аватар или ник: внешность, имя, план недели, ачивки. Зелёное кольцо — насколько профиль заполнен.' }
+    : { cls: 'right', title: 'Это твои зёрна', text: 'Их дают за отметки, ответы и квизы. Нажми — откроется Лавка со статусами и рамками.' };
+  return `<div class="coach-bg" data-act="coach-next"></div>
+    <div class="coach-tip ${tip.cls}" role="dialog" aria-label="${esc(tip.title)}"><b>${esc(tip.title)}</b><p>${esc(tip.text)}</p>
+      <div class="row" style="justify-content:space-between"><span class="small">${S.coach} из 2</span><button class="btn small" data-act="coach-next">${S.coach === 1 ? 'Дальше' : 'Понятно'}</button></div></div>`;
+}
+
 // Кольцо заполненности профиля вокруг аватара
 function progressRing(pct, inner) {
   return `<span class="pring" style="--p:${pct}">${inner}<span class="pring-num">${pct}%</span></span>`;
@@ -1566,7 +1608,7 @@ const actions = {
     S.sheet = el.dataset.v; S.error = '';
     if (S.sheet === 'signal') S.signal = {};
     render();
-    if (S.sheet === 'shop') await run(async () => { S.shop = await get('/api/shop'); if (S.activeGang && !S.gang) await loadGang(); });
+    if (S.sheet === 'shop') { store.set('shopSeen', [...new Set([...store.get('shopSeen', []), ...((S.me && S.me.affordable) || [])])]); await run(async () => { S.shop = await get('/api/shop'); if (S.activeGang && !S.gang) await loadGang(); }); }
     if (S.sheet === 'profile' || S.sheet === 'lunch') await run(loadFeatures);
   },
   close() { S.sheet = null; S.error = ''; render(); },
@@ -1665,6 +1707,7 @@ const actions = {
     if (r.beans) { toast(`Верно! +${r.beans} зёрна`); loadMe().then(render).catch(() => {}); }
   }),
   // Шаг из карточки «заполни профиль»: раскрываем нужный раздел, прокручиваем к нему и ставим курсор в поле
+  'coach-next'() { if (S.coach === 1) S.coach = 2; else { S.coach = 0; store.set('coachDone', 1); } render(); },
   'open-sec'(el) {
     const v = el.dataset.v;
     const wasOpen = S.sheet === 'profile';
@@ -1835,6 +1878,7 @@ async function boot() {
       try { const r = await post('/api/crew/add', { code: pendingCrew }); toast(r.accepted ? 'Теперь вы подельники!' : r.already ? 'Вы уже подельники' : 'Заявка ушла. Ждём ответа'); } catch (e) { toast(e.message); }
     }
     await refresh({ all: true });
+    if (!store.get('coachDone', 0)) S.coach = 1;
     syncPush().then(render).catch(() => {});
   }
   if (hash) history.replaceState(null, '', location.pathname + (location.search.includes('login=') ? '' : location.search));

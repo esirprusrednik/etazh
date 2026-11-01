@@ -379,9 +379,12 @@ function createApi(db) {
     const earned = q('SELECT COALESCE(SUM(amount), 0) AS s FROM ledger WHERE user_id = ? AND amount > 0').get(u.id).s;
     const level = 1 + Math.floor(Math.sqrt(earned / 15));
     const completion = profileCompletion(u.look, u.profile, !!q('SELECT 1 FROM push_subs WHERE user_id = ?').get(u.id));
+    // Что из Лавки уже по карману и ещё не куплено — для точки на плашке зёрен
+    const affordable = SHOP.filter((it) => it.kind !== 'gang' && !owned.includes(it.id) && it.price <= u.beans
+      && (!it.limit || q('SELECT COUNT(*) AS n FROM owned WHERE item_id = ?').get(it.id).n < it.limit)).map((it) => it.id);
     return {
       user: {
-        completion,
+        completion, affordable,
         id: u.id, nick: u.nick, beans: u.beans, look: u.look, profile: u.profile, shareOffice: !!u.share_office, quiet: !!u.quiet,
         welcomed: !!u.welcomed, isAdmin: u.isAdmin, owned, status: statusName(u.look.status), streak, level,
         nickChangeableAt: u.nick_changed_at ? u.nick_changed_at + 30 * 864e5 : null,
