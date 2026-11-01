@@ -40,7 +40,12 @@ const SHOP = [
   { id: 'fr_gold', kind: 'frame', name: 'Золотая рамка', price: 60, color: '#FFC93C' },
   { id: 'fr_neon', kind: 'frame', name: 'Неоновая рамка', price: 80, color: '#22D3EE' },
   { id: 'fr_fire', kind: 'frame', name: 'Огненная рамка', price: 120, color: '#F97316' },
-  { id: 'crown', kind: 'crown', name: 'Корона', price: 150 },
+  { id: 'crown', kind: 'crown', name: 'Корона «Сотрудник месяца»', price: 150 },
+  // Детали для конструктора аватара: покупаешь один раз, надеваешь в конструкторе
+  { id: 'p_sign', kind: 'part', slot: 'prop', value: 'sign', name: 'Табличка «Я на совещании»', price: 30 },
+  { id: 'p_laptop', kind: 'part', slot: 'prop', value: 'laptop', name: 'Ноутбук в наклейках', price: 40 },
+  { id: 'p_mug_best', kind: 'part', slot: 'prop', value: 'mug_best', name: 'Кружка «Лучший сотрудник»', price: 60 },
+  { id: 'p_tie_gold', kind: 'part', slot: 'neck', value: 'tie_gold', name: 'Золотой галстук начальника', price: 50 },
   { id: 'g_gold', kind: 'gang', name: 'Позолоченное знамя', price: 100 },
   { id: 'g_motto', kind: 'gang', name: 'Девиз банды', price: 40 }
 ];
@@ -62,4 +67,26 @@ const EARN = {
 const GANG_DEPOSIT = 50;
 const GANG_COLORS = ['#E5484D', '#2563C9', '#1F7A3A', '#8B5CF6', '#F97316'];
 
-module.exports = { MOODS, CALLS, SIGNALS, SHOP, EARN, GANG_DEPOSIT, GANG_COLORS };
+// Мем-открытки: ситуации с готовыми подписями. Свободного текста нет — значит, нет и модерации
+const MEMES = [
+  { id: 'call', caption: 'Этот созвон мог быть письмом', bg: ['#3A7BD5', '#1E3C72'] },
+  { id: 'friday', caption: 'Пятница, 17:59', bg: ['#F97316', '#B8333A'] },
+  { id: 'report', caption: 'Снова квартальный отчёт', bg: ['#6D3FD6', '#2E1A6B'] },
+  { id: 'meeting', caption: 'Я на совещании. Опять', bg: ['#0E7490', '#073B4C'] },
+  { id: 'coffee', caption: 'Кофе — мой главный KPI', bg: ['#8B5A2B', '#3E2410'] },
+  { id: 'remote', caption: 'Работаю из дома. Почти', bg: ['#2FA84F', '#145228'] },
+  { id: 'printer', caption: 'Принтер, мы же договаривались', bg: ['#4B5563', '#1F2937'] },
+  { id: 'best', caption: 'Сотрудник месяца. Сам себя наградил', bg: ['#F4C430', '#C2410C'] },
+  { id: 'deadline', caption: 'Дедлайн вчера, а я спокоен', bg: ['#E5484D', '#7F1D1D'] },
+  { id: 'excel', caption: 'Сводная сошлась с первого раза', bg: ['#1F7A3A', '#0B3D1E'] },
+  { id: 'thanks', caption: 'Спасибо, что ты есть в банде', bg: ['#FF6FA8', '#9D174D'] }
+];
+const MEME_EMOS = {
+  joy: { label: 'Радость', mouth: 'grin', eyeShape: 'happy' },
+  tired: { label: 'Устал', mouth: 'neutral', eyeShape: 'tired' },
+  shock: { label: 'Шок', mouth: 'wow', eyeShape: 'wide' },
+  sly: { label: 'Хитрость', mouth: 'smirk', eyeShape: 'sly' },
+  calm: { label: 'Как есть', mouth: null, eyeShape: null }
+};
+
+module.exports = { MOODS, CALLS, SIGNALS, SHOP, EARN, GANG_DEPOSIT, GANG_COLORS, MEMES, MEME_EMOS };

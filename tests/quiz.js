@@ -123,6 +123,34 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.ok((await d.get('/api/features')).json.achievements.find((x) => x.id === 'profile_full').got);
   });
 
+  await step('конструктор: новые детали, платные только после покупки, образ для отпуска', async () => {
+    assert.equal((await a.post('/api/me/profile', { look: { outfit: 'suit', neck: 'tie', hat: 'headset', eyeShape: 'tired', prop: 'mug' } })).status, 200);
+    let look = (await a.get('/api/me')).json.user.look;
+    assert.equal(look.outfit, 'suit'); assert.equal(look.prop, 'mug');
+    assert.equal((await a.post('/api/me/profile', { look: { prop: 'laptop' } })).status, 400, 'ноутбук не куплен');
+    await boss.post('/api/me/profile', {});
+    const buy = await a.post('/api/shop/buy', { item: 'p_sign' });
+    assert.equal(buy.status, 200);
+    assert.equal((await a.post('/api/me/profile', { look: { prop: 'sign' } })).status, 200);
+    assert.equal((await a.post('/api/me/profile', { profile: { vacationLook: { outfit: 'tee', hat: 'cap', prop: 'none' } } })).status, 200);
+    const today = new Date(Date.now() + (12 - new Date().getUTCHours()) * 3600e3).toISOString().slice(0, 10);
+    await a.post('/api/me/profile', { shareOffice: true, profile: { vacations: [{ from: today, to: today }] } });
+    const m = (await b.get(`/api/gangs/${g.id}`)).json.members.find((x) => x.id === a.id);
+    assert.equal(m.where, 'vacation'); assert.equal(m.look.hat, 'cap', 'в отпуске банда видит отпускной образ');
+  });
+
+  await step('мем-открытка подельнику: только из списка, в переписке виден аватар', async () => {
+    await a.post('/api/crew/add', { nick: 'ночной_филин' });
+    await b.post(`/api/crew/${a.id}/accept`);
+    assert.equal((await a.post(`/api/crew/${b.id}/messages`, { type: 'meme', kind: 'нет', opt: 'joy' })).status, 400);
+    assert.equal((await a.post(`/api/crew/${b.id}/messages`, { type: 'meme', kind: 'friday', opt: 'joy' })).status, 200);
+    const v = (await b.get(`/api/crew/${a.id}`)).json;
+    const mm = v.messages.find((x) => x.type === 'meme');
+    assert.equal(mm.kind, 'friday'); assert.ok(mm.look && mm.look.outfit); assert.equal(mm.text, null);
+    const list = (await b.get('/api/crew')).json.list[0];
+    assert.ok(list.last.text.includes('Пятница'));
+  });
+
   console.log(`\nВсё прошло: ${passed} проверок`);
 })()
   .catch((e) => { console.error('\nПровал:', e.message, '\n--- лог ---\n' + log.slice(-2000)); process.exitCode = 1; })

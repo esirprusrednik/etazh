@@ -2,7 +2,7 @@
 // Дружба взаимная (заявка → принять), переписка и зовы видны только двоим.
 // Модератор видит личное сообщение, только если получатель на него пожаловался.
 // Подключается из api.js через register(ctx), как features.js.
-const { CALLS } = require('./catalog');
+const { CALLS, MEMES, MEME_EMOS } = require('./catalog');
 
 const DM_TTL_DAYS = 7;          // сколько живут личные сообщения
 const MAX_CREW = 50;            // подельников у одного человека
@@ -95,6 +95,7 @@ function register(ctx) {
   function preview(m) {
     if (!m) return null;
     if (m.type === 'call') return (CALLS[m.kind] || {}).verb || 'зов';
+    if (m.type === 'meme') return '🖼 мем: «' + ((MEMES.find((x) => x.id === m.kind) || {}).caption || '') + '»';
     return m.text;
   }
 
@@ -243,7 +244,8 @@ function register(ctx) {
         return {
           id: m.id, type: m.type, kind: m.kind, mine, at: m.at,
           time: d.day === today ? d.hhmm : `${d.day.slice(8, 10)}.${d.day.slice(5, 7)} ${d.hhmm}`,
-          text: m.text, opt: m.opt, callText: def ? def.verb : null, reply: m.reply,
+          text: m.type === 'meme' ? null : m.text, look: m.type === 'meme' ? JSON.parse(m.text || '{}') : undefined,
+          opt: m.opt, callText: def ? def.verb : null, reply: m.reply,
           read: mine ? !!m.read_at : undefined,
           canReply: !!def && !mine && !m.reply, replyOptions: def && !mine && !m.reply ? def.replies : []
         };
@@ -266,6 +268,16 @@ function register(ctx) {
       ins.run(lo, hi, u.id, f.id, 'text', null, null, text, U.now());
       // Текст в пуш не кладём: уведомление видно на заблокированном экране
       fireAndForget(notify([f.id], { title: u.nick, body: 'Личное сообщение', url: `/#crew/${u.id}`, tag: `dm-${u.id}` }));
+      return { ok: true };
+    }
+    // Мем-открытка: аватар отправителя (как он есть сейчас), ситуация и эмоция из списка
+    if (body.type === 'meme') {
+      if (!MEMES.some((x) => x.id === body.kind) || !MEME_EMOS[body.opt]) throw bad('Выбери ситуацию и эмоцию из списка.');
+      if (q("SELECT COUNT(*) AS n FROM dms WHERE from_id = ? AND to_id = ? AND type = 'meme' AND at > ?").get(u.id, f.id, U.now() - 3600e3).n >= 10) {
+        throw bad('Не больше 10 мемов в час одному подельнику.');
+      }
+      ins.run(lo, hi, u.id, f.id, 'meme', body.kind, body.opt, JSON.stringify(u.look || {}), U.now());
+      fireAndForget(notify([f.id], { title: u.nick, body: 'Прислал мем-открытку', url: `/#crew/${u.id}`, tag: `dm-${u.id}` }));
       return { ok: true };
     }
     const def = CALLS[body.kind];

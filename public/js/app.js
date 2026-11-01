@@ -104,12 +104,99 @@ const BEARDS = {
   goatee: (h) => `<path d="M45 60.5 Q50 59.5 55 60.5 Q55.5 66.5 50 68 Q44.5 66.5 45 60.5 Z" fill="${h}"/><path d="${MUSTACHE}" fill="${h}"/>`
 };
 
-function avatar(look = {}, size = 42, zoom = false) {
+// ---- Слои одежды, шеи, головы, глаз и предметов. Каждый — отдельная функция: новые детали добавляются без переделки ----
+function outfitLayer(o, hood, skin) {
+  const body = 'M12 104 Q14 74 50 71 Q86 74 88 104 Z';
+  const shadeR = '<path d="M50 71 Q86 74 88 104 L62 104 Q66 86 50 80 Z" fill="#000" opacity=".1"/>';
+  const neck = `<rect x="44" y="58" width="12" height="17" rx="3" fill="${skin}"/><ellipse cx="50" cy="64.5" rx="7" ry="3.2" fill="#000" opacity=".12"/>`;
+  if (o === 'tee' || o === 'dev') {
+    const c = o === 'dev' ? '#262B36' : hood;
+    return `<path d="${body}" fill="${c}"/>${shadeR}${neck}<path d="M41.5 72.5 Q50 80 58.5 72.5" fill="none" stroke="${shade(c, -0.3)}" stroke-width="2.6" stroke-linecap="round"/>`
+      + (o === 'dev' ? '<text x="50" y="94" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-size="10" font-weight="900" fill="#7CFFB2">&lt;/&gt;</text>' : '');
+  }
+  if (o === 'shirt') {
+    const c = shade(hood, 0.8);
+    return `<path d="${body}" fill="${c}"/>${shadeR}${neck}<path d="M50 80 L50 104" stroke="${shade(c, -0.12)}" stroke-width="1.2"/>
+      <circle cx="50" cy="86" r=".9" fill="${shade(c, -0.3)}"/><circle cx="50" cy="93" r=".9" fill="${shade(c, -0.3)}"/><circle cx="50" cy="100" r=".9" fill="${shade(c, -0.3)}"/>
+      <path d="M43.5 71.5 L50 80 L40.5 79 Z M56.5 71.5 L50 80 L59.5 79 Z" fill="#fff" stroke="${shade(c, -0.18)}" stroke-width="1" stroke-linejoin="round"/>`;
+  }
+  if (o === 'suit') {
+    const c = shade(hood, -0.45);
+    return `<path d="${body}" fill="${c}"/>${shadeR}${neck}<path d="M42 72 L50 92 L58 72 Q54 71 50 71 Q46 71 42 72 Z" fill="#F4F6FA"/>
+      <path d="M43.5 71.5 L50 79 L41.5 78.5 Z M56.5 71.5 L50 79 L58.5 78.5 Z" fill="#fff" stroke="#D5DAE5" stroke-width=".8"/>
+      <path d="M41.5 72 L50 92 L45 99 L36 77 Z M58.5 72 L50 92 L55 99 L64 77 Z" fill="${shade(c, -0.25)}"/>
+      <rect x="61" y="88" width="7" height="2.2" rx="1" fill="#fff" opacity=".85"/>`;
+  }
+  return `<path d="${body}" fill="${hood}"/>${shadeR}<path d="M33 76 Q50 92 67 76 Q60 71.5 50 71.5 Q40 71.5 33 76 Z" fill="${shade(hood, -0.25)}"/>${neck}
+    <path d="M45.5 80 L44.5 92 M54.5 80 L55.5 92" stroke="#fff" stroke-opacity=".85" stroke-width="1.6" stroke-linecap="round"/>
+    <rect x="43.3" y="91" width="2.4" height="3.4" rx="1" fill="#fff" opacity=".85"/><rect x="54.3" y="91" width="2.4" height="3.4" rx="1" fill="#fff" opacity=".85"/>`;
+}
+function neckLayer(n) {
+  const tie = (c, stripe) => `<path d="M47.4 73 L52.6 73 L51.6 77.2 L48.4 77.2 Z" fill="${shade(c, -0.2)}"/><path d="M48.4 77.2 L51.6 77.2 L54.2 93 L50 97.5 L45.8 93 Z" fill="${c}"/>`
+    + (stripe ? `<path d="M47 84 L53 81 M46.5 89 L53.6 85.6 M47 94 L54 90.5" stroke="${stripe}" stroke-width="1.3"/>` : '');
+  if (n === 'tie') return tie('#C2321F', 'rgba(255,255,255,.25)');
+  if (n === 'tie_gold') return tie('#F4C430', '#C99A0E') + '<circle cx="50" cy="86" r="1.6" fill="#fff" opacity=".8"/>';
+  if (n === 'tie_crooked') return `<g transform="rotate(24 50 74)">${tie('#2563C9', 'rgba(255,255,255,.3)')}</g>`;
+  if (n === 'bow') return '<path d="M50 75.5 L42.5 71.5 L42.5 79.5 Z M50 75.5 L57.5 71.5 L57.5 79.5 Z" fill="#1A1A2E"/><circle cx="50" cy="75.5" r="2" fill="#2E2E48"/>';
+  if (n === 'badge') return '<path d="M44 72 L57 86 M56 72 L59 86" stroke="#E5484D" stroke-width="1.6"/><rect x="53.5" y="85" width="13" height="16" rx="2" fill="#fff" stroke="#C9CED9" stroke-width=".8"/><rect x="53.5" y="85" width="13" height="4" rx="1.5" fill="#E5484D"/><circle cx="58" cy="94" r="2.4" fill="#C9CED9"/><path d="M61.5 92.5 h3 M61.5 95.5 h3" stroke="#C9CED9" stroke-width="1.2"/>';
+  return '';
+}
+function hatLayer(h, hood) {
+  if (h === 'beanie') {
+    const c = shade(hood, 0.1);
+    return `<path d="M28.5 42 Q27.5 15 50 14.5 Q72.5 15 71.5 42 Z" fill="${c}"/><path d="M38 20 L38 40 M46 16 L46 38 M54 16 L54 38 M62 20 L62 40" stroke="${shade(c, -0.15)}" stroke-width="1.4"/>
+      <path d="M27 36 Q50 30.5 73 36 L73.5 44 Q50 38.5 26.5 44 Z" fill="${shade(c, -0.2)}"/><circle cx="50" cy="13" r="5" fill="${shade(c, 0.35)}"/>`;
+  }
+  if (h === 'cap') {
+    const c = hood;
+    return `<path d="M29.5 39 Q29 18.5 50 18 Q71 18.5 70.5 39 Z" fill="${c}"/><path d="M27 39 Q50 31 78 41 Q62 45.5 29 43 Z" fill="${shade(c, -0.3)}"/>
+      <path d="M50 18 L50 37" stroke="${shade(c, -0.15)}" stroke-width="1.2"/><circle cx="50" cy="18.5" r="1.8" fill="${shade(c, -0.3)}"/><path d="M38 24 Q44 20.5 52 21" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/>`;
+  }
+  if (h === 'headset') {
+    return '<path d="M30 47 Q28 17 50 17 Q72 17 70 47" fill="none" stroke="#2B2B3A" stroke-width="3.6" stroke-linecap="round"/><rect x="24.5" y="42" width="8" height="13" rx="3.5" fill="#2B2B3A"/><rect x="67.5" y="42" width="8" height="13" rx="3.5" fill="#2B2B3A"/><path d="M28 54 Q28.5 63 39 63.5" fill="none" stroke="#2B2B3A" stroke-width="2.2" stroke-linecap="round"/><rect x="38" y="61" width="5.5" height="4.5" rx="2" fill="#E5484D"/>';
+  }
+  return '';
+}
+function eyesLayer(shape, eyes, skin) {
+  const base = (r = 3.7, rx = 4.1, ir = 2.7, pr = 1.3, dx = 0) => `<ellipse cx="43" cy="48" rx="${rx}" ry="${r}" fill="#fff"/><ellipse cx="57" cy="48" rx="${rx}" ry="${r}" fill="#fff"/>
+    <circle cx="${43.4 + dx}" cy="48.3" r="${ir}" fill="${eyes}"/><circle cx="${57.4 + dx}" cy="48.3" r="${ir}" fill="${eyes}"/>
+    <circle cx="${43.4 + dx}" cy="48.3" r="${pr}" fill="#111"/><circle cx="${57.4 + dx}" cy="48.3" r="${pr}" fill="#111"/>
+    <circle cx="${44.4 + dx}" cy="47.2" r=".9" fill="#fff"/><circle cx="${58.4 + dx}" cy="47.2" r=".9" fill="#fff"/>`;
+  if (shape === 'happy') return '<path d="M39 49.5 Q43 44.5 47 49.5 M53 49.5 Q57 44.5 61 49.5" fill="none" stroke="#22252D" stroke-width="2.3" stroke-linecap="round"/>';
+  if (shape === 'wide') return base(4.7, 4.8, 2.5, 1, 0);
+  const lid = (y) => `<path d="M38.4 ${y} Q43 ${y - 1.2} 47.6 ${y} L47.6 43.5 L38.4 43.5 Z M52.4 ${y} Q57 ${y - 1.2} 61.6 ${y} L61.6 43.5 L52.4 43.5 Z" fill="${skin}"/>
+    <path d="M38.6 ${y} Q43 ${y - 1.2} 47.4 ${y} M52.6 ${y} Q57 ${y - 1.2} 61.4 ${y}" fill="none" stroke="#22252D" stroke-width="1.5" stroke-linecap="round"/>`;
+  if (shape === 'tired') return base() + lid(47.6) + '<path d="M39.6 52.4 Q43 54.2 46.6 52.4 M53.4 52.4 Q57 54.2 60.6 52.4" fill="none" stroke="#7A4E6E" stroke-opacity=".45" stroke-width="1.4" stroke-linecap="round"/>';
+  if (shape === 'sly') return base(3.7, 4.1, 2.7, 1.3, 1) + lid(48.4);
+  return base();
+}
+function propLayer(p) {
+  if (p === 'mug' || p === 'mug_best') {
+    const gold = p === 'mug_best';
+    const c = gold ? '#F4C430' : '#fff';
+    return `<g transform="translate(-9 -3)"><path d="M70 82 Q66 78 70 74 M75 82 Q71 78 75 74" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="1.4" stroke-linecap="round"/>
+      <path d="M80.5 88 Q87 88 86.5 93 Q86 97.5 80.5 97" fill="none" stroke="${gold ? '#C99A0E' : '#C9CED9'}" stroke-width="2.4"/>
+      <rect x="66" y="84" width="15" height="17" rx="2.5" fill="${c}" stroke="${gold ? '#C99A0E' : '#C9CED9'}" stroke-width="1"/><ellipse cx="73.5" cy="85" rx="6.6" ry="1.7" fill="#6B3E26"/>`
+      + (gold ? '<path d="M73.5 88.5 L74.8 91.3 L77.8 91.6 L75.6 93.6 L76.2 96.6 L73.5 95.1 L70.8 96.6 L71.4 93.6 L69.2 91.6 L72.2 91.3 Z" fill="#fff"/>' : '<path d="M69.5 91 h8 M69.5 94 h6" stroke="#E5484D" stroke-width="1.2" stroke-linecap="round"/>') + '</g>';
+  }
+  if (p === 'papers') {
+    return '<g transform="translate(8 -3) rotate(-8 24 92)"><rect x="12" y="84" width="24" height="19" rx="1.5" fill="#E8ECF4"/><rect x="14" y="82" width="24" height="19" rx="1.5" fill="#F7F9FC" stroke="#C9CED9" stroke-width=".8"/><path d="M17 87 h14 M17 90.5 h18 M17 94 h11" stroke="#9AA3B5" stroke-width="1.1"/><rect x="29" y="93.5" width="6" height="5" fill="#3A7BD5"/><rect x="31.5" y="91" width="3" height="7.5" fill="#2FA84F"/></g>';
+  }
+  if (p === 'laptop') {
+    return '<rect x="27" y="80" width="46" height="24" rx="3" fill="#B9C1D0"/><rect x="27" y="80" width="46" height="24" rx="3" fill="none" stroke="#9AA3B5" stroke-width="1"/><circle cx="50" cy="91" r="3" fill="#E6E9F0"/><circle cx="36" cy="86" r="3.2" fill="#FF6FA8"/><rect x="58" y="84" width="9" height="6" rx="1.5" fill="#7CFFB2"/><path d="M60 93 l3 3 l5 -6" stroke="#2563C9" stroke-width="2" fill="none" stroke-linecap="round"/><circle cx="40" cy="97" r="2.4" fill="#FFC93C"/>';
+  }
+  if (p === 'sign') {
+    return '<rect x="47.5" y="96" width="5" height="8" fill="#B07A3E"/><rect x="21" y="77" width="58" height="21" rx="3" fill="#FFF6D6" stroke="#D9A21B" stroke-width="1.6"/><text x="50" y="86" text-anchor="middle" font-size="7" font-weight="900" fill="#5B3B00" font-family="system-ui,sans-serif">Я НА</text><text x="50" y="94.5" text-anchor="middle" font-size="7" font-weight="900" fill="#5B3B00" font-family="system-ui,sans-serif">СОВЕЩАНИИ</text>';
+  }
+  return '';
+}
+
+// Внутренности SVG аватара — пригодятся и для кружка, и для мем-открытки
+function avatarInner(look = {}) {
   const hair = look.hair || '#2B1D14';
   const skin = look.skin || '#E8B48A';
   const eyes = look.eyes || '#22252D';
   const hs = look.hairStyle || 'short';
-  const ring = FRAMES[look.frame] || '#FFFFFF';
   const hood = HOODIE[look.hoodie] || HOODIE.blue;
   const rx = FACE_RX[look.face] || FACE_RX.oval;
   const face = (FACES[look.face] || FACES.oval)(skin);
@@ -117,39 +204,42 @@ function avatar(look = {}, size = 42, zoom = false) {
   const brow = shade(hair === '#F2E6C9' || hair === '#9AA3B5' ? '#8A7A66' : hair, -0.1);
   const kx = (rx / 19.5).toFixed(3);
   const beard = (BEARDS[look.beard] || BEARDS.none)(hair);
-  const lash = look.preset === 'f' ? '<path d="M38 43.6 L40.2 42.2 M62 43.6 L59.8 42.2" stroke="#22252D" stroke-width="1.8" stroke-linecap="round"/>' : '';
+  const hat = look.hat && look.hat !== 'none' ? look.hat : null;
+  const lash = look.preset === 'f' && look.eyeShape !== 'happy' ? '<path d="M38 43.6 L40.2 42.2 M62 43.6 L59.8 42.2" stroke="#22252D" stroke-width="1.8" stroke-linecap="round"/>' : '';
   const freckles = look.freckles ? [[39.5, 52.5], [42, 54], [38.8, 55], [60.5, 52.5], [58, 54], [61.2, 55]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r=".85" fill="${shade(skin, -0.38)}"/>`).join('') : '';
-  const shine = ['short', 'long', 'tail', 'bob', 'side', 'afro', 'curly', 'bun'].includes(hs) ? '<path d="M39 29 Q45 25 53 25.5" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width="2.6" stroke-linecap="round"/>' : '';
-  return `<span class="ava" style="width:${size + 6}px;height:${size + 6}px;border:3px solid ${ring}">
-  <svg width="${size}" height="${size}" viewBox="${zoom ? '24 28 52 52' : '0 0 100 100'}" aria-hidden="true">
-    ${HAIR_BACK[hs] ? HAIR_BACK[hs](hair) : ''}
-    <path d="M12 104 Q14 74 50 71 Q86 74 88 104 Z" fill="${hood}"/>
-    <path d="M50 71 Q86 74 88 104 L62 104 Q66 86 50 80 Z" fill="#000" opacity=".1"/>
-    <path d="M33 76 Q50 92 67 76 Q60 71.5 50 71.5 Q40 71.5 33 76 Z" fill="${shade(hood, -0.25)}"/>
-    <rect x="44" y="58" width="12" height="17" rx="3" fill="${skin}"/>
-    <ellipse cx="50" cy="64.5" rx="7" ry="3.2" fill="#000" opacity=".12"/>
-    <path d="M45.5 80 L44.5 92 M54.5 80 L55.5 92" stroke="#fff" stroke-opacity=".85" stroke-width="1.6" stroke-linecap="round"/>
-    <rect x="43.3" y="91" width="2.4" height="3.4" rx="1" fill="#fff" opacity=".85"/><rect x="54.3" y="91" width="2.4" height="3.4" rx="1" fill="#fff" opacity=".85"/>
+  const shine = !hat || hat === 'headset' ? (['short', 'long', 'tail', 'bob', 'side', 'afro', 'curly', 'bun'].includes(hs) ? '<path d="M39 29 Q45 25 53 25.5" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width="2.6" stroke-linecap="round"/>' : '') : '';
+  const browY = look.eyeShape === 'tired' ? 1.2 : look.eyeShape === 'wide' ? -1.4 : 0;
+  // Под шапкой видны только длинные пряди и хвост; ирокез, пучок и афро-макушка прячутся
+  const hairBack = HAIR_BACK[hs] && !(hat && hat !== 'headset' && (hs === 'bun' || hs === 'afro')) ? HAIR_BACK[hs](hair) : '';
+  const hairFront = hat && hat !== 'headset' ? (['long', 'bob', 'curly', 'afro'].includes(hs) ? `<path d="M29 44 Q29 36 33 34 L33 47 Z M71 44 Q71 36 67 34 L67 47 Z" fill="${hair}"/>` : '') : (HAIR_FRONT[hs] || HAIR_FRONT.short)(hair);
+  return `${hairBack}
+    ${outfitLayer(look.outfit, hood, skin)}
+    ${neckLayer(look.neck)}
     <ellipse cx="${50 - rx - 0.5}" cy="49" rx="3.6" ry="5" fill="${skin}"/><ellipse cx="${50 + rx + 0.5}" cy="49" rx="3.6" ry="5" fill="${skin}"/>
     <ellipse cx="${50 - rx - 0.3}" cy="49.3" rx="1.6" ry="2.8" fill="${skinDark}"/><ellipse cx="${50 + rx + 0.3}" cy="49.3" rx="1.6" ry="2.8" fill="${skinDark}"/>
     ${face}
     <circle cx="38" cy="55" r="3.3" fill="#FF7A8A" opacity=".22"/><circle cx="62" cy="55" r="3.3" fill="#FF7A8A" opacity=".22"/>
     ${freckles}
-    <ellipse cx="43" cy="48" rx="4.1" ry="3.7" fill="#fff"/><ellipse cx="57" cy="48" rx="4.1" ry="3.7" fill="#fff"/>
-    <circle cx="43.4" cy="48.3" r="2.7" fill="${eyes}"/><circle cx="57.4" cy="48.3" r="2.7" fill="${eyes}"/>
-    <circle cx="43.4" cy="48.3" r="1.3" fill="#111"/><circle cx="57.4" cy="48.3" r="1.3" fill="#111"/>
-    <circle cx="44.4" cy="47.2" r=".9" fill="#fff"/><circle cx="58.4" cy="47.2" r=".9" fill="#fff"/>
+    ${eyesLayer(look.eyeShape, eyes, skin)}
     ${lash}
-    <path d="M38.6 42.4 Q43 39.6 47.2 41.6 M52.8 41.6 Q57 39.6 61.4 42.4" fill="none" stroke="${brow}" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M38.6 ${42.4 + browY} Q43 ${39.6 + browY} 47.2 ${41.6 + browY} M52.8 ${41.6 + browY} Q57 ${39.6 + browY} 61.4 ${42.4 + browY}" fill="none" stroke="${brow}" stroke-width="2.2" stroke-linecap="round"/>
     <path d="M49.4 50.2 Q48 54 50.8 54.4" fill="none" stroke="#000" stroke-opacity=".2" stroke-width="1.6" stroke-linecap="round"/>
     ${beard ? `<g transform="translate(50 0) scale(${kx} 1) translate(-50 0)">${beard}</g>` : ''}
     ${(MOUTHS[look.mouth] || MOUTHS.smile)()}
-    ${(HAIR_FRONT[hs] || HAIR_FRONT.short)(hair)}
+    ${hairFront}
     ${shine}
+    ${hat && hat !== 'headset' ? hatLayer(hat, hood) : ''}
     ${look.glasses ? '<rect x="36.3" y="43" width="13.2" height="10" rx="3.5" fill="#fff" fill-opacity=".18" stroke="#22252D" stroke-width="2.6"/><rect x="50.5" y="43" width="13.2" height="10" rx="3.5" fill="#fff" fill-opacity=".18" stroke="#22252D" stroke-width="2.6"/><path d="M49.5 47 L50.5 47" stroke="#22252D" stroke-width="2.6"/><path d="M38.5 45 L41 44.6" stroke="#fff" stroke-opacity=".7" stroke-width="1.3" stroke-linecap="round"/>' : ''}
-    ${look.phones ? '<path d="M29 47 Q27 15 50 15 Q73 15 71 47" fill="none" stroke="#2B2B3A" stroke-width="6" stroke-linecap="round"/><path d="M33 26 Q40 18 50 17.5" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/><rect x="23" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="67" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="25" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/><rect x="72" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/>' : ''}
-    ${look.crown ? '<path d="M33 19 L37 5 L44 13 L50 3 L56 13 L63 5 L67 19 Z" fill="#FFC93C" stroke="#D99A0B" stroke-width="2" stroke-linejoin="round"/><circle cx="50" cy="13" r="2" fill="#E5484D"/>' : ''}
-  </svg></span>`;
+    ${hat === 'headset' ? hatLayer('headset', hood) : ''}
+    ${look.phones && hat !== 'headset' ? '<path d="M29 47 Q27 15 50 15 Q73 15 71 47" fill="none" stroke="#2B2B3A" stroke-width="6" stroke-linecap="round"/><path d="M33 26 Q40 18 50 17.5" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/><rect x="23" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="67" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="25" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/><rect x="72" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/>' : ''}
+    ${look.crown ? `<g ${hat && hat !== 'headset' ? 'transform="translate(0 -6)"' : ''}><path d="M33 19 L37 5 L44 13 L50 3 L56 13 L63 5 L67 19 Z" fill="#FFC93C" stroke="#D99A0B" stroke-width="2" stroke-linejoin="round"/><circle cx="50" cy="13" r="2" fill="#E5484D"/></g>` : ''}
+    ${propLayer(look.prop)}`;
+}
+
+function avatar(look = {}, size = 42, zoom = false) {
+  const ring = FRAMES[look.frame] || '#FFFFFF';
+  return `<span class="ava" style="width:${size + 6}px;height:${size + 6}px;border:3px solid ${ring}">
+  <svg width="${size}" height="${size}" viewBox="${zoom ? '24 28 52 52' : '0 0 100 100'}" aria-hidden="true">${avatarInner(look)}</svg></span>`;
 }
 
 // Нажатие на аватар открывает карточку коллеги
@@ -728,7 +818,7 @@ function renderDm() {
       <div class="grow" style="min-width:0"><div style="font-weight:900;font-size:17px">${esc(f.nick)}</div><div class="where ellipsis">${esc(w)}${f.mood && f.where === 'office' ? ' · ' + esc(f.mood) : ''}</div></div>
     </div>
     ${away ? '<div class="note warn">Сейчас отдыхает: пуш не придёт, увидит, когда вернётся.</div>' : ''}
-    <div class="chips">${v.calls.map((k) => `<button class="chip" data-act="dm-call-open" data-kind="${k}">${esc(S.cat.calls[k].label)}</button>`).join('')}</div>
+    <div class="chips">${v.calls.map((k) => `<button class="chip" data-act="dm-call-open" data-kind="${k}">${esc(S.cat.calls[k].label)}</button>`).join('')}<button class="chip meme-chip" data-act="meme-open" data-to="${f.id}">🖼 Мем</button></div>
   </section>
   ${renderBattleInvite(f)}
   <section class="card">
@@ -876,6 +966,10 @@ function renderBattle() {
 }
 
 function renderDmMsg(m, f) {
+  if (m.type === 'meme') {
+    return `<div class="msg meme-msg ${m.mine ? 'mine' : ''}">${memeSvg(m.look || {}, m.kind, m.opt, 190)}
+      <div class="meta"><span>${m.time}</span>${m.mine ? (m.read ? '<span title="Прочитано">✓✓</span>' : '<span title="Доставлено">✓</span>') : `<button class="linkbtn" data-act="meme-open" data-to="${f.id}">Ответить мемом</button>`}</div></div>`;
+  }
   if (m.type === 'call') {
     const who = m.mine ? 'Ты' : esc(f.nick);
     const verb = m.mine ? esc(m.callText).replace(/^зовёт/, 'зовёшь').replace(/^просит/, 'просишь').replace(/^спрашивает/, 'спрашиваешь').replace(/^ждёт/, 'ждёшь') : esc(m.callText);
@@ -1041,6 +1135,8 @@ function renderSheet() {
   switch (S.sheet) {
     case 'profile': return sheetWrap('Профиль', renderProfile());
     case 'person': return sheetWrap('Профиль коллеги', renderPerson());
+    case 'avatar': return sheetWrap(S.avaMode === 'vacation' ? 'Образ для отпуска' : 'Конструктор', renderAvatarEditor());
+    case 'meme': return sheetWrap('Мем-открытка', renderMemeMaker());
     case 'shop': return sheetWrap('Лавка', renderShop());
     case 'install': return sheetWrap('Установи на телефон', renderInstall());
     case 'compose': return sheetWrap(S.cat.calls[S.compose.kind].label, renderCompose());
@@ -1247,6 +1343,124 @@ function renderCompletion(inProfile) {
 const PENCIL = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>';
 const HAIR_NAMES = { short: 'Короткие', long: 'Длинные', tail: 'Хвост', curly: 'Кудри', bob: 'Каре', bun: 'Пучок', side: 'Набок', mohawk: 'Ирокез', afro: 'Афро', bald: 'Без волос' };
 const FACE_NAMES = { oval: 'Овал', round: 'Круглое', square: 'Квадрат', long: 'Вытянутое', heart: 'Сердечко' };
+const OUTFIT_NAMES = { hoodie: 'Худи', tee: 'Футболка', dev: 'Футболка разработчика', shirt: 'Рубашка', suit: 'Костюм' };
+const NECK_NAMES = { none: 'Ничего', tie: 'Галстук', tie_crooked: 'Галстук набок', bow: 'Бабочка', badge: 'Пропуск', tie_gold: 'Золотой галстук' };
+const HAT_NAMES = { none: 'Без шапки', beanie: 'Шапка', cap: 'Кепка', headset: 'Гарнитура' };
+const EYE_NAMES = { normal: 'Обычные', tired: 'После совещания', sly: 'Хитрые', wide: 'Удивлённые', happy: 'Довольные' };
+const PROP_NAMES = { none: 'Ничего', mug: 'Кружка', papers: 'Квартальный отчёт', sign: 'Табличка', laptop: 'Ноутбук', mug_best: 'Лучший сотрудник' };
+const AVA_CATS = [['face', 'Лицо'], ['hair', 'Волосы'], ['eyes', 'Глаза'], ['mouth', 'Рот'], ['beard', 'Борода'], ['outfit', 'Одежда'], ['acc', 'Аксессуары'], ['meme', 'Мемы']];
+// Мемные пресеты меняют одежду, аксессуары и выражение лица, а лицо, кожу и причёску оставляют твоими
+const AVA_PRESETS = [
+  { id: 'boss', name: 'Начальник отдела', look: { outfit: 'suit', hoodie: 'navy', neck: 'tie', hat: 'none', prop: 'none', mouth: 'smirk', eyeShape: 'sly', glasses: false } },
+  { id: 'tired', name: 'Устал, но держусь', look: { outfit: 'hoodie', neck: 'none', hat: 'none', prop: 'mug', mouth: 'neutral', eyeShape: 'tired' } },
+  { id: 'excel', name: 'Гений Excel', look: { outfit: 'shirt', hoodie: 'green', neck: 'tie', hat: 'none', prop: 'papers', mouth: 'grin', eyeShape: 'wide', glasses: true } },
+  { id: 'nothing', name: 'Я ничего не трогал', look: { outfit: 'dev', neck: 'none', hat: 'none', prop: 'none', mouth: 'wow', eyeShape: 'wide' } },
+  { id: 'report', name: 'Снова квартальный отчёт', look: { outfit: 'shirt', hoodie: 'blue', neck: 'tie_crooked', hat: 'none', prop: 'papers', mouth: 'neutral', eyeShape: 'tired' } },
+  { id: 'control', name: 'Всё под контролем', look: { outfit: 'suit', hoodie: 'red', neck: 'tie', hat: 'headset', prop: 'mug', mouth: 'smile', eyeShape: 'happy' } }
+];
+// Платная ли деталь и куплена ли она
+const partOf = (slot, value) => (S.cat.parts || []).find((x) => x.slot === slot && x.value === value);
+const partLocked = (slot, value) => { const it = partOf(slot, value); return it && !(S.me.owned || []).includes(it.id) ? it : null; };
+function draftLocked() {
+  for (const k of ['neck', 'prop', 'hat', 'outfit']) { const it = partLocked(k, S.draft[k]); if (it) return it; }
+  return null;
+}
+function randomLook() {
+  const L = S.cat.look, pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  const free = (k) => L[k].filter((v) => !partLocked(k, v));
+  const r = {};
+  for (const k of ['preset', 'face', 'skin', 'eyes', 'hairStyle', 'hair', 'hoodie', 'mouth', 'eyeShape', 'outfit']) r[k] = pick(free(k));
+  r.beard = Math.random() < 0.35 ? pick(free('beard').filter((v) => v !== 'none')) : 'none';
+  r.neck = Math.random() < 0.45 ? pick(free('neck').filter((v) => v !== 'none')) : 'none';
+  r.hat = Math.random() < 0.25 ? pick(free('hat').filter((v) => v !== 'none')) : 'none';
+  r.prop = Math.random() < 0.4 ? pick(free('prop').filter((v) => v !== 'none')) : 'none';
+  r.glasses = Math.random() < 0.3; r.freckles = Math.random() < 0.2; r.phones = r.hat === 'none' && Math.random() < 0.12;
+  return r;
+}
+
+// ----- Мем-открытка: аватар + ситуация + эмоция. Подписи только из списка -----
+let memeSeq = 0;
+function wrapText(t, max) {
+  const out = []; let line = '';
+  for (const w of t.split(' ')) { if ((line + ' ' + w).trim().length > max && line) { out.push(line); line = w; } else line = (line + ' ' + w).trim(); }
+  if (line) out.push(line);
+  return out.slice(0, 3);
+}
+function memeSvg(look, sceneId, emoId, width = 220, standalone = false) {
+  const sc = (S.cat.memes || []).find((x) => x.id === sceneId) || S.cat.memes[0];
+  const e = (S.cat.memeEmos || {})[emoId] || {};
+  const l = { ...look, mouth: e.mouth || look.mouth, eyeShape: e.eyeShape || look.eyeShape };
+  const id = 'mg' + (++memeSeq);
+  const lines = wrapText(sc.caption, 17);
+  const y0 = lines.length === 1 ? 24 : lines.length === 2 ? 18 : 13;
+  return `<svg ${standalone ? 'xmlns="http://www.w3.org/2000/svg"' : ''} viewBox="0 0 120 150" width="${width}" height="${Math.round(width * 1.25)}" role="img" aria-label="${esc(sc.caption)}">
+    <defs><linearGradient id="${id}" x1="0" y1="0" x2="0.4" y2="1"><stop offset="0" stop-color="${sc.bg[0]}"/><stop offset="1" stop-color="${sc.bg[1]}"/></linearGradient>
+    <clipPath id="${id}c"><circle cx="60" cy="96" r="44"/></clipPath></defs>
+    <rect width="120" height="150" rx="10" fill="url(#${id})"/>
+    <circle cx="104" cy="30" r="26" fill="#fff" opacity=".07"/><circle cx="10" cy="140" r="30" fill="#fff" opacity=".06"/>
+    ${lines.map((t, i) => `<text x="60" y="${y0 + i * 12}" text-anchor="middle" font-family="Rubik,system-ui,-apple-system,Segoe UI,Roboto,sans-serif" font-size="10.5" font-weight="900" fill="#fff" stroke="rgba(0,0,0,.25)" stroke-width=".6" paint-order="stroke">${esc(t)}</text>`).join('')}
+    <circle cx="60" cy="96" r="45.5" fill="#fff" opacity=".9"/>
+    <g clip-path="url(#${id}c)"><rect x="16" y="52" width="88" height="88" fill="#FFE7B3"/><svg x="14" y="50" width="92" height="92" viewBox="0 0 100 100">${avatarInner(l)}</svg></g>
+    <text x="114" y="146" text-anchor="end" font-family="system-ui,sans-serif" font-size="5" font-weight="800" fill="#fff" opacity=".7">этаж</text>
+  </svg>`;
+}
+async function svgToPng(svg, w, h) {
+  const img = new Image();
+  await new Promise((ok, fail) => { img.onload = ok; img.onerror = fail; img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg); });
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  c.getContext('2d').drawImage(img, 0, 0, w, h);
+  return new Promise((ok) => c.toBlob(ok, 'image/png'));
+}
+function renderMemeMaker() {
+  const m = S.meme;
+  const crew = (S.crew && S.crew.list) || [];
+  return `<div class="meme-ed">
+    <div class="meme-prev">${memeSvg(S.me.look, m.scene, m.emo, 230)}</div>
+    <div class="field">Ситуация<div class="scenes">${S.cat.memes.map((x) => `<button class="scene ${m.scene === x.id ? 'on' : ''}" style="background:linear-gradient(160deg, ${x.bg[0]}, ${x.bg[1]})" data-act="meme-scene" data-v="${x.id}">${esc(x.caption)}</button>`).join('')}</div></div>
+    <div class="field">Эмоция<div class="chips">${Object.entries(S.cat.memeEmos).map(([k, v]) => `<button class="chip ${m.emo === k ? 'on' : ''}" data-act="meme-emo" data-v="${k}">${esc(v.label)}</button>`).join('')}</div></div>
+    ${crew.length ? `<div class="field">Кому отправить<div class="chips">${crew.map((f) => `<button class="chip ${m.to === f.id ? 'on' : ''}" data-act="meme-to" data-v="${f.id}">${esc(f.nick)}</button>`).join('')}</div></div>` : '<p class="small" style="margin:0">Отправлять мемы можно подельникам. А картинкой — куда угодно.</p>'}
+    <div class="row">${m.to ? `<button class="btn grow" data-act="meme-send">Отправить ${esc((crew.find((f) => f.id === m.to) || {}).nick || '')}</button>` : ''}<button class="btn ${m.to ? 'ghost' : ''} grow" data-act="meme-share">${navigator.share ? 'Поделиться картинкой' : 'Скачать картинку'}</button></div>
+    <p class="small" style="margin:0">На открытке твой текущий аватар. Подписи — из готового списка, чтобы мемы оставались добрыми.</p>
+  </div>`;
+}
+
+// ----- Конструктор аватара: черновик, категории, пресеты, случайный -----
+function renderAvatarEditor() {
+  const d = S.draft, L = S.cat.look, cat = S.avaCat || 'face';
+  const sw = (key, vals) => `<div class="row" style="flex-wrap:wrap;gap:8px">${vals.map((v) => `<button class="swatch ${d[key] === v ? 'on' : ''}" style="background:${HOODIE[v] || v}" data-act="ava-set" data-k="${key}" data-v="${v}" aria-label="${key} ${v}"></button>`).join('')}</div>`;
+  const tiles = (key, vals, names, zoom = false) => `<div class="ava-tiles">${vals.map((v) => {
+    const lock = partLocked(key, v);
+    return `<button class="ava-tile ${d[key] === v ? 'on' : ''} ${lock ? 'paid' : ''}" data-act="ava-set" data-k="${key}" data-v="${v}">${avatar({ ...d, [key]: v, frame: null, crown: false }, 60, zoom)}<span>${names[v] || v}</span>${lock ? `<em>${lock.price} ${BEAN}</em>` : ''}</button>`;
+  }).join('')}</div>`;
+  const tog = (k, label) => `<button class="chip ${d[k] ? 'on' : ''}" data-act="ava-toggle" data-k="${k}">${label}</button>`;
+  const body = {
+    face: `<div class="chips">${['m', 'f'].map((v) => `<button class="chip ${d.preset === v ? 'on' : ''}" data-act="ava-set" data-k="preset" data-v="${v}">${v === 'm' ? 'М' : 'Ж'}</button>`).join('')}${tog('freckles', 'Веснушки')}</div>
+      <div class="field">Форма лица${tiles('face', L.face, FACE_NAMES, true)}</div><div class="field">Тон кожи${sw('skin', L.skin)}</div>`,
+    hair: `<div class="field">Причёска${tiles('hairStyle', L.hairStyle, HAIR_NAMES)}</div><div class="field">Цвет${sw('hair', L.hair)}</div>`,
+    eyes: `<div class="field">Взгляд${tiles('eyeShape', L.eyeShape, EYE_NAMES, true)}</div><div class="field">Цвет глаз${sw('eyes', L.eyes)}</div><div class="chips">${tog('glasses', 'Очки')}</div>`,
+    mouth: `<div class="field">Выражение${tiles('mouth', L.mouth, MOUTH_NAMES, true)}</div>`,
+    beard: `<div class="field">Борода и усы${tiles('beard', L.beard, BEARD_NAMES, true)}</div>`,
+    outfit: `<div class="field">Одежда${tiles('outfit', L.outfit, OUTFIT_NAMES)}</div><div class="field">Цвет${sw('hoodie', L.hoodie)}</div>`,
+    acc: `<div class="field">На шее${tiles('neck', L.neck, NECK_NAMES)}</div><div class="field">На голове${tiles('hat', L.hat, HAT_NAMES)}</div><div class="chips">${tog('phones', 'Наушники')}</div>`,
+    meme: `<div class="field">В руках${tiles('prop', L.prop, PROP_NAMES)}</div><p class="small" style="margin:0">Детали с ценой можно примерить бесплатно, а сохранить — после покупки в Лавке. Корона и рамки — тоже в Лавке.</p>`
+  }[cat];
+  const locked = draftLocked();
+  return `<div class="ava-ed">
+    <div class="ava-stage">${avatar(d, 170)}
+      <div class="ava-tools"><button class="tool" data-act="ava-random" aria-label="Случайный аватар">🎲</button><button class="tool" data-act="ava-reset" aria-label="Вернуть как было">↺</button></div>
+    </div>
+    <div class="presets">${AVA_PRESETS.map((pr) => `<button class="preset" data-act="ava-preset" data-v="${pr.id}">${avatar({ ...d, ...pr.look, frame: null, crown: false }, 52)}<span>${esc(pr.name)}</span></button>`).join('')}</div>
+    <div class="cats" role="tablist">${AVA_CATS.map(([id, label]) => `<button class="cat ${cat === id ? 'on' : ''}" role="tab" aria-selected="${cat === id}" data-act="ava-cat" data-v="${id}">${label}</button>`).join('')}</div>
+    <div class="cat-body">${body}</div>
+    <div class="ava-foot">
+      ${locked ? `<button class="btn grow" data-act="ava-buy" data-v="${locked.id}" ${S.me.beans < locked.price ? 'disabled' : ''}>Купить «${esc(locked.name)}» · ${locked.price} ${BEAN}</button>`
+        : `<button class="btn grow" data-act="ava-save">${S.avaMode === 'vacation' ? 'Сохранить образ для отпуска' : 'Сохранить'}</button>`}
+      <button class="btn ghost" data-act="close">Отмена</button>
+    </div>
+    ${!locked && S.avaMode !== 'vacation' ? '<button class="linkbtn" data-act="ava-save-vac" style="align-self:center">Сохранить как образ для отпуска</button>' : ''}
+  </div>`;
+}
+
 const MOUTH_NAMES = { smile: 'Улыбка', grin: 'До ушей', smirk: 'Ухмылка', neutral: 'Серьёзный', wow: 'Удивлён' };
 const BEARD_NAMES = { none: 'Нет', stubble: 'Щетина', beard: 'Борода', mustache: 'Усы', goatee: 'Эспаньолка' };
 const VIS_NAMES = { all: 'Всем', gang: 'Бандам и подельникам', hidden: 'Никому' };
@@ -1275,23 +1489,11 @@ function renderProfile() {
   const plan = [planDays('office').length ? `${planDays('office').join(' ')} — офис` : '', planDays('home').length ? `${planDays('home').join(' ')} — дома` : ''].filter(Boolean).join(', ') || 'план не заполнен';
   const office = (S.cat.offices.find((o) => o.id === p.home) || {}).name;
 
+  const vac = p.vacationLook ? { ...look, ...p.vacationLook, status: look.status, frame: look.frame, crown: look.crown } : null;
   const lookBody = `
-    <div class="ava-preview">${avatar(look, 150)}</div>
-    <div class="eyebrow">Лицо</div>
-    <div class="chips">${['m', 'f'].map((v) => `<button class="chip ${look.preset === v ? 'on' : ''}" data-act="look" data-k="preset" data-v="${v}">${v === 'm' ? 'М' : 'Ж'}</button>`).join('')}</div>
-    <div class="field">Форма лица${tiles('face', L.face, FACE_NAMES)}</div>
-    <div class="field">Кожа${sw('skin', L.skin)}</div>
-    <div class="field">Глаза${sw('eyes', L.eyes)}</div>
-    <div class="field">Рот${tiles('mouth', L.mouth, MOUTH_NAMES)}</div>
-    <div class="field">Борода и усы${tiles('beard', L.beard, BEARD_NAMES)}</div>
-    <div class="chips"><button class="chip ${look.freckles ? 'on' : ''}" data-act="look-toggle" data-k="freckles">Веснушки</button></div>
-    <div class="eyebrow">Волосы</div>
-    <div class="field">Причёска${tiles('hairStyle', L.hairStyle, HAIR_NAMES)}</div>
-    <div class="field">Цвет${sw('hair', L.hair)}</div>
-    <div class="eyebrow">Одежда и аксессуары</div>
-    <div class="field">Худи${sw('hoodie', L.hoodie)}</div>
-    <div class="chips"><button class="chip ${look.glasses ? 'on' : ''}" data-act="look-toggle" data-k="glasses">Очки</button><button class="chip ${look.phones ? 'on' : ''}" data-act="look-toggle" data-k="phones">Наушники</button></div>
-    <p class="small" style="margin:0">Рамки, короны и статусы — в Лавке.</p>`;
+    <div class="look-hero">${avatar(look, 120)}${vac ? `<button class="look-vac" data-act="ava-open-vac" aria-label="Изменить образ для отпуска">${avatar(vac, 56)}<span class="small">в отпуске ✎</span></button>` : ''}</div>
+    <div class="row"><button class="btn grow" data-act="ava-open">🎨 Конструктор</button><button class="btn ghost grow" data-act="meme-open">🖼 Сделать мем</button></div>
+    <p class="small" style="margin:0">${vac ? 'Пока ты в отпуске, банда видит второй образ. ' + '<button class="linkbtn" data-act="vac-look-clear">Убрать образ для отпуска</button>' : 'В конструкторе можно собрать и второй образ — для отпуска. Банда увидит его, пока ты отдыхаешь.'}</p>`;
 
   const nameBody = `
     <div class="field">Никнейм
@@ -1348,7 +1550,7 @@ function renderProfile() {
       ${me.status ? `<div class="status" style="color:#B7791F">${esc(me.status)}</div>` : ''}
       <div class="small">${me.beans} ${plural(me.beans, 'зерно', 'зерна', 'зёрен')}</div></div></div>
     ${renderCompletion(true)}
-    ${section('look', 'Внешность', `${FACE_NAMES[look.face] || 'Овал'} · ${(HAIR_NAMES[look.hairStyle] || '').toLowerCase()}${look.glasses ? ' · очки' : ''}`, lookBody)}
+    ${section('look', 'Внешность', `${OUTFIT_NAMES[look.outfit] || 'Худи'} · ${(HAIR_NAMES[look.hairStyle] || '').toLowerCase()}${look.prop && look.prop !== 'none' ? ' · ' + (PROP_NAMES[look.prop] || '').toLowerCase() : ''}`, lookBody)}
     ${section('name', 'Ник, имя и фамилия', name ? `${esc(name)} · видят: ${VIS_NAMES[p.nameVis].toLowerCase()}` : 'Имя не указано', nameBody)}
     ${section('ach', 'Ачивки', got == null ? '' : `${got} из ${S.fx.achievements.length}`, renderAchievements())}
     ${section('work', 'Работа', `${office || 'офис не указан'} · ${plan}`, workBody)}
@@ -1390,11 +1592,16 @@ function renderPerson() {
 
 function renderShop() {
   if (!S.shop) return '<p class="sub">Загружаем…</p>';
-  const groups = [['status', 'Статусы'], ['frame', 'Рамки аватара'], ['crown', 'Особое'], ['gang', 'Для банды']];
+  const groups = [['part', 'Детали для аватара'], ['status', 'Статусы'], ['frame', 'Рамки аватара'], ['crown', 'Особое'], ['gang', 'Для банды']];
   const item = (it) => {
     let action;
     if (it.kind === 'gang') {
       action = S.me.gangs.length ? `<button class="btn small" data-act="buy" data-v="${it.id}" ${S.shop.beans < it.price ? 'disabled' : ''}>${it.price} ${BEAN}</button>` : '<span class="small">нужна банда</span>';
+    } else if (it.kind === 'part') {
+      const prev = avatar({ ...S.me.look, [it.slot]: it.value, frame: null, crown: false }, 44);
+      action = it.owned ? `<button class="btn small ghost" data-act="ava-open" data-cat="${it.slot === 'prop' ? 'meme' : 'acc'}">В конструктор</button>`
+        : `<button class="btn small" data-act="buy" data-v="${it.id}" ${S.shop.beans < it.price ? 'disabled' : ''}>${it.price} ${BEAN}</button>`;
+      return `<div class="item">${prev}<div class="grow"><div style="font-weight:900">${esc(it.name)}</div><div class="small">${it.owned ? 'куплено — надень в конструкторе' : 'можно примерить в конструкторе'}</div></div>${action}</div>`;
     } else if (it.owned) {
       action = `<button class="btn small ${it.equipped ? 'green' : 'ghost'}" data-act="equip" data-v="${it.id}" data-on="${it.equipped ? '0' : '1'}">${it.equipped ? 'Надето' : 'Надеть'}</button>`;
     } else if (it.left === 0) {
@@ -1660,6 +1867,50 @@ const actions = {
   'motto-save': () => run(async () => { await post(`/api/gangs/${S.gang.gang.id}/motto`, { motto: $('#motto').value }); await loadGang(); toast('Девиз сохранён'); }),
 
   look: (el) => run(async () => { await post('/api/me/profile', { look: { [el.dataset.k]: el.dataset.v } }); await loadMe(); }),
+  'ava-open'(el) { S.draft = { ...S.me.look }; S.avaMode = 'main'; S.avaCat = (el && el.dataset.cat) || 'face'; S.sheet = 'avatar'; S.lastSheet = null; render(); },
+  'ava-open-vac'() { S.draft = { ...S.me.look, ...(S.me.profile.vacationLook || {}) }; S.avaMode = 'vacation'; S.avaCat = 'outfit'; S.sheet = 'avatar'; S.lastSheet = null; render(); },
+  'meme-open'(el) {
+    S.meme = { scene: (S.meme && S.meme.scene) || S.cat.memes[0].id, emo: (S.meme && S.meme.emo) || 'calm', to: el && el.dataset.to ? Number(el.dataset.to) : null };
+    S.sheet = 'meme'; S.lastSheet = null; render();
+    if (!S.crew) loadCrew().then(render).catch(() => {});
+  },
+  'meme-scene'(el) { S.meme.scene = el.dataset.v; render(); },
+  'meme-emo'(el) { S.meme.emo = el.dataset.v; render(); },
+  'meme-to'(el) { const v = Number(el.dataset.v); S.meme.to = S.meme.to === v ? null : v; render(); },
+  'meme-send': () => run(async () => {
+    const to = S.meme.to;
+    await post(`/api/crew/${to}/messages`, { type: 'meme', kind: S.meme.scene, opt: S.meme.emo });
+    S.sheet = null; toast('Мем отправлен');
+    if (S.tab === 'crew' && S.dm === to) await loadDm();
+  }),
+  'meme-share': () => run(async () => {
+    const svg = memeSvg(S.me.look, S.meme.scene, S.meme.emo, 720, true);
+    const blob = await svgToPng(svg, 720, 900);
+    const file = new File([blob], 'etazh-mem.png', { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title: 'Мем из Этажа' }); } catch {} return; }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'etazh-mem.png'; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    toast('Картинка сохранена');
+  }, { rerender: false }),
+  'ava-cat'(el) { S.avaCat = el.dataset.v; render(); },
+  'ava-set'(el) { S.draft = { ...S.draft, [el.dataset.k]: el.dataset.v }; render(); },
+  'ava-toggle'(el) { S.draft = { ...S.draft, [el.dataset.k]: !S.draft[el.dataset.k] }; render(); },
+  'ava-preset'(el) { const pr = AVA_PRESETS.find((x) => x.id === el.dataset.v); S.draft = { ...S.draft, ...pr.look }; toast(`Образ «${pr.name}»`); render(); },
+  'ava-random'() { S.draft = { ...S.draft, ...randomLook() }; if (navigator.vibrate) navigator.vibrate(10); render(); },
+  'ava-reset'() { S.draft = S.avaMode === 'vacation' && S.me.profile.vacationLook ? { ...S.me.look, ...S.me.profile.vacationLook } : { ...S.me.look }; render(); },
+  'ava-buy': (el) => run(async () => { await post('/api/shop/buy', { item: el.dataset.v }); const keep = S.draft; await loadMe(); S.draft = keep; toast('Куплено! Теперь можно сохранить'); }),
+  'ava-save': () => run(async () => {
+    const pick = Object.fromEntries(Object.keys(S.cat.look).concat(['glasses', 'phones', 'freckles']).map((k) => [k, S.draft[k]]));
+    if (S.avaMode === 'vacation') await post('/api/me/profile', { profile: { vacationLook: pick } });
+    else await post('/api/me/profile', { look: pick });
+    await loadMe(); S.sheet = 'profile'; S.sec.add('look'); toast(S.avaMode === 'vacation' ? 'Образ для отпуска сохранён' : 'Аватар сохранён');
+  }),
+  'ava-save-vac': () => run(async () => {
+    const pick = Object.fromEntries(Object.keys(S.cat.look).concat(['glasses', 'phones', 'freckles']).map((k) => [k, S.draft[k]]));
+    await post('/api/me/profile', { profile: { vacationLook: pick } });
+    await loadMe(); S.sheet = 'profile'; S.sec.add('look'); toast('Образ для отпуска сохранён. Основной аватар не менялся');
+  }),
+  'vac-look-clear': () => run(async () => { await post('/api/me/profile', { profile: { vacationLook: null } }); await loadMe(); }),
   'look-toggle': (el) => run(async () => { await post('/api/me/profile', { look: { [el.dataset.k]: !S.me.look[el.dataset.k] } }); await loadMe(); }),
   prof: (el) => run(async () => {
     const v = el.dataset.k === 'home' && S.me.profile.home === el.dataset.v ? null : el.dataset.v;

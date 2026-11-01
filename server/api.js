@@ -1,6 +1,6 @@
 const { config } = require('./config');
 const U = require('./util');
-const { MOODS, CALLS, SIGNALS, SHOP, EARN, GANG_DEPOSIT, GANG_COLORS } = require('./catalog');
+const { MOODS, CALLS, SIGNALS, SHOP, EARN, GANG_DEPOSIT, GANG_COLORS, MEMES, MEME_EMOS } = require('./catalog');
 const { sendLoginLink } = require('./mailer');
 const { sendPush } = require('./webpush');
 
@@ -37,14 +37,35 @@ const LOOK = {
   beard: ['none', 'stubble', 'beard', 'mustache', 'goatee'],
   eyes: ['#22252D', '#6B4226', '#3A7BD5', '#3C8D5A', '#8A8F9C'],
   skin: ['#FBE3CF', '#F6D3B3', '#E8B48A', '#C98E62', '#8D5A3B', '#5E3A26'],
-  hoodie: ['red', 'blue', 'green', 'violet', 'navy']
+  hoodie: ['red', 'blue', 'green', 'violet', 'navy'],
+  eyeShape: ['normal', 'tired', 'sly', 'wide', 'happy'],
+  outfit: ['hoodie', 'tee', 'dev', 'shirt', 'suit'],
+  neck: ['none', 'tie', 'tie_crooked', 'bow', 'badge', 'tie_gold'],
+  hat: ['none', 'beanie', 'cap', 'headset'],
+  prop: ['none', 'mug', 'papers', 'sign', 'laptop', 'mug_best']
 };
+const LOOK_ENUMS = ['preset', 'face', 'eyes', 'mouth', 'beard', 'hairStyle', 'hair', 'skin', 'hoodie', 'eyeShape', 'outfit', 'neck', 'hat', 'prop'];
+// Платные детали: значение слота → предмет Лавки, который нужно купить
+const PAID_PARTS = Object.fromEntries(SHOP.filter((it) => it.kind === 'part').map((it) => [`${it.slot}:${it.value}`, it.id]));
+// Собрать внешность из присланного: только допустимые значения и только купленные платные детали
+function applyLook(base, l, owned) {
+  const look = { ...base };
+  if (!l || typeof l !== 'object') return look;
+  for (const k of LOOK_ENUMS) {
+    if (l[k] === undefined || !LOOK[k].includes(l[k])) continue;
+    const need = PAID_PARTS[`${k}:${l[k]}`];
+    if (need && !owned.has(need)) throw bad('Эта деталь продаётся в Лавке.');
+    look[k] = l[k];
+  }
+  for (const k of ['glasses', 'phones', 'freckles']) if (l[k] !== undefined) look[k] = !!l[k];
+  return look;
+}
 const NICK_PRICE = 50;
-const DEFAULT_LOOK = { preset: 'm', face: 'oval', eyes: '#22252D', mouth: 'smile', beard: 'none', freckles: false, hairStyle: 'short', hair: '#2B1D14', skin: '#E8B48A', hoodie: 'blue', glasses: false, phones: false, status: null, frame: null, crown: false };
+const DEFAULT_LOOK = { preset: 'm', face: 'oval', eyes: '#22252D', mouth: 'smile', beard: 'none', freckles: false, eyeShape: 'normal', outfit: 'hoodie', neck: 'none', hat: 'none', prop: 'none', hairStyle: 'short', hair: '#2B1D14', skin: '#E8B48A', hoodie: 'blue', glasses: false, phones: false, status: null, frame: null, crown: false };
 // plan — где обычно работаю по дням недели: { Пн: 'office' | 'home' }
 // today — ручной статус на сегодня: { kind: 'home' | 'vacation', day: 'YYYY-MM-DD' }
 // vacations — график отпусков: [{ from: 'YYYY-MM-DD', to: 'YYYY-MM-DD' }]
-const DEFAULT_PROFILE = { coffee: false, mood: 'coffee', home: null, days: [], plan: {}, today: null, vacations: [], about: '', tags: [], bday: '', showBday: true, firstName: '', lastName: '', nameVis: 'gang' };
+const DEFAULT_PROFILE = { coffee: false, mood: 'coffee', home: null, days: [], plan: {}, today: null, vacations: [], about: '', tags: [], bday: '', showBday: true, firstName: '', lastName: '', nameVis: 'gang', vacationLook: null };
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const addDays = (day, n) => new Date(Date.parse(day + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
 const weekdayName = (day) => [null, 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', null][new Date(day + 'T00:00:00Z').getUTCDay()];
@@ -58,7 +79,7 @@ function fullName(prof, scope) {
 
 // Заполненность профиля. Первый шаг — ник — засчитан сразу: начатое дело люди доводят до конца охотнее.
 // Имя, фамилия и день рождения в процент не входят: личные данные — только по желанию, без давления.
-const LOOK_KEYS = ['face', 'hairStyle', 'hair', 'skin', 'eyes', 'hoodie', 'mouth', 'beard', 'glasses', 'phones', 'freckles', 'preset'];
+const LOOK_KEYS = ['face', 'hairStyle', 'hair', 'skin', 'eyes', 'hoodie', 'mouth', 'beard', 'glasses', 'phones', 'freckles', 'preset', 'eyeShape', 'outfit', 'neck', 'hat', 'prop'];
 function profileCompletion(look, prof, hasPush) {
   const steps = [
     { id: 'nick', label: 'Выбрать ник', done: true },
@@ -265,8 +286,10 @@ function createApi(db) {
 
   function memberStatus(member) {
     const prof = readProfile(member.profile);
-    const look = { ...DEFAULT_LOOK, ...JSON.parse(member.look || '{}') };
+    let look = { ...DEFAULT_LOOK, ...JSON.parse(member.look || '{}') };
     const pr = member.share_office ? presenceOf(prof, activeCheckin(member.id), member.id) : { where: 'hidden' };
+    // В отпуске коллеги видят отпускной образ (рамка, корона и статус остаются свои)
+    if (pr.where === 'vacation' && prof.vacationLook) look = { ...look, ...prof.vacationLook, status: look.status, frame: look.frame, crown: look.crown };
     return {
       id: member.id, nick: member.nick, name: fullName(prof, 'gang'), mood: MOODS[prof.mood] || '', where: pr.where, office: pr.office || null,
       until: pr.until || null, planned: !!pr.planned, joke: pr.joke ?? null, look, status: statusName(look.status)
@@ -396,7 +419,8 @@ function createApi(db) {
         moods: MOODS,
         calls: Object.fromEntries(Object.entries(CALLS).map(([k, v]) => [k, { label: v.label, opts: v.opts, needsText: !!v.needsText }])),
         signals: Object.fromEntries(Object.entries(SIGNALS).map(([k, v]) => [k, v.label])),
-        tags: TAGS, days: DAYS, look: LOOK, nickPrice: NICK_PRICE, gangColors: GANG_COLORS, idleJokes: IDLE_JOKES,
+        tags: TAGS, days: DAYS, look: LOOK, nickPrice: NICK_PRICE, memes: MEMES, memeEmos: MEME_EMOS,
+        parts: SHOP.filter((it) => it.kind === 'part').map(({ id, slot, value, name, price }) => ({ id, slot, value, name, price })), gangColors: GANG_COLORS, idleJokes: IDLE_JOKES,
         offices: offices().map((o) => ({ id: o.id, name: o.name, color: o.color }))
       }
     };
@@ -438,16 +462,13 @@ function createApi(db) {
   route('POST', '/api/me/profile', async (req, body) => {
     const u = requireUser(req);
     const look = { ...u.look };
-    if (body.look) {
-      const l = body.look;
-      for (const k of ['preset', 'face', 'eyes', 'mouth', 'beard', 'hairStyle', 'hair', 'skin', 'hoodie']) if (l[k] !== undefined && LOOK[k].includes(l[k])) look[k] = l[k];
-      if (l.glasses !== undefined) look.glasses = !!l.glasses;
-      if (l.phones !== undefined) look.phones = !!l.phones;
-      if (l.freckles !== undefined) look.freckles = !!l.freckles;
-    }
+    const ownedSet = new Set(q('SELECT item_id FROM owned WHERE user_id = ?').all(u.id).map((r) => r.item_id));
+    if (body.look) Object.assign(look, applyLook(look, body.look, ownedSet));
     const prof = { ...u.profile };
     if (body.profile) {
       const p = body.profile;
+      // Образ для отпуска: второй аватар, который коллеги видят, пока ты в отпуске
+      if (p.vacationLook !== undefined) prof.vacationLook = p.vacationLook === null ? null : applyLook({ ...DEFAULT_LOOK, ...u.look, status: null, frame: null, crown: false }, p.vacationLook, ownedSet);
       if (p.mood !== undefined && MOODS[p.mood]) prof.mood = p.mood;
       if (p.home !== undefined && (p.home === null || officeById(p.home))) prof.home = p.home;
       if (p.plan && typeof p.plan === 'object') {
@@ -680,7 +701,7 @@ function createApi(db) {
     if (!card.full) return card;
     const st = memberStatus(t);
     return {
-      ...card,
+      ...card, look: st.look,
       name: me ? [prof.firstName, prof.lastName].filter(Boolean).join(' ') : fullName(prof, close ? 'gang' : 'all'),
       about: prof.about, tags: prof.tags, bday: prof.showBday ? prof.bday : '',
       mood: st.mood, where: st.where, office: st.office, until: st.until, planned: st.planned,

@@ -437,3 +437,39 @@ body { font-weight: 500; }
 .tabs:has(.coach-focus) { z-index: 31; }
 .tabs:has(.coach-focus) .tab { opacity: .3; pointer-events: none; }
 .tabs .tab.coach-focus { opacity: 1; pointer-events: none; border-radius: 14px; }
+
+/* ---- Конструктор аватара ---- */
+.ava-ed { display: flex; flex-direction: column; gap: 12px; }
+.ava-stage { position: sticky; top: -18px; z-index: 3; display: flex; justify-content: center; padding: 10px 0 12px; margin: -6px -16px 0; background: radial-gradient(70% 90% at 50% 40%, #FFF3D6, #fff 75%); border-bottom: 1px solid var(--line); }
+.ava-tools { position: absolute; right: 16px; top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.tool { width: 46px; height: 46px; border-radius: 14px; background: #fff; font-size: 22px; box-shadow: 0 3px 0 #D5DAE5, 0 2px 8px rgba(26,37,71,.12); }
+.tool:active { transform: translateY(2px); box-shadow: 0 1px 0 #D5DAE5; }
+.presets { display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px; padding: 2px 16px 4px; scrollbar-width: none; }
+.presets::-webkit-scrollbar, .cats::-webkit-scrollbar { display: none; }
+.preset { flex: 0 0 92px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px; border-radius: 14px; background: #FFF6DB; color: #5B3B00; font-size: 11px; font-weight: 800; line-height: 1.15; text-align: center; box-shadow: 0 2px 0 #F1D98A; }
+.preset:active { transform: translateY(1px); }
+.cats { display: flex; gap: 6px; overflow-x: auto; margin: 0 -16px; padding: 0 16px; scrollbar-width: none; }
+.cat { flex: none; padding: 9px 14px; border-radius: 999px; background: #F1F3F8; color: var(--ink); font-weight: 800; font-size: 14px; }
+.cat.on { background: var(--ink); color: #fff; }
+.cat-body { display: flex; flex-direction: column; gap: 12px; min-height: 180px; }
+.ava-tile { position: relative; }
+.ava-tile.paid { background: #FFF6DB; }
+.ava-tile em { position: absolute; top: 4px; right: 4px; display: inline-flex; align-items: center; gap: 2px; padding: 1px 6px; border-radius: 999px; background: var(--gold); color: var(--ink); font-style: normal; font-size: 10.5px; font-weight: 900; }
+.ava-tile em svg { width: 10px; height: 10px; }
+.ava-foot { position: sticky; bottom: calc(-20px - env(safe-area-inset-bottom)); z-index: 3; display: flex; gap: 8px; padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); margin: 0 -16px -20px; padding-left: 16px; padding-right: 16px; background: linear-gradient(rgba(255,255,255,0), #fff 30%); }
+.look-hero { display: flex; align-items: flex-end; justify-content: center; gap: 14px; padding: 4px 0; }
+.look-vac { display: flex; flex-direction: column; align-items: center; gap: 2px; background: none; padding: 0; color: var(--muted); }
+/* ---- Мем-открытки ---- */
+.meme-ed { display: flex; flex-direction: column; gap: 12px; }
+.meme-prev { display: flex; justify-content: center; }
+.meme-prev svg, .meme-msg svg { filter: drop-shadow(0 6px 14px rgba(26,37,71,.25)); border-radius: 12px; }
+.meme-ed .chips .chip { font-size: 13px; }
+.msg.meme-msg { background: none !important; padding: 0 !important; box-shadow: none !important; max-width: none; }
+.meme-msg .meta { justify-content: flex-start; }
+.meme-msg.mine .meta { justify-content: flex-end; }
+.chip.meme-chip { background: #FFF1C2; color: #5B3B00; }
+.meme-prev { position: sticky; top: -18px; z-index: 3; margin: -6px -16px 0; padding: 8px 0 10px; background: #fff; border-bottom: 1px solid var(--line); }
+.scenes { display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px; padding: 2px 16px 6px; scrollbar-width: none; }
+.scenes::-webkit-scrollbar { display: none; }
+.scene { flex: 0 0 116px; min-height: 64px; padding: 8px 10px; border-radius: 14px; color: #fff; font-size: 12px; font-weight: 900; line-height: 1.2; text-align: left; box-shadow: 0 3px 0 rgba(0,0,0,.2); opacity: .75; }
+.scene.on { opacity: 1; outline: 3px solid var(--ink); outline-offset: 2px; }
