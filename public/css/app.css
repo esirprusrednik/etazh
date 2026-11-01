@@ -498,3 +498,4 @@ body { font-weight: 500; }
 .food-pct.good { background: var(--good-bg); color: var(--good-fg); } .food-pct.mid { background: var(--warn-bg); color: var(--warn-fg); } .food-pct.bad { background: var(--bad-bg); color: var(--bad-fg); }
 .food-q { font-weight: 900; color: var(--ink); }
 .btn.food-up { background: var(--green); color: #fff; border-bottom-color: #145228; }
+.upd-bar { display: block; width: calc(100% - 32px); margin: 0 16px 10px; padding: 10px 14px; border-radius: 14px; background: linear-gradient(90deg, #7ED957, #2FA84F); color: #fff; font-weight: 900; font-size: 14px; text-align: center; box-shadow: 0 3px 0 #1F7A3A; }

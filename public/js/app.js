@@ -269,13 +269,26 @@ let deferredInstall = null;
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstall = e; render(); });
 
 // ---------- Загрузка ----------
+// Вышла новая версия — перезагрузимся при следующем возвращении в приложение, а пока покажем кнопку
+function noteBuild(b) {
+  if (!b) return;
+  if (!S.build) S.build = b;
+  else if (b !== S.build) S.newBuild = true;
+}
+function reloadIfStale() {
+  if (!S.newBuild || S.sheet || typing() || (S.bv && S.bv.status === 'play' && S.bv.mode === 'fast')) return false;
+  location.reload(); return true;
+}
+
 async function loadMe() {
   const r = await get('/api/me');
   S.me = r.user; S.cat = r.catalog; S.vapidKey = r.vapidKey; S.domains = r.domains;
+  noteBuild(r.build);
   if (S.me && S.me.gangs.length && !S.me.gangs.some((g) => g.id === S.activeGang)) S.activeGang = S.me.gangs[0].id;
 }
 async function loadState() {
   S.state = await get(`/api/state?seenChat=${S.seenChat}&seenFeed=${S.seenFeed}`);
+  noteBuild(S.state.build);
   if (S.me) S.me.beans = S.state.beans;
 }
 async function loadGang() {
@@ -461,6 +474,7 @@ function renderApp() {
       <button class="beans3d ${S.beanFx ? 'gain' : ''} ${S.coach === 2 ? 'coach-focus' : ''}" data-act="open" data-v="shop" aria-label="Зёрна: ${me.beans}. Открыть лавку${shopDot() ? '. Есть что купить' : ''}">${BEAN}<span class="bnum">${S.beanFx ? S.beanFx.from : me.beans}</span><span class="bcart"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11h10.2L20 8H6.3"/><circle cx="9.5" cy="19.5" r="1.4"/><circle cx="16.5" cy="19.5" r="1.4"/></svg></span>${shopDot() ? '<span class="bdot" aria-hidden="true"></span>' : ''}${S.beanFx ? `<span class="bplus" aria-hidden="true">+${S.beanFx.to - S.beanFx.from}</span>` : ''}</button>
     </header>
     ${renderCoach()}
+    ${S.newBuild ? '<button class="upd-bar" data-act="reload">✨ Вышло обновление — нажми, чтобы обновить</button>' : ''}
     <main>
       ${showBanner ? `<div class="banner">
         <div class="grow"><div style="font-weight:900;font-size:15px">Установи на телефон</div><div style="font-size:12px;font-weight:600">Иконка на экране — и придут зовы банды</div></div>
@@ -1226,7 +1240,7 @@ function renderCompose() {
     return `
     <p class="sub">Подельнику <b>${esc(nick)}</b>, лично. Придёт пуш, тихие часы 19:00–09:00 уважаем.</p>
     ${def.opts.length ? `<div class="field">Когда / где<div class="chips">${def.opts.map((o) => `<button class="chip ${c.opt === o ? 'on' : ''}" data-act="c-opt" data-v="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>` : ''}
-    ${def.needsText ? `<label class="field">Какая переговорка<input id="c-text" maxlength="40" placeholder="Например, «Марс», 5 этаж" value="${esc(c.text || '')}"></label>` : ''}
+    ${def.textLabel ? `<label class="field">${esc(def.textLabel)}<input id="c-text" maxlength="40" placeholder="${esc(def.textHint)}" value="${esc(c.text || '')}"></label>` : ''}
     <button class="btn wide" data-act="call-send">Позвать</button>
     <p class="small">Не больше 5 зовов в час одному человеку.</p>`;
   }
@@ -1239,7 +1253,7 @@ function renderCompose() {
       ${members.map((m) => `<button class="chip ${c.to === m.id ? 'on' : ''}" data-act="c-to" data-v="${m.id}">${esc(m.nick)}</button>`).join('')}
     </div></div>
     ${def.opts.length ? `<div class="field">Когда / где<div class="chips">${def.opts.map((o) => `<button class="chip ${c.opt === o ? 'on' : ''}" data-act="c-opt" data-v="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>` : ''}
-    ${def.needsText ? `<label class="field">Какая переговорка<input id="c-text" maxlength="40" placeholder="Например, «Марс», 5 этаж" value="${esc(c.text || '')}"></label>` : ''}
+    ${def.textLabel ? `<label class="field">${esc(def.textLabel)}<input id="c-text" maxlength="40" placeholder="${esc(def.textHint)}" value="${esc(c.text || '')}"></label>` : ''}
     <button class="btn wide" data-act="call-send">Позвать</button>
     <p class="small">Не больше 3 зовов в час.</p>`;
 }
@@ -2104,6 +2118,7 @@ const actions = {
   }),
   'feed-kind'(el) { const off = new Set(store.get('feedOff', [])); if (off.has(el.dataset.v)) off.delete(el.dataset.v); else off.add(el.dataset.v); store.set('feedOff', [...off]); render(); },
   'feed-close'() { store.set('feedClose', !store.get('feedClose', false)); render(); },
+  reload() { location.reload(); },
   'coach-next'() {
     if (S.coach < COACH.length - 1) {
       S.coach++;
@@ -2261,6 +2276,7 @@ setInterval(async () => {
   } catch {}
 }, 6000);
 document.addEventListener('visibilitychange', async () => {
+  if (!document.hidden && reloadIfStale()) return;
   if (!document.hidden && S.me && S.me.nick && !typing()) { try { await refresh(); render(); } catch {} }
 });
 

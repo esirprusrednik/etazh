@@ -287,10 +287,10 @@ function register(ctx) {
     }
     const opt = def.opts.includes(body.opt) ? body.opt : def.opts[0] || null;
     let text = null;
-    if (def.needsText) {
-      text = U.cleanText(body.text, 40);
-      if (!text) throw bad('Укажи, какая переговорка.');
-      const prob = U.moderationProblem(text);
+    if (def.needsText || def.textLabel) {
+      text = U.cleanText(body.text, 40) || null;
+      if (def.needsText && !text) throw bad('Заполни поле.');
+      const prob = text && U.moderationProblem(text);
       if (prob) throw bad(prob);
     }
     ins.run(lo, hi, u.id, f.id, 'call', body.kind, opt, text, U.now());

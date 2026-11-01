@@ -61,6 +61,13 @@ function applyLook(base, l, owned) {
   return look;
 }
 const NICK_PRICE = 50;
+// Версия интерфейса: отпечаток файлов клиента. Открытое приложение сравнивает её со своей и перезагружается,
+// иначе у коллег, которые неделями не закрывают вкладку, остаётся старая отрисовка (например, аватаров)
+const BUILD = (() => {
+  const fs = require('node:fs'), path = require('node:path'), h = require('node:crypto').createHash('sha1');
+  for (const f of ['js/app.js', 'js/building.js', 'css/app.css']) { try { h.update(fs.readFileSync(path.join(__dirname, '..', 'public', f))); } catch {} }
+  return h.digest('hex').slice(0, 10);
+})();
 const DEFAULT_LOOK = { preset: 'm', face: 'oval', eyes: '#22252D', mouth: 'smile', beard: 'none', freckles: false, eyeShape: 'normal', outfit: 'hoodie', neck: 'none', hat: 'none', prop: 'none', hairStyle: 'short', hair: '#2B1D14', skin: '#E8B48A', hoodie: 'blue', glasses: false, phones: false, status: null, frame: null, crown: false };
 // plan — где обычно работаю по дням недели: { Пн: 'office' | 'home' }
 // today — ручной статус на сегодня: { kind: 'home' | 'vacation', day: 'YYYY-MM-DD' }
@@ -422,11 +429,11 @@ function createApi(db) {
         nickChangeableAt: u.nick_changed_at ? u.nick_changed_at + 30 * 864e5 : null,
         gangs: myGangs(u.id).map((g) => ({ id: g.id, name: g.name, color: g.color }))
       },
-      vapidKey: config.vapid.publicKey || null,
+      vapidKey: config.vapid.publicKey || null, build: BUILD,
       domains: config.allowedDomains,
       catalog: {
         moods: MOODS,
-        calls: Object.fromEntries(Object.entries(CALLS).map(([k, v]) => [k, { label: v.label, opts: v.opts, needsText: !!v.needsText }])),
+        calls: Object.fromEntries(Object.entries(CALLS).map(([k, v]) => [k, { label: v.label, opts: v.opts, needsText: !!v.needsText, textLabel: v.textLabel || (v.needsText ? 'Уточни' : null), textHint: v.textHint || '' }])),
         signals: Object.fromEntries(Object.entries(SIGNALS).map(([k, v]) => [k, v.label])),
         tags: TAGS, days: DAYS, look: LOOK, nickPrice: NICK_PRICE, memes: MEMES, memeEmos: MEME_EMOS,
         parts: SHOP.filter((it) => it.kind === 'part').map(({ id, slot, value, name, price }) => ({ id, slot, value, name, price })), gangColors: GANG_COLORS, idleJokes: IDLE_JOKES,
@@ -574,7 +581,7 @@ function createApi(db) {
       now: U.now(), msk: U.msk().hhmm, night: U.isAfterCheckinCutoff(),
       beans: q('SELECT beans FROM users WHERE id = ?').get(u.id).beans,
       checkin: ci ? { office: ci.office_id, name: office.name, at: ci.at, since: U.msk(ci.at).hhmm } : null,
-      today: U.msk().day,
+      today: U.msk().day, build: BUILD,
       presence: presenceOf(u.profile, ci, u.id),
       nextVacation: u.profile.vacations.find((v) => v.from > U.msk().day) || null,
       canteen: office ? canteenEstimate(office) : null,
@@ -779,10 +786,10 @@ function createApi(db) {
     }
     const opt = def.opts.includes(body.opt) ? body.opt : def.opts[0] || null;
     let text = null;
-    if (def.needsText) {
-      text = U.cleanText(body.text, 40);
-      if (!text) throw bad('Укажи, какая переговорка.');
-      const prob = U.moderationProblem(text);
+    if (def.needsText || def.textLabel) {
+      text = U.cleanText(body.text, 40) || null;
+      if (def.needsText && !text) throw bad('Заполни поле.');
+      const prob = text && U.moderationProblem(text);
       if (prob) throw bad(prob);
     }
     q('INSERT INTO messages (gang_id, user_id, type, kind, to_user_id, opt, text, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
