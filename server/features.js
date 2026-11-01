@@ -86,6 +86,14 @@ function register(ctx) {
     set: (k, v) => q('INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(k, v)
   };
   const today = () => U.msk().day;
+
+  // Разовая компенсация: «Салага» подешевел с 50 до 30 — купившим возвращаем разницу
+  if (!meta.get('refund_st_night_30')) {
+    const buyers = q("SELECT user_id FROM owned WHERE item_id = 'st_night'").all();
+    for (const b of buyers) addBeans(b.user_id, 'refund:st_night', 20);
+    meta.set('refund_st_night_30', String(buyers.length));
+    if (buyers.length) console.log(`[refund] «Салага»: вернули по 20 зёрен ${buyers.length} покупателям`);
+  }
   const mondayOf = (day) => addDays(day, -((new Date(day + 'T00:00:00Z').getUTCDay() + 6) % 7));
   const dayStartTs = (day) => Date.parse(day + 'T00:00:00Z') - config.tzOffsetHours * 3600e3;
   const ddmm = (day) => `${day.slice(8, 10)}.${day.slice(5, 7)}`;

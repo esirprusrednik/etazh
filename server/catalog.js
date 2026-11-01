@@ -32,7 +32,7 @@ const SIGNALS = {
 };
 
 const SHOP = [
-  { id: 'st_night', kind: 'status', name: 'Салага', price: 50 },
+  { id: 'st_night', kind: 'status', name: 'Салага', price: 30 },
   { id: 'st_coffee', kind: 'status', name: 'Кофейный магнат', price: 60 },
   { id: 'st_owl', kind: 'status', name: 'Сова на смене', price: 70 },
   { id: 'st_room', kind: 'status', name: 'Повелитель переговорок', price: 80 },
