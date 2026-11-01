@@ -78,7 +78,7 @@ function migrate(db) {
 
 function register(ctx) {
   const { db, q, route, requireUser, requireAdmin, bad, U, config, addBeans, spendBeans, notify, fireAndForget,
-    isMember, gangMembers, myGangs, activeCheckin, readProfile, presenceOf, weekdayName, addDays, pushEvent, officeById } = ctx;
+    isMember, gangMembers, myGangs, activeCheckin, readProfile, presenceOf, fullName, weekdayName, addDays, pushEvent, officeById } = ctx;
   migrate(db);
 
   const meta = {
@@ -331,7 +331,7 @@ function register(ctx) {
     if (!partner) return null;
     const office = p.office_id ? officeById(p.office_id) : null;
     return {
-      id: p.id, partner: { id: partner.id, nick: partner.nick, look: lookOf(partner) }, office: office ? office.name : null,
+      id: p.id, partner: { id: partner.id, nick: partner.nick, name: fullName(readProfile(partner.profile), 'all'), look: lookOf(partner) }, office: office ? office.name : null,
       ping: p.ping_by ? { mine: p.ping_by === uid, opt: p.ping_opt, reply: p.reply } : null,
       canReply: !!p.ping_by && p.ping_by !== uid && !p.reply,
       options: COFFEE_OPTS, replies: COFFEE_REPLIES

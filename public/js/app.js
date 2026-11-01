@@ -18,7 +18,7 @@ const S = {
   onb: { step: 'email', email: '', error: '', devLink: null, devCode: null, nicks: [] },
   error: '', busy: false,
   seenChat: store.get('seenChat', 0), seenFeed: store.get('seenFeed', 0),
-  fx: null, gx: null, thanksTo: null, lunchTime: '13:00',
+  fx: null, gx: null, thanksTo: null, lunchTime: '13:00', sec: new Set(),
   crew: null, dm: null, dmView: null
 };
 
@@ -51,27 +51,56 @@ function toast(text) {
 // ---------- Аватар ----------
 const HOODIE = { red: '#E5484D', blue: '#2563C9', green: '#1F7A3A', violet: '#8B5CF6', navy: '#34405F' };
 const FRAMES = { fr_gold: '#FFC93C', fr_neon: '#22D3EE', fr_fire: '#F97316' };
+// Аватар: слои сзади (длинные волосы, хвост, афро) → худи → лицо → передние пряди и аксессуары
+const FACES = {
+  oval: (c) => `<ellipse cx="50" cy="45" rx="19.5" ry="21" fill="${c}"/>`,
+  round: (c) => `<circle cx="50" cy="46" r="21.5" fill="${c}"/>`,
+  square: (c) => `<rect x="29.5" y="25" width="41" height="41" rx="7" fill="${c}"/>`,
+  long: (c) => `<ellipse cx="50" cy="44" rx="16" ry="24" fill="${c}"/>`,
+  heart: (c) => `<path d="M29.5 40 Q29.5 24 50 24 Q70.5 24 70.5 40 Q70.5 56 50 67.5 Q29.5 56 29.5 40 Z" fill="${c}"/>`
+};
+const FRINGE = 'M30 46 Q28 21 50 21 Q72 21 70 46 Q66 31 50 32 Q36 32 30 46 Z';
+const HAIR_BACK = {
+  long: (h) => `<path d="M28 48 Q26 20 50 19 Q74 20 72 48 L76 86 Q50 94 24 86 Z" fill="${h}"/>`,
+  tail: (h) => `<ellipse cx="73" cy="50" rx="7" ry="16" fill="${h}"/>`,
+  bob: (h) => `<path d="M27 50 Q25 20 50 19.5 Q75 20 73 50 L74 64 Q68 67 63 62 L37 62 Q32 67 26 64 Z" fill="${h}"/>`,
+  afro: (h) => `<g fill="${h}"><circle cx="50" cy="36" r="24"/>${[[28, 30], [33, 18], [44, 11], [56, 11], [67, 18], [72, 30], [74, 43], [26, 43]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="10"/>`).join('')}</g>`,
+  bun: (h) => `<circle cx="50" cy="16" r="8.5" fill="${h}"/>`
+};
+const HAIR_FRONT = {
+  short: (h) => `<path d="${FRINGE}" fill="${h}"/>`,
+  long: (h) => `<path d="${FRINGE}" fill="${h}"/>`,
+  tail: (h) => `<path d="${FRINGE}" fill="${h}"/>`,
+  bun: (h) => `<path d="M30 44 Q29 22 50 22 Q71 22 70 44 Q64 29 50 29 Q36 29 30 44 Z" fill="${h}"/>`,
+  curly: (h) => `<circle cx="33" cy="38" r="8" fill="${h}"/><circle cx="40" cy="29" r="8" fill="${h}"/><circle cx="50" cy="25" r="8.5" fill="${h}"/><circle cx="60" cy="29" r="8" fill="${h}"/><circle cx="67" cy="38" r="8" fill="${h}"/>`,
+  bob: (h) => `<path d="M29 46 Q28 21 50 21 Q72 21 71 46 L67 37 Q50 41 33 37 Z" fill="${h}"/>`,
+  side: (h) => `<path d="M30 47 Q26 20 53 20 Q74 21 70 44 Q61 28 43 34 Q35 37 30 47 Z" fill="${h}"/>`,
+  mohawk: (h) => `<path d="M44.5 33 Q43 13 50 6 Q57 13 55.5 33 Z" fill="${h}"/>`,
+  afro: (h) => `<path d="M29 42 Q29 22 50 22 Q71 22 71 42 Q63 31 50 32 Q37 31 29 42 Z" fill="${h}"/>`,
+  bald: () => '<path d="M41 29 Q47 26 52 27" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="2.4" stroke-linecap="round"/>'
+};
 function avatar(look = {}, size = 42) {
   const hair = look.hair || '#2B1D14';
   const skin = look.skin || '#E8B48A';
+  const eyes = look.eyes || '#22252D';
   const hs = look.hairStyle || 'short';
-  const show = (b) => (b ? 'inline' : 'none');
   const ring = FRAMES[look.frame] || '#FFFFFF';
+  const face = (FACES[look.face] || FACES.oval)(skin);
+  const lash = look.preset === 'f' ? '<path d="M38.5 41 L41 39.5 M61.5 41 L59 39.5" stroke="#22252D" stroke-width="2" stroke-linecap="round"/>' : '';
   return `<span class="ava" style="width:${size + 6}px;height:${size + 6}px;border:3px solid ${ring}">
   <svg width="${size}" height="${size}" viewBox="0 0 100 100" aria-hidden="true">
-    <g style="display:${show(hs === 'long' || (look.preset === 'f' && hs !== 'short' && hs !== 'curly' && hs !== 'tail'))}"><path d="M28 48 Q26 20 50 19 Q74 20 72 48 L76 86 Q50 94 24 86 Z" fill="${hair}"/></g>
-    <g style="display:${show(hs === 'tail')}"><ellipse cx="73" cy="50" rx="7" ry="16" fill="${hair}"/></g>
+    ${HAIR_BACK[hs] ? HAIR_BACK[hs](hair) : ''}
     <path d="M12 104 Q14 74 50 71 Q86 74 88 104 Z" fill="${HOODIE[look.hoodie] || HOODIE.blue}"/>
     <rect x="44" y="58" width="12" height="16" rx="3" fill="${skin}"/>
-    <ellipse cx="50" cy="45" rx="19.5" ry="21" fill="${skin}"/>
-    <circle cx="43" cy="48" r="3" fill="#22252D"/><circle cx="57" cy="48" r="3" fill="#22252D"/>
+    ${face}
+    <circle cx="43" cy="48" r="3.2" fill="${eyes}"/><circle cx="57" cy="48" r="3.2" fill="${eyes}"/>
+    <circle cx="44" cy="47" r="1" fill="#fff"/><circle cx="58" cy="47" r="1" fill="#fff"/>
     <path d="M44.5 56 Q50 61 55.5 56" fill="none" stroke="#22252D" stroke-width="2.6" stroke-linecap="round"/>
-    ${look.preset === 'f' ? '<path d="M38.5 41 L41 39.5 M61.5 41 L59 39.5" stroke="#22252D" stroke-width="2" stroke-linecap="round"/>' : ''}
-    <g style="display:${show(hs === 'short' || hs === 'long' || hs === 'tail')}"><path d="M30 46 Q28 21 50 21 Q72 21 70 46 Q66 31 50 32 Q36 32 30 46 Z" fill="${hair}"/></g>
-    <g style="display:${show(hs === 'curly')}"><circle cx="33" cy="38" r="8" fill="${hair}"/><circle cx="40" cy="29" r="8" fill="${hair}"/><circle cx="50" cy="25" r="8.5" fill="${hair}"/><circle cx="60" cy="29" r="8" fill="${hair}"/><circle cx="67" cy="38" r="8" fill="${hair}"/></g>
-    <g style="display:${show(look.glasses)}"><rect x="36.5" y="43" width="13" height="10" rx="3.5" fill="none" stroke="#22252D" stroke-width="3"/><rect x="50.5" y="43" width="13" height="10" rx="3.5" fill="none" stroke="#22252D" stroke-width="3"/></g>
-    <g style="display:${show(look.phones)}"><path d="M29 47 Q27 15 50 15 Q73 15 71 47" fill="none" stroke="#2B2B3A" stroke-width="6" stroke-linecap="round"/><rect x="23" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="67" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/></g>
-    <g style="display:${show(look.crown)}"><path d="M33 19 L37 5 L44 13 L50 3 L56 13 L63 5 L67 19 Z" fill="#FFC93C" stroke="#D99A0B" stroke-width="2" stroke-linejoin="round"/></g>
+    ${lash}
+    ${(HAIR_FRONT[hs] || HAIR_FRONT.short)(hair)}
+    ${look.glasses ? '<rect x="36.5" y="43" width="13" height="10" rx="3.5" fill="none" stroke="#22252D" stroke-width="3"/><rect x="50.5" y="43" width="13" height="10" rx="3.5" fill="none" stroke="#22252D" stroke-width="3"/>' : ''}
+    ${look.phones ? '<path d="M29 47 Q27 15 50 15 Q73 15 71 47" fill="none" stroke="#2B2B3A" stroke-width="6" stroke-linecap="round"/><rect x="23" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="67" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/>' : ''}
+    ${look.crown ? '<path d="M33 19 L37 5 L44 13 L50 3 L56 13 L63 5 L67 19 Z" fill="#FFC93C" stroke="#D99A0B" stroke-width="2" stroke-linejoin="round"/>' : ''}
   </svg></span>`;
 }
 
@@ -166,6 +195,9 @@ function render() {
   const focused = a && a.id && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA') ? { id: a.id, v: a.value, s: a.selectionStart } : null;
   const chat = $('#dm-chat');
   const chatAtBottom = !chat || chat.scrollHeight - chat.scrollTop - chat.clientHeight < 40;
+  const sheetEl = document.querySelector('.sheet');
+  const keepSheet = sheetEl && S.lastSheet === S.sheet ? sheetEl.scrollTop : 0;
+  S.lastSheet = S.sheet;
   if (!S.me) root.innerHTML = renderLogin();
   else if (!S.me.nick) root.innerHTML = renderNick();
   else root.innerHTML = renderApp();
@@ -176,6 +208,8 @@ function render() {
   }
   const chat2 = $('#dm-chat');
   if (chat2 && chatAtBottom) chat2.scrollTop = chat2.scrollHeight;
+  const sheetNew = document.querySelector('.sheet');
+  if (sheetNew && keepSheet) sheetNew.scrollTop = keepSheet;
 }
 
 function renderLogin() {
@@ -464,7 +498,7 @@ function renderGangNow() {
       : `<button class="btn small ${sameOffice ? '' : 'ghost'}" data-act="call-open" data-kind="${sameOffice ? 'coffee' : r.where === 'home' ? 'call' : 'where'}" data-to="${r.id}" data-gang="${r.gangId}">${sameOffice ? 'На кофе' : r.where === 'home' ? 'Созвонимся?' : 'Ты где?'}</button>`;
     return `<div class="person2">
       <span class="ava-wrap" style="opacity:${away ? 0.6 : 1}"><span class="ava-ring" style="border-color:${color}">${avatar(r.look, 32)}</span><span class="ava-dot" style="background:${color}"></span></span>
-      <div class="grow"><div style="font-weight:700;font-size:15px">${esc(r.nick)}</div>
+      <div class="grow"><div style="font-weight:700;font-size:15px">${esc(r.nick)}</div>${r.name ? `<div class="realname">${esc(r.name)}</div>` : ''}
       <div class="where ellipsis">${esc(w)}${r.mood && r.where === 'office' ? ' · ' + esc(r.mood) : ''}</div></div>
       ${action}</div>`;
   }).join('');
@@ -494,7 +528,7 @@ function renderGang() {
   const g = v.gang;
   const members = v.members.map((m) => {
     const [w, color] = whereText(m);
-    return `<div class="person">${avatar(m.look, 34)}<div class="grow"><div style="font-weight:900">${esc(m.nick)}${m.me ? ' (ты)' : ''}</div>
+    return `<div class="person">${avatar(m.look, 34)}<div class="grow"><div style="font-weight:900">${esc(m.nick)}${m.me ? ' (ты)' : ''}</div>${m.name ? `<div class="realname">${esc(m.name)}</div>` : ''}
       <div class="where"><span class="dot" style="background:${color}"></span>${esc(w)}${m.mood && m.where === 'office' ? ' · ' + esc(m.mood) : ''}${m.status ? ' · ' + esc(m.status) : ''}</div></div>
       ${m.me ? '' : `${crewAddBtn(m.id)}<button class="btn small ghost" data-act="call-open" data-kind="where" data-to="${m.id}" data-gang="${g.id}">Позвать</button>`}</div>`;
   }).join('');
@@ -719,7 +753,7 @@ function renderCoffee() {
   const offer = p.canReply || (p.ping && p.ping.mine && !p.ping.reply) ? '' : `<div class="chips">${p.options.map((o) => `<button class="chip" data-act="coffee-ping" data-v="${esc(o)}">${esc(o)}</button>`).join('')}</div>`;
   return `<section class="card coffee">
     <div class="row" style="gap:12px"><span class="ava-wrap">${avatar(p.partner.look, 34)}</span>
-    <div class="grow"><div class="eyebrow">Случайный кофе на этой неделе</div><div style="font-weight:900;font-size:16px">${esc(p.partner.nick)}</div>${p.office ? `<div class="small">${esc(p.office)}</div>` : ''}</div></div>
+    <div class="grow"><div class="eyebrow">Случайный кофе на этой неделе</div><div style="font-weight:900;font-size:16px">${esc(p.partner.nick)}</div>${p.partner.name ? `<div class="small" style="font-weight:700">${esc(p.partner.name)}</div>` : ''}${p.office ? `<div class="small">${esc(p.office)}</div>` : ''}</div></div>
     ${state}${offer}
   </section>`;
 }
@@ -769,8 +803,7 @@ function renderAchievements() {
   if (!f) return '<p class="small">Загружаем ачивки…</p>';
   const got = f.achievements.filter((a) => a.got).length;
   const tiers = [['common', 'Обычные'], ['rare', 'Редкие'], ['legendary', 'Легендарные']];
-  return `<div class="row" style="justify-content:space-between"><h3>Ачивки</h3><span class="small">${got} из ${f.achievements.length}</span></div>
-    ${tiers.map(([t, title]) => `<div class="eyebrow" style="margin-top:4px">${title} · +${f.achievements.find((a) => a.tier === t).reward} ${plural(f.achievements.find((a) => a.tier === t).reward, 'зерно', 'зерна', 'зёрен')}</div>
+  return `${tiers.map(([t, title]) => `<div class="eyebrow" style="margin-top:4px">${title} · +${f.achievements.find((a) => a.tier === t).reward} ${plural(f.achievements.find((a) => a.tier === t).reward, 'зерно', 'зерна', 'зёрен')}</div>
       <div class="ach-grid">${f.achievements.filter((a) => a.tier === t).map((a) => `<div class="ach ${t} ${a.got ? 'got' : ''}" title="${esc(a.desc)}">
         <span class="ach-ico" aria-hidden="true">${a.got ? '★' : '?'}</span><span class="ach-name">${esc(a.name)}</span><span class="ach-desc">${esc(a.desc)}</span></div>`).join('')}</div>`).join('')}`;
 }
@@ -857,52 +890,109 @@ function renderInstall() {
     <p class="sub">${ios ? 'Chrome → меню ⋮ → «Установить приложение».' : 'Safari → «Поделиться» → «На экран “Домой”».'}</p>`;
 }
 
+// Профиль собран из раскрывающихся секций: в заголовке — краткая сводка и карандаш, внутри — редактирование
+const PENCIL = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>';
+const HAIR_NAMES = { short: 'Короткие', long: 'Длинные', tail: 'Хвост', curly: 'Кудри', bob: 'Каре', bun: 'Пучок', side: 'Набок', mohawk: 'Ирокез', afro: 'Афро', bald: 'Без волос' };
+const FACE_NAMES = { oval: 'Овал', round: 'Круглое', square: 'Квадрат', long: 'Вытянутое', heart: 'Сердечко' };
+const VIS_NAMES = { all: 'Всем', gang: 'Бандам и подельникам', hidden: 'Никому' };
+function section(id, title, summary, body, opts = {}) {
+  const open = S.sec.has(id);
+  return `<section class="psec ${open ? 'open' : ''}">
+    <button class="psec-head" data-act="sec" data-v="${id}" aria-expanded="${open}">
+      ${opts.lead || ''}<span class="grow"><span class="psec-title">${title}</span>${summary ? `<span class="psec-sum">${summary}</span>` : ''}</span>
+      <span class="psec-edit">${open ? 'Свернуть' : PENCIL}</span>
+    </button>
+    ${open ? `<div class="psec-body">${body}</div>` : ''}
+  </section>`;
+}
+
 function renderProfile() {
   const me = S.me;
   const L = S.cat.look;
   const look = me.look;
   const p = me.profile;
   const sw = (key, vals) => `<div class="row" style="flex-wrap:wrap;gap:8px">${vals.map((v) => `<button class="swatch ${look[key] === v ? 'on' : ''}" style="background:${HOODIE[v] || v}" data-act="look" data-k="${key}" data-v="${v}" aria-label="${key} ${v}"></button>`).join('')}</div>`;
-  const hairNames = { short: 'Короткие', long: 'Длинные', tail: 'Хвост', curly: 'Кудри' };
+  const tiles = (key, vals, names) => `<div class="ava-tiles">${vals.map((v) => `<button class="ava-tile ${look[key] === v ? 'on' : ''}" data-act="look" data-k="${key}" data-v="${v}">${avatar({ ...look, [key]: v, frame: null, crown: false }, 48)}<span>${names[v] || v}</span></button>`).join('')}</div>`;
   const pushState = !('Notification' in window) ? 'unsupported' : Notification.permission;
-  return `
-    <div class="row">${avatar(look, 72)}<div class="grow"><div class="nick" style="color:var(--ink)">${esc(me.nick)}</div>${me.status ? `<div class="status" style="color:#B7791F">${esc(me.status)}</div>` : ''}<div class="small">${me.beans} зёрен</div></div></div>
-    <h3>Аватар</h3>
-    <div class="chips">${['m', 'f'].map((v) => `<button class="chip ${look.preset === v ? 'on' : ''}" data-act="look" data-k="preset" data-v="${v}">${v === 'm' ? 'М' : 'Ж'}</button>`).join('')}</div>
-    <div class="field">Причёска<div class="chips">${L.hairStyle.map((v) => `<button class="chip ${look.hairStyle === v ? 'on' : ''}" data-act="look" data-k="hairStyle" data-v="${v}">${hairNames[v] || v}</button>`).join('')}</div></div>
-    <div class="field">Цвет волос${sw('hair', L.hair)}</div>
+  const name = [p.firstName, p.lastName].filter(Boolean).join(' ');
+  const got = S.fx ? S.fx.achievements.filter((a) => a.got).length : null;
+  const plan = S.cat.days.map((d) => (p.plan[d] === 'office' ? 'О' : p.plan[d] === 'home' ? 'Д' : '·')).join(' ');
+  const office = (S.cat.offices.find((o) => o.id === p.home) || {}).name;
+
+  const lookBody = `
+    <div class="ava-preview">${avatar(look, 96)}</div>
+    <div class="eyebrow">Лицо</div>
+    <div class="chips">${['m', 'f'].map((v) => `<button class="chip ${look.preset === v ? 'on' : ''}" data-act="look" data-k="preset" data-v="${v}">${v === 'm' ? 'Без ресниц' : 'С ресницами'}</button>`).join('')}</div>
+    <div class="field">Форма лица${tiles('face', L.face, FACE_NAMES)}</div>
     <div class="field">Кожа${sw('skin', L.skin)}</div>
+    <div class="field">Глаза${sw('eyes', L.eyes)}</div>
+    <div class="eyebrow">Волосы</div>
+    <div class="field">Причёска${tiles('hairStyle', L.hairStyle, HAIR_NAMES)}</div>
+    <div class="field">Цвет${sw('hair', L.hair)}</div>
+    <div class="eyebrow">Одежда и аксессуары</div>
     <div class="field">Худи${sw('hoodie', L.hoodie)}</div>
     <div class="chips"><button class="chip ${look.glasses ? 'on' : ''}" data-act="look-toggle" data-k="glasses">Очки</button><button class="chip ${look.phones ? 'on' : ''}" data-act="look-toggle" data-k="phones">Наушники</button></div>
+    <p class="small" style="margin:0">Рамки, короны и статусы — в Лавке.</p>`;
 
-    ${renderAchievements()}
-    <h3>Обо мне</h3>
+  const nameBody = `
+    <div class="field">Никнейм
+      ${S.nickConfirm ? `<div class="note warn" style="margin:0">Сменить ${esc(me.nick)} на <b>${esc(S.nickConfirm)}</b> за ${S.cat.nickPrice} зёрен? Старый ник освободится, и его сможет занять кто-то другой.</div>
+      <div class="row"><button class="btn small grow" data-act="nick-yes">Да, сменить</button><button class="btn small ghost grow" data-act="nick-no">Отмена</button></div>`
+      : `<div class="row"><label class="grow" style="display:flex"><span class="hidden">Новый никнейм</span><input id="p-nick" maxlength="21" value="${esc(me.nick)}" aria-label="Новый никнейм"></label>
+      <button class="btn small" data-act="nick-change" ${me.beans < S.cat.nickPrice ? 'disabled' : ''}>Сменить</button></div>
+      <span class="small" style="font-weight:600">${me.beans < S.cat.nickPrice ? `Смена стоит ${S.cat.nickPrice} зёрен, у тебя ${me.beans}.` : `Стоит ${S.cat.nickPrice} зёрен. Буквы, цифры и «_», от 3 до 20 символов.`}</span>`}</div>
+    <div class="row" style="gap:8px">
+      <label class="field grow">Имя<input id="p-first" maxlength="30" value="${esc(p.firstName)}" autocomplete="given-name"></label>
+      <label class="field grow">Фамилия<input id="p-last" maxlength="30" value="${esc(p.lastName)}" autocomplete="family-name"></label>
+    </div>
+    <div class="field">Кто видит имя и фамилию<div class="chips">${Object.entries(VIS_NAMES).map(([k, l]) => `<button class="chip ${p.nameVis === k ? 'on' : ''}" data-act="name-vis" data-v="${k}">${l}</button>`).join('')}</div>
+      <span class="small" style="font-weight:600">${p.nameVis === 'all' ? 'Увидят и коллеги не из твоих банд, например пара в случайном кофе.' : p.nameVis === 'gang' ? 'Видят участники твоих банд и подельники. Остальные — только ник.' : 'Все видят только ник.'}</span></div>
+    <button class="btn ghost" data-act="name-save">Сохранить имя</button>`;
+
+  const workBody = `
     <div class="field">Статус<div class="chips">${Object.entries(S.cat.moods).map(([k, l]) => `<button class="chip ${p.mood === k ? 'on' : ''}" data-act="prof" data-k="mood" data-v="${k}">${esc(l)}</button>`).join('')}</div></div>
     <div class="field">Мой офис<div class="chips">${S.cat.offices.map((o) => `<button class="chip ${p.home === o.id ? 'on' : ''}" data-act="prof" data-k="home" data-v="${o.id}">${esc(o.name)}</button>`).join('')}</div></div>
     <div class="field">План недели — нажимай, чтобы переключить: офис → дом → не знаю
       <div class="plan">${S.cat.days.map((d) => { const v = p.plan[d]; return `<button class="plan-day ${v || 'none'}" data-act="plan-day" data-v="${d}" aria-label="${d}: ${v === 'office' ? 'офис' : v === 'home' ? 'дом' : 'не задано'}"><b>${d}</b><span>${v === 'office' ? 'Офис' : v === 'home' ? 'Дом' : '—'}</span></button>`; }).join('')}</div>
-      <span class="small" style="font-weight:600">Банда видит «по плану из дома» или «собирается в офис». Отметка в офисе всегда важнее плана.</span></div>
-    <div class="field">График отпусков
-      ${p.vacations.length ? p.vacations.map((v, i) => `<div class="item"><span class="grow" style="color:var(--ink);font-weight:800">🌴 ${ddmm(v.from)} — ${ddmm(v.to)}</span><button class="btn small danger" data-act="vac-del" data-v="${i}">Удалить</button></div>`).join('') : '<span class="small" style="font-weight:600">Пока пусто. В эти дни банда увидит «в отпуске до …», а зовы не будут присылать пуши.</span>'}
-      <div class="row" style="gap:6px;align-items:flex-end">
-        <label class="field grow">С<input id="vac-from" type="date"></label>
-        <label class="field grow">По<input id="vac-to" type="date"></label>
-        <button class="btn small" data-act="vac-add" style="min-height:48px">Добавить</button>
-      </div></div>
+      <span class="small" style="font-weight:600">Банда видит «по плану из дома» или «собирается в офис». Отметка в офисе всегда важнее плана.</span></div>`;
+
+  const vacBody = `
+    ${p.vacations.length ? p.vacations.map((v, i) => `<div class="item"><span class="grow" style="color:var(--ink);font-weight:800">🌴 ${ddmm(v.from)} — ${ddmm(v.to)}</span><button class="btn small danger" data-act="vac-del" data-v="${i}">Удалить</button></div>`).join('') : '<span class="small" style="font-weight:600">Пока пусто. В эти дни банда увидит «в отпуске до …», а зовы не будут присылать пуши.</span>'}
+    <div class="row" style="gap:6px;align-items:flex-end">
+      <label class="field grow">С<input id="vac-from" type="date"></label>
+      <label class="field grow">По<input id="vac-to" type="date"></label>
+      <button class="btn small" data-act="vac-add" style="min-height:48px">Добавить</button>
+    </div>`;
+
+  const aboutBody = `
     <div class="field">Интересы (до 5)<div class="chips">${S.cat.tags.map((t) => `<button class="chip ${p.tags.includes(t) ? 'on' : ''}" data-act="prof-tag" data-v="${esc(t)}">${esc(t)}</button>`).join('')}</div></div>
     <label class="field">О себе (до 60 символов)<input id="p-about" maxlength="60" value="${esc(p.about)}" placeholder="Люблю кофе и настолки"></label>
     <label class="field">День рождения (ДД.ММ, без года)<input id="p-bday" maxlength="5" inputmode="numeric" value="${esc(p.bday)}" placeholder="14.03"></label>
-    <button class="btn ghost" data-act="prof-save">Сохранить</button>
+    <button class="btn ghost" data-act="prof-save">Сохранить</button>`;
 
-    <h3>Приватность и уведомления</h3>
+  const privBody = `
     <label class="check"><input type="checkbox" data-act="toggle" data-k="shareOffice" ${me.shareOffice ? 'checked' : ''}> <span>Показывать банде, где я: офис, дома или в отпуске</span></label>
     <label class="check"><input type="checkbox" data-act="toggle" data-k="quiet" ${me.quiet ? 'checked' : ''}> <span>Тихие часы 19:00–09:00 — не присылать зовы</span></label>
-    <label class="check"><input type="checkbox" data-act="coffee-toggle" ${me.profile.coffee ? 'checked' : ''}> <span>Участвовать в случайном кофе${me.profile.home ? '' : ' (сначала укажи «Мой офис» выше)'}</span></label>
+    <label class="check"><input type="checkbox" data-act="coffee-toggle" ${p.coffee ? 'checked' : ''}> <span>Участвовать в случайном кофе${p.home ? '' : ' (сначала укажи «Мой офис» в разделе «Работа»)'}</span></label>
     ${pushState === 'granted' ? '<div class="row"><span class="note good grow">Уведомления включены</span><button class="btn small ghost" data-act="push-test">Проверить</button></div>'
       : pushState === 'unsupported' ? `<div class="note warn">${isIOS() && !isStandalone() ? 'На iPhone уведомления работают только из установленного приложения.' : 'Этот браузер не поддерживает уведомления.'}</div>`
       : pushState === 'denied' ? '<div class="note warn">Уведомления запрещены в настройках браузера.</div>'
       : `<button class="btn blue" data-act="push-enable" ${S.vapidKey ? '' : 'disabled'}>Включить уведомления</button>`}
-    <button class="btn ghost" data-act="open" data-v="install">Как установить на телефон</button>
+    <button class="btn ghost" data-act="open" data-v="install">Как установить на телефон</button>`;
+
+  return `
+    <div class="prof-hero">${avatar(look, 72)}<div class="grow">
+      <div class="nick" style="color:var(--ink)">${esc(me.nick)}</div>
+      ${name ? `<div class="small" style="font-weight:700">${esc(name)}</div>` : ''}
+      ${me.status ? `<div class="status" style="color:#B7791F">${esc(me.status)}</div>` : ''}
+      <div class="small">${me.beans} ${plural(me.beans, 'зерно', 'зерна', 'зёрен')}</div></div></div>
+    ${section('look', 'Внешность', `${FACE_NAMES[look.face] || 'Овал'} · ${(HAIR_NAMES[look.hairStyle] || '').toLowerCase()}${look.glasses ? ' · очки' : ''}`, lookBody)}
+    ${section('name', 'Ник, имя и фамилия', name ? `${esc(name)} · видят: ${VIS_NAMES[p.nameVis].toLowerCase()}` : 'Имя не указано', nameBody)}
+    ${section('ach', 'Ачивки', got == null ? '' : `${got} из ${S.fx.achievements.length}`, renderAchievements())}
+    ${section('work', 'Работа', `${office || 'офис не указан'} · ${plan}`, workBody)}
+    ${section('vac', 'Отпуска', p.vacations.length ? p.vacations.map((v) => `${ddmm(v.from)}–${ddmm(v.to)}`).join(', ') : 'не запланированы', vacBody)}
+    ${section('about', 'О себе', [p.about && esc(p.about), p.bday && 'ДР ' + esc(p.bday)].filter(Boolean).join(' · ') || 'интересы, пара слов, день рождения', aboutBody)}
+    ${section('priv', 'Приватность и уведомления', `${me.shareOffice ? 'банда видит, где я' : 'где я — скрыто'}${me.quiet ? ' · тихие часы' : ''}`, privBody)}
     ${me.isAdmin ? '<a class="btn violet" style="display:flex;align-items:center;justify-content:center;text-decoration:none" href="/admin.html">Модерация</a>' : ''}
     <div class="row" style="justify-content:space-between">
       <button class="linkbtn" data-act="logout">Выйти</button>
@@ -1205,6 +1295,21 @@ const actions = {
     const t = new Set(S.me.profile.tags);
     if (t.has(el.dataset.v)) t.delete(el.dataset.v); else if (t.size >= 5) throw new Error('Не больше 5 интересов'); else t.add(el.dataset.v);
     await post('/api/me/profile', { profile: { tags: [...t] } }); await loadMe();
+  }),
+  sec(el) { const v = el.dataset.v; if (S.sec.has(v)) S.sec.delete(v); else S.sec.add(v); render(); },
+  'name-vis': (el) => run(async () => { await post('/api/me/profile', { profile: { nameVis: el.dataset.v } }); await loadMe(); }),
+  'name-save': () => run(async () => { await post('/api/me/profile', { profile: { firstName: $('#p-first').value, lastName: $('#p-last').value } }); await loadMe(); toast('Сохранено'); }),
+  'nick-change'() {
+    let nick = $('#p-nick').value.trim();
+    if (!nick.startsWith('@')) nick = '@' + nick;
+    if (nick.toLowerCase() === S.me.nick.toLowerCase()) { S.error = 'Впиши новый никнейм'; render(); return; }
+    if (!/^@[a-zA-Zа-яА-ЯёЁ0-9_]{3,20}$/.test(nick)) { S.error = 'От 3 до 20 символов: буквы, цифры и «_», без пробелов.'; render(); return; }
+    S.error = null; S.nickConfirm = nick; render();
+  },
+  'nick-no'() { S.nickConfirm = null; render(); },
+  'nick-yes': () => run(async () => {
+    const nick = S.nickConfirm; S.nickConfirm = null;
+    const r = await post('/api/me/nick', { nick }); await loadMe(); toast(`Теперь ты ${r.nick}`);
   }),
   'prof-save': () => run(async () => { await post('/api/me/profile', { profile: { about: $('#p-about').value, bday: $('#p-bday').value } }); await loadMe(); toast('Сохранено'); }),
   toggle: (el) => run(async () => { await post('/api/me/profile', { [el.dataset.k]: el.checked }); await loadMe(); await loadState(); }),

@@ -155,6 +155,22 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.ok(!/anna@mts/i.test(raw));
   });
 
+  await step('ник за 50 зёрен, имя видно банде, но не чужим', async () => {
+    const before = (await a.get('/api/me')).json.user.beans;
+    assert.equal((await a.post('/api/me/nick', { nick: 'ночной_филин' })).status, 400);
+    assert.equal((await a.post('/api/me/nick', { nick: 'новый_енот' })).status, 200);
+    assert.equal((await a.get('/api/me')).json.user.beans, before - 50);
+    await a.post('/api/me/profile', { profile: { firstName: 'Анна', lastName: 'Петрова' } });
+    assert.equal((await a.post('/api/me/profile', { profile: { firstName: 'Ан<на>' } })).status, 400);
+    const gm = (await b.get(`/api/gangs/${g.id}`)).json.members.find((m) => m.id === a.id);
+    assert.equal(gm.name, 'Анна Петрова');
+    await a.post('/api/me/profile', { profile: { nameVis: 'hidden' } });
+    assert.equal((await b.get(`/api/gangs/${g.id}`)).json.members.find((m) => m.id === a.id).name, '');
+    await a.post('/api/me/profile', { look: { face: 'heart', eyes: '#3A7BD5', hairStyle: 'afro' } });
+    const look = (await a.get('/api/me')).json.user.look;
+    assert.equal(look.face, 'heart'); assert.equal(look.hairStyle, 'afro');
+  });
+
   await step('удаление аккаунта убирает его спасибо, ачивки и пары', async () => {
     assert.equal((await d.req('DELETE', '/api/me')).status, 200);
     const fp = (await a.get('/api/features')).json.coffee.pair;

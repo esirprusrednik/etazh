@@ -240,3 +240,23 @@ body { font-weight: 500; }
 .linkbtn.back { color: #fff; font-weight: 800; font-size: 15px; min-height: 40px; align-self: flex-start; }
 #dm-chat .msg .meta { justify-content: flex-end; }
 #dm-chat .msg:not(.mine) .meta { justify-content: flex-start; }
+/* ---- Профиль: раскрывающиеся секции, плитки аватара ---- */
+.prof-hero { display: flex; align-items: center; gap: 14px; padding: 4px 0 6px; }
+.psec { border: 1.5px solid var(--line); border-radius: 18px; background: #fff; }
+
+.psec.open { border-color: #C9D3EA; box-shadow: 0 3px 0 #E3E7F2; }
+.psec-head { width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 14px; background: none; text-align: left; color: var(--ink); min-height: 60px; }
+.psec-title { display: block; font-weight: 900; font-size: 16px; }
+.psec-sum { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.psec-head .grow { min-width: 0; }
+.psec-edit { flex: none; display: inline-flex; align-items: center; justify-content: center; min-width: 36px; height: 36px; padding: 0 10px; border-radius: 12px; background: #F1F3F8; color: #24408E; font-size: 13px; font-weight: 800; }
+.psec.open .psec-edit { background: #E3EAFB; }
+.psec-body { display: flex; flex-direction: column; gap: 12px; padding: 0 14px 16px; border-top: 1px solid var(--line); padding-top: 14px; }
+.psec-body .eyebrow { margin-top: 4px; }
+.ava-preview { display: flex; justify-content: center; padding: 8px 0; position: sticky; top: -18px; z-index: 2; background: #fff; border-bottom: 1px solid var(--line); margin: -6px -14px 0; }
+.ava-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); gap: 8px; }
+.ava-tile { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px 6px; border-radius: 14px; background: #F4F6FB; border: 2px solid transparent; color: var(--ink); font-size: 11.5px; font-weight: 700; }
+.ava-tile.on { border-color: var(--ink); background: #fff; }
+.ava-tile .ava { border-width: 2px !important; }
+.realname { font-weight: 600; font-size: 13px; color: var(--muted); line-height: 1.2; }
+.psec-body .row input { min-width: 0; width: 100%; }

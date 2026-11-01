@@ -30,19 +30,29 @@ setInterval(() => {
 // ---------- Внешний вид аватара: допустимые значения ----------
 const LOOK = {
   preset: ['m', 'f'],
-  hairStyle: ['short', 'long', 'tail', 'curly'],
-  hair: ['#2B1D14', '#6B3E26', '#E0B04B', '#C2412F', '#9AA3B5'],
-  skin: ['#F6D3B3', '#E8B48A', '#C98E62', '#8D5A3B'],
+  hairStyle: ['short', 'long', 'tail', 'curly', 'bob', 'bun', 'side', 'mohawk', 'afro', 'bald'],
+  hair: ['#2B1D14', '#6B3E26', '#E0B04B', '#C2412F', '#9AA3B5', '#F2E6C9', '#7C4DFF', '#FF6FA8'],
+  face: ['oval', 'round', 'square', 'long', 'heart'],
+  eyes: ['#22252D', '#6B4226', '#3A7BD5', '#3C8D5A', '#8A8F9C'],
+  skin: ['#FBE3CF', '#F6D3B3', '#E8B48A', '#C98E62', '#8D5A3B', '#5E3A26'],
   hoodie: ['red', 'blue', 'green', 'violet', 'navy']
 };
-const DEFAULT_LOOK = { preset: 'm', hairStyle: 'short', hair: '#2B1D14', skin: '#E8B48A', hoodie: 'blue', glasses: false, phones: false, status: null, frame: null, crown: false };
+const NICK_PRICE = 50;
+const DEFAULT_LOOK = { preset: 'm', face: 'oval', eyes: '#22252D', hairStyle: 'short', hair: '#2B1D14', skin: '#E8B48A', hoodie: 'blue', glasses: false, phones: false, status: null, frame: null, crown: false };
 // plan — где обычно работаю по дням недели: { Пн: 'office' | 'home' }
 // today — ручной статус на сегодня: { kind: 'home' | 'vacation', day: 'YYYY-MM-DD' }
 // vacations — график отпусков: [{ from: 'YYYY-MM-DD', to: 'YYYY-MM-DD' }]
-const DEFAULT_PROFILE = { coffee: false, mood: 'coffee', home: null, days: [], plan: {}, today: null, vacations: [], about: '', tags: [], bday: '', showBday: true };
+const DEFAULT_PROFILE = { coffee: false, mood: 'coffee', home: null, days: [], plan: {}, today: null, vacations: [], about: '', tags: [], bday: '', showBday: true, firstName: '', lastName: '', nameVis: 'gang' };
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const addDays = (day, n) => new Date(Date.parse(day + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
 const weekdayName = (day) => [null, 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', null][new Date(day + 'T00:00:00Z').getUTCDay()];
+
+// Имя и фамилия: scope 'gang' — смотрит кто-то из общей банды, 'all' — любой коллега
+function fullName(prof, scope) {
+  const vis = prof.nameVis || 'gang';
+  if (vis === 'hidden' || (vis === 'gang' && scope !== 'gang')) return '';
+  return [prof.firstName, prof.lastName].filter(Boolean).join(' ');
+}
 
 function readProfile(json) {
   const prof = { ...DEFAULT_PROFILE, ...JSON.parse(json || '{}') };
@@ -237,7 +247,7 @@ function createApi(db) {
     const look = { ...DEFAULT_LOOK, ...JSON.parse(member.look || '{}') };
     const pr = member.share_office ? presenceOf(prof, activeCheckin(member.id), member.id) : { where: 'hidden' };
     return {
-      id: member.id, nick: member.nick, mood: MOODS[prof.mood] || '', where: pr.where, office: pr.office || null,
+      id: member.id, nick: member.nick, name: fullName(prof, 'gang'), mood: MOODS[prof.mood] || '', where: pr.where, office: pr.office || null,
       until: pr.until || null, planned: !!pr.planned, joke: pr.joke ?? null, look, status: statusName(look.status)
     };
   }
@@ -360,7 +370,7 @@ function createApi(db) {
         moods: MOODS,
         calls: Object.fromEntries(Object.entries(CALLS).map(([k, v]) => [k, { label: v.label, opts: v.opts, needsText: !!v.needsText }])),
         signals: Object.fromEntries(Object.entries(SIGNALS).map(([k, v]) => [k, v.label])),
-        tags: TAGS, days: DAYS, look: LOOK, gangColors: GANG_COLORS, idleJokes: IDLE_JOKES,
+        tags: TAGS, days: DAYS, look: LOOK, nickPrice: NICK_PRICE, gangColors: GANG_COLORS, idleJokes: IDLE_JOKES,
         offices: offices().map((o) => ({ id: o.id, name: o.name, color: o.color }))
       }
     };
@@ -385,9 +395,10 @@ function createApi(db) {
     if (!/^@[a-zA-Zа-яА-ЯёЁ0-9_]{3,20}$/.test(nick)) throw bad('От 3 до 20 символов: буквы, цифры и «_», без пробелов.');
     const prob = U.moderationProblem(nick.slice(1));
     if (prob) throw bad(prob);
-    if (u.nick && u.nick_changed_at && U.now() - u.nick_changed_at < 30 * 864e5) throw bad('Никнейм можно менять не чаще раза в 30 дней.');
+    if (u.nick && nick === u.nick) throw bad('Это и так твой никнейм.');
     if (q('SELECT 1 FROM users WHERE nick = ? COLLATE NOCASE AND id != ?').get(nick, u.id)) throw bad('Такой никнейм уже занят.');
     const first = !u.nick;
+    if (!first && !spendBeans(u.id, NICK_PRICE, 'nick')) throw bad(`Смена никнейма стоит ${NICK_PRICE} зёрен. Пока не хватает.`);
     q('UPDATE users SET nick = ?, nick_changed_at = ? WHERE id = ?').run(nick, first ? null : U.now(), u.id);
     if (first && !u.welcomed) {
       addBeans(u.id, 'welcome');
@@ -402,7 +413,7 @@ function createApi(db) {
     const look = { ...u.look };
     if (body.look) {
       const l = body.look;
-      for (const k of ['preset', 'hairStyle', 'hair', 'skin', 'hoodie']) if (l[k] !== undefined && LOOK[k].includes(l[k])) look[k] = l[k];
+      for (const k of ['preset', 'face', 'eyes', 'hairStyle', 'hair', 'skin', 'hoodie']) if (l[k] !== undefined && LOOK[k].includes(l[k])) look[k] = l[k];
       if (l.glasses !== undefined) look.glasses = !!l.glasses;
       if (l.phones !== undefined) look.phones = !!l.phones;
     }
@@ -455,6 +466,15 @@ function createApi(db) {
         prof.bday = b;
       }
       if (p.showBday !== undefined) prof.showBday = !!p.showBday;
+      for (const k of ['firstName', 'lastName']) {
+        if (p[k] === undefined) continue;
+        const v = U.cleanText(p[k], 30);
+        if (v && !/^[a-zA-Zа-яА-ЯёЁ][a-zA-Zа-яА-ЯёЁ' -]{0,29}$/.test(v)) throw bad('В имени и фамилии — только буквы, дефис и пробел.');
+        const prob = v && U.moderationProblem(v);
+        if (prob) throw bad(prob);
+        prof[k] = v;
+      }
+      if (p.nameVis !== undefined) { if (!['all', 'gang', 'hidden'].includes(p.nameVis)) throw bad('Неизвестная видимость.'); prof.nameVis = p.nameVis; }
       if (p.coffee !== undefined) prof.coffee = !!p.coffee;
     }
     const share = body.shareOffice === undefined ? u.share_office : body.shareOffice ? 1 : 0;
@@ -916,7 +936,7 @@ function createApi(db) {
   // ---------- Функции второго этапа ----------
   features = require('./features').register({
     db, q, route, requireUser, requireAdmin, bad, U, config, addBeans, spendBeans, notify, fireAndForget,
-    isMember, gangMembers, myGangs, activeCheckin, readProfile, presenceOf, weekdayName, addDays, pushEvent, officeById
+    isMember, gangMembers, myGangs, activeCheckin, readProfile, presenceOf, fullName, weekdayName, addDays, pushEvent, officeById
   });
 
   // ---------- Подельники: личные контакты ----------
