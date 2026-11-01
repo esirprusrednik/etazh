@@ -630,6 +630,35 @@ function createApi(db) {
     return { ok: true };
   });
 
+  // Карточка коллеги: большой аватар и то, что он сам разрешил показать.
+  // Полная карточка — тем, с кем есть общая банда, подельникам и паре по кофе; остальным — ник и аватар.
+  route('GET', '/api/users/:id', async (req, body, query, params) => {
+    const u = requireUser(req);
+    const t = q('SELECT id, nick, look, profile, share_office FROM users WHERE id = ? AND nick IS NOT NULL').get(Number(params.id));
+    if (!t) throw new HttpError(404, 'Пользователь не найден.');
+    const me = t.id === u.id;
+    const sharedGangs = q(`SELECT g.name FROM gang_members a JOIN gang_members b ON a.gang_id = b.gang_id JOIN gangs g ON g.id = a.gang_id
+                           WHERE a.user_id = ? AND b.user_id = ? AND g.hidden = 0`).all(u.id, t.id).map((r) => r.name);
+    const [lo, hi] = u.id < t.id ? [u.id, t.id] : [t.id, u.id];
+    let crewMate = false;
+    try { crewMate = !!q("SELECT 1 FROM crew WHERE lo = ? AND hi = ? AND status = 'ok'").get(lo, hi); } catch {}
+    let coffeeMate = false;
+    try { coffeeMate = !!q('SELECT 1 FROM coffee_pairs WHERE ((a = ? AND b = ?) OR (a = ? AND b = ?)) AND week >= ?').get(u.id, t.id, t.id, u.id, addDays(U.msk().day, -7)); } catch {}
+    const close = me || sharedGangs.length > 0 || crewMate;
+    const prof = readProfile(t.profile);
+    const look = { ...DEFAULT_LOOK, ...JSON.parse(t.look || '{}') };
+    const card = { id: t.id, nick: t.nick, me, look, status: statusName(look.status), full: close || coffeeMate };
+    if (!card.full) return card;
+    const st = memberStatus(t);
+    return {
+      ...card,
+      name: me ? [prof.firstName, prof.lastName].filter(Boolean).join(' ') : fullName(prof, close ? 'gang' : 'all'),
+      about: prof.about, tags: prof.tags, bday: prof.showBday ? prof.bday : '',
+      mood: st.mood, where: st.where, office: st.office, until: st.until, planned: st.planned,
+      gangs: sharedGangs, crew: crewMate, home: (officeById(prof.home) || {}).name || null
+    };
+  });
+
   route('GET', '/api/gangs/:id', async (req, body, query, params) => {
     const u = requireUser(req);
     const g = q('SELECT * FROM gangs WHERE id = ? AND hidden = 0').get(Number(params.id));

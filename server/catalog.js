@@ -34,6 +34,7 @@ const SIGNALS = {
 const SHOP = [
   { id: 'st_night', kind: 'status', name: 'Салага', price: 50 },
   { id: 'st_coffee', kind: 'status', name: 'Кофейный магнат', price: 60 },
+  { id: 'st_owl', kind: 'status', name: 'Ночной страж', price: 70 },
   { id: 'st_room', kind: 'status', name: 'Повелитель переговорок', price: 80 },
   { id: 'st_canteen', kind: 'status', name: 'Легенда столовой', price: 120, limit: 20 },
   { id: 'fr_gold', kind: 'frame', name: 'Золотая рамка', price: 60, color: '#FFC93C' },

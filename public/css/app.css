@@ -260,3 +260,16 @@ body { font-weight: 500; }
 .ava-tile .ava { border-width: 2px !important; }
 .realname { font-weight: 600; font-size: 13px; color: var(--muted); line-height: 1.2; }
 .psec-body .row input { min-width: 0; width: 100%; }
+
+/* ---- Карточка коллеги ---- */
+.ava-btn { background: none; padding: 0; border-radius: 999px; flex: none; display: inline-flex; }
+.ava-btn:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.tapname { cursor: pointer; }
+.person-card { display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
+.person-ava { display: flex; justify-content: center; padding: 4px 0 2px; }
+.person-about { margin: 0; text-align: center; color: var(--ink); font-size: 16px; font-style: italic; }
+.person-rows { display: flex; flex-direction: column; border: 1.5px solid var(--line); border-radius: 16px; overflow: hidden; }
+.person-rows > div { display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; color: var(--ink); }
+.person-rows > div + div { border-top: 1px solid var(--line); }
+.person-rows b { font-size: 15px; display: flex; align-items: center; gap: 6px; }
+.person-card .chip { display: inline-flex; align-items: center; min-height: 34px; padding: 6px 14px; }

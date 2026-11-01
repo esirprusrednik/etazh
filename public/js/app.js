@@ -104,6 +104,8 @@ function avatar(look = {}, size = 42) {
   </svg></span>`;
 }
 
+// Нажатие на аватар открывает карточку коллеги
+const tap = (id, html) => `<button class="ava-btn" data-act="person" data-id="${id}" aria-label="Открыть профиль">${html}</button>`;
 const BEAN = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><ellipse cx="12" cy="12" rx="6" ry="9" transform="rotate(30 12 12)"/><path d="M9 6c3 3 3 9 6 12"/></svg>';
 const FLAME = '<svg width="13" height="13" viewBox="0 0 24 24" fill="#FF8A3D" aria-hidden="true"><path d="M12 2c1 4 5 5.5 5 11a5 5 0 0 1-10 0c0-2.5 1.2-4 2.5-5.2.2 1.7 1 2.7 2 3.2C11 8.5 11 5.5 12 2z"/></svg>';
 const ICONS = {
@@ -498,8 +500,8 @@ function renderGangNow() {
       : quiet ? '<span class="small">тихо</span>'
       : `<button class="btn small ${sameOffice ? '' : 'ghost'}" data-act="call-open" data-kind="${sameOffice ? 'coffee' : r.where === 'home' ? 'call' : 'where'}" data-to="${r.id}" data-gang="${r.gangId}">${sameOffice ? 'На кофе' : r.where === 'home' ? 'Созвонимся?' : 'Ты где?'}</button>`;
     return `<div class="person2">
-      <span class="ava-wrap" style="opacity:${away ? 0.6 : 1}"><span class="ava-ring" style="border-color:${color}">${avatar(r.look, 32)}</span><span class="ava-dot" style="background:${color}"></span></span>
-      <div class="grow"><div style="font-weight:700;font-size:15px">${esc(r.nick)}</div>${r.name ? `<div class="realname">${esc(r.name)}</div>` : ''}
+      ${tap(r.id, `<span class="ava-wrap" style="opacity:${away ? 0.6 : 1}"><span class="ava-ring" style="border-color:${color}">${avatar(r.look, 32)}</span><span class="ava-dot" style="background:${color}"></span></span>`)}
+      <div class="grow"><div style="font-weight:700;font-size:15px" class="tapname" data-act="person" data-id="${r.id}">${esc(r.nick)}</div>${r.name ? `<div class="realname">${esc(r.name)}</div>` : ''}
       <div class="where ellipsis">${esc(w)}${r.mood && r.where === 'office' ? ' · ' + esc(r.mood) : ''}</div></div>
       ${action}</div>`;
   }).join('');
@@ -529,7 +531,7 @@ function renderGang() {
   const g = v.gang;
   const members = v.members.map((m) => {
     const [w, color] = whereText(m);
-    return `<div class="person">${avatar(m.look, 34)}<div class="grow"><div style="font-weight:900">${esc(m.nick)}${m.me ? ' (ты)' : ''}</div>${m.name ? `<div class="realname">${esc(m.name)}</div>` : ''}
+    return `<div class="person">${tap(m.id, avatar(m.look, 34))}<div class="grow"><div style="font-weight:900" class="tapname" data-act="person" data-id="${m.id}">${esc(m.nick)}${m.me ? ' (ты)' : ''}</div>${m.name ? `<div class="realname">${esc(m.name)}</div>` : ''}
       <div class="where"><span class="dot" style="background:${color}"></span>${esc(w)}${m.mood && m.where === 'office' ? ' · ' + esc(m.mood) : ''}${m.status ? ' · ' + esc(m.status) : ''}</div></div>
       ${m.me ? '' : `${crewAddBtn(m.id)}<button class="btn small ghost" data-act="call-open" data-kind="where" data-to="${m.id}" data-gang="${g.id}">Позвать</button>`}</div>`;
   }).join('');
@@ -592,7 +594,7 @@ function renderCrew() {
   const c = S.crew;
   if (!c) return '<div class="card"><p class="sub">Загружаем подельников…</p></div>';
   const incoming = c.incoming.length ? `<section class="card"><h3>Зовут в подельники</h3>
-    ${c.incoming.map((p) => `<div class="person2">${avatar(p.look, 36)}<div class="grow ellipsis" style="font-weight:800;min-width:0">${esc(p.nick)}</div>
+    ${c.incoming.map((p) => `<div class="person2">${tap(p.id, avatar(p.look, 36))}<div class="grow ellipsis" style="font-weight:800;min-width:0">${esc(p.nick)}</div>
       <button class="btn small" data-act="crew-accept" data-id="${p.id}">Принять</button>
       <button class="btn small ghost" data-act="crew-decline" data-id="${p.id}" aria-label="Отклонить заявку">✕</button></div>`).join('')}
   </section>` : '';
@@ -707,7 +709,7 @@ function renderBirthdays() {
   const f = S.fx;
   if (!f || !f.birthdaysToday.length) return '';
   return f.birthdaysToday.map((b) => `<section class="bday">
-    <span class="ava-wrap">${avatar(b.look, 34)}</span>
+    ${tap(b.id, `<span class="ava-wrap">${avatar(b.look, 34)}</span>`)}
     <div class="grow"><div style="font-weight:900">Сегодня день рождения у ${esc(b.nick)}</div><div class="small" style="color:#5B3B00">Поздравь в банде или подари зёрна</div></div>
     ${b.gifted ? '<span class="small" style="color:#5B3B00;font-weight:700">Поздравил ✓</span>' : `<button class="btn small" data-act="gift" data-id="${b.id}">+${f.giftBeans} ${BEAN}</button>`}
   </section>`).join('');
@@ -753,7 +755,7 @@ function renderCoffee() {
     <div class="chips">${p.replies.map((r) => `<button class="chip" data-act="coffee-reply" data-v="${esc(r)}">${esc(r)}</button>`).join('')}</div>`;
   const offer = p.canReply || (p.ping && p.ping.mine && !p.ping.reply) ? '' : `<div class="chips">${p.options.map((o) => `<button class="chip" data-act="coffee-ping" data-v="${esc(o)}">${esc(o)}</button>`).join('')}</div>`;
   return `<section class="card coffee">
-    <div class="row" style="gap:12px"><span class="ava-wrap">${avatar(p.partner.look, 34)}</span>
+    <div class="row" style="gap:12px">${tap(p.partner.id, `<span class="ava-wrap">${avatar(p.partner.look, 34)}</span>`)}
     <div class="grow"><div class="eyebrow">Случайный кофе на этой неделе</div><div style="font-weight:900;font-size:16px">${esc(p.partner.nick)}</div>${p.partner.name ? `<div class="small" style="font-weight:700">${esc(p.partner.name)}</div>` : ''}${p.office ? `<div class="small">${esc(p.office)}</div>` : ''}</div></div>
     ${state}${offer}
   </section>`;
@@ -763,7 +765,7 @@ function renderGangBirthdays() {
   const x = S.gx;
   if (!x || !x.birthdays.length) return '';
   return `<section class="card"><span class="card-title">Дни рождения</span>
-    ${x.birthdays.map((b) => `<div class="person2"><span class="ava-wrap">${avatar(b.look, 32)}</span>
+    ${x.birthdays.map((b) => `<div class="person2">${tap(b.id, `<span class="ava-wrap">${avatar(b.look, 32)}</span>`)}
       <div class="grow"><div style="font-weight:700">${esc(b.nick)}${b.me ? ' (ты)' : ''}</div><div class="where">${b.inDays === 0 ? 'сегодня!' : b.inDays === 1 ? 'завтра' : `через ${b.inDays} ${plural(b.inDays, 'день', 'дня', 'дней')}`} · ${esc(b.bday)}</div></div>
       ${b.inDays === 0 && !b.me ? (b.gifted ? '<span class="small">поздравил ✓</span>' : `<button class="btn small" data-act="gift" data-id="${b.id}">+10 ${BEAN}</button>`) : ''}</div>`).join('')}
   </section>`;
@@ -819,6 +821,7 @@ function sheetWrap(title, body) {
 function renderSheet() {
   switch (S.sheet) {
     case 'profile': return sheetWrap('Профиль', renderProfile());
+    case 'person': return sheetWrap('Профиль коллеги', renderPerson());
     case 'shop': return sheetWrap('Лавка', renderShop());
     case 'install': return sheetWrap('Установи на телефон', renderInstall());
     case 'compose': return sheetWrap(S.cat.calls[S.compose.kind].label, renderCompose());
@@ -913,7 +916,7 @@ function renderProfile() {
   const look = me.look;
   const p = me.profile;
   const sw = (key, vals) => `<div class="row" style="flex-wrap:wrap;gap:8px">${vals.map((v) => `<button class="swatch ${look[key] === v ? 'on' : ''}" style="background:${HOODIE[v] || v}" data-act="look" data-k="${key}" data-v="${v}" aria-label="${key} ${v}"></button>`).join('')}</div>`;
-  const tiles = (key, vals, names) => `<div class="ava-tiles">${vals.map((v) => `<button class="ava-tile ${look[key] === v ? 'on' : ''}" data-act="look" data-k="${key}" data-v="${v}">${avatar({ ...look, [key]: v, frame: null, crown: false }, 48)}<span>${names[v] || v}</span></button>`).join('')}</div>`;
+  const tiles = (key, vals, names) => `<div class="ava-tiles">${vals.map((v) => `<button class="ava-tile ${look[key] === v ? 'on' : ''}" data-act="look" data-k="${key}" data-v="${v}">${avatar({ ...look, [key]: v, frame: null, crown: false }, 60)}<span>${names[v] || v}</span></button>`).join('')}</div>`;
   const pushState = !('Notification' in window) ? 'unsupported' : Notification.permission;
   const name = [p.firstName, p.lastName].filter(Boolean).join(' ');
   const got = S.fx ? S.fx.achievements.filter((a) => a.got).length : null;
@@ -921,7 +924,7 @@ function renderProfile() {
   const office = (S.cat.offices.find((o) => o.id === p.home) || {}).name;
 
   const lookBody = `
-    <div class="ava-preview">${avatar(look, 96)}</div>
+    <div class="ava-preview">${avatar(look, 150)}</div>
     <div class="eyebrow">Лицо</div>
     <div class="chips">${['m', 'f'].map((v) => `<button class="chip ${look.preset === v ? 'on' : ''}" data-act="look" data-k="preset" data-v="${v}">${v === 'm' ? 'М' : 'Ж'}</button>`).join('')}</div>
     <div class="field">Форма лица${tiles('face', L.face, FACE_NAMES)}</div>
@@ -1000,6 +1003,31 @@ function renderProfile() {
       <a class="linkbtn" href="/privacy.html" target="_blank" rel="noopener">Политика</a>
       <button class="linkbtn" style="color:#B42318" data-act="delete-account">Удалить аккаунт</button>
     </div>`;
+}
+
+function renderPerson() {
+  const x = S.person;
+  if (!x) return '<p class="sub">Загружаем…</p>';
+  const [w, color] = x.where ? whereText(x) : ['', ''];
+  const rows = [];
+  if (x.full) {
+    if (x.where && x.where !== 'hidden') rows.push(['Сейчас', `<span class="dot" style="background:${color}"></span> ${esc(w)}${x.mood && x.where === 'office' ? ' · ' + esc(x.mood) : ''}`]);
+    if (x.home) rows.push(['Обычно в офисе', esc(x.home)]);
+    if (x.bday) rows.push(['День рождения', esc(x.bday)]);
+    if (x.gangs && x.gangs.length) rows.push([x.gangs.length > 1 ? 'Общие банды' : 'Общая банда', x.gangs.map(esc).join(', ')]);
+    if (x.crew) rows.push(['Подельник', 'да']);
+  }
+  return `<div class="person-card">
+    <div class="person-ava">${avatar(x.look, 180)}</div>
+    <div class="nick" style="color:var(--ink);text-align:center">${esc(x.nick)}${x.me ? ' (ты)' : ''}</div>
+    ${x.name ? `<div class="sub" style="text-align:center;margin:0;font-weight:700">${esc(x.name)}</div>` : ''}
+    ${x.status ? `<div class="status" style="color:#B7791F;text-align:center">${esc(x.status)}</div>` : ''}
+    ${x.about ? `<p class="person-about">«${esc(x.about)}»</p>` : ''}
+    ${x.tags && x.tags.length ? `<div class="chips" style="justify-content:center">${x.tags.map((t) => `<span class="chip on" style="cursor:default">${esc(t)}</span>`).join('')}</div>` : ''}
+    ${rows.length ? `<div class="person-rows">${rows.map(([k, v]) => `<div><span class="small">${k}</span><b>${v}</b></div>`).join('')}</div>` : ''}
+    ${!x.full ? '<p class="small" style="text-align:center">Подробности видят участники общих банд и подельники.</p>' : ''}
+    ${x.me ? '<button class="btn ghost" data-act="open" data-v="profile">Редактировать мой профиль</button>' : ''}
+  </div>`;
 }
 
 function renderShop() {
@@ -1297,6 +1325,7 @@ const actions = {
     if (t.has(el.dataset.v)) t.delete(el.dataset.v); else if (t.size >= 5) throw new Error('Не больше 5 интересов'); else t.add(el.dataset.v);
     await post('/api/me/profile', { profile: { tags: [...t] } }); await loadMe();
   }),
+  person: (el) => { S.person = null; S.sheet = 'person'; render(); run(async () => { S.person = await get(`/api/users/${el.dataset.id}`); }); },
   sec(el) { const v = el.dataset.v; if (S.sec.has(v)) S.sec.delete(v); else S.sec.add(v); render(); },
   'name-vis': (el) => run(async () => { await post('/api/me/profile', { profile: { nameVis: el.dataset.v } }); await loadMe(); }),
   'name-save': () => run(async () => { await post('/api/me/profile', { profile: { firstName: $('#p-first').value, lastName: $('#p-last').value } }); await loadMe(); toast('Сохранено'); }),

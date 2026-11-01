@@ -171,6 +171,16 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.equal(look.face, 'heart'); assert.equal(look.hairStyle, 'afro');
   });
 
+  await step('карточка коллеги: банде — полная, чужим — только ник и аватар', async () => {
+    await b.post('/api/me/profile', { profile: { about: 'Люблю настолки', firstName: 'Борис' } });
+    const full = (await a.get(`/api/users/${b.id}`)).json;
+    assert.ok(full.full); assert.equal(full.about, 'Люблю настолки'); assert.equal(full.name, 'Борис'); assert.ok(full.gangs.length);
+    const z = await new Client().login('zoe@mts.ru', 'чужой_кот');
+    const part = (await z.get(`/api/users/${b.id}`)).json;
+    assert.ok(!part.full); assert.equal(part.about, undefined); assert.equal(part.name, undefined);
+    assert.equal((await z.get('/api/users/99999')).status, 404);
+  });
+
   await step('удаление аккаунта убирает его спасибо, ачивки и пары', async () => {
     assert.equal((await d.req('DELETE', '/api/me')).status, 200);
     const fp = (await a.get('/api/features')).json.coffee.pair;
