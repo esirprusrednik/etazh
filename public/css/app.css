@@ -529,3 +529,8 @@ body { font-weight: 500; }
 .chat-row .grow { overflow: hidden; }
 .calls .call { font-size: 13px; padding-left: 4px; padding-right: 4px; word-break: keep-all; overflow-wrap: normal; }
 .calls .call { font-size: 12.5px; letter-spacing: -.01em; }
+.find-bar { display: flex; align-items: center; gap: 10px; width: calc(100% - 32px); margin: 0 16px 12px; padding: 12px 14px; border-radius: 16px; background: #fff; color: var(--muted); font-size: 15px; font-weight: 600; text-align: left; box-shadow: 0 3px 0 #C9D3EA; }
+.find-bar svg { color: var(--ink); flex: none; }
+.find-row { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.find-row:last-of-type { border-bottom: none; }
+.find-row .chips .chip { font-size: 13px; }

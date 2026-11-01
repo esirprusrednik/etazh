@@ -182,6 +182,17 @@ function migrate(db) {
     at INTEGER NOT NULL
   );
 
+  -- Приглашения в банду из поиска: человек сам решает, вступать ли
+  CREATE TABLE IF NOT EXISTS gang_invites (
+    id INTEGER PRIMARY KEY,
+    gang_id INTEGER NOT NULL REFERENCES gangs(id) ON DELETE CASCADE,
+    from_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    to_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'pending',   -- pending | accepted | declined
+    at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS gang_invites_to ON gang_invites(to_id, status);
+
   CREATE TABLE IF NOT EXISTS reports (
     id INTEGER PRIMARY KEY,
     reporter_id INTEGER REFERENCES users(id) ON DELETE SET NULL,

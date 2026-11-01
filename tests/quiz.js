@@ -164,6 +164,31 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.equal((await c.post('/api/battle', { to: d.id })).status, 200, 'бой с участником банды');
   });
 
+  await step('поиск по базе: ник, почта точно, имя только если открыто; приглашение в банду с согласием', async () => {
+    const z = await new Client().login('zoya@mts.ru', 'звонкая_сова');
+    let r = (await z.get('/api/search?q=' + encodeURIComponent('бодрый'))).json.items;
+    assert.ok(r.find((x) => x.nick === 'бодрый_енот'));
+    r = (await z.get('/api/search?q=' + encodeURIComponent('boris@mts.ru'))).json.items;
+    assert.equal(r.length, 1); assert.equal(r[0].nick, 'ночной_филин');
+    assert.equal((await z.get('/api/search?q=' + encodeURIComponent('bori@mts.ru'))).json.items.length, 0, 'почта — только точно');
+    await a.post('/api/me/profile', { profile: { firstName: 'Анна', lastName: 'Петрова', nameVis: 'gang' } });
+    assert.equal((await z.get('/api/search?q=' + encodeURIComponent('Петрова'))).json.items.length, 0, 'имя скрыто — по имени не найти');
+    await a.post('/api/me/profile', { profile: { nameVis: 'all' } });
+    assert.equal((await z.get('/api/search?q=' + encodeURIComponent('Петрова'))).json.items.length, 1);
+    await b.post('/api/me/profile', { profile: { findable: false } });
+    assert.equal((await z.get('/api/search?q=' + encodeURIComponent('филин'))).json.items.length, 0, 'отключил поиск');
+    // приглашение
+    const found = (await a.get('/api/search?q=' + encodeURIComponent('звонкая'))).json.items[0];
+    assert.ok(found.invitable.find((x) => x.id === g.id));
+    assert.equal((await a.post(`/api/gangs/${g.id}/invite`, { to: z.id })).status, 200);
+    assert.equal((await a.post(`/api/gangs/${g.id}/invite`, { to: z.id })).status, 400, 'повторно — нельзя');
+    assert.equal((await z.get('/api/state')).json.badges.invites, 1);
+    const inv = (await z.get('/api/invites')).json.items[0];
+    assert.equal(inv.gang.id, g.id);
+    assert.equal((await z.post(`/api/invites/${inv.id}/accept`)).status, 200);
+    assert.ok((await z.get('/api/me')).json.user.gangs.find((x) => x.id === g.id));
+  });
+
   console.log(`\nВсё прошло: ${passed} проверок`);
 })()
   .catch((e) => { console.error('\nПровал:', e.message, '\n--- лог ---\n' + log.slice(-2000)); process.exitCode = 1; })

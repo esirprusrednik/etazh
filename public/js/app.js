@@ -265,6 +265,7 @@ const ICONS = {
   lunch: 'M4 3v8a3 3 0 0 0 3 3v7M7 3v6M10 3v8a3 3 0 0 1-3 3M17 21V3c-2 1-3 4-3 8h3',
   where: 'M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12zM12 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4z',
   more: 'M5 12h.01M12 12h.01M19 12h.01',
+  search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4',
   swap: 'M7 7h11l-3-3M17 17H6l3 3',
   food: 'M12 7c-4-2-8 1-7 6 1 4 3 8 7 7 4 1 6-3 7-7 1-5-3-8-7-6zM12 7c0-2 1-4 3-4',
   alert: 'M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z'
@@ -365,7 +366,10 @@ async function loadGangExtra() {
 async function loadQuiz() { try { S.quiz = (await get('/api/quiz')).items; } catch { S.quiz = []; } }
 
 async function loadPeople() { try { S.people = (await get('/api/people')).people; } catch { S.people = []; } }
-async function loadChats() { try { S.chats = await get('/api/chats'); } catch { S.chats = { items: [], requests: [] }; } }
+async function loadChats() {
+  try { S.chats = await get('/api/chats'); } catch { S.chats = { items: [], requests: [] }; }
+  try { S.invites = (await get('/api/invites')).items; } catch { S.invites = []; }
+}
 // Вкладки: «Рядом» — кто где, «Чаты» — банды и личка, «Офис» — столовая и лента, «Игры» — всё игровое
 async function refresh({ all = false } = {}) {
   if (!S.me || !S.me.nick) return;
@@ -505,7 +509,7 @@ function renderApp() {
       ${S.tab === 'near' ? renderNear() : S.tab === 'chats' ? renderChats() : S.tab === 'office' ? renderOfficeTab() : renderGames()}
     </main>
     <nav class="tabs"><div class="in">
-      ${tabBtn('near', 'Рядом', 0)}${tabBtn('chats', 'Чаты', (b.chat || 0) + (b.crew || 0))}${tabBtn('office', 'Офис', 0)}${tabBtn('games', 'Игры', (S.quiz || []).filter((z) => !z.answered).length + (S.battles || []).filter((x) => x.myTurn && x.status !== 'done').length)}
+      ${tabBtn('near', 'Рядом', 0)}${tabBtn('chats', 'Чаты', (b.chat || 0) + (b.crew || 0) + (b.invites || 0))}${tabBtn('office', 'Офис', 0)}${tabBtn('games', 'Игры', (S.quiz || []).filter((z) => !z.answered).length + (S.battles || []).filter((x) => x.myTurn && x.status !== 'done').length)}
     </div></nav>
   </div>
   ${S.sheet ? renderSheet() : ''}`;
@@ -610,9 +614,28 @@ function renderNear() {
   if (!S.state) return '<div class="card"><p class="sub">Загружаем…</p></div>';
   return `${pageHead('Рядом', 'Где ты сегодня и кто из твоих людей рядом')}
     ${renderStatusBlock()}
+    ${(S.people && !S.people.length) || !S.me.gangs.length ? findBar() : ''}
     ${renderQuickCalls()}
     ${renderBirthdays()}
     ${renderPeople()}`;
+}
+
+const findBar = () => `<button class="find-bar" data-act="find-open">${ico('search', 18)}<span>Найти коллегу по нику, имени или почте</span></button>`;
+
+function renderFind() {
+  const f = S.find || {};
+  const res = f.items ? (f.items.length ? f.items.map((x) => {
+    let act = '';
+    if (x.shared.length) act = `<button class="btn small" data-act="dm-open" data-id="${x.id}">Написать</button>`;
+    else if (!S.me.gangs.length) act = '<span class="small">сначала сколоти банду</span>';
+    const inv = x.invitable.map((g) => g.pending ? `<span class="chip" style="cursor:default">«${esc(g.name)}» · ждём ответа</span>` : `<button class="chip" data-act="find-invite" data-gang="${g.id}" data-id="${x.id}">Позвать в «${esc(g.name)}»</button>`).join('');
+    return `<div class="find-row"><div class="person2">${tap(x.id, avatar(x.look, 40))}<div class="grow" style="min-width:0"><div style="font-weight:900">${esc(x.nick)}</div>
+      <div class="where ellipsis">${[x.name, x.status, x.shared.length ? 'в банде ' + x.shared.join(', ') : ''].filter(Boolean).map(esc).join(' · ') || 'пока не в твоих бандах'}</div></div>${act}</div>
+      ${inv ? `<div class="chips">${inv}</div>` : ''}</div>`;
+  }).join('') : `<p class="sub">${esc(f.hint || 'Никого не нашли')}</p>`) : '<p class="small">Ник — по части, например «енот». Имя — только если человек открыл его всем. Почта — целиком, например ivanov@mts.ru: мы сравниваем отпечаток и сами адреса не храним.</p>';
+  return `<div class="row"><label class="field grow" style="gap:0"><span class="hidden">Ник, имя или почта</span><input id="find-q" maxlength="80" autocapitalize="off" autocomplete="off" placeholder="Ник, имя или рабочая почта" value="${esc(f.q || '')}" aria-label="Ник, имя или рабочая почта"></label><button class="btn" data-act="find-go">Найти</button></div>
+    ${res}
+    <p class="small" style="margin:0">Позвать можно только в свою банду — человек сам решит, вступать ли. Не хочешь, чтобы тебя находили, — выключи в профиле: «Приватность и уведомления».</p>`;
 }
 
 // ===== Вкладка «Чаты»: банды и личные переписки одним списком =====
@@ -642,6 +665,10 @@ function renderChats() {
   };
   const list = c.items.length ? c.items.map(row).join('') : `<div class="empty"><div class="empty-ico">💬</div><p class="sub">Чатов пока нет. Сколоти банду для своей команды — у неё будет общий чат, а с каждым членом банды можно переписываться лично.</p></div>`;
   return `${pageHead('Чаты', 'Общие чаты банд и личка с членами твоих банд')}
+    ${findBar()}
+    ${(S.invites || []).length ? `<section class="card"><h3>Тебя зовут в банду</h3>${S.invites.map((i) => `<div class="person2"><span class="chat-gang" style="background:${esc(i.gang.color)}">${esc(i.gang.name.slice(0, 1).toUpperCase())}</span>
+      <div class="grow" style="min-width:0"><div style="font-weight:900">${esc(i.gang.name)}</div><div class="where">${i.gang.members} ${plural(i.gang.members, 'человек', 'человека', 'человек')} · зовёт ${esc(i.from)}</div></div>
+      <button class="btn small" data-act="invite-accept" data-id="${i.id}">Вступить</button><button class="btn small ghost" data-act="invite-decline" data-id="${i.id}" aria-label="Отказаться">Нет</button></div>`).join('')}</section>` : ''}
     ${reqs}
     <section class="card chats">${list}</section>
     <div class="row chat-actions"><button class="btn small grow" data-act="open" data-v="gang-new">Сколотить банду</button><button class="btn small ghost grow" data-act="open" data-v="dm-pick">Написать в личку</button></div>`;
@@ -1399,6 +1426,7 @@ function renderSheet() {
     case 'pcall': return sheetWrap('Позвать ' + (((S.people || []).find((p) => p.id === S.pcallTo) || (S.person && S.person.id === S.pcallTo ? S.person : null) || {}).nick || ''), `<p class="sub">Лично, придёт пуш. Тихие часы 19:00–09:00 уважаем.</p>
       <div class="calls">${['coffee', 'lunch', 'room', 'call', 'where', 'online', 'wait'].map((k) => `<button class="call" style="background:${CALL_STYLE[k]}" data-act="pcall" data-id="${S.pcallTo}" data-kind="${k}">${esc(S.cat.calls[k].label)}</button>`).join('')}</div>
       <button class="btn ghost" data-act="dm-open" data-id="${S.pcallTo}">💬 Написать сообщение</button>`);
+    case 'find': return sheetWrap('Найти коллегу', renderFind());
     case 'dm-pick': return sheetWrap('Написать в личку', (S.people || []).length ? '<p class="sub">Лично можно писать любому члену твоих банд.</p>' + (S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${esc(p.nick)}</span><span class="where">${esc(p.gangs.map((g) => g.name).join(', ') || whereText(p)[0])}</span></span><span aria-hidden="true">›</span></button>`).join('') : '<p class="sub">Пока некому писать. Сколоти банду и позови в неё коллег.</p>');
     case 'battle-pick': return sheetWrap('С кем сыграть?', (S.people || []).length ? (S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${esc(p.nick)}</span><span class="where">${esc(whereText(p)[0])}</span></span><span aria-hidden="true">›</span></button>`).join('') + '<p class="small">Откроется переписка — там выбери «Без спешки» или «Быстрая».</p>' : '<p class="sub">Сначала сколоти банду и позови в неё коллег.</p>');
     case 'whatsnew': return sheetWrap('Что поменялось', `<div class="wn">
@@ -1840,6 +1868,7 @@ function renderProfile() {
   const privBody = `
     <label class="check"><input type="checkbox" data-act="toggle" data-k="shareOffice" ${me.shareOffice ? 'checked' : ''}> <span>Показывать банде, где я: офис, дома или в отпуске</span></label>
     <label class="check"><input type="checkbox" data-act="toggle" data-k="quiet" ${me.quiet ? 'checked' : ''}> <span>Тихие часы 19:00–09:00 — не присылать зовы</span></label>
+    <label class="check"><input type="checkbox" data-act="findable-toggle" ${p.findable !== false ? 'checked' : ''}> <span>Меня можно найти по нику и рабочей почте — и позвать в банду</span></label>
     <label class="check"><input type="checkbox" data-act="sound-toggle" ${store.get('sound', true) ? 'checked' : ''}> <span>Звуки интерфейса (вкладки, Лавка, морской бой)</span></label>
     <label class="check"><input type="checkbox" data-act="coffee-toggle" ${p.coffee ? 'checked' : ''}> <span>Участвовать в случайном кофе${p.home ? '' : ' (сначала укажи «Мой офис» в разделе «Работа»)'}</span></label>
     ${pushState === 'granted' && !(me.completion.steps.find((x) => x.id === 'push') || {}).done ? `<div class="note warn" style="margin:0">Браузер разрешил уведомления, но этот телефон не подключён к серверу — пуши не придут.</div><button class="btn blue" data-act="push-enable" ${S.vapidKey ? '' : 'disabled'}>Подключить уведомления</button>`
@@ -2101,6 +2130,23 @@ const actions = {
     render(); await Promise.all([loadGang(), loadGangExtra()]); markSeen('chat'); window.scrollTo(0, 0);
   }),
   'gang-invite': (el) => run(async () => { S.activeGang = Number(el.dataset.id); if (!S.gang || S.gang.gang.id !== S.activeGang) await loadGang(); await actions['invite-share'](); }, { rerender: false }),
+  'find-open'() { S.find = S.find || {}; S.sheet = 'find'; S.lastSheet = null; render(); setTimeout(() => { const i = $('#find-q'); if (i) i.focus(); }, 50); },
+  'find-go': () => run(async () => {
+    const qv = $('#find-q').value.trim();
+    S.find = { q: qv, ...(await get('/api/search?q=' + encodeURIComponent(qv))) };
+  }),
+  'find-invite': (el) => run(async () => {
+    await post(`/api/gangs/${el.dataset.gang}/invite`, { to: Number(el.dataset.id) });
+    toast('Позвали! Придёт пуш, ждём ответа');
+    S.find = { q: S.find.q, ...(await get('/api/search?q=' + encodeURIComponent(S.find.q))) };
+  }),
+  'invite-accept': (el) => run(async () => {
+    const r = await post(`/api/invites/${el.dataset.id}/accept`);
+    toast('Ты в банде!'); await loadMe();
+    S.activeGang = r.gang; store.set('activeGang', r.gang); S.chatGang = true; S.dm = null;
+    await Promise.all([loadChats(), loadGang(), loadGangExtra(), loadState()]);
+  }),
+  'invite-decline': (el) => run(async () => { await post(`/api/invites/${el.dataset.id}/decline`); await Promise.all([loadChats(), loadState()]); }),
   'pcall-open'(el) { S.pcallTo = Number(el.dataset.id); S.sheet = 'pcall'; S.lastSheet = null; render(); },
   pcall(el) {
     const id = Number(el.dataset.id), kind = el.dataset.kind, def = S.cat.calls[kind];
@@ -2351,6 +2397,7 @@ const actions = {
     render();
   },
   'coach-skip'() { S.coach = 0; store.set('coachDone', 2); store.set('ia2', 1); if (S.tab !== 'near') { S.tab = 'near'; run(() => refresh()); } render(); },
+  'findable-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { findable: el.checked } }); await loadMe(); toast(el.checked ? 'Тебя можно найти' : 'Тебя больше не найти поиском'); }),
   'sound-toggle'(el) { store.set('sound', el.checked); if (el.checked) sfx('click'); },
   'open-sec'(el) {
     const v = el.dataset.v;
@@ -2460,7 +2507,7 @@ document.addEventListener('change', (e) => {
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.id) {
-    const map = { email: 'login-submit', code: 'code-submit', nick: 'nick-submit', 'chat-text': 'chat-send', 'thanks-text': 'thanks-send', 'lunch-place': 'lunch-create', 'dm-text': 'dm-send', 'crew-nick': 'crew-add' };
+    const map = { 'find-q': 'find-go', email: 'login-submit', code: 'code-submit', nick: 'nick-submit', 'chat-text': 'chat-send', 'thanks-text': 'thanks-send', 'lunch-place': 'lunch-create', 'dm-text': 'dm-send', 'crew-nick': 'crew-add' };
     if (map[e.target.id]) { e.preventDefault(); actions[map[e.target.id]](); }
   }
   if (e.key === 'Escape' && S.sheet) actions.close();
