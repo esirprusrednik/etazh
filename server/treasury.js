@@ -120,7 +120,7 @@ function register(ctx) {
     q('INSERT OR IGNORE INTO gang_owned (gang_id, item_id, at) VALUES (?, ?, ?)').run(g.id, item.id, U.now());
     const st = styleOf(g); st[item.slot] = item.id;
     q('UPDATE gangs SET style = ? WHERE id = ?').run(JSON.stringify(st), g.id);
-    chat(g.id, uid, `🏛 ${how}: «${item.name}» за ${item.price} славы. В казне осталось ${balance(g.id)}`);
+    chat(g.id, uid, `${how}: «${item.name}» за ${item.price} славы. В казне осталось ${balance(g.id)}`);
   }
 
   // ---------- Голосование за дорогую покупку ----------
@@ -141,7 +141,7 @@ function register(ctx) {
     if (status === 'accepted') {
       grant(g, item, v.user_id, `Банда проголосовала (за — ${t.za}, против — ${t.protiv}) и купила`);
       fireAndForget(notify(gangMembers(g.id).map((m) => m.id), { title: g.name, body: `Казна: банда купила «${item.name}»`, url: `/#gang/${g.id}`, tag: `buy-${v.id}` }));
-    } else chat(g.id, v.user_id, status === 'failed' ? `🏛 Покупка «${item ? item.name : ''}» не состоялась: славы в казне уже не хватает` : `🏛 Покупка «${item ? item.name : ''}» не прошла голосование: за — ${t.za}, против — ${t.protiv}`);
+    } else chat(g.id, v.user_id, status === 'failed' ? `Покупка «${item ? item.name : ''}» не состоялась: славы в казне уже не хватает` : `Покупка «${item ? item.name : ''}» не прошла голосование: за — ${t.za}, против — ${t.protiv}`);
     return q('SELECT * FROM gang_buy_votes WHERE id = ?').get(v.id);
   }
 
@@ -195,7 +195,7 @@ function register(ctx) {
     q('INSERT INTO gang_buy_ballots (vote_id, user_id, vote, at) VALUES (?, ?, 1, ?)').run(id, u.id, t);
     const v = decide(q('SELECT * FROM gang_buy_votes WHERE id = ?').get(id));
     if (v.status === 'open') {
-      chat(g.id, u.id, `🏛 Предлагаю потратить ${item.price} славы на «${item.name}» — голосуй в казне, голос тайный`);
+      chat(g.id, u.id, `Предлагаю потратить ${item.price} славы на «${item.name}» — голосуй в казне, голос тайный`);
       fireAndForget(notify(gangMembers(g.id).filter((m) => m.id !== u.id).map((m) => m.id), { title: `${g.name}: тратим славу?`, body: `«${item.name}» за ${item.price} — голосование 48 часов`, url: `/#gang/${g.id}`, tag: `buy-${id}` }));
     }
     return view(q('SELECT * FROM gangs WHERE id = ?').get(g.id), u.id);

@@ -114,7 +114,7 @@ function vacRest(v, today, night) {
 }
 // День плана недели для рабочего дня; null — выходной или праздник по производственному календарю
 const HOL = require('./holidays');
-const VOICE_MOD = '🎙 голосовое — звук модератору не передаётся и сгорает через час';
+const VOICE_MOD = 'голосовое — звук модератору не передаётся и сгорает через час';
 const weekdayName = (day) => HOL.workdayName(day);
 
 // Имя и фамилия: scope 'gang' — смотрит кто-то из общей банды, 'all' — любой коллега

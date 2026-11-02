@@ -128,7 +128,7 @@ function register(ctx) {
         for (const it of prize.items) q('INSERT OR IGNORE INTO owned (user_id, item_id, at) VALUES (?, ?, ?)').run(uid, it, U.now());
       }
       if (p.type === 'M' && r.place === 1) q('UPDATE gangs SET legend_month = ? WHERE id = ?').run(p.key.slice(2), r.id);
-      const medal = ['🥇', '🥈', '🥉'][r.place - 1] || `${r.place} место`;
+      const medal = ['', '', ''][r.place - 1] || `${r.place} место`;
       const what = p.type === 'W' ? 'Лиге недели' : `Лиге месяца (${p.label})`;
       fireAndForget(notify(winners, { title: `${medal} ${r.name} — ${r.place} место в ${what}`, body: `+${prize.beans} зёрен каждому, кто принёс очки${prize.items.length ? ' и трофей для профиля' : ''}`, url: '/#league', tag: 'league-' + p.key }));
     }

@@ -131,8 +131,8 @@ function register(ctx) {
   function preview(m) {
     if (!m) return null;
     if (m.type === 'call') return (CALLS[m.kind] || {}).verb || 'зов';
-    if (m.type === 'voice') return `🎙 голосовое 0:${String(m.opt || 0).padStart(2, '0')}`;
-    if (m.type === 'meme') return '🖼 мем: «' + ((MEMES.find((x) => x.id === m.kind) || {}).caption || '') + '»';
+    if (m.type === 'voice') return `Голосовое 0:${String(m.opt || 0).padStart(2, '0')}`;
+    if (m.type === 'meme') return 'мем: «' + ((MEMES.find((x) => x.id === m.kind) || {}).caption || '') + '»';
     return m.text;
   }
 
@@ -412,7 +412,7 @@ function register(ctx) {
       const v = voice.store(u.id, { lo, hi }, body);
       ins.run(lo, hi, u.id, f.id, 'voice', null, String(v.dur), v.token, U.now());
       if (onEvent) onEvent('dm', u.id, { to: f.id });
-      fireAndForget(notify([f.id], { title: u.nick, body: '🎙 Голосовое сообщение', url: `/#crew/${u.id}`, tag: `dm-${u.id}` }));
+      fireAndForget(notify([f.id], { title: u.nick, body: 'Голосовое сообщение', url: `/#crew/${u.id}`, tag: `dm-${u.id}` }));
       return { ok: true };
     }
     if (body.type === 'text') {

@@ -88,7 +88,7 @@ function register(ctx) {
       for (const y of [Number(t.slice(0, 4)), Number(t.slice(0, 4)) + 1]) {
         const day = `${y}-${p.bday.slice(3, 5)}-${p.bday.slice(0, 2)}`;
         const n = daysTo(day);
-        if (n >= 0 && n <= 21) { if (!taken.has(day)) out.push({ kind: 'bday', day, title: `ДР: ${m.nick}`, hint: `🎂 ${m.nick} — ${n === 0 ? 'сегодня' : n === 1 ? 'завтра' : `через ${n} дн.`}` }); break; }
+        if (n >= 0 && n <= 21) { if (!taken.has(day)) out.push({ kind: 'bday', day, title: `ДР: ${m.nick}`, hint: `${m.nick} — ${n === 0 ? 'сегодня' : n === 1 ? 'завтра' : `через ${n} дн.`}` }); break; }
       }
     }
     const seen = new Set();
@@ -108,7 +108,7 @@ function register(ctx) {
         if (dow >= 1 && dow <= 5 && !OFF[d]) { party = d; break; }
       }
       if (taken.has(party)) continue;
-      out.push({ kind: OFF[day] ? 'holiday' : 'party', day: party, title: `Сабантуй: ${short}`, hint: `🎆 ${short} — ${day.slice(8)}.${day.slice(5, 7)}` });
+      out.push({ kind: OFF[day] ? 'holiday' : 'party', day: party, title: `Сабантуй: ${short}`, hint: `${short} — ${day.slice(8)}.${day.slice(5, 7)}` });
     }
     return out.slice(0, 6);
   }
@@ -182,7 +182,7 @@ function register(ctx) {
     const going = q("SELECT user_id FROM gang_event_rsvp WHERE event_id = ? AND answer IN ('yes', 'maybe') AND user_id != ?").all(e.id, u.id).map((r) => r.user_id);
     q('DELETE FROM gang_events WHERE id = ?').run(e.id);
     if (e.day >= today()) {
-      q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(e.gang_id, u.id, 'text', `❌ Отменено: «${e.title}» (${e.day.slice(8)}.${e.day.slice(5, 7)})`, U.now());
+      q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(e.gang_id, u.id, 'text', `Отменено: «${e.title}» (${e.day.slice(8)}.${e.day.slice(5, 7)})`, U.now());
       fireAndForget(notify(going, { title: `Отменено: ${e.title}`, body: `${u.nick} ${U.g(u.look, 'отменил', 'отменила')} событие`, url: `/#gang/${e.gang_id}`, tag: `gevent-${e.id}` }));
     }
     return { ok: true };

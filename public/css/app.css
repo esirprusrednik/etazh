@@ -1043,27 +1043,26 @@ button.quest:disabled { cursor: default; }
 .tr-hist .plus { color: var(--tint-g-fg); } .tr-hist .minus { color: var(--tint-r-fg); }
 @media (prefers-reduced-motion: reduce) { .gname.plate_fire, .aura.aura_fire svg { animation: none; } }
 
-/* Скорый отпуск: тёплая жёлтая карточка с пляжем */
-.vac-far { margin: 0 0 12px; padding: 10px 14px; border-radius: 14px; background: var(--tint-y); color: var(--tint-y-fg); font-weight: 700; font-size: 14px; border: 1px solid var(--wallet-bd); }
-.card.vac-soon { padding: 0; gap: 0; overflow: hidden; color: #3B2400; background: linear-gradient(180deg, #FFE6A0 0%, #FFD36E 100%); border: 0; box-shadow: 0 10px 24px rgba(240,160,40,.28); }
-.vac-hero { position: relative; height: 128px; }
-.vac-scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.vac-count { position: absolute; left: 16px; top: 14px; display: flex; align-items: center; gap: 8px; color: #3B2400; }
-.vac-count b { font-family: var(--font-display); font-size: 46px; line-height: 1; font-weight: 800; letter-spacing: -.03em; text-shadow: 0 2px 0 rgba(255,255,255,.5); }
-.vac-count b.w { font-size: 26px; }
-.vac-count span { font-size: 13px; font-weight: 800; line-height: 1.15; color: #6B4510; }
-.vac-body { position: relative; padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 6px; }
-.vac-range { font-family: var(--font-display); font-size: 22px; font-weight: 800; letter-spacing: -.02em; color: #3B2400; }
-.vac-sub { font-size: 14px; line-height: 1.4; color: #6B4510; }
-.vac-sub b { color: #3B2400; background: rgba(255,255,255,.55); padding: 1px 6px; border-radius: 6px; }
-.vac-dots { display: flex; align-items: center; gap: 5px; margin-top: 4px; font-size: 13px; font-weight: 700; color: #6B4510; }
-.vac-dots i { width: 12px; height: 12px; border-radius: 4px; background: #fff; box-shadow: inset 0 0 0 1.5px #E0A23A; }
-.vac-dots span { margin-left: 6px; }
-.vac-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-.vac-btn { border: 0; border-radius: 999px; padding: 9px 14px; background: rgba(255,255,255,.85); color: #3B2400; font: 700 14px var(--font); cursor: pointer; box-shadow: 0 1px 0 rgba(160,100,20,.25), 0 2px 8px rgba(160,100,20,.12); }
-.vac-btn:active { transform: translateY(1px); }
-.vac-done { padding: 9px 4px; font-size: 14px; font-weight: 800; color: #3B6B1F; }
-:root[data-theme="dark"] .card.vac-soon { box-shadow: 0 0 0 1px rgba(255,210,63,.35), 0 12px 30px rgba(255,176,32,.18); }
+/* Отпуск: тёплая жёлтая карточка, только типографика */
+.vac-far { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 10px 14px; border-radius: 14px; background: var(--tint-y); color: var(--tint-y-fg); font-weight: 700; font-size: 14px; border: 1px solid var(--wallet-bd); }
+.card.vac-soon { gap: 14px; padding: 18px; color: #3B2400; background: radial-gradient(120% 140% at 100% 0%, #FFF3C8 0%, rgba(255,243,200,0) 55%), linear-gradient(135deg, #FFE08A 0%, #FFC94D 100%); border: 0; box-shadow: 0 8px 22px rgba(232,160,30,.25); }
+:root[data-theme="dark"] .card.vac-soon { box-shadow: 0 0 0 1px rgba(255,210,63,.4), 0 12px 30px rgba(255,176,32,.16); }
+.vac-main { display: flex; align-items: stretch; gap: 16px; }
+.vac-num { flex: none; display: flex; flex-direction: column; justify-content: center; padding-right: 16px; border-right: 1.5px solid rgba(59,36,0,.15); }
+.vac-num b { font-family: var(--font-display); font-size: 56px; line-height: .95; font-weight: 800; letter-spacing: -.04em; }
+.vac-num b.w { font-size: 24px; line-height: 1.1; }
+.vac-num span { margin-top: 4px; font-size: 12px; font-weight: 700; letter-spacing: .02em; color: rgba(59,36,0,.65); max-width: 80px; line-height: 1.2; }
+.vac-info { min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 3px; }
+.vac-range { font-family: var(--font-display); font-size: 21px; font-weight: 800; letter-spacing: -.02em; }
+.vac-sub { font-size: 14px; color: rgba(59,36,0,.72); line-height: 1.35; }
+.vac-sub b { color: #3B2400; font-weight: 800; }
+.vac-prog { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; color: rgba(59,36,0,.7); }
+.vac-segs { display: flex; gap: 4px; flex: 0 1 auto; }
+.vac-segs i { width: 22px; height: 6px; border-radius: 3px; background: rgba(59,36,0,.22); }
+.vac-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.vac-btn { display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 999px; padding: 8px 13px; background: rgba(255,255,255,.55); color: #3B2400; font: 700 13.5px var(--font); cursor: pointer; }
+.vac-btn:active { transform: translateY(1px); background: rgba(255,255,255,.75); }
+.vac-done { display: inline-flex; align-items: center; gap: 6px; padding: 8px 4px; font-size: 13.5px; font-weight: 700; color: #3B2400; }
 
 /* Голосовые */
 .mic-btn { flex: none; min-width: 48px; padding-left: 0; padding-right: 0; font-size: 20px; }
@@ -1200,3 +1199,18 @@ a { color: var(--link); }
 .cat.on { background: var(--chip-on-bg); color: var(--chip-on-fg); }
 .onb, .onb .sub { color: var(--fg); } .onb .sub { color: var(--fg-muted); }
 .logo { color: var(--fg); }
+
+/* Монохромные иконки вместо эмодзи: цвет — как у текста */
+.ei { display: inline-block; width: 1.1em; height: 1.1em; vertical-align: -.18em; flex: none; }
+.card-title .ei, .card h3 .ei, .card h2 .ei, .chats-head .ei { color: var(--ic, var(--muted)); margin-right: 2px; }
+:root { --ic: #3D4F9F; } :root[data-theme="dark"] { --ic: #B79CFF; }
+.mdl { display: inline-grid; place-items: center; width: 1.45em; height: 1.45em; border-radius: 50%; font-size: .8em; font-weight: 800; vertical-align: .05em; color: #3B2400; }
+.mdl.m1 { background: #FFD24D; } .mdl.m2 { background: #D6DBE6; color: #2A3348; } .mdl.m3 { background: #E9B98A; color: #4A2A10; }
+
+/* Игры: единый стиль плиток, цвет только у иконки */
+.duel-start { background: var(--s1) !important; color: var(--ink); box-shadow: none !important; border: 1px solid var(--card-bd); gap: 6px; padding: 14px 4px 12px; }
+.duel-start span { font-size: 26px; line-height: 1; display: flex; gap: 2px; color: var(--violet); }
+.duel-start:nth-child(2) span { color: #E8780F; } .duel-start:nth-child(3) span { color: #0E9F6E; }
+:root[data-theme="dark"] .duel-start span { color: #B79CFF; } :root[data-theme="dark"] .duel-start:nth-child(2) span { color: #FFB066; } :root[data-theme="dark"] .duel-start:nth-child(3) span { color: #5FE0B0; }
+.duel-start b { font-weight: 700; }
+.duel-start:active { transform: translateY(1px); }

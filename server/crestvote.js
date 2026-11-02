@@ -39,7 +39,7 @@ function register(ctx) {
     q('UPDATE crest_proposals SET status = ?, decided_at = ?, za = ?, protiv = ? WHERE id = ?').run(status, U.now(), t.za, t.protiv, p.id);
     const g = q('SELECT name FROM gangs WHERE id = ?').get(p.gang_id);
     if (status === 'accepted') q('UPDATE gangs SET crest = ? WHERE id = ?').run(p.crest, p.gang_id);
-    const text = status === 'accepted' ? `🛡 Новый герб принят: за — ${t.za}, против — ${t.protiv}` : status === 'rejected' ? `🛡 Герб не прошёл: за — ${t.za}, против — ${t.protiv}` : null;
+    const text = status === 'accepted' ? `Новый герб принят: за — ${t.za}, против — ${t.protiv}` : status === 'rejected' ? `Герб не прошёл: за — ${t.za}, против — ${t.protiv}` : null;
     if (text) {
       q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(p.gang_id, p.user_id, 'text', text, U.now());
       if (status === 'accepted') fireAndForget(notify(gangMembers(p.gang_id).map((m) => m.id), { title: g ? g.name : 'Банда', body: 'У банды новый герб — посмотри', url: `/#gang/${p.gang_id}`, tag: `crest-${p.id}` }));
@@ -99,7 +99,7 @@ function register(ctx) {
     q('INSERT INTO crest_votes (proposal_id, user_id, vote, at) VALUES (?, ?, 1, ?)').run(id, u.id, t);
     const p = decide(q('SELECT * FROM crest_proposals WHERE id = ?').get(id)); // банда из одного человека — сразу принят
     if (p.status === 'open') {
-      q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(g.id, u.id, 'text', '🛡 Предлагаю новый герб банды — голосуй выше, голос тайный', t);
+      q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(g.id, u.id, 'text', 'Предлагаю новый герб банды — голосуй выше, голос тайный', t);
       const others = gangMembers(g.id).filter((m) => m.id !== u.id).map((m) => m.id);
       fireAndForget(notify(others, { title: `${g.name}: новый герб?`, body: `${u.nick} ${U.g(u.look, 'предложил', 'предложила')} герб — голосование 48 часов`, url: `/#gang/${g.id}`, tag: `crest-${id}` }));
     }

@@ -76,9 +76,9 @@ function register(ctx) {
       matches.push({ a, b, war, winner: null });
       for (const g of [a, b]) {
         const other = gang(g === a ? b : a);
-        q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(g, gang(g).owner_id, 'text', `🏆 ${title(t.month)}, ${roundName(round, br.size)}: против «${other.name}». Владелец, назначь героя — блиц на 3 минуты, 2 рабочих дня`, U.now());
+        q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(g, gang(g).owner_id, 'text', `${title(t.month)}, ${roundName(round, br.size)}: против «${other.name}». Владелец, назначь героя — блиц на 3 минуты, 2 рабочих дня`, U.now());
         const o = gang(g).owner_id;
-        if (o) fireAndForget(notify([o], { title: `🏆 ${title(t.month)}`, body: `${roundName(round, br.size)}: против «${other.name}». Назначь героя`, url: `/#gang/${g}`, tag: `tour-${t.id}-${round}` }));
+        if (o) fireAndForget(notify([o], { title: `${title(t.month)}`, body: `${roundName(round, br.size)}: против «${other.name}». Назначь героя`, url: `/#gang/${g}`, tag: `tour-${t.id}-${round}` }));
       }
     }
     br.rounds[round] = { topic, matches };
@@ -121,7 +121,7 @@ function register(ctx) {
       for (const m of gangMembers(champ)) addBeans(m.id, 'tour_win', PRIZE_CHAMP);
       if (runner) for (const m of gangMembers(runner)) addBeans(m.id, 'tour_final', PRIZE_FINAL);
       const all = q('SELECT gang_id FROM tourney_teams WHERE tourney_id = ?').all(t.id).flatMap((r) => gangMembers(r.gang_id).map((m) => m.id));
-      fireAndForget(notify(all, { title: `🏆 ${title(t.month)}: чемпион — «${gang(champ).name}»`, body: `Финалист — «${runner ? gang(runner).name : '—'}». Кубок уходит в профиль банды`, url: `/#gang/${champ}`, tag: `tour-${t.id}` }));
+      fireAndForget(notify(all, { title: `${title(t.month)}: чемпион — «${gang(champ).name}»`, body: `Финалист — «${runner ? gang(runner).name : '—'}». Кубок уходит в профиль банды`, url: `/#gang/${champ}`, tag: `tour-${t.id}` }));
       return;
     }
     startRound(t, br, t.round + 1, winners);
@@ -167,7 +167,7 @@ function register(ctx) {
     if (body.off) q('DELETE FROM tourney_teams WHERE tourney_id = ? AND gang_id = ?').run(t.id, g.id);
     else {
       q('INSERT OR IGNORE INTO tourney_teams (tourney_id, gang_id, at) VALUES (?, ?, ?)').run(t.id, g.id, U.now());
-      q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(g.id, u.id, 'text', `🏆 Банда записана на «${title(t.month)}». Старт — ${t.start_day.slice(8)}.${t.start_day.slice(5, 7)}. Готовим героев!`, U.now());
+      q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(g.id, u.id, 'text', `Банда записана на «${title(t.month)}». Старт — ${t.start_day.slice(8)}.${t.start_day.slice(5, 7)}. Готовим героев!`, U.now());
     }
     return view(current(), u.id);
   });

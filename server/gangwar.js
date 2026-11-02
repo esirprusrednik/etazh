@@ -5,7 +5,7 @@
 //  3. На ответ — 3 дня. Не ответили — вызов сгорает (засчитывается как отказ, в статистике видно).
 //  4. Битва идёт 5 рабочих дней по производственному календарю с момента, как вызов приняли.
 // ГЕРОЙ
-//  • Любой участник может нажать «🙋 Готов быть героем» — владелец видит добровольцев первыми и статистику героев.
+//  • Любой участник может нажать «Готов быть героем» — владелец видит добровольцев первыми и статистику героев.
 //  • Ротация: в банде от 3 человек один и тот же герой не выходит два раза подряд — пусть пробуют все.
 //  • Герой может отказаться, пока не начал; владелец назначает замену.
 // БЛИЦ
@@ -16,7 +16,7 @@
 // СТАВКИ (каждый член банды, только за свою банду — ставить против своих нельзя)
 //  • 1–10 зёрен, пока ставки открыты: в блице — до старта первого героя, в морском бою — пока партия не началась.
 //  • Победившая сторона забирает свои ставки и делит банк проигравших пропорционально ставкам. Ничья — всё возвращается.
-// КЛИЧ — каждый член банды может один раз крикнуть герою «💪 Держись!», герой видит поддержку перед стартом.
+// КЛИЧ — каждый член банды может один раз крикнуть герою «Держись!», герой видит поддержку перед стартом.
 
 const { TOPICS } = require('./wartopics');
 const { workdayName } = require('./holidays');
@@ -179,7 +179,7 @@ function register(ctx) {
     const gf = gang(w.from_gang), gt = gang(w.to_gang);
     const t = topicById(w.topic);
     const what = w.kind === 'blitz' ? `блиц «${t ? t.title : ''}»` : 'морской бой';
-    const pre = w.tour_id ? '🏆 Турнир' : '⚔️ Битва банд';
+    const pre = w.tour_id ? 'Турнир' : 'Битва банд';
     const line = winnerGang ? `${pre} (${what}): победила «${winnerGang === w.from_gang ? gf.name : gt.name}»${result.note ? ' — ' + result.note : ''}` : `${pre} (${what}): ничья${result.note ? ' — ' + result.note : ''}`;
     for (const g of [gf, gt]) if (g) chat(g.id, g.id === w.from_gang ? w.from_hero : w.to_hero, line);
     if (!w.tour_id) {
@@ -353,10 +353,10 @@ function register(ctx) {
     }
     const id = Number(q('INSERT INTO gang_wars (from_gang, to_gang, kind, topic, from_hero, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(g.id, to.id, kind, topic, hero, U.now()).lastInsertRowid);
     const what = kind === 'blitz' ? `блиц «${topicById(topic).title}»` : 'морской бой';
-    chat(g.id, u.id, `⚔️ Бросили вызов банде «${to.name}»: ${what}. Наш герой — ${nick(hero)}. Делайте ставки и кричите «Держись!»`);
-    chat(to.id, u.id, `⚔️ Банда «${g.name}» вызывает нас на битву: ${what}. У владельца ${PENDING_DAYS} дня, чтобы ответить. Кто готов быть героем — жмите 🙋`);
-    fireAndForget(notify(gangMembers(to.id).map((m) => m.id), { title: `⚔️ Вызов от «${g.name}»`, body: `Битва банд: ${what}. Их герой — ${nick(hero)}`, url: `/#gang/${to.id}`, tag: `war-${id}` }));
-    if (hero !== u.id) fireAndForget(notify([hero], { title: '⚔️ Ты — герой банды', body: `Банда выставила тебя на битву с «${to.name}»: ${what}`, url: `/#gang/${g.id}`, tag: `war-hero-${id}` }));
+    chat(g.id, u.id, `Бросили вызов банде «${to.name}»: ${what}. Наш герой — ${nick(hero)}. Делайте ставки и кричите «Держись!»`);
+    chat(to.id, u.id, `Банда «${g.name}» вызывает нас на битву: ${what}. У владельца ${PENDING_DAYS} дня, чтобы ответить. Кто готов быть героем — жмите `);
+    fireAndForget(notify(gangMembers(to.id).map((m) => m.id), { title: `Вызов от «${g.name}»`, body: `Битва банд: ${what}. Их герой — ${nick(hero)}`, url: `/#gang/${to.id}`, tag: `war-${id}` }));
+    if (hero !== u.id) fireAndForget(notify([hero], { title: 'Ты — герой банды', body: `Банда выставила тебя на битву с «${to.name}»: ${what}`, url: `/#gang/${g.id}`, tag: `war-hero-${id}` }));
     return { id };
   });
 
@@ -378,14 +378,14 @@ function register(ctx) {
     if (hero === w.from_hero) throw bad('Герой не может драться сам с собой.');
     const ends = workEnd(5);
     let battleId = null;
-    if (w.kind === 'sea' && battle) battleId = battle.createFor(hero, w.from_hero, `⚔️ Битва банд: быстрый морской бой за честь «${gt.name}»`);
+    if (w.kind === 'sea' && battle) battleId = battle.createFor(hero, w.from_hero, `Битва банд: быстрый морской бой за честь «${gt.name}»`);
     q("UPDATE gang_wars SET status = 'active', to_hero = ?, accepted_at = ?, ends_at = ?, battle_id = ? WHERE id = ?").run(hero, U.now(), ends, battleId, w.id);
     const gf = gang(w.from_gang);
     const what = w.kind === 'blitz' ? `блиц «${topicById(w.topic).title}»` : 'морской бой';
-    chat(gt.id, u.id, `⚔️ Вызов «${gf.name}» принят: ${what}. Наш герой — ${nick(hero)}. Срок — 5 рабочих дней. Ставки открыты, пока герои не начали`);
-    chat(gf.id, w.from_hero, `⚔️ «${gt.name}» приняли вызов: ${what}. Их герой — ${nick(hero)}`);
-    fireAndForget(notify([...gangMembers(gf.id), ...gangMembers(gt.id)].map((m) => m.id), { title: '⚔️ Битва банд началась', body: `«${gf.name}» против «${gt.name}»: ${what}`, url: `/#gang/${gt.id}`, tag: `war-${w.id}` }));
-    if (w.kind === 'blitz') fireAndForget(notify([hero], { title: '⚔️ Твой выход', body: `Ты первым проходишь блиц «${topicById(w.topic).title}» — 3 минуты, когда удобно на этой неделе`, url: `/#gang/${gt.id}`, tag: `war-hero-${w.id}` }));
+    chat(gt.id, u.id, `Вызов «${gf.name}» принят: ${what}. Наш герой — ${nick(hero)}. Срок — 5 рабочих дней. Ставки открыты, пока герои не начали`);
+    chat(gf.id, w.from_hero, `«${gt.name}» приняли вызов: ${what}. Их герой — ${nick(hero)}`);
+    fireAndForget(notify([...gangMembers(gf.id), ...gangMembers(gt.id)].map((m) => m.id), { title: 'Битва банд началась', body: `«${gf.name}» против «${gt.name}»: ${what}`, url: `/#gang/${gt.id}`, tag: `war-${w.id}` }));
+    if (w.kind === 'blitz') fireAndForget(notify([hero], { title: 'Твой выход', body: `Ты первым проходишь блиц «${topicById(w.topic).title}» — 3 минуты, когда удобно на этой неделе`, url: `/#gang/${gt.id}`, tag: `war-hero-${w.id}` }));
     return view(q('SELECT * FROM gang_wars WHERE id = ?').get(w.id), u.id);
   });
 
@@ -396,7 +396,7 @@ function register(ctx) {
     if (w.status !== 'pending' || w.tour_id || !(isTo || isFrom)) throw bad('Нельзя.');
     q('UPDATE gang_wars SET status = ?, declined_by = ? WHERE id = ?').run(isTo ? 'declined' : 'cancelled', isTo ? w.to_gang : null, w.id);
     for (const b of q('SELECT * FROM war_bets WHERE war_id = ?').all(w.id)) addBeans(b.user_id, 'war_bet_back', b.amount);
-    chat(isTo ? w.from_gang : w.to_gang, u.id, isTo ? `⚔️ «${gang(w.to_gang).name}» отказались от битвы` : `⚔️ «${gang(w.from_gang).name}» отозвали вызов`);
+    chat(isTo ? w.from_gang : w.to_gang, u.id, isTo ? `«${gang(w.to_gang).name}» отказались от битвы` : `«${gang(w.from_gang).name}» отозвали вызов`);
     return { ok: true };
   });
 
@@ -412,8 +412,8 @@ function register(ctx) {
     heroCheck(gid, hero, w.id);
     if (hero === (mySide === 'from' ? w.to_hero : w.from_hero)) throw bad('Это герой соперника.');
     q(`UPDATE gang_wars SET ${mySide}_hero = ? WHERE id = ?`).run(hero, w.id);
-    chat(gid, u.id, `⚔️ Наш герой в битве с «${gang(mySide === 'from' ? w.to_gang : w.from_gang).name}» — ${nick(hero)}`);
-    fireAndForget(notify([hero], { title: '⚔️ Ты — герой банды', body: 'Владелец выставил тебя в битву банд — загляни в банду', url: `/#gang/${gid}`, tag: `war-hero-${w.id}` }));
+    chat(gid, u.id, `Наш герой в битве с «${gang(mySide === 'from' ? w.to_gang : w.from_gang).name}» — ${nick(hero)}`);
+    fireAndForget(notify([hero], { title: 'Ты — герой банды', body: 'Владелец выставил тебя в битву банд — загляни в банду', url: `/#gang/${gid}`, tag: `war-hero-${w.id}` }));
     return view(q('SELECT * FROM gang_wars WHERE id = ?').get(w.id), u.id);
   });
 
@@ -426,8 +426,8 @@ function register(ctx) {
     const gid = mySide === 'from' ? w.from_gang : w.to_gang;
     q(`UPDATE gang_wars SET ${mySide}_hero = NULL WHERE id = ?`).run(w.id);
     const g = gang(gid);
-    chat(gid, u.id, `⚔️ ${nick(u.id)} не сможет биться. Владелец, назначь нового героя — иначе техническое поражение`);
-    if (g.owner_id) fireAndForget(notify([g.owner_id], { title: '⚔️ Нужен новый герой', body: `${nick(u.id)} не сможет — назначь замену`, url: `/#gang/${gid}`, tag: `war-hero-${w.id}` }));
+    chat(gid, u.id, `${nick(u.id)} не сможет биться. Владелец, назначь нового героя — иначе техническое поражение`);
+    if (g.owner_id) fireAndForget(notify([g.owner_id], { title: 'Нужен новый герой', body: `${nick(u.id)} не сможет — назначь замену`, url: `/#gang/${gid}`, tag: `war-hero-${w.id}` }));
     return view(q('SELECT * FROM gang_wars WHERE id = ?').get(w.id), u.id);
   });
 
@@ -453,7 +453,7 @@ function register(ctx) {
     if (hero === u.id) throw bad('Себя не подбадривают — это делает банда.');
     if (!q('SELECT 1 FROM war_cheers WHERE war_id = ? AND user_id = ?').get(w.id, u.id)) {
       q('INSERT INTO war_cheers (war_id, user_id, gang_id, at) VALUES (?, ?, ?, ?)').run(w.id, u.id, gid, U.now());
-      if (hero) fireAndForget(notify([hero], { title: '💪 Держись!', body: `${nick(u.id)} болеет за тебя в битве банд`, url: `/#gang/${gid}`, tag: `war-cheer-${w.id}` }));
+      if (hero) fireAndForget(notify([hero], { title: 'Держись!', body: `${nick(u.id)} болеет за тебя в битве банд`, url: `/#gang/${gid}`, tag: `war-cheer-${w.id}` }));
     }
     return view(w, u.id);
   });
@@ -487,7 +487,7 @@ function register(ctx) {
     return w;
   };
   const nextUp = (w) => {
-    if (w.from_hero) fireAndForget(notify([w.from_hero], { title: '⚔️ Твой выход', body: `Соперник прошёл блиц «${topicById(w.topic).title}». Теперь ты — 3 минуты, когда удобно до конца срока`, url: `/#gang/${w.from_gang}`, tag: `war-hero-${w.id}` }));
+    if (w.from_hero) fireAndForget(notify([w.from_hero], { title: 'Твой выход', body: `Соперник прошёл блиц «${topicById(w.topic).title}». Теперь ты — 3 минуты, когда удобно до конца срока`, url: `/#gang/${w.from_gang}`, tag: `war-hero-${w.id}` }));
   };
   route('GET', '/api/wars/:id/play', async (req, body, query, params) => {
     const u = requireUser(req);
@@ -545,7 +545,7 @@ function register(ctx) {
     requireAdmin(req);
     const title = U.cleanText(body.title, 40);
     if (title.length < 3) throw bad('Название темы — от 3 символов.');
-    const emoji = U.cleanText(body.emoji || '❓', 4) || '❓';
+    const emoji = U.cleanText(body.emoji || '', 4) || '';
     const from = /^\d{4}-\d{2}-\d{2}$/.test(body.from || '') ? body.from : today();
     const questions = String(body.questions || '').split('\n').map((l) => l.split('|').map((x) => x.trim()).filter(Boolean)).filter((p) => p.length).map((p, i) => {
       if (p.length < 3 || p.length > 5) throw bad(`Строка ${i + 1}: нужен вопрос, правильный ответ и 1–3 неверных через «|».`);
