@@ -916,9 +916,9 @@ function renderToday() {
   }
   if (p.where === 'home') {
     return `<section class="card">
-      <h2>🏠 Сегодня из дома</h2>
-      <p class="sub">${p.planned ? 'Так в твоём плане на этот день недели.' : 'Ты отметил это вручную.'} Банда видит статус «из дома». Приедешь — просто отметься в офисе.</p>
-      ${p.planned ? '' : '<button class="btn ghost" data-act="today" data-v="">Отменить</button>'}${next}
+      <h2>🏠 Сегодня из дома${p.planned ? '?' : ''}</h2>
+      <p class="sub">${p.planned ? 'Так в твоём плане на этот день недели. Подтверди — банда увидит, что ты на связи из дома, а задание «Отметься» засчитается.' : 'Отметка стоит: банда видит «работает из дома». Приедешь — просто отметься в офисе.'}</p>
+      ${p.planned ? '<button class="btn" data-act="today" data-v="home">Да, сегодня из дома</button>' : '<div class="row" style="gap:8px;align-items:center"><span class="note good grow" style="margin:0">✓ Отмечено</span><button class="btn small ghost" data-act="today" data-v="">Отменить</button></div>'}${next}
     </section>`;
   }
   return next ? `<section class="card">${next}</section>` : '';
@@ -1826,6 +1826,7 @@ const FEEL = {
 function feelFor(act, el) {
   if (FEEL_SELF.has(act)) return null;
   if (act === 'sec') return S.sec.has(el.dataset.v) ? 'collapse' : 'expand';
+  if (act === 'today') return el.dataset.v ? 'confirm' : 'off';
   if (FEEL[act]) return FEEL[act];
   if (/(^|-)(send|create|go|add|share|submit)$|^gift$|signal-send|thanks-send|chat-send|find-invite|gang-invite/.test(act)) return 'send';
   if (el.classList.contains('chip') || /-(pick|kind|days|set|cat|scene|emo|to|time|tag|day|opt|select|preset|type)$/.test(act)) return 'pick';
@@ -2557,6 +2558,7 @@ const actions = {
     await post('/api/me/profile', { profile: { today: el.dataset.v ? { kind: el.dataset.v } : null } });
     await loadMe(); await loadState();
     if (el.dataset.v === 'slack') toast('Признание засчитано 😏');
+    if (el.dataset.v === 'home') { toast('Отмечено: сегодня из дома'); loadFeatures().then(render).catch(() => {}); }
   }),
   'plan-day': (el) => run(async () => {
     const plan = { ...S.me.profile.plan };
