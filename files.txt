@@ -52,6 +52,7 @@ server/mailer.js
 server/polls.js
 server/quiz.js
 server/util.js
+server/voice.js
 server/webpush.js
 tests/battle.js
 tests/crew.js

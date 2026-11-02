@@ -2207,7 +2207,7 @@ function renderGang() {
     <h3>Чат</h3>
     <div class="chat" id="chat">${msgs}</div>
     <div class="row"><label class="field grow" style="gap:0"><span class="hidden">Сообщение</span><input id="chat-text" maxlength="300" placeholder="Написать банде" aria-label="Сообщение банде"></label>
-      <button class="btn" data-act="chat-send" aria-label="Отправить">→</button></div>
+      ${micBtn('gang')}<button class="btn" data-act="chat-send" aria-label="Отправить">→</button></div>${recBar('gang')}
   </section>
   ${renderWeek()}
   ${renderThanks(v)}
@@ -2233,6 +2233,11 @@ function renderMsg(m) {
       <div class="text">${body}</div>${reps}
       ${m.canReply ? `<div class="chips">${m.replyOptions.map((l) => `<button class="chip" data-act="reply" data-id="${m.id}" data-v="${esc(l)}">${esc(l)}</button>`).join('')}</div><span class="small">Ответ: +1 зерно</span>` : ''}
     </div>`;
+  }
+  if (m.type === 'voice') {
+    return `<div class="msg ${m.mine ? 'mine' : ''}">
+    <div class="meta"><b>${esc(m.author)}</b><span>${m.time}</span>${m.mine ? '' : `<button class="linkbtn" data-act="report" data-type="message" data-id="${m.id}" aria-label="Пожаловаться">⚑</button>`}</div>
+    ${voiceEl(m.voice)}</div>`;
   }
   return `<div class="msg ${m.mine ? 'mine' : ''}">
     <div class="meta"><b>${esc(m.author)}</b><span>${m.time}</span>${m.mine ? '' : `<button class="linkbtn" data-act="report" data-type="message" data-id="${m.id}" aria-label="Пожаловаться">⚑</button>`}</div>
@@ -2286,6 +2291,44 @@ function renderCrew() {
   </section>`;
 }
 
+// ----- Голосовые: до 30 секунд, живут час -----
+const VOICE_MAX = 30;
+const REC = { on: false, where: null, t0: 0, rec: null, chunks: [], stream: null, timer: null, mime: '', cancel: false };
+const PLAY = { token: null, audio: null, url: null };
+const vmmss = (sec) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
+const canRecord = () => !!(window.MediaRecorder && navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+function micBtn(where) {
+  if (!canRecord()) return '';
+  return `<button class="btn ghost mic-btn ${REC.on && REC.where === where ? 'on' : ''}" data-act="rec-start" data-v="${where}" aria-label="Записать голосовое">${REC.on && REC.where === where ? '●' : '🎙'}</button>`;
+}
+function recBar(where) {
+  if (!REC.on || REC.where !== where) return '<p class="small voice-hint">🎙 Голосовые — до 30 секунд, хранятся час и сгорают</p>';
+  const sec = Math.min(VOICE_MAX, (Date.now() - REC.t0) / 1000);
+  return `<div class="rec-bar"><span class="rec-dot"></span><b id="rec-t">${vmmss(sec)}</b><span class="rec-track"><i id="rec-p" style="width:${(sec / VOICE_MAX) * 100}%"></i></span><span class="small">0:30</span>
+    <div class="rec-acts"><button class="btn small ghost" data-act="rec-cancel">Отмена</button><button class="btn small" data-act="rec-send">Отправить</button></div></div>`;
+}
+function voiceEl(v) {
+  if (!v || v.gone) return `<div class="voice gone">🎙 Голосовое ${vmmss((v && v.dur) || 0)} · сгорело</div>`;
+  const playing = PLAY.token === v.token && PLAY.audio && !PLAY.audio.paused;
+  const left = Math.max(1, Math.round(v.left / 60e3));
+  return `<div class="voice" data-vt="${esc(v.token)}"><button class="voice-play" data-act="voice-play" data-v="${esc(v.token)}" data-mime="${esc(v.mime || '')}" aria-label="${playing ? 'Пауза' : 'Слушать'}">${playing ? '❚❚' : '▶'}</button>
+    <span class="voice-track"><i></i></span><span class="voice-d">${vmmss(v.dur)}</span></div><div class="voice-left">🔥 сгорит через ${left} мин</div>`;
+}
+function recTick() {
+  const sec = (Date.now() - REC.t0) / 1000;
+  const t = $('#rec-t'); const pr = $('#rec-p');
+  if (t) t.textContent = vmmss(Math.min(sec, VOICE_MAX));
+  if (pr) pr.style.width = Math.min(100, (sec / VOICE_MAX) * 100) + '%';
+  if (sec >= VOICE_MAX) { toast('30 секунд — отправляю'); actions['rec-send'](); }
+}
+function recStop(cancel) {
+  REC.cancel = cancel;
+  clearInterval(REC.timer);
+  try { if (REC.rec && REC.rec.state !== 'inactive') REC.rec.stop(); } catch {}
+  if (REC.stream) REC.stream.getTracks().forEach((t) => t.stop());
+}
+const blobB64 = (blob) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] || ''); r.onerror = rej; r.readAsDataURL(blob); });
+
 function renderDm() {
   const v = S.dmView;
   if (!v) return '<div class="card"><p class="sub">Открываем переписку…</p></div>';
@@ -2315,7 +2358,7 @@ function renderDm() {
   ${shut && !v.messages.length ? '' : `<section class="card">
     <div class="chat" id="dm-chat">${msgs}</div>
     ${shut ? '' : `<div class="row"><label class="field grow" style="gap:0"><span class="hidden">Сообщение</span><input id="dm-text" maxlength="500" placeholder="Написать ${esc(f.nick)}" aria-label="Личное сообщение"></label>
-      <button class="btn" data-act="dm-send" aria-label="Отправить">→</button></div>`}
+      ${micBtn('dm')}<button class="btn" data-act="dm-send" aria-label="Отправить">→</button></div>${recBar('dm')}`}
     ${v.closedByMe ? '<p class="small" style="margin:0">Ты закрыл эту личку. Напишешь — она откроется снова.</p>' : ''}
   </section>`}
   <section class="card">
@@ -2503,7 +2546,7 @@ function renderDmMsg(m, f) {
     </div>`;
   }
   return `<div class="msg ${m.mine ? 'mine' : ''}">
-    <div class="text">${esc(m.text)}</div>
+    ${m.type === 'voice' ? voiceEl(m.voice) : `<div class="text">${esc(m.text)}</div>`}
     <div class="meta"><span>${m.time}</span>${m.mine ? (m.read ? '<span title="Прочитано">✓✓</span>' : '<span title="Доставлено">✓</span>') : `<button class="linkbtn" data-act="report" data-type="dm" data-id="${m.id}" aria-label="Пожаловаться модератору">⚑</button>`}</div></div>`;
 }
 
@@ -3835,6 +3878,57 @@ const actions = {
     await loadGang(); if (S.tab === 'chats' && S.chatGang) markSeen('chat');
   }),
   reply: (el) => run(async () => { const r = await post(`/api/messages/${el.dataset.id}/reply`, { label: el.dataset.v }); if (r.beans) toast(`+${r.beans} зерно`); await loadGang(); }),
+  'rec-start': (el) => run(async () => {
+    if (REC.on) return actions['rec-send']();
+    if (!canRecord()) throw new Error('Этот браузер не умеет записывать звук');
+    let stream;
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); } catch { throw new Error('Нет доступа к микрофону. Разреши его в настройках браузера'); }
+    const mime = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4', 'audio/aac'].find((t) => MediaRecorder.isTypeSupported(t)) || '';
+    const rec = new MediaRecorder(stream, mime ? { mimeType: mime, audioBitsPerSecond: 32000 } : { audioBitsPerSecond: 32000 });
+    Object.assign(REC, { on: true, where: el.dataset.v, t0: Date.now(), rec, chunks: [], stream, mime, cancel: false, dm: S.dm, gang: S.activeGang });
+    rec.ondataavailable = (e) => { if (e.data && e.data.size) REC.chunks.push(e.data); };
+    rec.onstop = () => run(async () => {
+      const dur = Math.min(VOICE_MAX, Math.max(1, Math.round((Date.now() - REC.t0) / 1000)));
+      const { where, dm, gang, cancel } = REC;
+      const blob = new Blob(REC.chunks, { type: (REC.rec && REC.rec.mimeType) || REC.mime || 'audio/webm' });
+      Object.assign(REC, { on: false, rec: null, stream: null, chunks: [] });
+      render();
+      if (cancel) return;
+      if ((Date.now() - REC.t0) < 700) throw new Error('Слишком коротко — держи запись хотя бы секунду');
+      const audio = await blobB64(blob);
+      const body = { type: 'voice', audio, mime: blob.type, dur };
+      if (where === 'dm') { await post(`/api/crew/${dm}/messages`, body); await loadDm(); } else { await post(`/api/gangs/${gang}/messages`, body); await loadGang(); markSeen('chat'); }
+      sfx('send');
+    });
+    rec.start(250);
+    REC.timer = setInterval(recTick, 200);
+    sfx('on'); render();
+  }),
+  'rec-send'() { if (REC.on) recStop(false); },
+  'rec-cancel'() { if (REC.on) { recStop(true); toast('Запись удалена'); } },
+  'voice-play': (el) => run(async () => {
+    const token = el.dataset.v;
+    if (PLAY.token === token && PLAY.audio) { if (PLAY.audio.paused) PLAY.audio.play(); else PLAY.audio.pause(); return; }
+    if (PLAY.audio) { PLAY.audio.pause(); URL.revokeObjectURL(PLAY.url); }
+    const mime = el.dataset.mime;
+    const probe = document.createElement('audio');
+    if (mime && !probe.canPlayType(mime)) throw new Error('Твой браузер не играет этот формат — голосовое записано на другом устройстве');
+    const r = await fetch('/api/voice/' + encodeURIComponent(token), { credentials: 'same-origin' });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || 'Не получилось загрузить голосовое'); }
+    const url = URL.createObjectURL(await r.blob());
+    const audio = new Audio(url);
+    Object.assign(PLAY, { token, audio, url });
+    const ui = () => {
+      document.querySelectorAll(`[data-vt="${token}"]`).forEach((box) => {
+        const b = box.querySelector('.voice-play'); if (b) b.textContent = audio.paused ? '▶' : '❚❚';
+        const i = box.querySelector('.voice-track i'); if (i && audio.duration && isFinite(audio.duration)) i.style.width = (audio.currentTime / audio.duration) * 100 + '%';
+        const d = box.querySelector('.voice-d'); if (d && !audio.paused) d.textContent = vmmss(audio.currentTime);
+      });
+    };
+    audio.ontimeupdate = ui; audio.onplay = ui; audio.onpause = ui;
+    audio.onended = () => { ui(); document.querySelectorAll(`[data-vt="${token}"] .voice-track i`).forEach((i) => { i.style.width = '100%'; }); PLAY.token = null; };
+    await audio.play();
+  }),
   'chat-send': () => run(async () => {
     const text = $('#chat-text').value;
     if (!text.trim()) return;

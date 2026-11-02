@@ -14,7 +14,7 @@ const PENDING_TTL_DAYS = 30;    // неотвеченная заявка сго�
 const DM_CALLS = ['coffee', 'lunch', 'call', 'where', 'online', 'wait', 'room']; // «Домой — кто с ним?» в личке не нужен
 
 function register(ctx) {
-  const { db, q, route, requireUser, bad, U, config, notify, fireAndForget, rateLimit, memberStatus, HttpError, publicLook, onEvent, pollsUnvoted, addBeans, gangSummary } = ctx;
+  const { db, q, route, requireUser, bad, U, config, notify, fireAndForget, rateLimit, memberStatus, HttpError, publicLook, onEvent, pollsUnvoted, addBeans, gangSummary, voice } = ctx;
 
   db.exec(`
   -- Пара хранится упорядоченно: lo < hi. status: pending | ok
@@ -131,6 +131,7 @@ function register(ctx) {
   function preview(m) {
     if (!m) return null;
     if (m.type === 'call') return (CALLS[m.kind] || {}).verb || 'зов';
+    if (m.type === 'voice') return `🎙 голосовое 0:${String(m.opt || 0).padStart(2, '0')}`;
     if (m.type === 'meme') return '🖼 мем: «' + ((MEMES.find((x) => x.id === m.kind) || {}).caption || '') + '»';
     return m.text;
   }
@@ -176,7 +177,7 @@ function register(ctx) {
         polls: pollsUnvoted ? pollsUnvoted(u.id, g.id) : 0,
         ...(gangSummary ? gangSummary(g.id, u.id) : {}), motto: g.motto || '',
         lastTime: last ? U.msk(last.at).hhmm : null,
-        last: last ? { mine: last.user_id === u.id, who: last.nick, text: last.type === 'call' ? (CALLS[last.kind] || {}).verb || 'зов' : last.text } : null
+        last: last ? { mine: last.user_id === u.id, who: last.nick, text: last.type === 'call' ? (CALLS[last.kind] || {}).verb || 'зов' : last.type === 'voice' ? preview(last) : last.text } : null
       });
     }
     const people = myPeople(u.id);
@@ -385,8 +386,9 @@ function register(ctx) {
         return {
           id: m.id, type: m.type, kind: m.kind, mine, at: m.at,
           time: d.day === today ? d.hhmm : `${d.day.slice(8, 10)}.${d.day.slice(5, 7)} ${d.hhmm}`,
-          text: m.type === 'meme' ? null : m.text, look: m.type === 'meme' ? JSON.parse(m.text || '{}') : undefined,
+          text: m.type === 'meme' || m.type === 'voice' ? null : m.text, look: m.type === 'meme' ? JSON.parse(m.text || '{}') : undefined,
           opt: m.opt, callText: def ? def.verb : null, reply: m.reply,
+          voice: m.type === 'voice' ? { dur: Number(m.opt), ...(voice.info(m.text) || { gone: true }) } : undefined,
           read: mine ? !!m.read_at : undefined,
           canReply: !!def && !mine && !m.reply, replyOptions: def && !mine && !m.reply ? def.replies : []
         };
@@ -406,6 +408,13 @@ function register(ctx) {
     q('DELETE FROM dm_closed WHERE by_id = ? AND other_id = ?').run(u.id, f.id);
     const [lo, hi] = pair(u.id, f.id);
     const ins = q('INSERT INTO dms (lo, hi, from_id, to_id, type, kind, opt, text, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    if (body.type === 'voice') {
+      const v = voice.store(u.id, { lo, hi }, body);
+      ins.run(lo, hi, u.id, f.id, 'voice', null, String(v.dur), v.token, U.now());
+      if (onEvent) onEvent('dm', u.id, { to: f.id });
+      fireAndForget(notify([f.id], { title: u.nick, body: '🎙 Голосовое сообщение', url: `/#crew/${u.id}`, tag: `dm-${u.id}` }));
+      return { ok: true };
+    }
     if (body.type === 'text') {
       const text = U.cleanText(body.text, 500);
       if (!text) throw bad('Пустое сообщение.');

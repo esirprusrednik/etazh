@@ -114,6 +114,7 @@ function vacRest(v, today, night) {
 }
 // День плана недели для рабочего дня; null — выходной или праздник по производственному календарю
 const HOL = require('./holidays');
+const VOICE_MOD = '🎙 голосовое — звук модератору не передаётся и сгорает через час';
 const weekdayName = (day) => HOL.workdayName(day);
 
 // Имя и фамилия: scope 'gang' — смотрит кто-то из общей банды, 'all' — любой коллега
@@ -193,6 +194,7 @@ function createApi(db) {
   const MAX_MEMBERS = 30;      // больше 30 — уже не банда, а отдел
   const gangLimit = (g) => Math.min(g.max_members || MAX_MEMBERS, MAX_MEMBERS);
   let crew = null;
+  let voice = null;
   let battle = null;
   let quiz = null;
   let feedback = null;
@@ -419,10 +421,11 @@ function createApi(db) {
 
   // ---------- Маршруты ----------
   const routes = [];
-  const route = (method, pattern, handler) => {
+  // Лимит тела запроса: в сообщения банды и лички может прийти голосовое (до 30 с), остальным хватает 64 КБ
+  const route = (method, pattern, handler, opts = {}) => {
     const keys = [];
     const re = new RegExp('^' + pattern.replace(/:(\w+)/g, (_, k) => { keys.push(k); return '([^/]+)'; }) + '$');
-    routes.push({ method, re, keys, handler });
+    routes.push({ method, re, keys, handler, maxBody: opts.maxBody || (method === 'POST' && pattern.endsWith('/messages') ? 600 * 1024 : 64 * 1024) });
   };
 
   // Вход: одноразовая ссылка на рабочую почту
@@ -1128,7 +1131,8 @@ function createApi(db) {
         const def = m.type === 'call' ? CALLS[m.kind] : null;
         return {
           id: m.id, type: m.type, kind: m.kind, author: m.author || 'удалённый аккаунт', mine, at: m.at, time: U.msk(m.at).hhmm,
-          toNick: m.to_nick, toMe: m.to_user_id === u.id, opt: m.opt, text: m.text,
+          toNick: m.to_nick, toMe: m.to_user_id === u.id, opt: m.opt, text: m.type === 'voice' ? null : m.text,
+          voice: m.type === 'voice' ? { dur: Number(m.opt), ...(voice.info(m.text) || { gone: true }) } : undefined,
           callText: def ? def.verb : null, replies: rs,
           canReply: !!def && !mine && (m.to_user_id === null || m.to_user_id === u.id) && !rs.some((r) => r.me),
           replyOptions: def ? def.replies : []
@@ -1142,6 +1146,12 @@ function createApi(db) {
     const g = q('SELECT * FROM gangs WHERE id = ? AND hidden = 0').get(Number(params.id));
     if (!g || !isMember(g.id, u.id)) throw bad('Ты не в этой банде.');
     rateLimit('msg:' + u.id, 30, 60e3);
+    if (body.type === 'voice') {
+      const v = voice.store(u.id, { gangId: g.id }, body);
+      q('INSERT INTO messages (gang_id, user_id, type, opt, text, at) VALUES (?, ?, ?, ?, ?, ?)').run(g.id, u.id, 'voice', String(v.dur), v.token, U.now());
+      if (features) features.onEvent('text', u.id);
+      return { ok: true };
+    }
     if (body.type === 'text') {
       const text = U.cleanText(body.text, 300);
       if (!text) throw bad('Пустое сообщение.');
@@ -1372,8 +1382,8 @@ function createApi(db) {
                        FROM reports WHERE status = 'open' GROUP BY object_type, object_id ORDER BY last DESC LIMIT 100`).all();
     const preview = (r) => {
       if (r.object_type === 'gang') { const g = q('SELECT name, motto, hidden FROM gangs WHERE id = ?').get(r.object_id); return g ? { text: `${g.name}${g.motto ? ' — «' + g.motto + '»' : ''}`, hidden: !!g.hidden } : null; }
-      if (r.object_type === 'dm') { const m = q('SELECT text, kind, opt, hidden FROM dms WHERE id = ?').get(r.object_id); return m ? { text: `[личное] ${m.text || `${m.kind} ${m.opt || ''}`}`, hidden: m.hidden === 1 } : null; }
-      if (r.object_type === 'message') { const m = q('SELECT text, opt, kind, hidden FROM messages WHERE id = ?').get(r.object_id); return m ? { text: m.text || `${m.kind} ${m.opt || ''}`, hidden: !!m.hidden } : null; }
+      if (r.object_type === 'dm') { const m = q('SELECT type, text, kind, opt, hidden FROM dms WHERE id = ?').get(r.object_id); return m ? { text: `[личное] ${m.type === 'voice' ? VOICE_MOD : m.text || `${m.kind} ${m.opt || ''}`}`, hidden: m.hidden === 1 } : null; }
+      if (r.object_type === 'message') { const m = q('SELECT type, text, opt, kind, hidden FROM messages WHERE id = ?').get(r.object_id); return m ? { text: m.type === 'voice' ? VOICE_MOD : m.text || `${m.kind} ${m.opt || ''}`, hidden: !!m.hidden } : null; }
       const s = q('SELECT type, zone, comment, hidden FROM signals WHERE id = ?').get(r.object_id);
       return s ? { text: `${s.type} ${s.zone || ''} ${s.comment || ''}`, hidden: !!s.hidden } : null;
     };
@@ -1418,8 +1428,12 @@ function createApi(db) {
     profilePct: (row) => profileCompletion({ ...DEFAULT_LOOK, ...JSON.parse(row.look || '{}') }, readProfile(row.profile), !!q('SELECT 1 FROM push_subs WHERE user_id = ?').get(row.id)).pct
   });
 
+  // ---------- Голосовые: до 30 секунд, живут час ----------
+  voice = require('./voice').register({ db, q, route, requireUser, bad, U, HttpError, isMember, rateLimit });
+
   // ---------- Подельники: личные контакты ----------
   crew = require('./crew').register({
+    voice,
     addBeans,
     pollsUnvoted: (uid, gid) => (polls ? polls.unvoted(uid, gid) : 0),
     // Важное о банде для карточки «Моя банда»: кто в офисе, место в Лиге, ближайшее событие, голосование за герб
@@ -1453,7 +1467,7 @@ function createApi(db) {
     }
     const m = r.re.exec(pathname);
     const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
-    const body = req.method === 'GET' ? {} : await readJson(req);
+    const body = req.method === 'GET' ? {} : await readJson(req, r.maxBody);
     return r.handler(req, body, query, params);
   }
 
@@ -1503,18 +1517,19 @@ function createApi(db) {
     if (polls) polls.cleanup();
     if (gevents) gevents.cleanup();
     if (duels) duels.cleanup();
+    if (voice) voice.cleanup();
   }
 
   return { handle, verifyLogin, cleanup, HttpError };
 }
 
-function readJson(req) {
+function readJson(req, limit = 64 * 1024) {
   return new Promise((resolve, reject) => {
     let size = 0;
     const chunks = [];
     req.on('data', (c) => {
       size += c.length;
-      if (size > 64 * 1024) { reject(new HttpError(413, 'Слишком большой запрос.')); req.destroy(); return; }
+      if (size > limit) { reject(new HttpError(413, 'Слишком большой запрос.')); req.destroy(); return; }
       chunks.push(c);
     });
     req.on('end', () => {

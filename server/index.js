@@ -22,10 +22,10 @@ const TYPES = {
 };
 
 const SECURITY_HEADERS = {
-  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'no-referrer',
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  'Permissions-Policy': 'camera=(), microphone=(self), geolocation=()',
   'X-Frame-Options': 'DENY'
 };
 
@@ -84,6 +84,7 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname.startsWith('/api/')) {
       const result = await api.handle(req, res, pathname, query);
+      if (result && result._raw) return send(res, 200, result._raw.body, result._raw.headers);
       const extra = {};
       if (result && result._setCookie) { extra['Set-Cookie'] = result._setCookie; delete result._setCookie; }
       return sendJson(res, 200, result, extra);

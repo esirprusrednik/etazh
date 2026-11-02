@@ -277,6 +277,25 @@ async function step(name, fn) {
     assert.equal(e.style.status, 'st_blitz');
   });
 
+  await step('голосовые: до 30 секунд, слышат только свои, токен не светится, сгорают', async () => {
+    const audio = Buffer.alloc(3000, 7).toString('base64');
+    assert.equal((await A1.post(`/api/gangs/${ga.id}/messages`, { type: 'voice', audio, mime: 'audio/webm;codecs=opus', dur: 45 })).status, 400, 'больше 30 секунд нельзя');
+    assert.equal((await A1.post(`/api/gangs/${ga.id}/messages`, { type: 'voice', audio, mime: 'text/html', dur: 5 })).status, 400, 'только звук');
+    assert.equal((await A1.post(`/api/gangs/${ga.id}/messages`, { type: 'voice', audio, mime: 'audio/webm;codecs=opus', dur: 5 })).status, 200);
+    const m = (await A2.get(`/api/gangs/${ga.id}`)).json.messages.find((x) => x.type === 'voice');
+    assert.equal(m.text, null, 'токен не лежит в тексте');
+    assert.equal(m.voice.dur, 5); assert.ok(m.voice.left > 3500e3 && m.voice.left <= 3600e3, 'живёт час');
+    const own = await fetch(BASE + '/api/voice/' + m.voice.token, { headers: { Cookie: A2.cookie } });
+    assert.equal(own.status, 200); assert.equal(own.headers.get('content-type'), 'audio/webm'); assert.equal((await own.arrayBuffer()).byteLength, 3000);
+    assert.equal((await fetch(BASE + '/api/voice/' + m.voice.token, { headers: { Cookie: B1.cookie } })).status, 404, 'чужая банда не слышит');
+    // личка
+    assert.equal((await A1.post(`/api/crew/${B1.id}/messages`, { type: 'voice', audio, mime: 'audio/mp4', dur: 3 })).status, 200);
+    const dm = (await B1.get(`/api/crew/${A1.id}`)).json.messages.find((x) => x.type === 'voice');
+    assert.ok(dm && dm.voice.token && dm.text === null);
+    assert.equal((await fetch(BASE + '/api/voice/' + dm.voice.token, { headers: { Cookie: B1.cookie } })).status, 200);
+    assert.equal((await fetch(BASE + '/api/voice/' + dm.voice.token, { headers: { Cookie: A3.cookie } })).status, 404, 'третий в личку не слышит');
+  });
+
   console.log(`\nВсё прошло: ${passed} проверок`);
 })()
   .catch((e) => { console.error('\nПровал:', e.message, '\n--- лог ---\n' + log.slice(-2000)); process.exitCode = 1; })
