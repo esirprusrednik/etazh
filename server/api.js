@@ -31,18 +31,21 @@ setInterval(() => {
 const LOOK = {
   preset: ['m', 'f'],
   hairStyle: ['short', 'long', 'tail', 'curly', 'bob', 'bun', 'side', 'mohawk', 'afro', 'bald',
-    'undercut', 'quiff', 'crop', 'slick', 'buzz', 'manbun', 'waves', 'bangs', 'lob', 'pixie', 'ponytail', 'braid', 'buns'],
+    'undercut', 'quiff', 'crop', 'slick', 'buzz', 'manbun', 'waves', 'bangs', 'lob', 'pixie', 'ponytail', 'braid', 'buns', 'anime'],
   hair: ['#2B1D14', '#6B3E26', '#E0B04B', '#C2412F', '#9AA3B5', '#F2E6C9', '#7C4DFF', '#FF6FA8'],
   face: ['oval', 'round', 'square', 'long', 'heart'],
   mouth: ['smile', 'grin', 'smirk', 'neutral', 'sad', 'wow'],
   beard: ['none', 'stubble', 'beard', 'mustache', 'goatee'],
   eyes: ['#22252D', '#6B4226', '#3A7BD5', '#3C8D5A', '#8A8F9C'],
   skin: ['#FBE3CF', '#F6D3B3', '#E8B48A', '#C98E62', '#8D5A3B', '#5E3A26'],
-  hoodie: ['red', 'blue', 'green', 'violet', 'navy'],
-  eyeShape: ['normal', 'tired', 'sly', 'wide'],
-  outfit: ['hoodie', 'tee', 'dev', 'shirt', 'suit'],
-  neck: ['none', 'tie', 'tie_crooked', 'bow', 'badge', 'tie_gold', 'snake'],
-  hat: ['none', 'beanie', 'cap', 'headset'],
+  // Одежда, головной убор, маска — каждый своим цветом из общей палитры
+  hoodie: ['red', 'blue', 'green', 'violet', 'navy', 'black', 'white', 'beige', 'yellow', 'pink', 'orange', 'khaki', 'burgundy', 'grey'],
+  hatColor: ['same', 'red', 'blue', 'green', 'violet', 'navy', 'black', 'white', 'beige', 'yellow', 'pink', 'orange', 'khaki', 'burgundy', 'grey'],
+  eyeShape: ['normal', 'tired', 'sly', 'wide', 'anime'],
+  outfit: ['hoodie', 'tee', 'dev', 'shirt', 'suit', 'jacket', 'puffer', 'dress', 'cami', 'biker', 'cyber'],
+  neck: ['none', 'tie', 'tie_crooked', 'bow', 'badge', 'beads', 'chain', 'tie_gold', 'chain_gold', 'snake'],
+  hat: ['none', 'beanie', 'cap', 'hood', 'headset'],
+  mask: ['none', 'medical', 'gauze', 'visor'],
   prop: ['none', 'mug', 'papers', 'sign', 'laptop', 'mug_best'],
   bg: ['auto', 'sky', 'mint', 'peach', 'lilac', 'sun', 'slate', 'office', 'meeting', 'home', 'street', 'cafe'],
   // Черты лица: размер глаз, нос, уши
@@ -61,7 +64,7 @@ const LOOK = {
   beardColor: ['same', '#2B1D14', '#6B3E26', '#E0B04B', '#C2412F', '#9AA3B5', '#F2E6C9', '#7C4DFF', '#FF6FA8'],
   mustacheColor: ['same', '#2B1D14', '#6B3E26', '#E0B04B', '#C2412F', '#9AA3B5', '#F2E6C9', '#7C4DFF', '#FF6FA8']
 };
-const LOOK_ENUMS = ['preset', 'face', 'eyes', 'mouth', 'beard', 'hairStyle', 'hair', 'skin', 'hoodie', 'eyeShape', 'outfit', 'neck', 'hat', 'prop', 'bg', 'eyeSize', 'nose', 'ears', 'makeup', 'earrings', 'glassesStyle', 'glassesColor', 'lensColor', 'pet', 'beardColor', 'mustacheColor'];
+const LOOK_ENUMS = ['preset', 'face', 'eyes', 'mouth', 'beard', 'hairStyle', 'hair', 'skin', 'hoodie', 'eyeShape', 'outfit', 'neck', 'hat', 'prop', 'bg', 'eyeSize', 'nose', 'ears', 'makeup', 'earrings', 'glassesStyle', 'glassesColor', 'lensColor', 'pet', 'beardColor', 'mustacheColor', 'hatColor', 'mask'];
 // Платные детали: значение слота → предмет Лавки, который нужно купить
 const PAID_PARTS = Object.fromEntries(SHOP.filter((it) => it.kind === 'part').map((it) => [`${it.slot}:${it.value}`, it.id]));
 // Собрать внешность из присланного: только допустимые значения и только купленные платные детали
@@ -88,7 +91,7 @@ const BUILD = (() => {
   return h.digest('hex').slice(0, 10);
 })();
 const DEFAULT_LOOK = { preset: 'm', face: 'oval', eyes: '#22252D', mouth: 'smile', beard: 'none', freckles: false, eyeShape: 'normal', outfit: 'hoodie', neck: 'none', hat: 'none', prop: 'none', bg: 'auto', hairStyle: 'short', hair: '#2B1D14', skin: '#E8B48A', hoodie: 'blue', glasses: false, phones: false, status: null, frame: null, crown: false,
-  eyeSize: 'm', nose: 'button', ears: 'normal', makeup: 'none', earrings: 'none', glassesStyle: 'classic', glassesColor: 'black', lensColor: 'clear', pet: 'none', beardColor: 'same', mustacheColor: 'same' };
+  eyeSize: 'm', nose: 'button', ears: 'normal', makeup: 'none', earrings: 'none', glassesStyle: 'classic', glassesColor: 'black', lensColor: 'clear', pet: 'none', hatColor: 'same', mask: 'none', beardColor: 'same', mustacheColor: 'same' };
 // plan — где обычно работаю по дням недели: { Пн: 'office' | 'home' }
 // today — ручной статус на сегодня: { kind: 'home' | 'vacation', day: 'YYYY-MM-DD' }
 // vacations — график отпусков: [{ from: 'YYYY-MM-DD', to: 'YYYY-MM-DD' }]
@@ -108,7 +111,7 @@ function fullName(prof, scope) {
 
 // Заполненность профиля. Первый шаг — ник — засчитан сразу: начатое дело люди доводят до конца охотнее.
 // Имя, фамилия и день рождения в процент не входят: личные данные — только по желанию, без давления.
-const LOOK_KEYS = ['face', 'hairStyle', 'hair', 'skin', 'eyes', 'hoodie', 'mouth', 'beard', 'glasses', 'phones', 'freckles', 'preset', 'eyeShape', 'outfit', 'neck', 'hat', 'prop', 'bg', 'eyeSize', 'nose', 'ears', 'makeup', 'earrings', 'glassesStyle', 'glassesColor', 'lensColor', 'pet', 'beardColor', 'mustacheColor'];
+const LOOK_KEYS = ['face', 'hairStyle', 'hair', 'skin', 'eyes', 'hoodie', 'mouth', 'beard', 'glasses', 'phones', 'freckles', 'preset', 'eyeShape', 'outfit', 'neck', 'hat', 'prop', 'bg', 'eyeSize', 'nose', 'ears', 'makeup', 'earrings', 'glassesStyle', 'glassesColor', 'lensColor', 'pet', 'beardColor', 'mustacheColor', 'hatColor', 'mask'];
 function profileCompletion(look, prof, hasPush) {
   const steps = [
     { id: 'nick', label: 'Выбрать ник', done: true },
@@ -463,7 +466,7 @@ function createApi(db) {
         calls: Object.fromEntries(Object.entries(CALLS).map(([k, v]) => [k, { label: v.label, opts: v.opts, needsText: !!v.needsText, textLabel: v.textLabel || (v.needsText ? 'Уточни' : null), textHint: v.textHint || '' }])),
         signals: Object.fromEntries(Object.entries(SIGNALS).map(([k, v]) => [k, v.label])),
         tags: TAGS, days: DAYS, look: LOOK, nickPrice: NICK_PRICE, memes: MEMES, memeEmos: MEME_EMOS,
-        parts: SHOP.filter((it) => it.kind === 'part').map(({ id, slot, value, name, price }) => ({ id, slot, value, name, price })), gangColors: GANG_COLORS, idleJokes: IDLE_JOKES,
+        parts: SHOP.filter((it) => it.kind === 'part').map(({ id, slot, value, name, price, legend }) => ({ id, slot, value, name, price, legend: !!legend })), gangColors: GANG_COLORS, idleJokes: IDLE_JOKES,
         offices: offices().map((o) => ({ id: o.id, name: o.name, color: o.color }))
       }
     };

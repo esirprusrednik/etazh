@@ -50,7 +50,7 @@ function toast(text) {
 }
 
 // ---------- Аватар ----------
-const HOODIE = { red: '#E5484D', blue: '#2563C9', green: '#1F7A3A', violet: '#8B5CF6', navy: '#34405F' };
+const HOODIE = { red: '#E5484D', blue: '#2563C9', green: '#1F7A3A', violet: '#8B5CF6', navy: '#34405F', black: '#23252B', white: '#EEF1F6', beige: '#D8C3A5', yellow: '#F4C430', pink: '#F08BB4', orange: '#F28C28', khaki: '#7D7A4F', burgundy: '#7A1F34', grey: '#8A919E' };
 const FRAMES = { fr_gold: '#FFC93C', fr_neon: '#22D3EE', fr_fire: '#F97316' };
 // Аватар: слои сзади (длинные волосы, хвост, афро) → худи → лицо → передние пряди и аксессуары
 // Лицо строится из параметров: ширина лба, скулы, ширина челюсти, подбородок, верх и низ.
@@ -65,15 +65,15 @@ const FACE_P = {
 function faceGeo(type, sex) {
   const p = { ...(FACE_P[type] || FACE_P.oval) };
   if (sex === 'f') { p.C = p.W + 0.3; p.J = Math.max(10.5, p.J - 1.2); p.K = Math.max(4, p.K - 0.6); p.bot -= 0.6; p.yj = 57.4; }
-  else { p.C = p.W; p.J = Math.min(p.W - 0.6, p.J + 2.2); p.K += 3; p.bot += 0.5; p.yj = 57; }
+  else { p.C = p.W; p.J = Math.min(p.W - 1.2, p.J + 1.6); p.K += 2; p.bot += 0.4; p.yj = 57.6; }
   const { W, C, J, K, top, bot, yj } = p, y1 = 41;
   const head = `M${50 - W} ${y1} C${50 - W} ${top + 5} ${50 - W * 0.6} ${top} 50 ${top} C${50 + W * 0.6} ${top} ${50 + W} ${top + 5} ${50 + W} ${y1}`;
-  // М: прямые линии челюсти и плоский подбородок — угловато; Ж: плавные дуги к узкому подбородку
+  // М: челюсть шире и подбородок крупнее, но линии плавные; Ж: уже челюсть, мягкий узкий подбородок
   const d = sex === 'f'
     ? head + ` C${50 + C} ${y1 + 7} ${50 + J + 1.2} ${yj - 4} ${50 + J} ${yj} C${50 + J - 1} ${bot - 3} ${50 + K + 3} ${bot} 50 ${bot}`
       + ` C${50 - K - 3} ${bot} ${50 - J + 1} ${bot - 3} ${50 - J} ${yj} C${50 - J - 1.2} ${yj - 4} ${50 - C} ${y1 + 7} ${50 - W} ${y1} Z`
-    : head + ` C${50 + W + 0.2} ${y1 + 8} ${50 + J + 0.4} ${yj - 6} ${50 + J} ${yj} L${50 + K + 1.6} ${bot - 1} Q50 ${bot + 0.8} ${50 - K - 1.6} ${bot - 1}`
-      + ` L${50 - J} ${yj} C${50 - J - 0.4} ${yj - 6} ${50 - W - 0.2} ${y1 + 8} ${50 - W} ${y1} Z`;
+    : head + ` C${50 + W + 0.2} ${y1 + 8} ${50 + J + 0.8} ${yj - 5} ${50 + J} ${yj} C${50 + J - 1} ${bot - 2} ${50 + K + 4} ${bot + 0.4} 50 ${bot + 0.4}`
+      + ` C${50 - K - 4} ${bot + 0.4} ${50 - J + 1} ${bot - 2} ${50 - J} ${yj} C${50 - J - 0.8} ${yj - 5} ${50 - W - 0.2} ${y1 + 8} ${50 - W} ${y1} Z`;
   return { ...p, d };
 }
 // Затемнить или осветлить цвет #RRGGBB (k < 0 — темнее)
@@ -103,6 +103,7 @@ const HAIR_BACK = {
   buns: (h) => `<circle cx="34.6" cy="19" r="7.4" fill="${h}"/><circle cx="65.4" cy="19" r="7.4" fill="${h}"/>${strands(h, 'M30 17 Q34 13 38 16 M62 16 Q66 13 70 17')}`,
   bun: (h) => `<circle cx="50" cy="15.4" r="8.4" fill="${h}"/>${strands(h, 'M44 14 Q50 9 56 14')}`,
   manbun: (h) => `<circle cx="50" cy="16.6" r="6" fill="${h}"/>${strands(h, 'M46 15.6 Q50 12 54 15.6')}`,
+  anime: (h) => `<path d="M24 44 L18 52 L26 50 L22 62 L30 54 L28 66 L34 54 Z M76 44 L82 52 L74 50 L78 62 L70 54 L72 66 L66 54 Z" fill="${h}"/>`,
   afro: (h) => `<g fill="${h}"><circle cx="50" cy="36" r="24"/>${[[28, 30], [33, 18], [44, 11], [56, 11], [67, 18], [72, 30], [74, 43], [26, 43]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="10"/>`).join('')}</g>`
 };
 const HAIR_FRONT = {
@@ -129,6 +130,7 @@ const HAIR_FRONT = {
   bun: (h) => `<path d="M30.4 43 Q29 22.4 50 21.4 Q71 22.4 69.6 43 Q66.4 30 50 28.6 Q33.6 30 30.4 43 Z" fill="${h}"/>${strands(h, 'M36 31 Q44 24 50 22.6 M64 31 Q56 24 50 22.6')}`,
   curly: (h) => `<g fill="${h}"><circle cx="33" cy="38" r="8"/><circle cx="40" cy="29" r="8"/><circle cx="50" cy="25" r="8.5"/><circle cx="60" cy="29" r="8"/><circle cx="67" cy="38" r="8"/></g><g fill="none" stroke="${hd(h)}" stroke-width=".9" opacity=".7"><circle cx="40" cy="29" r="3.4"/><circle cx="60" cy="29" r="3.4"/><circle cx="50" cy="24" r="3.6"/></g>`,
   afro: (h) => `<path d="M29 42 Q29 22 50 22 Q71 22 71 42 Q63 31 50 32 Q37 31 29 42 Z" fill="${h}"/>`,
+  anime: (h) => `<path d="M28.6 50 L30 36 L24 32 L32 28 L28 18 L38 22 L40 10 L46 19 L52 6 L56 18 L64 10 L64 22 L74 18 L70 28 L78 32 L70 36 L71.4 50 Q68 36 62 34 L60 40 L56 33 L52 41 L48 33 L43 41 L40 34 Q32 37 28.6 50 Z" fill="${h}"/>${shineOn(h, 'M42 18 L48 14 M58 16 L62 13')}`,
   bald: () => '<path d="M41 29 Q47 26 52 27" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="2.4" stroke-linecap="round"/>'
 };
 // Порядок в конструкторе: сначала то, что носят «М» или «Ж», но доступны все
@@ -137,7 +139,7 @@ const HAIR_ORDER = {
   f: ['long', 'waves', 'bangs', 'lob', 'bob', 'pixie', 'ponytail', 'braid', 'buns', 'bun', 'tail', 'curly', 'afro', 'side', 'short', 'buzz']
 };
 // Какие причёски прячутся под шапкой целиком (макушка), а какие торчат из-под неё прядями
-const HAIR_TALL = ['bun', 'afro', 'manbun', 'buns', 'ponytail', 'quiff', 'mohawk'];
+const HAIR_TALL = ['bun', 'afro', 'manbun', 'buns', 'ponytail', 'quiff', 'mohawk', 'anime'];
 const HAIR_LONG = ['long', 'waves', 'bangs', 'lob', 'bob', 'braid', 'curly', 'afro'];
 // Рот — нарисованные губы, без «смайликовых» линий. lip — цвет губ, line — линия смыкания
 const lipsPath = (yl, yr, mid, low, top = 0.9) => `M44 ${yl} Q46.6 ${mid - top - 0.6} 48.6 ${mid - top} Q50 ${mid - top + 0.5} 51.4 ${mid - top} Q53.4 ${mid - top - 0.6} 56 ${yr} Q53.6 ${low} 50 ${low} Q46.4 ${low} 44 ${yl} Z`;
@@ -154,20 +156,21 @@ const MOUTH_GEO = {
   smile: { lL: 1.8, lR: 1.8, low: 60.6 }, grin: { lL: 2.6, lR: 2.6, low: 63.8 }, smirk: { lL: 0, lR: 2.4, low: 60 },
   neutral: { lL: 0, lR: 0, low: 59.8 }, sad: { lL: -2.2, lR: -2.2, low: 60.2 }, wow: { lL: -0.4, lR: -0.4, low: 62.4 }
 };
+// Усы — между носом и верхней губой: не наезжают на нос и не закрывают рот; уголки следуют за улыбкой
 function mustachePath(m) {
-  const yl = 55.6 - m.lL, yr = 55.6 - m.lR;
-  return `M41.6 ${yl} Q45.5 51.4 50 53.3 Q54.5 51.4 58.4 ${yr} Q55.2 ${yr + 1.6} 52.4 55.3 Q51 54.9 50 55.6 Q49 54.9 47.6 55.3 Q44.8 ${yl + 1.6} 41.6 ${yl} Z`;
+  const yl = 57.4 - m.lL * 0.9, yr = 57.4 - m.lR * 0.9;
+  return `M41.8 ${yl} Q45.4 54 50 55.2 Q54.6 54 58.2 ${yr} Q55.4 ${yr - 0.4} 52.6 56.8 Q51.2 56.4 50 57 Q48.8 56.4 47.4 56.8 Q44.6 ${yl - 0.4} 41.8 ${yl} Z`;
 }
 // Борода строится по форме выбранного лица: по линии челюсти и подбородка, с вырезом под рот
 function beardPath(m, g) {
   const { W, J, K, bot, yj } = g;
-  const cl = 60.4 - m.lL * 0.7, cr = 60.4 - m.lR * 0.7, low = m.low + 0.9;
-  return `M${50 - W - 0.4} 47 C${50 - W - 0.2} ${yj - 3} ${50 - J - 1.6} ${yj} ${50 - J - 1} ${yj + 1.4} L${50 - K - 2.2} ${bot + 2.2} Q50 ${bot + 4.6} ${50 + K + 2.2} ${bot + 2.2}`
-    + ` L${50 + J + 1} ${yj + 1.4} C${50 + J + 1.6} ${yj} ${50 + W + 0.2} ${yj - 3} ${50 + W + 0.4} 47`
+  const cl = 61.8 - m.lL * 0.7, cr = 61.8 - m.lR * 0.7, low = m.low + 2.3;
+  return `M${50 - W - 0.4} 47 C${50 - W - 0.2} ${yj - 3} ${50 - J - 1.6} ${yj - 1} ${50 - J - 1} ${yj + 1.4} C${50 - J} ${bot} ${50 - K - 5} ${bot + 4.6} 50 ${bot + 4.6}`
+    + ` C${50 + K + 5} ${bot + 4.6} ${50 + J} ${bot} ${50 + J + 1} ${yj + 1.4} C${50 + J + 1.6} ${yj - 1} ${50 + W + 0.2} ${yj - 3} ${50 + W + 0.4} 47`
     + ` Q${50 + W - 3} ${cr - 1} 58.6 ${cr} Q55.4 ${low - 0.6} 50 ${low} Q44.6 ${low - 0.6} 41.4 ${cl} Q${50 - W + 3} ${cl - 1} ${50 - W - 0.4} 47 Z`;
 }
 function goateePath(m, g) {
-  const low = m.low + 0.9;
+  const low = m.low + 2.3;
   return `M44.6 ${low - 0.4} Q50 ${low + 0.6} 55.4 ${low - 0.4} Q56 ${g.bot + 1} 50 ${g.bot + 2.6} Q44 ${g.bot + 1} 44.6 ${low - 0.4} Z`;
 }
 // Борода (под ртом) и усы (поверх рта) — отдельно, чтобы рот их не перекрывал
@@ -205,6 +208,49 @@ function outfitLayer(o, hood, skin, sex) {
       <path d="M41.5 72 L50 92 L45 99 L36 77 Z M58.5 72 L50 92 L55 99 L64 77 Z" fill="${shade(c, -0.25)}"/>
       <rect x="61" y="88" width="7" height="2.2" rx="1" fill="#fff" opacity=".85"/>`;
   }
+  if (o === 'jacket') {
+    // Бомбер: трикотажный воротник, молния, карман на рукаве
+    const r = shade(hood, -0.35);
+    return `<path d="${body}" fill="${hood}"/>${shadeR}${neck}<path d="M38.4 73.6 Q50 81 61.6 73.6 Q60 70.6 50 70.4 Q40 70.6 38.4 73.6 Z" fill="${r}"/><path d="M39.6 74 Q50 80 60.4 74" fill="none" stroke="${shade(r, 0.25)}" stroke-width=".7" stroke-dasharray="1 1"/>
+      <path d="M50 79.4 L50 104" stroke="${shade(hood, -0.4)}" stroke-width="1.4"/><path d="M50 79.4 L50 104" stroke="#D5DAE5" stroke-width=".5" stroke-dasharray="1 .8"/><rect x="48.8" y="83" width="2.4" height="3.6" rx=".6" fill="#C9CED9"/>
+      <rect x="${f ? 22 : 16}" y="84" width="7" height="5" rx="1" fill="${shade(hood, -0.18)}"/><path d="M${f ? 23 : 17} 86.4 h5" stroke="${shade(hood, 0.3)}" stroke-width=".7"/>`;
+  }
+  if (o === 'puffer') {
+    // Пуховик: стёганые полосы, высокий воротник, блики
+    const d = shade(hood, -0.25);
+    return `<path d="${body}" fill="${hood}"/>${shadeR}${neck}<path d="M${f ? 18 : 11} 86 Q50 80 ${f ? 82 : 89} 86 M${f ? 16.6 : 9.6} 95 Q50 89 ${f ? 83.4 : 90.4} 95" fill="none" stroke="${d}" stroke-width="1.6"/>
+      <path d="M${f ? 24 : 18} 81 Q34 77 40 78 M${f ? 21 : 14} 90 Q32 85.6 40 86.6" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M39 76 Q38.6 66 44 64.6 L56 64.6 Q61.4 66 61 76 Q50 79 39 76 Z" fill="${hood}" stroke="${d}" stroke-width="1"/><path d="M50 65 L50 104" stroke="${d}" stroke-width="1.2"/>`;
+  }
+  if (o === 'dress') {
+    // Платье: круглый вырез и короткий рукав-фонарик
+    return `<path d="${body}" fill="${hood}"/>${shadeR}${neck}<path d="M37.4 72.4 Q50 85 62.6 72.4 Q56 71 50 71 Q44 71 37.4 72.4 Z" fill="${skin}"/><path d="M37.4 72.4 Q50 85 62.6 72.4" fill="none" stroke="${shade(hood, -0.3)}" stroke-width="1.4"/>
+      <path d="M${f ? 17 : 10} 92 Q${f ? 19 : 12} 80 ${f ? 28 : 22} 76.4" fill="none" stroke="${shade(hood, -0.22)}" stroke-width="1.2"/><path d="M${f ? 83 : 90} 92 Q${f ? 81 : 88} 80 ${f ? 72 : 78} 76.4" fill="none" stroke="${shade(hood, -0.22)}" stroke-width="1.2"/>
+      <circle cx="44" cy="92" r="1.1" fill="#fff" opacity=".5"/><circle cx="56" cy="96" r="1.1" fill="#fff" opacity=".5"/><circle cx="50" cy="101" r="1.1" fill="#fff" opacity=".5"/><circle cx="38" cy="99" r="1.1" fill="#fff" opacity=".5"/><circle cx="62" cy="89" r="1.1" fill="#fff" opacity=".5"/>`;
+  }
+  if (o === 'cami') {
+    // Блуза на бретельках: открытые плечи, тонкие бретели
+    return `<path d="${body}" fill="${skin}"/><path d="${body}" fill="#000" opacity=".05"/>${neck}
+      <path d="M${f ? 20 : 14} 104 Q${f ? 22 : 16} 89 34 84.4 Q42 87.4 50 87.4 Q58 87.4 66 84.4 Q${f ? 78 : 84} 89 ${f ? 80 : 86} 104 Z" fill="${hood}"/>
+      <path d="M36 85 L39.4 72.6 M64 85 L60.6 72.6" stroke="${hood}" stroke-width="1.5" stroke-linecap="round"/><path d="M34 84.4 Q42 87.4 50 87.4 Q58 87.4 66 84.4" fill="none" stroke="${shade(hood, -0.25)}" stroke-width="1"/>
+      <path d="M44 92 Q50 95 56 92" fill="none" stroke="${shade(hood, -0.18)}" stroke-width=".8"/>`;
+  }
+  if (o === 'biker') {
+    // Косуха (легендарная): чёрная кожа, косая молния, широкие лацканы с заклёпками
+    const k = '#1B1C22';
+    return `<path d="${body}" fill="${k}"/>${neck}<path d="M42 72 L50 84 L58 72 Q50 70 42 72 Z" fill="#E9EBEF"/>
+      <path d="M41 72 L36 84 L44 88 L50 84 Z" fill="#2C2E36" stroke="#000" stroke-width=".5"/><path d="M59 72 L64 84 L56 88 L50 84 Z" fill="#2C2E36" stroke="#000" stroke-width=".5"/>
+      <path d="M56 88 L44 104" stroke="#C9CED9" stroke-width="1.2"/><path d="M56 88 L44 104" stroke="#555" stroke-width=".4" stroke-dasharray="1 .7"/>
+      ${[[38, 80], [40.6, 84.6], [61.4, 80], [59, 84.6], [31, 76.6], [69, 76.6]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r=".9" fill="#D5DAE5"/>`).join('')}
+      <path d="M${f ? 22 : 15} 82 Q30 77 36 77" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width="2" stroke-linecap="round"/><rect x="60" y="92" width="9" height="1.4" rx=".7" fill="#C9CED9"/>`;
+  }
+  if (o === 'cyber') {
+    // Киберпанк (легендарная): тёмная куртка с неоновыми швами и светящимся воротником
+    return `<path d="${body}" fill="#13131C"/>${neck}<path d="M38 75 Q38 66 44 64 L56 64 Q62 66 62 75 Q50 78 38 75 Z" fill="#1E1E2C" stroke="#FF2FD0" stroke-width="1"/>
+      <path d="M50 77 L50 104" stroke="#22D3EE" stroke-width="1.2"/><path d="M${f ? 20 : 13} 90 L32 84 L40 88 M${f ? 80 : 87} 90 L68 84 L60 88" fill="none" stroke="#FF2FD0" stroke-width="1.2"/>
+      <path d="M${f ? 24 : 18} 98 L36 94 L42 98 L46 96 M${f ? 76 : 82} 98 L64 94 L58 98 L54 96" fill="none" stroke="#22D3EE" stroke-width=".9"/><circle cx="46" cy="96" r=".9" fill="#22D3EE"/><circle cx="54" cy="96" r=".9" fill="#22D3EE"/>
+      <path d="M38 75 Q50 78 62 75" fill="none" stroke="#FF2FD0" stroke-width="2.6" opacity=".35"/>`;
+  }
   return `<path d="${body}" fill="${hood}"/>${shadeR}<path d="M33 76 Q50 92 67 76 Q60 71.5 50 71.5 Q40 71.5 33 76 Z" fill="${shade(hood, -0.25)}"/>${neck}
     <path d="M45.5 80 L44.5 92 M54.5 80 L55.5 92" stroke="#fff" stroke-opacity=".85" stroke-width="1.6" stroke-linecap="round"/>
     <rect x="43.3" y="91" width="2.4" height="3.4" rx="1" fill="#fff" opacity=".85"/><rect x="54.3" y="91" width="2.4" height="3.4" rx="1" fill="#fff" opacity=".85"/>`;
@@ -217,6 +263,9 @@ function neckLayer(n) {
   if (n === 'tie_crooked') return `<g transform="rotate(24 50 74)">${tie('#2563C9', 'rgba(255,255,255,.3)')}</g>`;
   if (n === 'bow') return '<path d="M50 75.5 L42.5 71.5 L42.5 79.5 Z M50 75.5 L57.5 71.5 L57.5 79.5 Z" fill="#1A1A2E"/><circle cx="50" cy="75.5" r="2" fill="#2E2E48"/>';
   if (n === 'snake') return snakeLayer();
+  if (n === 'beads') return ['#E5484D', '#F4C430', '#3A86FF', '#2FA84F', '#FF6FA8', '#7C4DFF', '#F28C28', '#22D3EE', '#E5484D'].map((c, i) => { const t = (i + 0.5) / 9, x = 41 + 18 * t, y = 72.4 + 7.2 * Math.sin(Math.PI * t); return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="1.3" fill="${c}" stroke="#000" stroke-opacity=".15" stroke-width=".3"/>`; }).join('');
+  if (n === 'chain') return '<path d="M42 72.6 Q50 81.4 58 72.6" fill="none" stroke="#B9C0CC" stroke-width="1.1" stroke-dasharray="1.4 .6"/><path d="M50 77.8 L50 80.4" stroke="#B9C0CC" stroke-width=".7"/><circle cx="50" cy="81.4" r="1.1" fill="#D5DAE5" stroke="#8A919E" stroke-width=".4"/>';
+  if (n === 'chain_gold') return '<path d="M40 72 Q50 85 60 72" fill="none" stroke="#B8922E" stroke-width="2.6"/><path d="M40 72 Q50 85 60 72" fill="none" stroke="#F4C430" stroke-width="1.8" stroke-dasharray="2 .8"/><path d="M50 79 L50 82" stroke="#F4C430" stroke-width="1"/><path d="M50 82 L53.4 85.4 L50 89 L46.6 85.4 Z" fill="#F4C430" stroke="#B8922E" stroke-width=".7"/><circle cx="50" cy="85.4" r="1" fill="#fff" opacity=".8"/>';
   if (n === 'badge') return '<path d="M44 72 L57 86 M56 72 L59 86" stroke="#E5484D" stroke-width="1.6"/><rect x="53.5" y="85" width="13" height="16" rx="2" fill="#fff" stroke="#C9CED9" stroke-width=".8"/><rect x="53.5" y="85" width="13" height="4" rx="1.5" fill="#E5484D"/><circle cx="58" cy="94" r="2.4" fill="#C9CED9"/><path d="M61.5 92.5 h3 M61.5 95.5 h3" stroke="#C9CED9" stroke-width="1.2"/>';
   return '';
 }
@@ -231,12 +280,42 @@ function hatLayer(h, hood) {
     return `<path d="M29.5 39 Q29 18.5 50 18 Q71 18.5 70.5 39 Z" fill="${c}"/><path d="M27 39 Q50 31 78 41 Q62 45.5 29 43 Z" fill="${shade(c, -0.3)}"/>
       <path d="M50 18 L50 37" stroke="${shade(c, -0.15)}" stroke-width="1.2"/><circle cx="50" cy="18.5" r="1.8" fill="${shade(c, -0.3)}"/><path d="M38 24 Q44 20.5 52 21" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/>`;
   }
+  if (h === 'hood') {
+    // Капюшон поверх головы — передний край вокруг лица (задняя часть рисуется за головой отдельно)
+    return `<path d="M27.4 54 Q24.6 20 50 17.4 Q75.4 20 72.6 54 Q72 30 50 26.6 Q28 30 27.4 54 Z" fill="${hood}"/><path d="M28.6 52 Q27 28 50 25 Q73 28 71.4 52" fill="none" stroke="${shade(hood, -0.3)}" stroke-width="1.6"/>`;
+  }
   if (h === 'headset') {
     return '<path d="M30 47 Q28 17 50 17 Q72 17 70 47" fill="none" stroke="#2B2B3A" stroke-width="3.6" stroke-linecap="round"/><rect x="24.5" y="42" width="8" height="13" rx="3.5" fill="#2B2B3A"/><rect x="67.5" y="42" width="8" height="13" rx="3.5" fill="#2B2B3A"/><path d="M28 54 Q28.5 63 39 63.5" fill="none" stroke="#2B2B3A" stroke-width="2.2" stroke-linecap="round"/><rect x="38" y="61" width="5.5" height="4.5" rx="2" fill="#E5484D"/>';
   }
   return '';
 }
+function hoodBack(c) {
+  return `<path d="M22 76 Q18 40 28 24 Q38 12 50 12 Q62 12 72 24 Q82 40 78 76 Z" fill="${shade(c, -0.12)}"/>`;
+}
+// Маски: медицинская и марлевая закрывают нос и рот; кибервизор (Лавка) — неоновая полоса на глазах
+function maskLayer(m, g, c) {
+  const W = g.W, bot = g.bot;
+  if (m === 'medical' || m === 'gauze') {
+    const col = m === 'medical' ? '#BFE3F7' : '#F7F7F2', e = m === 'medical' ? '#8FC3E3' : '#D8D6CC';
+    const d = `M${50 - W + 3} 51 Q50 47.6 ${50 + W - 3} 51 L${50 + W - 4.6} ${bot - 6} Q50 ${bot + 1.6} ${50 - W + 4.6} ${bot - 6} Z`;
+    return `<path d="M${50 - W + 3.4} 52 L${50 - W - 0.4} 48.6 M${50 - W + 4.4} ${bot - 7} L${50 - W - 0.2} 53 M${50 + W - 3.4} 52 L${50 + W + 0.4} 48.6 M${50 + W - 4.4} ${bot - 7} L${50 + W + 0.2} 53" stroke="${m === 'medical' ? '#fff' : '#E9E6DA'}" stroke-width="${m === 'medical' ? 0.8 : 1.4}"/>`
+      + `<path d="${d}" fill="${col}" stroke="${e}" stroke-width=".7"/>`
+      + (m === 'medical' ? `<path d="M${50 - W + 4} 55 Q50 53 ${50 + W - 4} 55 M${50 - W + 4.4} 58.6 Q50 56.6 ${50 + W - 4.4} 58.6 M${50 - W + 4.8} 62.2 Q50 60.2 ${50 + W - 4.8} 62.2" fill="none" stroke="${e}" stroke-width=".8"/>`
+        : `<g stroke="${e}" stroke-width=".45">${[0, 1, 2, 3, 4, 5, 6, 7].map((i) => `<path d="M${36 + i * 4} 49 L${30 + i * 4} ${bot - 2} M${30 + i * 4} 49 L${36 + i * 4} ${bot - 2}"/>`).join('')}</g>`);
+  }
+  if (m === 'visor') {
+    return `<path d="M${50 - W - 1.4} 44.4 Q50 41.6 ${50 + W + 1.4} 44.4 L${50 + W + 0.6} 51.4 Q50 53.4 ${50 - W - 0.6} 51.4 Z" fill="#0E1224" stroke="#22D3EE" stroke-width="1"/>`
+      + `<path d="M${50 - W + 2} 47.8 L${50 + W - 2} 47.8" stroke="#FF2FD0" stroke-width="1.6" opacity=".9"/><path d="M${50 - W + 2} 47.8 L${50 + W - 2} 47.8" stroke="#FF2FD0" stroke-width="4" opacity=".25"/>`
+      + `<path d="M${50 - W} 44.6 Q50 42.4 ${50 + W} 44.6" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width=".8"/>`;
+  }
+  return '';
+}
 function eyesLayer(shape, eyes, skin) {
+  if (shape === 'anime') {
+    // Аниме-глаза (Лавка): большие, с двумя бликами и ресницами
+    const one = (x) => `<ellipse cx="${x}" cy="48" rx="4.6" ry="5.4" fill="#fff"/><ellipse cx="${x}" cy="48.6" rx="3.6" ry="4.6" fill="${eyes}"/><ellipse cx="${x}" cy="50" rx="2.6" ry="3" fill="${shade(eyes, 0.35)}" opacity=".7"/><circle cx="${x}" cy="48.6" r="1.5" fill="#111"/><ellipse cx="${x - 1.4}" cy="46.4" rx="1.4" ry="1.7" fill="#fff"/><circle cx="${x + 1.4}" cy="51" r=".7" fill="#fff"/><path d="M${x - 5} 46 Q${x} 41.6 ${x + 5} 45.6" fill="none" stroke="#1A1A22" stroke-width="1.6" stroke-linecap="round"/>`;
+    return one(43) + one(57);
+  }
   const base = (r = 3.7, rx = 4.1, ir = 2.7, pr = 1.3, dx = 0) => `<ellipse cx="43" cy="48" rx="${rx}" ry="${r}" fill="#fff"/><ellipse cx="57" cy="48" rx="${rx}" ry="${r}" fill="#fff"/>
     <circle cx="${43.4 + dx}" cy="48.3" r="${ir}" fill="${eyes}"/><circle cx="${57.4 + dx}" cy="48.3" r="${ir}" fill="${eyes}"/>
     <circle cx="${43.4 + dx}" cy="48.3" r="${pr}" fill="#111"/><circle cx="${57.4 + dx}" cy="48.3" r="${pr}" fill="#111"/>
@@ -338,7 +417,7 @@ function noseLayer(n, skin, sex) {
     button: `<ellipse cx="50" cy="53" rx="3.4" ry="2.6" fill="${sh}" opacity=".55"/>` + line('M48.4 54.4 Q50 55.6 51.6 54.4') + nostrils(54, 1.9, 0.75) + `<circle cx="50.8" cy="52" r=".9" fill="${hi}" opacity=".7"/>`,
     straight: `<path d="M50.6 46 L51.8 53.4 L48.6 53.8 Z" fill="${sh}" opacity=".45"/>` + line('M50.4 46.4 L51.6 53.2 Q50.4 55.2 48.2 54.2') + nostrils(54.6, 2, 0.7),
     wide: `<ellipse cx="50" cy="53.6" rx="5" ry="2.6" fill="${sh}" opacity=".5"/>` + line('M46.2 53.6 Q45.8 55.6 48 55.4 M53.8 53.6 Q54.2 55.6 52 55.4 M48 55.4 Q50 56.4 52 55.4') + nostrils(54.8, 2.6, 0.95),
-    long: `<path d="M50.4 45 L52.2 55 L48.4 55.4 Z" fill="${sh}" opacity=".45"/>` + line('M50.4 45.4 Q52.4 52.4 51.8 55 Q50.4 56.8 48.2 55.6') + nostrils(55.6, 2, 0.75),
+    long: `<path d="M50.4 45 L52 54.2 L48.4 54.6 Z" fill="${sh}" opacity=".45"/>` + line('M50.4 45.4 Q52.2 51.8 51.6 54 Q50.4 55.6 48.2 54.8') + nostrils(54.8, 2, 0.75),
     snub: `<ellipse cx="50" cy="52.8" rx="3" ry="2.4" fill="${sh}" opacity=".5"/>` + line('M48.2 53.8 Q50 55 51.8 53.8') + nostrils(53.6, 1.5, 0.85) + `<circle cx="50.4" cy="51.6" r="1" fill="${hi}" opacity=".7"/>`,
     roman: `<path d="M49.8 45.6 Q53.6 49.6 52 54 L48.6 54 Z" fill="${sh}" opacity=".45"/>` + line('M49.8 46 Q53.4 49.8 51.8 53.8 Q50.6 55.6 48.2 54.6') + nostrils(54.8, 2, 0.75)
   };
@@ -477,20 +556,23 @@ function avatarInner(look = {}) {
   const brows = sex === 'f'
     ? `<path d="M38.8 ${42.2 + browY} Q42.4 ${38.8 + browY} 47.2 ${41 + browY} M52.8 ${41 + browY} Q57.6 ${38.8 + browY} 61.2 ${42.2 + browY}" fill="none" stroke="${brow}" stroke-width="1.6" stroke-linecap="round"/>`
     : `<path d="M38.2 ${42 + browY} Q43 ${40.4 + browY} 47.6 ${41.4 + browY} M52.4 ${41.4 + browY} Q57 ${40.4 + browY} 61.8 ${42 + browY}" fill="none" stroke="${brow}" stroke-width="2.9" stroke-linecap="round"/>`;
-  const jaw = sex === 'm' ? `<path d="M${50 - g.J + 1.4} ${g.yj - 1} L${50 - g.K - 0.6} ${g.bot - 2.2} M${50 + g.J - 1.4} ${g.yj - 1} L${50 + g.K + 0.6} ${g.bot - 2.2}" stroke="${skinDark}" stroke-width="1.4" stroke-opacity=".35" stroke-linecap="round"/>` : '';
+  const jaw = '';
   const blushOp = mk.blush || (sex === 'f' ? 0.26 : 0.14);
   const lip = mk.lip || (sex === 'f' ? '#C9707C' : shade(skin, -0.28));
   const line = sex === 'f' ? shade(lip, -0.4) : shade(skin, -0.55);
   const freckles = look.freckles ? [[39.5, 52.5], [42, 54], [38.8, 55], [60.5, 52.5], [58, 54], [61.2, 55]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r=".85" fill="${shade(skin, -0.38)}"/>`).join('') : '';
   const capped = hat && hat !== 'headset';
+  const hatC = look.hatColor && look.hatColor !== 'same' && HOODIE[look.hatColor] ? HOODIE[look.hatColor] : hood;
+  const hooded = hat === 'hood';
   // Под шапкой высокие причёски (пучки, ирокез, кок) прячутся, длинные торчат прядями
-  const hairBack = HAIR_BACK[hs] && !(capped && HAIR_TALL.includes(hs) && hs !== 'ponytail') ? HAIR_BACK[hs](hair) : '';
-  const hairFront = capped ? (HAIR_LONG.includes(hs) || sex === 'f' ? locks(hair, HAIR_LONG.includes(hs) ? 62 : 52, 3.4) : '') : HAIR_FRONT[hs](hair);
+  const hairBack = hooded ? '' : HAIR_BACK[hs] && !(capped && HAIR_TALL.includes(hs) && hs !== 'ponytail') ? HAIR_BACK[hs](hair) : '';
+  const hairFront = hooded ? '' : capped ? (HAIR_LONG.includes(hs) || sex === 'f' ? locks(hair, HAIR_LONG.includes(hs) ? 62 : 52, 3.4) : '') : HAIR_FRONT[hs](hair);
   const exL = 50 - rx - 0.5, exR = 50 + rx + 0.5;
   const ears = `<ellipse cx="${exL}" cy="49" rx="${3.6 * ek}" ry="${5 * ek}" fill="${skin}"/><ellipse cx="${exR}" cy="49" rx="${3.6 * ek}" ry="${5 * ek}" fill="${skin}"/>
     <ellipse cx="${exL + 0.2}" cy="49.3" rx="${1.6 * ek}" ry="${2.8 * ek}" fill="${skinDark}"/><ellipse cx="${exR - 0.2}" cy="49.3" rx="${1.6 * ek}" ry="${2.8 * ek}" fill="${skinDark}"/>`;
   const mug = look.prop === 'mug' || look.prop === 'mug_best';
   return `${bgLayer(look.bg, skin, u)}${fit(hairBack)}
+    ${hooded ? fit(hoodBack(hatC)) : ''}
     ${outfitLayer(look.outfit, hood, skin, sex)}
     ${neckLayer(look.neck)}
     ${ears}
@@ -502,11 +584,11 @@ function avatarInner(look = {}) {
     ${brows}
     ${noseLayer(look.nose, skin, sex)}
     ${beard.under}
-    ${(MOUTHS[look.mouth] || MOUTHS.smile)(lip, line)}
-    ${beard.over}
+    <g transform="translate(0 1.4)">${(MOUTHS[look.mouth] || MOUTHS.smile)(lip, line)}</g>${beard.over}
+    ${maskLayer(look.mask, g)}
     ${fit(hairFront)}
     ${earringsLayer(look.earrings, exL, exR, 49 + 5 * ek - 0.8)}
-    ${capped ? fit(hatLayer(hat, hood)) : ''}
+    ${capped ? fit(hatLayer(hat, hatC)) : ''}
     ${look.glasses ? glassesLayer(look.glassesStyle, look.glassesColor, look.lensColor, u, rx) : ''}
     ${hat === 'headset' ? fit(hatLayer('headset', hood)) : ''}
     ${look.phones && hat !== 'headset' ? fit('<path d="M29 47 Q27 15 50 15 Q73 15 71 47" fill="none" stroke="#2B2B3A" stroke-width="6" stroke-linecap="round"/><path d="M33 26 Q40 18 50 17.5" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/><rect x="23" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="67" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="25" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/><rect x="72" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/>') : ''}
@@ -2227,18 +2309,20 @@ function renderCompletion(inProfile) {
 // Профиль собран из раскрывающихся секций: в заголовке — краткая сводка и карандаш, внутри — редактирование
 const PENCIL = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>';
 const HAIR_NAMES = { short: 'Короткие', long: 'Длинные', tail: 'Хвост', curly: 'Кудри', bob: 'Каре', bun: 'Пучок', side: 'Набок', mohawk: 'Ирокез', afro: 'Афро', bald: 'Без волос',
-  undercut: 'Андеркат', quiff: 'Кок', crop: 'Кроп', slick: 'Зачёс назад', buzz: 'Ёжик', manbun: 'Мужской пучок', waves: 'Локоны', bangs: 'С чёлкой', lob: 'Удлинённое каре', pixie: 'Пикси', ponytail: 'Высокий хвост', braid: 'Коса', buns: 'Два пучка' };
+  undercut: 'Андеркат', quiff: 'Кок', crop: 'Кроп', slick: 'Зачёс назад', buzz: 'Ёжик', manbun: 'Мужской пучок', waves: 'Локоны', bangs: 'С чёлкой', lob: 'Удлинённое каре', pixie: 'Пикси', ponytail: 'Высокий хвост', braid: 'Коса', buns: 'Два пучка', anime: 'Аниме' };
 const FACE_NAMES = { oval: 'Овал', round: 'Круглое', square: 'Квадрат', long: 'Вытянутое', heart: 'Сердечко' };
-const OUTFIT_NAMES = { hoodie: 'Худи', tee: 'Футболка', dev: 'Футболка разработчика', shirt: 'Рубашка', suit: 'Костюм' };
-const NECK_NAMES = { none: 'Ничего', tie: 'Галстук', tie_crooked: 'Галстук набок', bow: 'Бабочка', badge: 'Пропуск', tie_gold: 'Золотой галстук', snake: 'Змея' };
+const OUTFIT_NAMES = { hoodie: 'Худи', tee: 'Футболка', dev: 'Футболка разработчика', shirt: 'Рубашка', suit: 'Костюм', jacket: 'Бомбер', puffer: 'Пуховик', dress: 'Платье', cami: 'Топ на бретельках', biker: 'Косуха', cyber: 'Неон' };
+const MASK_NAMES = { none: 'Без маски', medical: 'Медицинская', gauze: 'Марлевая', visor: 'Кибервизор' };
+const COLOR_NAMES = { same: 'Как одежда', red: 'Красный', blue: 'Синий', green: 'Зелёный', violet: 'Фиолетовый', navy: 'Тёмно-синий', black: 'Чёрный', white: 'Белый', beige: 'Бежевый', yellow: 'Жёлтый', pink: 'Розовый', orange: 'Оранжевый', khaki: 'Хаки', burgundy: 'Бордовый', grey: 'Серый' };
+const NECK_NAMES = { none: 'Ничего', tie: 'Галстук', tie_crooked: 'Галстук набок', bow: 'Бабочка', badge: 'Пропуск', beads: 'Бусы', chain: 'Цепочка', tie_gold: 'Золотой галстук', chain_gold: 'Золотая цепь', snake: 'Змея' };
 const PET_NAMES = { none: 'Без питомца', corgi: 'Корги', pug: 'Мопс' };
 const LENS_NAMES = { clear: 'Прозрачные', grey: 'Серые', brown: 'Коричневые', blue: 'Голубые', green: 'Зелёные', pink: 'Розовые', yellow: 'Жёлтые' };
 const LENS_SWATCH = { clear: 'repeating-linear-gradient(45deg,#fff 0 4px,#E3E8F2 4px 8px)', grey: '#555B68', brown: '#7A5232', blue: '#4A86E0', green: '#3A9A68', pink: '#F08BB4', yellow: '#F2C230' };
-const HAT_NAMES = { none: 'Без шапки', beanie: 'Шапка', cap: 'Кепка', headset: 'Гарнитура' };
-const EYE_NAMES = { normal: 'Обычные', tired: 'После совещания', sly: 'Хитрые', wide: 'Удивлённые' };
+const HAT_NAMES = { none: 'Без шапки', beanie: 'Шапка', cap: 'Кепка', hood: 'Капюшон', headset: 'Гарнитура' };
+const EYE_NAMES = { normal: 'Обычные', tired: 'После совещания', sly: 'Хитрые', wide: 'Удивлённые', anime: 'Аниме' };
 const PROP_NAMES = { none: 'Ничего', mug: 'Кружка', papers: 'Квартальный отчёт', sign: 'Табличка', laptop: 'Ноутбук', mug_best: 'Лучший сотрудник' };
 const AVA_CATS = [['face', 'Лицо'], ['hair', 'Волосы'], ['eyes', 'Глаза'], ['mouth', 'Рот'], ['beard', 'Борода'], ['makeup', 'Макияж'], ['outfit', 'Одежда'], ['acc', 'Аксессуары'], ['bg', 'Фон'], ['meme', 'Мемы']];
-const DEF_LOOK = { glassesColor: 'black', lensColor: 'clear', pet: 'none', eyeSize: 'm', nose: 'button', ears: 'normal', makeup: 'none', earrings: 'none', glassesStyle: 'classic', beardColor: 'same', mustacheColor: 'same' };
+const DEF_LOOK = { hatColor: 'same', mask: 'none', glassesColor: 'black', lensColor: 'clear', pet: 'none', eyeSize: 'm', nose: 'button', ears: 'normal', makeup: 'none', earrings: 'none', glassesStyle: 'classic', beardColor: 'same', mustacheColor: 'same' };
 const GLASS_COLOR_NAMES = { black: 'Чёрная', tortoise: 'Черепаховая', gold: 'Золото', silver: 'Серебро', red: 'Красная', navy: 'Синяя', pink: 'Розовая' };
 const GLASS_SWATCH = { black: '#262A36', tortoise: 'linear-gradient(135deg,#4A2A16,#A7652E 45%,#6B3B1C 70%,#C88A45)', gold: 'linear-gradient(135deg,#FFF1B8,#D6AA3E 50%,#8E6B1C)', silver: 'linear-gradient(135deg,#fff,#C9CED8 50%,#7E8594)', red: '#C8323C', navy: '#2E4F93', pink: '#F08BB4', clear: 'repeating-linear-gradient(45deg,#fff 0 4px,#E3E8F2 4px 8px)' };
 const NOSE_NAMES = { button: 'Кнопка', straight: 'Прямой', wide: 'Широкий', long: 'Длинный', snub: 'Курносый', roman: 'С горбинкой' };
@@ -2257,13 +2341,18 @@ const AVA_PRESETS = [
   { id: 'excel', name: 'Гений Excel', look: { outfit: 'shirt', hoodie: 'green', neck: 'tie', hat: 'none', prop: 'papers', mouth: 'grin', eyeShape: 'wide', glasses: true } },
   { id: 'nothing', name: 'Я ничего не трогал', look: { outfit: 'dev', neck: 'none', hat: 'none', prop: 'none', mouth: 'wow', eyeShape: 'wide' } },
   { id: 'report', name: 'Снова квартальный отчёт', look: { outfit: 'shirt', hoodie: 'blue', neck: 'tie_crooked', hat: 'none', prop: 'papers', mouth: 'neutral', eyeShape: 'tired' } },
-  { id: 'control', name: 'Всё под контролем', look: { outfit: 'suit', hoodie: 'red', neck: 'tie', hat: 'headset', prop: 'mug', mouth: 'smile', eyeShape: 'normal' } }
+  { id: 'control', name: 'Всё под контролем', look: { outfit: 'suit', hoodie: 'red', neck: 'tie', hat: 'headset', prop: 'mug', mouth: 'smile', eyeShape: 'normal' } },
+  // Легендарные образы: детали за зёрна в Лавке, примерить можно бесплатно
+  { id: 'biker', legend: true, name: 'Байкер', look: { outfit: 'biker', neck: 'chain_gold', hat: 'none', mask: 'none', glasses: true, glassesStyle: 'aviator', glassesColor: 'gold', lensColor: 'grey', hairStyle: 'slick', mouth: 'smirk', eyeShape: 'sly', prop: 'none', bg: 'street' } },
+  { id: 'cyber', legend: true, name: 'Киберпанк', look: { outfit: 'cyber', mask: 'visor', neck: 'none', hat: 'none', glasses: false, hairStyle: 'mohawk', hair: '#FF6FA8', mouth: 'neutral', prop: 'none', bg: 'slate' } },
+  { id: 'anime', legend: true, name: 'Аниме-герой', look: { hairStyle: 'anime', eyeShape: 'anime', outfit: 'jacket', hoodie: 'orange', hat: 'none', mask: 'none', glasses: false, mouth: 'grin', prop: 'none', bg: 'sun' } },
+  { id: 'winter', legend: false, name: 'Зима близко', look: { outfit: 'puffer', hoodie: 'navy', hat: 'beanie', hatColor: 'red', mask: 'none', neck: 'none', prop: 'mug', mouth: 'smile', bg: 'street' } }
 ];
 // Платная ли деталь и куплена ли она
 const partOf = (slot, value) => (S.cat.parts || []).find((x) => x.slot === slot && x.value === value);
 const partLocked = (slot, value) => { const it = partOf(slot, value); return it && !(S.me.owned || []).includes(it.id) ? it : null; };
 function draftLocked() {
-  for (const k of ['neck', 'prop', 'hat', 'outfit']) { const it = partLocked(k, S.draft[k]); if (it) return it; }
+  for (const k of ['neck', 'prop', 'hat', 'outfit', 'mask', 'hairStyle', 'eyeShape']) { const it = partLocked(k, S.draft[k]); if (it) return it; }
   return null;
 }
 function randomLook() {
@@ -2280,7 +2369,8 @@ function randomLook() {
   const f = r.preset === 'f';
   r.nose = pick(L.nose); r.ears = Math.random() < 0.7 ? 'normal' : pick(L.ears); r.eyeSize = Math.random() < 0.6 ? 'm' : pick(L.eyeSize);
   r.glassesStyle = pick(GLASSES_ORDER[f ? 'f' : 'm']); r.glassesColor = pick(L.glassesColor); r.lensColor = Math.random() < 0.75 ? 'clear' : pick(L.lensColor);
-  r.hairStyle = pick(HAIR_ORDER[f ? 'f' : 'm'].slice(0, 10)); r.pet = Math.random() < 0.12 ? pick(['corgi', 'pug']) : 'none';
+  r.hairStyle = pick(HAIR_ORDER[f ? 'f' : 'm'].slice(0, 10)); r.hatColor = Math.random() < 0.6 ? 'same' : pick(L.hoodie); r.mask = 'none';
+  if (!f && (r.outfit === 'dress' || r.outfit === 'cami')) r.outfit = 'hoodie'; r.pet = Math.random() < 0.12 ? pick(['corgi', 'pug']) : 'none';
   r.makeup = f && Math.random() < 0.65 ? pick(L.makeup.filter((v) => v !== 'none')) : 'none';
   r.earrings = Math.random() < (f ? 0.55 : 0.08) ? pick(L.earrings.filter((v) => v !== 'none')) : 'none';
   if (f) r.beard = 'none'; else r.makeup = 'none';
@@ -2339,7 +2429,7 @@ function renderMemeMaker() {
 function renderAvatarEditor() {
   const d = S.draft, L = S.cat.look;
   const cat = (S.avaCat === 'makeup' && d.preset !== 'f') || (S.avaCat === 'beard' && d.preset === 'f') ? 'face' : (S.avaCat || 'face');
-  const sw = (key, vals) => `<div class="row" style="flex-wrap:wrap;gap:8px">${vals.map((v) => `<button class="swatch ${d[key] === v ? 'on' : ''}" style="background:${HOODIE[v] || v}" data-act="ava-set" data-k="${key}" data-v="${v}" aria-label="${key} ${v}"></button>`).join('')}</div>`;
+  const sw = (key, vals) => `<div class="row" style="flex-wrap:wrap;gap:8px">${vals.map((v) => `<button class="swatch ${d[key] === v ? 'on' : ''}" style="background:${HOODIE[v] || v}" data-act="ava-set" data-k="${key}" data-v="${v}" aria-label="${COLOR_NAMES[v] || key + ' ' + v}" title="${COLOR_NAMES[v] || ''}"></button>`).join('')}</div>`;
   // Превью без лишнего: на «Лице» не мешают шапка и волосы, на «Волосах» — шапка, на «Глазах» — очки.
   // Это только показ: в сохранённый аватар ничего не попадает. Кнопками над вкладками можно вернуть
   const auto = { face: { hat: true, hair: true }, hair: { hat: true }, eyes: { glasses: true } }[cat] || {};
@@ -2380,9 +2470,9 @@ function renderAvatarEditor() {
       <div class="field">Цвет бороды${hairSw('beardColor')}</div><div class="field">Цвет усов${hairSw('mustacheColor')}</div>
       <p class="small" style="margin:0">«=» — как волосы. Седая борода при тёмных волосах, рыжие усы — пожалуйста.</p>`,
     makeup: `<div class="field">Макияж${tiles('makeup', L.makeup, MAKEUP_NAMES, true)}</div><div class="field">Серьги${tiles('earrings', L.earrings, EARRING_NAMES, true)}</div>`,
-    outfit: `<div class="field">Одежда${tiles('outfit', L.outfit, OUTFIT_NAMES)}</div><div class="field">Цвет${sw('hoodie', L.hoodie)}</div>`,
+    outfit: `<div class="field">Одежда${tiles('outfit', L.outfit, OUTFIT_NAMES)}</div><div class="field">Цвет одежды${sw('hoodie', L.hoodie)}</div>`,
     acc: `<div class="field">Очки${glassesTiles}</div>${d.glasses ? `<div class="field">Цвет оправы<div class="row" style="flex-wrap:wrap;gap:8px">${L.glassesColor.map((v) => `<button class="swatch gc ${(d.glassesColor || 'black') === v ? 'on' : ''}" style="background:${GLASS_SWATCH[v]}" data-act="ava-set" data-k="glassesColor" data-v="${v}" aria-label="${GLASS_COLOR_NAMES[v]}" title="${GLASS_COLOR_NAMES[v]}"></button>`).join('')}</div></div>
-      <div class="field">Цвет стёкол<div class="row" style="flex-wrap:wrap;gap:8px">${L.lensColor.map((v) => `<button class="swatch gc ${(d.lensColor || 'clear') === v ? 'on' : ''}" style="background:${LENS_SWATCH[v]}" data-act="ava-set" data-k="lensColor" data-v="${v}" aria-label="${LENS_NAMES[v]}" title="${LENS_NAMES[v]}"></button>`).join('')}</div></div>` : ''}<div class="field">Серьги${tiles('earrings', L.earrings, EARRING_NAMES, true)}</div><div class="field">На шее${tiles('neck', L.neck, NECK_NAMES)}</div><div class="field">На голове${tiles('hat', L.hat, HAT_NAMES)}</div><div class="chips">${tog('phones', 'Наушники')}</div>
+      <div class="field">Цвет стёкол<div class="row" style="flex-wrap:wrap;gap:8px">${L.lensColor.map((v) => `<button class="swatch gc ${(d.lensColor || 'clear') === v ? 'on' : ''}" style="background:${LENS_SWATCH[v]}" data-act="ava-set" data-k="lensColor" data-v="${v}" aria-label="${LENS_NAMES[v]}" title="${LENS_NAMES[v]}"></button>`).join('')}</div></div>` : ''}<div class="field">Серьги${tiles('earrings', L.earrings, EARRING_NAMES, true)}</div><div class="field">На шее${tiles('neck', L.neck, NECK_NAMES)}</div><div class="field">На голове${tiles('hat', L.hat, HAT_NAMES)}</div>${d.hat && d.hat !== 'none' && d.hat !== 'headset' ? `<div class="field">Цвет головного убора<div class="row" style="flex-wrap:wrap;gap:8px"><button class="swatch same ${!d.hatColor || d.hatColor === 'same' ? 'on' : ''}" data-act="ava-set" data-k="hatColor" data-v="same" title="Как одежда" aria-label="Как одежда">=</button>${L.hoodie.map((v) => `<button class="swatch ${d.hatColor === v ? 'on' : ''}" style="background:${HOODIE[v]}" data-act="ava-set" data-k="hatColor" data-v="${v}" title="${COLOR_NAMES[v]}" aria-label="${COLOR_NAMES[v]}"></button>`).join('')}</div></div>` : ''}<div class="field">Маска${tiles('mask', L.mask, MASK_NAMES, true)}</div><div class="chips">${tog('phones', 'Наушники')}</div>
       <div class="field">В руке${tiles('prop', ['none', 'mug', 'mug_best'], { none: 'Ничего', mug: 'Кружка', mug_best: 'Лучший сотрудник' })}</div>
       <div class="field">Питомец рядом${tiles('pet', L.pet, PET_NAMES)}</div>`,
     bg: `<div class="field">Фон${tiles('bg', L.bg, BG_NAMES)}</div><p class="small" style="margin:0">«Под кожу» сам подбирает цвет, на котором лицо не сливается с фоном.</p>`,
@@ -2393,7 +2483,8 @@ function renderAvatarEditor() {
     <div class="ava-stage">${avatar(view(d), 170)}
       <div class="ava-tools"><button class="tool" data-act="ava-random" aria-label="Случайный аватар">🎲</button><button class="tool" data-act="ava-reset" aria-label="Вернуть как было">↺</button></div>
     </div>
-    <div class="presets">${AVA_PRESETS.map((pr) => `<button class="preset" data-act="ava-preset" data-v="${pr.id}">${avatar({ ...d, ...pr.look, frame: null, crown: false }, 52)}<span>${esc(pr.name)}</span></button>`).join('')}</div>
+    <div class="presets">${AVA_PRESETS.map((pr) => { const cost = Object.entries(pr.look).reduce((a, [k, v]) => { const it = partLocked(k, v); return a + (it ? it.price : 0); }, 0);
+      return `<button class="preset ${pr.legend ? 'legend' : ''}" data-act="ava-preset" data-v="${pr.id}">${avatar({ ...d, ...pr.look, frame: null, crown: false }, 52)}<span>${pr.legend ? '⭐ ' : ''}${esc(pr.name)}</span>${cost ? `<em>${cost} ${BEAN}</em>` : ''}</button>`; }).join('')}</div>
     <div class="cats" role="tablist">${AVA_CATS.filter(([id]) => (id !== 'makeup' || d.preset === 'f') && (id !== 'beard' || d.preset !== 'f')).map(([id, label]) => `<button class="cat ${cat === id ? 'on' : ''}" role="tab" aria-selected="${cat === id}" data-act="ava-cat" data-v="${id}">${label}</button>`).join('')}</div>
     ${hideBar ? `<div class="hide-bar"><span class="small">В превью:</span>${hideBar}<span class="small">— на аватар не влияет</span></div>` : ''}
     <div class="cat-body">${body}</div>
@@ -2577,9 +2668,9 @@ function renderShop() {
       action = S.me.gangs.length ? `<button class="btn small" data-act="buy" data-v="${it.id}" ${S.shop.beans < it.price ? 'disabled' : ''}>${it.price} ${BEAN}</button>` : '<span class="small">нужна банда</span>';
     } else if (it.kind === 'part') {
       const prev = avatar({ ...S.me.look, [it.slot]: it.value, frame: null, crown: false }, 44);
-      action = it.owned ? `<button class="btn small ghost" data-act="ava-open" data-cat="${it.slot === 'prop' ? 'meme' : 'acc'}">В конструктор</button>`
+      action = it.owned ? `<button class="btn small ghost" data-act="ava-open" data-cat="${it.slot === 'prop' ? 'meme' : it.slot === 'outfit' ? 'outfit' : it.slot === 'hairStyle' ? 'hair' : it.slot === 'eyeShape' ? 'eyes' : 'acc'}">В конструктор</button>`
         : `<button class="btn small" data-act="buy" data-v="${it.id}" ${S.shop.beans < it.price ? 'disabled' : ''}>${it.price} ${BEAN}</button>`;
-      return `<div class="item">${prev}<div class="grow"><div style="font-weight:900">${esc(it.name)}</div><div class="small">${it.owned ? 'куплено — надень в конструкторе' : 'можно примерить в конструкторе'}</div></div>${action}</div>`;
+      return `<div class="item">${prev}<div class="grow"><div style="font-weight:900">${it.legend ? '⭐ ' : ''}${esc(it.name)}</div><div class="small">${it.owned ? 'куплено — надень в конструкторе' : 'можно примерить в конструкторе'}</div></div>${action}</div>`;
     } else if (it.owned) {
       action = `<button class="btn small ${it.equipped ? 'green' : 'ghost'}" data-act="equip" data-v="${it.id}" data-on="${it.equipped ? '0' : '1'}">${it.equipped ? 'Надето' : 'Надеть'}</button>`;
     } else if (it.left === 0) {

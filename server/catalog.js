@@ -47,6 +47,14 @@ const SHOP = [
   { id: 'p_mug_best', kind: 'part', slot: 'prop', value: 'mug_best', name: 'Кружка «Лучший сотрудник»', price: 60 },
   { id: 'p_tie_gold', kind: 'part', slot: 'neck', value: 'tie_gold', name: 'Золотой галстук начальника', price: 50 },
   { id: 'p_snake', kind: 'part', slot: 'neck', value: 'snake', name: 'Змея на шее', price: 80 },
+  { id: 'p_chain_gold', kind: 'part', slot: 'neck', value: 'chain_gold', name: 'Золотая цепь', price: 60 },
+  { id: 'p_puffer', kind: 'part', slot: 'outfit', value: 'puffer', name: 'Пуховик', price: 40 },
+  // Легендарные образы: детали продаются по отдельности, в конструкторе есть готовые наборы
+  { id: 'p_biker', kind: 'part', slot: 'outfit', value: 'biker', name: 'Косуха с заклёпками', price: 120, legend: true },
+  { id: 'p_cyber', kind: 'part', slot: 'outfit', value: 'cyber', name: 'Неоновая куртка', price: 150, legend: true },
+  { id: 'p_visor', kind: 'part', slot: 'mask', value: 'visor', name: 'Кибервизор', price: 90, legend: true },
+  { id: 'p_anime_hair', kind: 'part', slot: 'hairStyle', value: 'anime', name: 'Аниме-причёска', price: 100, legend: true },
+  { id: 'p_anime_eyes', kind: 'part', slot: 'eyeShape', value: 'anime', name: 'Аниме-глаза', price: 80, legend: true },
   { id: 'g_gold', kind: 'gang', name: 'Позолоченное знамя', price: 100 },
   { id: 'g_motto', kind: 'gang', name: 'Девиз банды', price: 40 }
 ];
