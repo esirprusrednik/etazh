@@ -54,7 +54,7 @@ function toast(text) {
 
 // ---------- Аватар ----------
 const HOODIE = { red: '#E5484D', blue: '#2563C9', green: '#1F7A3A', violet: '#8B5CF6', navy: '#34405F', black: '#23252B', white: '#EEF1F6', beige: '#D8C3A5', yellow: '#F4C430', pink: '#F08BB4', orange: '#F28C28', khaki: '#7D7A4F', burgundy: '#7A1F34', grey: '#8A919E' };
-const FRAMES = { fr_gold: '#FFC93C', fr_neon: '#22D3EE', fr_fire: '#F97316' };
+const FRAMES = { fr_gold: '#FFC93C', fr_neon: '#22D3EE', fr_fire: '#F97316', fr_champ: '#FFD84D' };
 // Аватар: слои сзади (длинные волосы, хвост, афро) → худи → лицо → передние пряди и аксессуары
 // Лицо строится из параметров: ширина лба, скулы, ширина челюсти, подбородок, верх и низ.
 // М — шире челюсть и квадратнее подбородок; Ж — уже челюсть, мягкий острый подбородок, выше скулы
@@ -287,6 +287,13 @@ function hatLayer(h, hood) {
     // Капюшон поверх головы — передний край вокруг лица (задняя часть рисуется за головой отдельно)
     return `<path d="M27.4 54 Q24.6 20 50 17.4 Q75.4 20 72.6 54 Q72 30 50 26.6 Q28 30 27.4 54 Z" fill="${hood}"/><path d="M28.6 52 Q27 28 50 25 Q73 28 71.4 52" fill="none" stroke="${shade(hood, -0.3)}" stroke-width="1.6"/>`;
   }
+  if (h === 'laurel') {
+    // Лавровый венок: две ветви листьев по кругу головы, сходятся надо лбом
+    const leaf = (x, y, a, c) => `<ellipse cx="${x}" cy="${y}" rx="4.6" ry="2" transform="rotate(${a} ${x} ${y})" fill="${c}"/>`;
+    const pts = [[29, 40, -70], [29.6, 34, -55], [31.4, 28.4, -40], [34.6, 23.6, -25], [39, 20, -12], [44.4, 18, 0]];
+    const side = (flip) => pts.map(([x, y, a], i) => leaf(flip ? 100 - x : x, y, flip ? -a : a, i % 2 ? '#3E9B58' : '#5BBF6E')).join('');
+    return `<path d="M29 43 Q28 22 50 17.6 Q72 22 71 43" fill="none" stroke="#2F7A44" stroke-width="1.3"/>${side(false)}${side(true)}<circle cx="50" cy="17.4" r="2.3" fill="#FFC93C" stroke="#D99A0B" stroke-width=".8"/>`;
+  }
   if (h === 'headset') {
     return '<path d="M30 47 Q28 17 50 17 Q72 17 70 47" fill="none" stroke="#2B2B3A" stroke-width="3.6" stroke-linecap="round"/><rect x="24.5" y="42" width="8" height="13" rx="3.5" fill="#2B2B3A"/><rect x="67.5" y="42" width="8" height="13" rx="3.5" fill="#2B2B3A"/><path d="M28 54 Q28.5 63 39 63.5" fill="none" stroke="#2B2B3A" stroke-width="2.2" stroke-linecap="round"/><rect x="38" y="61" width="5.5" height="4.5" rx="2" fill="#E5484D"/>';
   }
@@ -338,6 +345,15 @@ function propLayer(p) {
       <path d="M80.5 88 Q87 88 86.5 93 Q86 97.5 80.5 97" fill="none" stroke="${gold ? '#C99A0E' : '#C9CED9'}" stroke-width="2.4"/>
       <rect x="66" y="84" width="15" height="17" rx="2.5" fill="${c}" stroke="${gold ? '#C99A0E' : '#C9CED9'}" stroke-width="1"/><ellipse cx="73.5" cy="85" rx="6.6" ry="1.7" fill="#6B3E26"/>`
       + (gold ? '<path d="M73.5 88.5 L74.8 91.3 L77.8 91.6 L75.6 93.6 L76.2 96.6 L73.5 95.1 L70.8 96.6 L71.4 93.6 L69.2 91.6 L72.2 91.3 Z" fill="#fff"/>' : '<path d="M69.5 91 h8 M69.5 94 h6" stroke="#E5484D" stroke-width="1.2" stroke-linecap="round"/>') + '</g>';
+  }
+  if (p === 'trophy') {
+    // Кубок Лиги в руке: золотой, с ручками и звездой
+    return `<g transform="translate(57 63) scale(1.2)"><path d="M3 2 H21 Q21 15 12 17 Q3 15 3 2 Z" fill="#FFC93C" stroke="#D99A0B" stroke-width="1.1"/>
+      <path d="M3 4 Q-2 4 -1.5 8.5 Q-1 12 4.5 12 M21 4 Q26 4 25.5 8.5 Q25 12 19.5 12" fill="none" stroke="#D99A0B" stroke-width="1.6"/>
+      <rect x="10" y="16.5" width="4" height="5" fill="#D99A0B"/><rect x="5.5" y="21" width="13" height="4" rx="1.2" fill="#8B5A2B"/>
+      <path d="M12 5.2 L13.2 7.8 L16 8.1 L13.9 10 L14.5 12.8 L12 11.4 L9.5 12.8 L10.1 10 L8 8.1 L10.8 7.8 Z" fill="#fff"/>
+      <path d="M6 4.5 Q6.5 10 9 13" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="1.2" stroke-linecap="round"/>
+      </g>`;
   }
   if (p === 'papers') {
     return '<g transform="translate(8 -3) rotate(-8 24 92)"><rect x="12" y="84" width="24" height="19" rx="1.5" fill="#E8ECF4"/><rect x="14" y="82" width="24" height="19" rx="1.5" fill="#F7F9FC" stroke="#C9CED9" stroke-width=".8"/><path d="M17 87 h14 M17 90.5 h18 M17 94 h11" stroke="#9AA3B5" stroke-width="1.1"/><rect x="29" y="93.5" width="6" height="5" fill="#3A7BD5"/><rect x="31.5" y="91" width="3" height="7.5" fill="#2FA84F"/></g>';
@@ -564,7 +580,7 @@ function avatarInner(look = {}) {
   const lip = mk.lip || (sex === 'f' ? '#C9707C' : shade(skin, -0.28));
   const line = sex === 'f' ? shade(lip, -0.4) : shade(skin, -0.55);
   const freckles = look.freckles ? [[39.5, 52.5], [42, 54], [38.8, 55], [60.5, 52.5], [58, 54], [61.2, 55]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r=".85" fill="${shade(skin, -0.38)}"/>`).join('') : '';
-  const capped = hat && hat !== 'headset';
+  const capped = hat && hat !== 'headset' && hat !== 'laurel';
   const hatC = look.hatColor && look.hatColor !== 'same' && HOODIE[look.hatColor] ? HOODIE[look.hatColor] : hood;
   const hooded = hat === 'hood';
   // Под шапкой высокие причёски (пучки, ирокез, кок) прячутся, длинные торчат прядями
@@ -593,7 +609,7 @@ function avatarInner(look = {}) {
     ${earringsLayer(look.earrings, exL, exR, 49 + 5 * ek - 0.8)}
     ${capped ? fit(hatLayer(hat, hatC)) : ''}
     ${look.glasses ? glassesLayer(look.glassesStyle, look.glassesColor, look.lensColor, u, rx) : ''}
-    ${hat === 'headset' ? fit(hatLayer('headset', hood)) : ''}
+    ${hat === 'headset' || hat === 'laurel' ? fit(hatLayer(hat, hood)) : ''}
     ${look.phones && hat !== 'headset' ? fit('<path d="M29 47 Q27 15 50 15 Q73 15 71 47" fill="none" stroke="#2B2B3A" stroke-width="6" stroke-linecap="round"/><path d="M33 26 Q40 18 50 17.5" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/><rect x="23" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="67" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="25" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/><rect x="72" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/>') : ''}
     ${look.crown ? `<g ${capped ? 'transform="translate(0 -6)"' : ''}><path d="M33 19 L37 5 L44 13 L50 3 L56 13 L63 5 L67 19 Z" fill="#FFC93C" stroke="#D99A0B" stroke-width="2" stroke-linejoin="round"/><circle cx="50" cy="13" r="2" fill="#E5484D"/></g>` : ''}
     ${mug ? mugHand(look.prop === 'mug_best', skin, look.outfit === 'suit' ? shade(hood, -0.45) : look.outfit === 'shirt' ? shade(hood, 0.8) : look.outfit === 'dev' ? '#262B36' : hood) : propLayer(look.prop)}
@@ -602,7 +618,7 @@ function avatarInner(look = {}) {
 
 function avatar(look = {}, size = 42, zoom = false) {
   const ring = FRAMES[look.frame] || '#FFFFFF';
-  return `<span class="ava" style="width:${size + 6}px;height:${size + 6}px;border:3px solid ${ring}">
+  return `<span class="ava ${look.frame === 'fr_champ' ? 'champ' : ''}" style="width:${size + 6}px;height:${size + 6}px;border:3px solid ${ring}">
   <svg width="${size}" height="${size}" viewBox="${zoom ? '24 28 52 52' : '0 0 100 100'}" aria-hidden="true">${avatarInner(look)}</svg></span>`;
 }
 
@@ -722,9 +738,28 @@ async function loadGangExtra() {
   try { S.guess = await get(`/api/gangs/${S.activeGang}/guess`); } catch { S.guess = null; }
 }
 async function loadBlitz() { try { S.blitz = await get('/api/blitz'); } catch { S.blitz = null; } }
+async function afterInvite(r) {
+  toast('Ты в банде!'); await loadMe();
+  S.activeGang = r.gang; store.set('activeGang', r.gang); S.chatGang = true; S.dm = null;
+  await Promise.all([loadChats(), loadGang(), loadGangExtra(), loadState()]);
+}
+async function afterCreate(r) {
+  S.gnew = null; S.sheet = null; S.tab = 'chats'; S.chatGang = true; S.dm = null;
+  S.activeGang = r.id; store.set('activeGang', r.id);
+  await loadMe(); await loadGang();
+  toast('Банда сколочена. Зови своих по ссылке');
+}
+async function applyGang(id, sw) {
+  const r = await post(`/api/gangs/${id}/apply`, { switch: sw });
+  if (r.member) { toast('Ты в банде!'); await loadMe(); S.sheet = null; S.activeGang = r.id; store.set('activeGang', r.id); S.tab = 'chats'; S.chatGang = true; S.dm = null; await loadGang(); return; }
+  toast(sw ? 'Заявка отправлена. Когда примут — перейдёшь в новую банду' : 'Заявка отправлена — владелец получит пуш');
+  if (S.gfind && S.gfind.items) S.gfind.items = S.gfind.items.map((c) => (c.id === id ? { ...c, requested: true } : c));
+  if (S.gprofile && S.gprofile.id === id) S.gprofile = { ...S.gprofile, requested: true };
+}
 async function loadGangFind() {
   const f = S.gfind;
-  f.items = (await get(`/api/gangs/search?q=${encodeURIComponent(f.q || '')}&area=${encodeURIComponent(f.area || '')}`)).items;
+  const r = await get(`/api/gangs/search?q=${encodeURIComponent(f.q || '')}&area=${encodeURIComponent(f.area || '')}`);
+  f.items = r.items; f.recommended = !!r.recommended;
 }
 async function loadQuiz() { try { S.quiz = (await get('/api/quiz')).items; } catch { S.quiz = []; } }
 
@@ -749,7 +784,7 @@ async function refresh({ all = false } = {}) {
   if (all || t === 'chats' || t === 'games') jobs.push(loadCrew());
   if (all || (t === 'chats' && S.chatGang) || t === 'games') jobs.push(loadGang(), loadGangExtra());
   if (all || t === 'office') jobs.push(loadEvents());
-  if (all || t === 'games') jobs.push(loadQuiz(), loadBlitz());
+  if (all || t === 'games') jobs.push(loadQuiz(), loadBlitz(), loadLeague('W').catch(() => {}));
   if (t === 'chats' && S.battle) jobs.push(loadBattle());
   if (t === 'chats' && S.dm) jobs.push(loadDm());
   await Promise.all(jobs);
@@ -1112,6 +1147,7 @@ function renderGames() {
     <button class="btn small" data-act="open" data-v="battle-pick">Вызвать на бой</button>
   </section>`;
   return `${pageHead('Игры', 'Задания, квизы и бои со своими. За всё дают зёрна, их тратят в Лавке')}
+    ${renderLeagueCard()}
     ${renderQuests()}
     ${renderBlitzCard()}
     ${renderQuiz()}
@@ -1402,7 +1438,7 @@ function interestChips(sel) {
 }
 function renderGangNew() {
   const d = S.gnew || (S.gnew = { access: 'request', interests: [], emoji: null });
-  return `<p class="sub" style="margin-top:0">Банда — твои люди: команда, отдел, соседи по этажу, кофейный клуб. Общий чат, зовы, неделя офиса, опросы. Залог 50 зёрен вернётся, когда в банде будет 3 человека.</p>
+  return `<p class="sub" style="margin-top:0">Банда — твои люди: команда, отдел, соседи по этажу, кофейный клуб. Общий чат, зовы, неделя офиса, опросы. Залог 50 зёрен вернётся, когда в банде будет 3 человека. В банде до 30 человек, а сам ты можешь быть только в одной банде${S.me.gangs.length ? ` — сколотишь новую, выйдешь из «${esc(S.me.gangs[0].name)}»` : ''}.</p>
     <label class="field">Название<input id="gang-name" maxlength="30" placeholder="Например, Аналитики 5 этажа" value="${esc(d.name || '')}"></label>
     <label class="field">Направление${areaSelect('gang-area', d.area)}</label>
     <div class="field">Значок<div class="chips">${S.cat.gangEmoji.map((e) => `<button class="chip emo ${d.emoji === e ? 'on' : ''}" data-act="gs-emoji" data-v="${e}">${e}</button>`).join('')}</div></div>
@@ -1429,12 +1465,16 @@ function gangCardHtml(c) {
   return `<div class="g-card"><button class="g-main" data-act="gang-profile" data-id="${c.id}">${gangBadge(c)}<span class="grow" style="min-width:0">
       <span class="g-name">${esc(c.name)}</span>
       <span class="small">${c.area ? esc(c.area) + ' · ' : ''}${c.count}${c.max ? '/' + c.max : ''} ${plural(c.count, 'человек', 'человека', 'человек')}${c.inOffice ? ` · ${c.inOffice} в офисе` : ''}</span>
+      ${c.legend ? `<span class="g-legend small">👑 ${esc(c.legend)}</span>` : ''}
+      ${c.why ? `<span class="g-why">${esc(c.why)}</span>` : ''}
       ${c.interests.length ? `<span class="g-tags">${c.interests.slice(0, 3).map((t) => `<i>${esc(t)}</i>`).join('')}</span>` : ''}</span></button>${btn}</div>`;
 }
 function renderGangFind() {
   const f = S.gfind || (S.gfind = { q: '', area: '', items: null });
   return `<div class="row" style="gap:8px"><label class="field grow" style="gap:0"><span class="hidden">Поиск банды</span><input id="gfind-q" placeholder="Название, интерес, направление" value="${esc(f.q)}" autocomplete="off"></label><button class="btn" data-act="gang-find-go">Найти</button></div>
     <div class="chips scroll-x">${['', ...S.cat.gangAreas].map((a) => `<button class="chip ${f.area === a ? 'on' : ''}" data-act="gang-find-area" data-v="${esc(a)}">${a ? esc(a) : 'Все'}</button>`).join('')}</div>
+    ${f.recommended && f.items && f.items.length ? '<h3 style="margin:4px 0 0">Рекомендуем</h3>' : ''}
+    ${S.me.gangs.length ? `<p class="small" style="margin:0">Ты в банде «${esc(S.me.gangs[0].name)}». Банда может быть одна — при вступлении в новую выйдешь из старой.</p>` : ''}
     ${f.items === null ? '<p class="small">Загружаем…</p>' : f.items.length ? f.items.map(gangCardHtml).join('') : '<p class="sub">Ничего не нашли. Закрытые банды в поиске не видны — в них зовут ссылкой. Или сколоти свою!</p>'}`;
 }
 function renderGangProfile() {
@@ -1444,6 +1484,8 @@ function renderGangProfile() {
   const days = Math.max(1, Math.round((Date.now() - c.since) / 864e5));
   return `<div class="g-hero" style="--gc:${esc(c.color)}">${gangBadge(c)}<div><div class="g-title">${esc(c.name)}${c.gold ? ' 👑' : ''}</div>
       <div class="small">${c.area ? esc(c.area) : 'Направление не указано'}</div></div></div>
+    ${c.legend ? `<div class="g-legend">👑 ${esc(c.legend)}</div>` : ''}
+    ${trophyLine(c.trophies) ? `<p class="small" style="margin:0">Трофеи Лиги: ${trophyLine(c.trophies)}</p>` : ''}
     ${c.motto ? `<p class="sub" style="font-style:italic;margin:0">«${esc(c.motto)}»</p>` : ''}
     ${c.about ? `<p class="sub" style="margin:0">${esc(c.about)}</p>` : ''}
     ${c.interests.length ? `<div class="g-tags big">${c.interests.map((t) => `<i>${esc(t)}</i>`).join('')}</div>` : ''}
@@ -1452,6 +1494,69 @@ function renderGangProfile() {
     <p class="small" style="margin:0"><b>${accT}</b> — ${accD}${c.owner ? ` · владелец ${esc(c.owner)}` : ''}${c.officeName ? ` · офис ${esc(c.officeName)}` : ''}</p>
     ${gangCardHtml(c).replace(/^<div class="g-card"><button class="g-main"[\s\S]*?<\/button>/, '<div class="g-card solo">')}`;
 }
+function renderGangSwitch() {
+  const a = S.switchAsk || {};
+  return `<p class="sub" style="margin:0">Банда может быть только одна. ${a.request ? `Когда владелец примет заявку, ты выйдешь из «${esc(a.from)}».` : `Ты выйдешь из «${esc(a.from)}».`}</p>
+    <ul class="ol" style="margin:0"><li>Чат и зовы старой банды пропадут.</li><li>Очки Лиги, которые ты уже принёс, останутся старой банде.</li><li>Если ты владелец — банда перейдёт самому давнему участнику.</li></ul>
+    <button class="btn" data-act="gang-switch-go">${a.request ? 'Подать заявку' : 'Перейти'}</button>
+    <button class="btn ghost" data-act="close">Остаться</button>`;
+}
+
+// ----- Лига банд -----
+const MEDAL = ['🥇', '🥈', '🥉'];
+const TROPHY_NAMES = { p_trophy: 'Кубок Лиги в руку', p_laurel: 'лавровый венок', fr_champ: 'рамка чемпиона' };
+function trophyLine(t) {
+  if (!t) return '';
+  const parts = [];
+  t.w.forEach((n, i) => n && parts.push(`${MEDAL[i]}×${n} нед.`));
+  t.m.slice(0, 3).forEach((n, i) => n && parts.push(`${MEDAL[i]}×${n} мес.`));
+  return parts.join(' · ');
+}
+function leagueRow(r) {
+  return `<div class="lg-row ${r.me ? 'me' : ''}"><span class="lg-place">${r.place ? (MEDAL[r.place - 1] || r.place) : '—'}</span>${gangBadge(r)}
+    <span class="grow" style="min-width:0"><span class="g-name ellipsis">${esc(r.name)}</span><span class="small">${r.members} ${plural(r.members, 'человек', 'человека', 'человек')}${r.together ? ` · в сборе ${r.together} ${plural(r.together, 'день', 'дня', 'дней')}` : ''}</span></span>
+    <b class="lg-score">${r.score}</b></div>`;
+}
+function renderLeague() {
+  const type = S.leagueType || 'W';
+  const L = S.league && S.league[type];
+  const tabs = `<div class="chips"><button class="chip ${type === 'W' ? 'on' : ''}" data-act="league-tab" data-v="W">Неделя</button><button class="chip ${type === 'M' ? 'on' : ''}" data-act="league-tab" data-v="M">Месяц</button></div>`;
+  if (!L) return tabs + '<p class="sub">Загружаем…</p>';
+  const m = L.mine;
+  const mine = !m ? `<div class="note">Ты пока не в банде — очки идут только банде. <button class="linkbtn" data-act="gang-find">Найти банду</button></div>`
+    : `<div class="lg-mine"><div class="row" style="gap:10px">${gangBadge(m)}<div class="grow"><b>${esc(m.name)}</b><div class="small">${m.place ? `${m.place} место из ${L.count}` : m.eligible ? 'пока без очков' : `в Лиге с ${L.rules.minRoster} человек — зови своих`}</div></div><b class="lg-score big">${m.score}</b></div>
+      <div class="g-stats" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div><b>${m.myPoints}</b><span>твой вклад</span></div><div><b>${m.todayPts}/${m.dayCap}</b><span>очков сегодня</span></div><div><b>${m.together}</b><span>${plural(m.together, 'день', 'дня', 'дней')} в сборе</span></div></div></div>`;
+  const outside = m && m.place && m.place > 10 ? leagueRow(m) : '';
+  const prizes = L.prizes.map((p) => `<li><b>${MEDAL[p.place - 1] || p.place + ' место'}</b> — +${p.beans} зёрен каждому, кто принёс очки${p.items.length ? ', ' + p.items.map((i) => TROPHY_NAMES[i]).join(', ') : ''}</li>`).join('');
+  const last = L.last.winners.length ? `<h3 style="margin:6px 0 0">Итоги: ${esc(L.last.label)}</h3>${L.last.winners.slice(0, 5).map((w) => `<div class="lg-row"><span class="lg-place">${MEDAL[w.place - 1] || w.place}</span>${gangBadge(w)}<span class="grow g-name ellipsis">${esc(w.name)}</span><b class="lg-score">${w.score}</b></div>`).join('')}` : '';
+  return `${tabs}<p class="small" style="margin:0">${esc(L.period.label)} · ${L.period.daysLeft > 1 ? `до финиша ${L.period.daysLeft} ${plural(L.period.daysLeft, 'день', 'дня', 'дней')}` : 'финиш сегодня в полночь'}</p>
+    ${mine}
+    <div class="lg-list">${L.top.length ? L.top.map(leagueRow).join('') + outside : '<p class="sub">Пока никто не набрал очков. Отметься — и твоя банда первая.</p>'}</div>
+    <details class="lg-rules"><summary>Как считаются очки и что дают</summary>
+      <ul class="ol"><li>Каждое зерно за дело — очко твоей банде: отметка в офисе или из дома, столовая, ответ на зов, задания дня, квизы, блиц, морской бой, спасибо, ачивки.</li>
+      <li>Один человек приносит не больше ${L.rules.dayCap} очков в день — одиночка банду не вытянет, нужна вся банда.</li>
+      <li>Счёт банды — средний вклад на участника, поэтому маленькая дружная банда спорит на равных с большой. Ушедшие и выгнанные за период тоже в знаменателе.</li>
+      <li>«Банда в сборе»: в день отметились ${Math.round(L.rules.togetherShare * 100)}% банды (не меньше трёх) — +${L.rules.togetherBonus} к счёту.</li>
+      <li>В Лиге — банды от ${L.rules.minRoster} человек. Призы раздаются сами: за неделю — в понедельник, за месяц — 1-го числа.</li></ul>
+      <h3 style="margin:6px 0">Призы ${type === 'W' ? 'недели' : 'месяца'}</h3><ul class="ol">${prizes}</ul>
+      ${type === 'M' ? '<p class="small">Победитель месяца весь следующий месяц носит титул «Легенда» — его видно в поиске и профиле банды.</p>' : ''}
+    </details>
+    ${last}`;
+}
+async function loadLeague(type = S.leagueType || 'W') {
+  S.league = S.league || {};
+  S.league[type] = await get('/api/league?period=' + (type === 'M' ? 'month' : 'week'));
+}
+function renderLeagueCard() {
+  const L = S.league && S.league.W;
+  const m = L && L.mine;
+  return `<section class="card lg-card"><div class="row" style="justify-content:space-between"><span class="card-title">🏆 Лига банд</span><span class="small">${L ? (L.period.daysLeft > 1 ? `ещё ${L.period.daysLeft} ${plural(L.period.daysLeft, 'день', 'дня', 'дней')}` : 'финиш сегодня') : ''}</span></div>
+    ${!L ? '<p class="small" style="margin:0">Загружаем…</p>' : m ? `<div class="row" style="gap:10px">${gangBadge(m)}<div class="grow"><b>${m.place ? `${MEDAL[m.place - 1] || ''} ${m.place} место` : m.eligible ? 'Пока без очков' : `Нужно ${L.rules.minRoster} человека`}</b><div class="small">счёт ${m.score} · твой вклад ${m.myPoints} · сегодня ${m.todayPts}/${m.dayCap}</div></div></div>`
+      : '<p class="small" style="margin:0">Банды соревнуются за неделю и месяц: зёрна за дела — очки банде. Вступи в банду, чтобы играть.</p>'}
+    ${L && L.top.length ? `<div class="lg-mini">${L.top.slice(0, 3).map((r) => `<span class="${r.me ? 'me' : ''}">${MEDAL[r.place - 1]} ${esc(r.name)} · ${r.score}</span>`).join('')}</div>` : ''}
+    <button class="btn small" data-act="league-open">Таблица и призы</button></section>`;
+}
+
 function renderGangSettings() {
   const d = S.gset;
   if (!d) return '<p class="sub">Загружаем…</p>';
@@ -1463,26 +1568,28 @@ function renderGangSettings() {
     <div class="field">Интересы — до 6${interestChips(d.interests)}</div>
     <div class="field">Кто может вступить${accessPicker(d.access)}</div>
     <div class="field">Кто зовёт новых<div class="chips"><button class="chip ${d.whoInvites !== 'owner' ? 'on' : ''}" data-act="gs-who" data-v="all">Все участники</button><button class="chip ${d.whoInvites === 'owner' ? 'on' : ''}" data-act="gs-who" data-v="owner">Только я</button></div></div>
-    <div class="row" style="gap:10px"><label class="field" style="width:130px">Лимит людей<input id="gs-max" type="number" min="0" max="200" value="${d.maxMembers || 0}"></label>
+    <div class="row" style="gap:10px"><label class="field" style="width:130px">Лимит людей<input id="gs-max" type="number" min="0" max="30" value="${d.maxMembers || 0}"></label>
       <label class="field grow">Офис банды<select id="gs-office"><option value="">Любой</option>${S.cat.offices.map((o) => `<option value="${esc(o.id)}" ${d.office === o.id ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select></label></div>
-    <p class="small" style="margin:0">Лимит 0 — без ограничений.</p>
+    <p class="small" style="margin:0">0 — до 30 человек, это максимум для любой банды.</p>
     <button class="btn" data-act="gs-save">Сохранить</button>`;
 }
 
 function renderGang() {
   const gangs = S.me.gangs;
   let chips = gangs.length ? `<div class="chips dark">${gangs.map((g) => `<button class="chip ${g.id === S.activeGang ? 'on' : ''}" data-act="gang-select" data-v="${g.id}">${esc(g.name)}</button>`).join('')}</div>` : '';
-  const create = `<section class="card">${gangs.length ? '<details><summary style="font-weight:900;cursor:pointer;min-height:32px">Создать ещё банду или вступить по ссылке</summary><div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">' : '<h3>Банды</h3>'}
-    <p class="sub">Банда — твои люди: команда, соседи по этажу, кофейный клуб. Создание стоит ${50} зёрен залога — они вернутся, когда в банде будет 3 человека.</p>
-    <label class="field">Название новой банды<input id="gang-name" maxlength="30" placeholder="Например, Пятничный кофе"></label>
-    <button class="btn violet" data-act="gang-create">Создать банду · залог 50</button>
-    <label class="field">Или вставь ссылку-приглашение<input id="gang-code" placeholder="https://…/g/ABC123"></label>
-    <button class="btn ghost" data-act="gang-join">Вступить</button>
-  ${gangs.length ? '</div></details>' : ''}</section>`;
+  const create = gangs.length
+    ? `<section class="card"><details><summary style="font-weight:900;cursor:pointer;min-height:32px">Перейти в другую банду</summary><div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
+      <p class="sub" style="margin:0">Банда может быть только одна. Вступишь в другую или сколотишь новую — выйдешь из этой. Очки Лиги, которые ты принёс, останутся здесь.</p>
+      <div class="row"><button class="btn small grow" data-act="gang-find">🔍 Найти банду</button><button class="btn small ghost grow" data-act="open" data-v="gang-new">＋ Сколотить</button></div></div></details></section>`
+    : `<section class="card"><h3>Банды</h3><p class="sub">Банда — твои люди: команда, соседи по этажу, кофейный клуб. Общий чат, зовы, неделя офиса и Лига банд, где вы соревнуетесь с другими.</p>
+      <div class="row"><button class="btn grow" data-act="gang-find">🔍 Найти банду</button><button class="btn violet grow" data-act="open" data-v="gang-new">＋ Сколотить</button></div>
+      <label class="field">Или вставь ссылку-приглашение<input id="gang-code" placeholder="https://…/g/ABC123"></label>
+      <button class="btn ghost" data-act="gang-join">Вступить по ссылке</button></section>`;
+  const multi = gangs.length > 1 ? `<div class="note warn">Теперь банда может быть только одна. Ты в ${gangs.length}: очки Лиги идут в «${esc(gangs[0].name)}» (в неё ты вступил раньше). Выйди из лишних, чтобы не путаться.</div>` : '';
   if (!gangs.length) return create;
   if (S.chatGang) chips = ''; // в чатах банду выбирают из списка — переключатель не нужен
   const v = S.gang;
-  if (!v) return chips + '<div class="card"><p class="sub">Загружаем банду…</p></div>' + create;
+  if (!v) return multi + chips + '<div class="card"><p class="sub">Загружаем банду…</p></div>' + create;
   const g = v.gang;
   const members = v.members.map((m) => {
     const [w, color] = whereText(m);
@@ -1492,10 +1599,12 @@ function renderGang() {
       ${g.isOwner && S.gmMenu === m.id ? `<div class="row gm-menu"><button class="btn small ghost" data-act="gm-owner" data-id="${m.id}">Сделать владельцем</button><button class="btn small danger" data-act="gm-kick" data-id="${m.id}">Убрать из банды</button></div>` : ''}`;
   }).join('');
   const msgs = v.messages.map(renderMsg).join('') || '<p class="sub">Сообщения и зовы живут 24 часа. Начни первым.</p>';
-  return `${chips}
+  return `${multi}${chips}
   <section class="card" style="${g.gold ? 'border:3px solid #FFC93C' : ''}">
     <div class="row">${gangBadge(g)}<div class="grow" style="min-width:0"><h2 style="margin:0">${esc(g.name)}</h2><span class="small">${g.area ? esc(g.area) + ' · ' : ''}${v.gang.count}${g.max ? '/' + g.max : ''} ${plural(v.gang.count, 'участник', 'участника', 'участников')} · ${(ACCESS_NAMES[g.access] || ACCESS_NAMES.invite)[0].toLowerCase()}</span></div>
       ${g.isOwner ? '<button class="icon-btn" data-act="gang-settings" aria-label="Настройки банды">⚙️</button>' : `<button class="icon-btn" data-act="gang-profile" data-id="${g.id}" aria-label="Профиль банды">ℹ️</button>`}</div>
+    ${g.legend ? `<div class="g-legend">👑 ${esc(g.legend)}</div>` : ''}
+    ${g.league ? `<button class="lg-strip" data-act="league-open">🏆 Лига недели: <b>${g.league.place ? `${MEDAL[g.league.place - 1] || ''} ${g.league.place} место из ${g.league.of}` : g.league.eligible ? 'пока без очков' : 'нужно 3 человека'}</b> · счёт ${g.league.score}${trophyLine(g.trophies) ? ` · ${trophyLine(g.trophies)}` : ''}</button>` : ''}
     ${g.motto ? `<p class="sub" style="font-style:italic">«${esc(g.motto)}»</p>` : ''}
     ${g.about ? `<p class="sub" style="margin:0">${esc(g.about)}</p>` : ''}
     ${g.interests && g.interests.length ? `<div class="g-tags">${g.interests.map((t) => `<i>${esc(t)}</i>`).join('')}</div>` : ''}
@@ -2004,6 +2113,8 @@ function renderSheet() {
     case 'gang-find': return sheetWrap('Найти банду', renderGangFind());
     case 'gang-profile': return sheetWrap('Банда', renderGangProfile());
     case 'gang-settings': return sheetWrap('Настройки банды', renderGangSettings());
+    case 'gang-switch': return sheetWrap('Перейти в другую банду?', renderGangSwitch());
+    case 'league': return sheetWrap('Лига банд', renderLeague());
     case 'crew-new': return sheetWrap('Позвать в личку', `<p class="sub">С участниками твоих банд переписываться можно сразу. Тех, кто не в банде, зови по нику или личной ссылкой.</p>
       <div class="row"><label class="field grow" style="gap:0"><span class="hidden">Ник</span><input id="crew-nick" maxlength="21" placeholder="ник" autocapitalize="off" autocomplete="off" aria-label="Ник"></label><button class="btn" data-act="crew-add">Позвать</button></div>
       <button class="btn blue" data-act="crew-share">Отправить свою ссылку</button>
@@ -2411,9 +2522,9 @@ const NECK_NAMES = { none: 'Ничего', tie: 'Галстук', tie_crooked: '
 const PET_NAMES = { none: 'Без питомца', corgi: 'Корги', pug: 'Мопс' };
 const LENS_NAMES = { clear: 'Прозрачные', grey: 'Серые', brown: 'Коричневые', blue: 'Голубые', green: 'Зелёные', pink: 'Розовые', yellow: 'Жёлтые' };
 const LENS_SWATCH = { clear: 'repeating-linear-gradient(45deg,#fff 0 4px,#E3E8F2 4px 8px)', grey: '#555B68', brown: '#7A5232', blue: '#4A86E0', green: '#3A9A68', pink: '#F08BB4', yellow: '#F2C230' };
-const HAT_NAMES = { none: 'Без шапки', beanie: 'Шапка', cap: 'Кепка', hood: 'Капюшон', headset: 'Гарнитура' };
+const HAT_NAMES = { none: 'Без шапки', beanie: 'Шапка', cap: 'Кепка', hood: 'Капюшон', headset: 'Гарнитура', laurel: 'Лавровый венок' };
 const EYE_NAMES = { normal: 'Обычные', tired: 'После совещания', sly: 'Хитрые', wide: 'Удивлённые', anime: 'Аниме' };
-const PROP_NAMES = { none: 'Ничего', mug: 'Кружка', papers: 'Квартальный отчёт', sign: 'Табличка', laptop: 'Ноутбук', mug_best: 'Лучший сотрудник' };
+const PROP_NAMES = { none: 'Ничего', mug: 'Кружка', papers: 'Квартальный отчёт', sign: 'Табличка', laptop: 'Ноутбук', mug_best: 'Лучший сотрудник', trophy: 'Кубок Лиги' };
 const AVA_CATS = [['face', 'Лицо'], ['hair', 'Волосы'], ['eyes', 'Глаза'], ['mouth', 'Рот'], ['beard', 'Борода'], ['makeup', 'Макияж'], ['outfit', 'Одежда'], ['acc', 'Аксессуары'], ['bg', 'Фон'], ['meme', 'Мемы']];
 const DEF_LOOK = { hatColor: 'same', mask: 'none', glassesColor: 'black', lensColor: 'clear', pet: 'none', eyeSize: 'm', nose: 'button', ears: 'normal', makeup: 'none', earrings: 'none', glassesStyle: 'classic', beardColor: 'same', mustacheColor: 'same' };
 const GLASS_COLOR_NAMES = { black: 'Чёрная', tortoise: 'Черепаховая', gold: 'Золото', silver: 'Серебро', red: 'Красная', navy: 'Синяя', pink: 'Розовая' };
@@ -2537,7 +2648,7 @@ function renderAvatarEditor() {
   ].filter(Boolean).join('');
   const tiles = (key, vals, names, zoom = false) => `<div class="ava-tiles">${vals.map((v) => {
     const lock = partLocked(key, v);
-    return `<button class="ava-tile ${(d[key] || DEF_LOOK[key]) === v ? 'on' : ''} ${lock ? 'paid' : ''}" data-act="ava-set" data-k="${key}" data-v="${v}">${avatar(view({ ...d, [key]: v, frame: null, crown: false, ...(zoom ? { pet: 'none', prop: 'none' } : {}) }), 60, zoom)}<span>${names[v] || v}</span>${lock ? `<em>${lock.price} ${BEAN}</em>` : ''}</button>`;
+    return `<button class="ava-tile ${(d[key] || DEF_LOOK[key]) === v ? 'on' : ''} ${lock ? 'paid' : ''}" data-act="ava-set" data-k="${key}" data-v="${v}">${avatar(view({ ...d, [key]: v, frame: null, crown: false, ...(zoom ? { pet: 'none', prop: 'none' } : {}) }), 60, zoom)}<span>${names[v] || v}</span>${lock ? `<em>${lock.award ? '🏆 Лига' : `${lock.price} ${BEAN}`}</em>` : ''}</button>`;
   }).join('')}</div>`;
   const tog = (k, label) => `<button class="chip ${d[k] ? 'on' : ''}" data-act="ava-toggle" data-k="${k}">${label}</button>`;
   const sex = d.preset === 'f' ? 'f' : 'm';
@@ -2569,7 +2680,7 @@ function renderAvatarEditor() {
       <div class="field">В руке${tiles('prop', ['none', 'mug', 'mug_best'], { none: 'Ничего', mug: 'Кружка', mug_best: 'Лучший сотрудник' })}</div>
       <div class="field">Питомец рядом${tiles('pet', L.pet, PET_NAMES)}</div>`,
     bg: `<div class="field">Фон${tiles('bg', L.bg, BG_NAMES)}</div><p class="small" style="margin:0">«Под кожу» сам подбирает цвет, на котором лицо не сливается с фоном.</p>`,
-    meme: `<div class="field">В руках${tiles('prop', ['none', 'papers', 'sign', 'laptop'], PROP_NAMES)}</div><p class="small" style="margin:0">Детали с ценой можно примерить бесплатно, а сохранить — после покупки в Лавке. Корона и рамки — тоже в Лавке.</p>`
+    meme: `<div class="field">В руках${tiles('prop', ['none', 'papers', 'sign', 'laptop', 'trophy'], PROP_NAMES)}</div><p class="small" style="margin:0">Детали с ценой можно примерить бесплатно, а сохранить — после покупки в Лавке. Корона и рамки — тоже в Лавке.</p>`
   }[cat];
   const locked = draftLocked();
   return `<div class="ava-ed">
@@ -2582,7 +2693,8 @@ function renderAvatarEditor() {
     ${hideBar ? `<div class="hide-bar"><span class="small">В превью:</span>${hideBar}<span class="small">— на аватар не влияет</span></div>` : ''}
     <div class="cat-body">${body}</div>
     <div class="ava-foot">
-      ${locked ? `<button class="btn grow" data-act="ava-buy" data-v="${locked.id}" ${S.me.beans < locked.price ? 'disabled' : ''}>Купить «${esc(locked.name)}» · ${locked.price} ${BEAN}</button>`
+      ${locked && locked.award ? `<button class="btn grow" disabled>«${esc(locked.name)}» — только за победу в Лиге банд</button>`
+        : locked ? `<button class="btn grow" data-act="ava-buy" data-v="${locked.id}" ${S.me.beans < locked.price ? 'disabled' : ''}>Купить «${esc(locked.name)}» · ${locked.price} ${BEAN}</button>`
         : `<button class="btn grow" data-act="ava-save">${S.avaMode === 'vacation' ? 'Сохранить образ для отпуска' : 'Сохранить'}</button>`}
       <button class="btn ghost" data-act="close">Отмена</button>
     </div>
@@ -2754,9 +2866,16 @@ function renderPerson() {
 
 function renderShop() {
   if (!S.shop) return '<p class="sub">Загружаем…</p>';
-  const groups = [['part', 'Детали для аватара'], ['status', 'Статусы'], ['frame', 'Рамки аватара'], ['crown', 'Особое'], ['gang', 'Для банды']];
+  const groups = [['award', '🏆 Трофеи Лиги банд'], ['part', 'Детали для аватара'], ['status', 'Статусы'], ['frame', 'Рамки аватара'], ['crown', 'Особое'], ['gang', 'Для банды']];
   const item = (it) => {
     let action;
+    if (it.award) {
+      const prev = it.kind === 'part' ? avatar({ ...S.me.look, [it.slot]: it.value, frame: null, crown: false }, 44) : avatar({ ...S.me.look, frame: it.id, crown: false }, 44);
+      action = !it.owned ? '<span class="small">не продаётся</span>'
+        : it.kind === 'frame' ? `<button class="btn small ${it.equipped ? 'green' : 'ghost'}" data-act="equip" data-v="${it.id}" data-on="${it.equipped ? '0' : '1'}">${it.equipped ? 'Надето' : 'Надеть'}</button>`
+        : `<button class="btn small ghost" data-act="ava-open" data-cat="${it.slot === 'prop' ? 'meme' : 'acc'}">В конструктор</button>`;
+      return `<div class="item">${prev}<div class="grow"><div style="font-weight:900">${esc(it.name)}</div><div class="small">${it.owned ? 'твой трофей' : 'за ' + esc(it.how)}</div></div>${action}</div>`;
+    }
     if (it.kind === 'gang') {
       action = S.me.gangs.length ? `<button class="btn small" data-act="buy" data-v="${it.id}" ${S.shop.beans < it.price ? 'disabled' : ''}>${it.price} ${BEAN}</button>` : '<span class="small">нужна банда</span>';
     } else if (it.kind === 'part') {
@@ -2776,7 +2895,7 @@ function renderShop() {
   };
   const gangSel = S.me.gangs.length > 1 ? `<div class="field">Покупка для банды<div class="chips">${S.me.gangs.map((g) => `<button class="chip ${g.id === (S.shopGang || S.activeGang) ? 'on' : ''}" data-act="shop-gang" data-v="${g.id}">${esc(g.name)}</button>`).join('')}</div></div>` : '';
   return `<div class="note warn">У тебя ${S.shop.beans} зёрен</div>
-    ${groups.map(([k, title]) => `<h3>${title}</h3>${k === 'gang' ? gangSel : ''}${S.shop.items.filter((i) => i.kind === k).map(item).join('')}`).join('')}
+    ${groups.map(([k, title]) => `<h3>${title}</h3>${k === 'gang' ? gangSel : ''}${S.shop.items.filter((i) => (k === 'award' ? i.award : i.kind === k && !i.award)).map(item).join('')}`).join('')}
     ${S.gang && S.gang.gang.mottoOwned ? `<label class="field">Девиз банды «${esc(S.gang.gang.name)}»<input id="motto" maxlength="40" value="${esc(S.gang.gang.motto || '')}"></label><button class="btn ghost" data-act="motto-save">Сохранить девиз</button>` : ''}
     <h3>Как заработать</h3>
     <ol class="ol"><li>Отметка в офисе — +5 (раз в день)</li><li>Отметка в столовой — +2 (до 2 раз в день)</li><li>Ответ на зов банды — +1 (до 10 в день)</li><li>Подтверждённый сигнал офиса — +2 (до 3 в день)</li><li>Банда набрала 3 человек — залог 50 вернётся</li></ol>`;
@@ -2858,13 +2977,14 @@ const actions = {
   'gang-find-go': () => run(async () => { S.gfind.q = ($('#gfind-q') || {}).value || ''; await loadGangFind(); }),
   'gang-find-area'(el) { S.gfind.q = ($('#gfind-q') || {}).value || ''; S.gfind.area = el.dataset.v; run(loadGangFind); },
   'gang-profile': (el) => run(async () => { S.gprofile = null; S.sheet = 'gang-profile'; render(); S.gprofile = await get(`/api/gangs/${el.dataset.id}/profile`); }),
+  'league-open': () => run(async () => { S.sheet = 'league'; render(); await loadLeague(); }),
+  'league-tab': (el) => run(async () => { S.leagueType = el.dataset.v; render(); await loadLeague(el.dataset.v); }),
+  'gang-switch-go': () => run(async () => { const a = S.switchAsk; S.switchAsk = null; S.sheet = null; if (a) await a.go(); }),
   'gang-apply': (el) => run(async () => {
-    const r = await post(`/api/gangs/${el.dataset.id}/apply`);
-    if (r.member) { toast('Ты в банде!'); await loadMe(); S.sheet = null; S.activeGang = r.id; store.set('activeGang', r.id); S.tab = 'chats'; S.chatGang = true; S.dm = null; await loadGang(); return; }
-    toast('Заявка отправлена — владелец получит пуш');
-    if (S.gfind && S.gfind.items) S.gfind.items = S.gfind.items.map((c) => (c.id === Number(el.dataset.id) ? { ...c, requested: true } : c));
-    if (S.gprofile && S.gprofile.id === Number(el.dataset.id)) S.gprofile = { ...S.gprofile, requested: true };
+    const c = (S.gfind && S.gfind.items || []).find((x) => x.id === Number(el.dataset.id)) || S.gprofile || {};
+    await switchable((sw) => applyGang(Number(el.dataset.id), sw), { request: c.access === 'request' });
   }),
+
   'gang-apply-cancel': (el) => run(async () => {
     await post(`/api/gangs/${el.dataset.id}/apply/cancel`);
     if (S.gfind && S.gfind.items) S.gfind.items = S.gfind.items.map((c) => (c.id === Number(el.dataset.id) ? { ...c, requested: false } : c));
@@ -2882,7 +3002,7 @@ const actions = {
   },
   'gang-settings': () => run(async () => {
     const g = S.gang.gang;
-    S.gset = { name: g.name, emoji: g.emoji, color: g.color, area: g.area, about: g.about, interests: [...(g.interests || [])], access: g.access, whoInvites: g.whoInvites, maxMembers: g.max, office: g.office };
+    S.gset = { name: g.name, emoji: g.emoji, color: g.color, area: g.area, about: g.about, interests: [...(g.interests || [])], access: g.access, whoInvites: g.whoInvites, maxMembers: g.maxSet, office: g.office };
     S.sheet = 'gang-settings';
   }),
   'gs-save': () => run(async () => {
@@ -2896,11 +3016,12 @@ const actions = {
   'gm-owner': (el) => run(async () => { if (!confirmInline('gm-owner' + el.dataset.id, 'Нажми ещё раз — банда перейдёт этому человеку')) return; await post(`/api/gangs/${S.gang.gang.id}/owner/${el.dataset.id}`); S.gmMenu = null; toast('Банда передана'); await loadGang(); }),
   'gang-create': () => run(async () => {
     saveGangForm('new'); const d = S.gnew || {};
-    const r = await post('/api/gangs', { name: d.name, area: d.area || null, about: d.about, interests: d.interests, emoji: d.emoji, access: d.access });
-    S.gnew = null; S.sheet = null; S.tab = 'chats'; S.chatGang = true; S.dm = null;
-    S.activeGang = r.id; store.set('activeGang', r.id);
-    await loadMe(); await loadGang();
-    toast('Банда сколочена. Зови своих по ссылке');
+    let r;
+    await switchable(async (sw) => {
+      r = await post('/api/gangs', { name: d.name, area: d.area || null, about: d.about, interests: d.interests, emoji: d.emoji, access: d.access, switch: sw });
+      if (sw) await afterCreate(r);
+    });
+    if (r) await afterCreate(r);
   }),
   'gang-join': () => run(async () => joinByCode($('#gang-code').value)),
   'gang-leave': () => run(async () => {
@@ -3011,10 +3132,9 @@ const actions = {
     S.find = { q: S.find.q, ...(await get('/api/search?q=' + encodeURIComponent(S.find.q))) };
   }),
   'invite-accept': (el) => run(async () => {
-    const r = await post(`/api/invites/${el.dataset.id}/accept`);
-    toast('Ты в банде!'); await loadMe();
-    S.activeGang = r.gang; store.set('activeGang', r.gang); S.chatGang = true; S.dm = null;
-    await Promise.all([loadChats(), loadGang(), loadGangExtra(), loadState()]);
+    let r;
+    await switchable(async (sw) => { r = await post(`/api/invites/${el.dataset.id}/accept`, { switch: sw }); if (sw) await afterInvite(r); });
+    if (r) await afterInvite(r);
   }),
   'invite-decline': (el) => run(async () => { await post(`/api/invites/${el.dataset.id}/decline`); await Promise.all([loadChats(), loadState()]); }),
   'pcall-open'(el) { S.pcallTo = Number(el.dataset.id); S.sheet = 'pcall'; S.lastSheet = null; render(); },
@@ -3415,10 +3535,22 @@ async function shareLink(text, link) {
 function saveSignalText() { if (!S.signal) S.signal = {}; const z = $('#s-zone'); const c = $('#s-comment'); if (z) S.signal.zone = z.value; if (c) S.signal.comment = c.value; }
 
 async function joinByCode(code) {
-  const r = await post('/api/gangs/join', { code });
+  await switchable(async (sw) => afterJoin(await post('/api/gangs/join', { code, switch: sw })));
+}
+async function afterJoin(r) {
   S.activeGang = r.id; store.set('activeGang', r.id); S.tab = 'chats'; S.chatGang = true; S.dm = null; S.sheet = null;
   await loadMe(); await loadGang();
   toast(r.already ? 'Ты уже в этой банде' : 'Ты в банде!');
+}
+
+// Банда может быть только одна: если сервер ответил «ты уже в банде», спрашиваем и повторяем с переходом
+async function switchable(fn, { request = false } = {}) {
+  try { await fn(false); } catch (e) {
+    if (!/^Ты уже в банде/.test(e.message)) throw e;
+    const m = /«(.+?)»/.exec(e.message);
+    S.switchAsk = { from: m ? m[1] : 'твоей банды', request, go: () => fn(true) };
+    S.sheet = 'gang-switch'; S.error = '';
+  }
 }
 
 // ---------- Пуши ----------
@@ -3535,6 +3667,7 @@ function applyHash(hash) {
   if (hash === '#crew' || hash === '#chats') S.tab = 'chats';
   if (hash.startsWith('#crew/')) { S.tab = 'chats'; S.dm = Number(hash.slice(6)) || null; }
   if (hash.startsWith('#battle/')) { S.tab = 'chats'; S.battle = Number(hash.slice(8)) || null; }
+  if (hash === '#league') S.tab = 'games';
 }
 
 // Открытое приложение: пуш меняет только хэш, страница не перезагружается — разбираем его здесь
@@ -3544,6 +3677,7 @@ window.addEventListener('hashchange', async () => {
   applyHash(hash);
   history.replaceState(null, '', location.pathname + location.search);
   if (hash === '#feedback') { S.sheet = 'feedback'; render(); await run(loadFeedback); return; }
+  if (hash === '#league') { S.sheet = 'league'; render(); await run(() => loadLeague('W')); return; }
   S.sheet = null;
   try { await refresh(); } catch {}
   render();
@@ -3648,6 +3782,7 @@ async function boot() {
     else if (!store.get('ia2', 0)) { S.sheet = 'whatsnew'; } // уже знакомы с приложением — коротко покажем, что поменялось
     syncPush().then(render).catch(() => {});
     if (openFeedback) { S.sheet = 'feedback'; loadFeedback().then(render).catch(() => {}); }
+    if (hash === '#league') { S.sheet = 'league'; loadLeague('W').then(render).catch(() => {}); }
   }
   if (hash) history.replaceState(null, '', location.pathname + (location.search.includes('login=') ? '' : location.search));
   render();

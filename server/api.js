@@ -44,9 +44,9 @@ const LOOK = {
   eyeShape: ['normal', 'tired', 'sly', 'wide', 'anime'],
   outfit: ['hoodie', 'tee', 'dev', 'shirt', 'suit', 'jacket', 'puffer', 'dress', 'cami', 'biker', 'cyber'],
   neck: ['none', 'tie', 'tie_crooked', 'bow', 'badge', 'beads', 'chain', 'tie_gold', 'chain_gold', 'snake'],
-  hat: ['none', 'beanie', 'cap', 'hood', 'headset'],
+  hat: ['none', 'beanie', 'cap', 'hood', 'headset', 'laurel'],
   mask: ['none', 'medical', 'gauze', 'visor'],
-  prop: ['none', 'mug', 'papers', 'sign', 'laptop', 'mug_best'],
+  prop: ['none', 'mug', 'papers', 'sign', 'laptop', 'mug_best', 'trophy'],
   bg: ['auto', 'sky', 'mint', 'peach', 'lilac', 'sun', 'slate', 'office', 'meeting', 'home', 'street', 'cafe'],
   // Черты лица: размер глаз, нос, уши
   eyeSize: ['s', 'm', 'l'],
@@ -169,6 +169,9 @@ const DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт'];
 
 function createApi(db) {
   let features = null;
+  let league = null;
+  const MAX_MEMBERS = 30;      // больше 30 — уже не банда, а отдел
+  const gangLimit = (g) => Math.min(g.max_members || MAX_MEMBERS, MAX_MEMBERS);
   let crew = null;
   let battle = null;
   let quiz = null;
@@ -227,6 +230,7 @@ function createApi(db) {
     }
     q('INSERT INTO ledger (user_id, amount, reason, day, at) VALUES (?, ?, ?, ?, ?)').run(userId, amount, reason, U.msk().day, U.now());
     q('UPDATE users SET beans = beans + ? WHERE id = ?').run(amount, userId);
+    if (league) league.award(userId, amount, reason);
     return amount;
   }
 
@@ -468,7 +472,7 @@ function createApi(db) {
         calls: Object.fromEntries(Object.entries(CALLS).map(([k, v]) => [k, { label: v.label, opts: v.opts, needsText: !!v.needsText, textLabel: v.textLabel || (v.needsText ? 'Уточни' : null), textHint: v.textHint || '' }])),
         signals: Object.fromEntries(Object.entries(SIGNALS).map(([k, v]) => [k, v.label])),
         tags: TAGS, days: DAYS, look: LOOK, nickPrice: NICK_PRICE, memes: MEMES, memeEmos: MEME_EMOS,
-        parts: SHOP.filter((it) => it.kind === 'part').map(({ id, slot, value, name, price, legend }) => ({ id, slot, value, name, price, legend: !!legend })), gangColors: GANG_COLORS, idleJokes: IDLE_JOKES,
+        parts: SHOP.filter((it) => it.kind === 'part').map(({ id, slot, value, name, price, legend, award }) => ({ id, slot, value, name, price, legend: !!legend, award: !!award })), gangColors: GANG_COLORS, idleJokes: IDLE_JOKES,
         offices: offices().map((o) => ({ id: o.id, name: o.name, color: o.color }))
       }
     };
@@ -691,13 +695,17 @@ function createApi(db) {
     if (prob) throw bad(prob === 'Такой текст не пройдёт модерацию.' ? 'Такое название не пройдёт модерацию. Банда — за что-то, а не против кого-то.' : prob);
     if (q('SELECT 1 FROM gangs WHERE name = ? COLLATE NOCASE').get(name)) throw bad('Банда с таким названием уже есть.');
     const color = GANG_COLORS.includes(body.color) ? body.color : GANG_COLORS[Math.floor(Math.random() * GANG_COLORS.length)];
+    const was = myGangs(u.id);
+    if (was.length && !body.switch) throw inGangError(was[0]);
     if (!spendBeans(u.id, GANG_DEPOSIT, 'gang_deposit')) throw bad(`Нужно ${GANG_DEPOSIT} зёрен на залог. Залог вернётся, когда в банде будет 3 человека.`);
     let code;
     do code = U.shortCode(6); while (q('SELECT 1 FROM gangs WHERE code = ?').get(code));
     const prof = gangProfileInput(body, {});
     const r = q('INSERT INTO gangs (name, color, code, owner_id, deposit, created_at, about, area, interests, emoji, access) VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)')
       .run(name, color, code, u.id, U.now(), prof.about, prof.area, JSON.stringify(prof.interests), prof.emoji, prof.access || 'request');
+    for (const o of was) leaveGang(u.id, o.id);
     q('INSERT INTO gang_members (gang_id, user_id, joined_at) VALUES (?, ?, ?)').run(r.lastInsertRowid, u.id, U.now());
+    if (league) league.touch(Number(r.lastInsertRowid), [u.id]);
     if (features) features.onEvent('gang_join', u.id);
     return { ok: true, id: Number(r.lastInsertRowid), code };
   });
@@ -709,12 +717,30 @@ function createApi(db) {
     const g = q('SELECT * FROM gangs WHERE code = ? AND hidden = 0').get(m[1].toUpperCase());
     if (!g) throw bad('Ссылка банды не найдена или банда закрыта.');
     if (isMember(g.id, u.id)) return { ok: true, id: g.id, already: true };
-    joinGang(u, g);
+    joinGang(u, g, { switch: !!body.switch });
     return { ok: true, id: g.id };
   });
 
-  function joinGang(u, g) {
-    if (g.max_members && memberCount(g.id) >= g.max_members && !isMember(g.id, u.id)) throw bad(`В банде уже ${g.max_members} — это предел, который поставил владелец.`);
+  // Выйти из банды: владелец передаёт банду самому раннему участнику, пустая банда удаляется
+  function leaveGang(uid, gid) {
+    const g = q('SELECT * FROM gangs WHERE id = ?').get(gid);
+    if (!g) return;
+    if (league) league.touch(gid, [uid]);
+    q('DELETE FROM gang_members WHERE gang_id = ? AND user_id = ?').run(gid, uid);
+    const next = q('SELECT user_id FROM gang_members WHERE gang_id = ? ORDER BY joined_at LIMIT 1').get(gid);
+    if (!next) q('DELETE FROM gangs WHERE id = ?').run(gid);
+    else if (g.owner_id === uid) q('UPDATE gangs SET owner_id = ? WHERE id = ?').run(next.user_id, gid);
+  }
+  const otherGangs = (uid, gid) => myGangs(uid).filter((x) => x.id !== gid);
+  const inGangError = (o) => bad(`Ты уже в банде «${o.name}». Банда может быть только одна: выйди из неё или подтверди переход.`);
+
+  // Банда у человека одна: вступление в новую = выход из старой, но только с явного согласия (opts.switch)
+  function joinGang(u, g, opts = {}) {
+    if (!isMember(g.id, u.id) && memberCount(g.id) >= gangLimit(g)) throw bad(gangLimit(g) === MAX_MEMBERS ? `В банде уже ${MAX_MEMBERS} — это максимум.` : `В банде уже ${gangLimit(g)} — это предел, который поставил владелец.`);
+    const others = otherGangs(u.id, g.id);
+    if (others.length && !opts.switch) throw inGangError(others[0]);
+    for (const o of others) leaveGang(u.id, o.id);
+    if (league) league.touch(g.id, [u.id]);
     q("DELETE FROM gang_requests WHERE gang_id = ? AND user_id = ?").run(g.id, u.id);
     q('INSERT OR IGNORE INTO gang_members (gang_id, user_id, joined_at) VALUES (?, ?, ?)').run(g.id, u.id, U.now());
     if (g.deposit && memberCount(g.id) >= 3 && g.owner_id) {
@@ -742,6 +768,8 @@ function createApi(db) {
   }
   const gangOffice = (gid) => q(`SELECT COUNT(*) AS n FROM gang_members m JOIN users u ON u.id = m.user_id
     WHERE m.gang_id = ? AND u.share_office = 1 AND EXISTS (SELECT 1 FROM checkins c WHERE c.user_id = u.id AND c.day = ? AND c.left_at IS NULL)`).get(gid, U.msk().day).n;
+  // «Легенда ноября» — только пока идёт следующий месяц
+  const legendLabel = (ym) => { const d = U.msk().day; const [y, m] = ym.split('-').map(Number); const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`; return d.slice(0, 7) === next ? `Легенда ${league.MONTHS_GEN[m - 1]}` : null; };
   // Карточка банды: её видят и те, кто не в банде, если банда открыта для поиска
   function gangCard(g, uid) {
     const count = memberCount(g.id);
@@ -751,7 +779,8 @@ function createApi(db) {
     const req = uid ? q('SELECT status FROM gang_requests WHERE gang_id = ? AND user_id = ?').get(g.id, uid) : null;
     return {
       id: g.id, name: g.name, color: g.color, emoji: g.emoji || null, about: g.about || '', area: g.area || null, interests: JSON.parse(g.interests || '[]'),
-      access: g.access || 'invite', count, max: g.max_members || 0, full: !!(g.max_members && count >= g.max_members), owner, motto: g.motto || '', gold: !!g.gold,
+      access: g.access || 'invite', count, max: gangLimit(g), full: count >= gangLimit(g), owner,
+      trophies: league ? league.trophies(g.id) : null, legend: g.legend_month && league ? legendLabel(g.legend_month) : null, motto: g.motto || '', gold: !!g.gold,
       officeName: g.office_id ? (officeById(g.office_id) || {}).name || null : null,
       inOffice: gangOffice(g.id), msgsWeek: q('SELECT COUNT(*) AS n FROM messages WHERE gang_id = ? AND at > ?').get(g.id, U.now() - 7 * 864e5).n,
       since: g.created_at, faces, member: uid ? isMember(g.id, uid) : false, requested: !!(req && req.status === 'pending')
@@ -768,6 +797,22 @@ function createApi(db) {
     if (area) rows = rows.filter((g) => g.area === area);
     if (interest) rows = rows.filter((g) => JSON.parse(g.interests || '[]').includes(interest));
     if (needle) rows = rows.filter((g) => [g.name, g.about, g.area, ...(JSON.parse(g.interests || '[]'))].filter(Boolean).join(' ').toLocaleLowerCase('ru').includes(needle));
+    if (!needle && !area && !interest) {
+      // Ничего не ввели — рекомендуем: банды из твоего офиса, живые, с местами
+      const myOffice = (q('SELECT office_id FROM checkins WHERE user_id = ? ORDER BY at DESC LIMIT 1').get(u.id) || {}).office_id || null;
+      const items = rows.map((g) => {
+        const c = gangCard(g, u.id);
+        const why = [];
+        let rank = 0;
+        if (myOffice && g.office_id === myOffice) { rank += 3; why.push('твой офис'); }
+        if (c.inOffice) rank += 1 + Math.min(c.inOffice, 5) / 5;
+        if (c.msgsWeek >= 10) { rank += 1; why.push('живой чат'); }
+        if (c.trophies && c.trophies.w[0] + c.trophies.m[0]) { rank += 1; why.push('призёр Лиги'); }
+        if (c.full) rank -= 10;
+        return { ...c, why: why.join(' · '), rank: rank + Math.min(c.count, 30) / 60 };
+      }).filter((c) => !c.member).sort((a, b) => b.rank - a.rank).slice(0, 12);
+      return { items, recommended: true };
+    }
     const items = rows.map((g) => gangCard(g, u.id)).sort((a, b) => Number(a.member) - Number(b.member) || b.count - a.count).slice(0, 30);
     return { items };
   });
@@ -785,9 +830,12 @@ function createApi(db) {
     const g = q('SELECT * FROM gangs WHERE id = ? AND hidden = 0').get(Number(params.id));
     if (!g) throw new HttpError(404, 'Банда не найдена.');
     if (isMember(g.id, u.id)) return { ok: true, member: true, id: g.id };
-    if (g.access === 'open') { joinGang(u, g); return { ok: true, member: true, id: g.id }; }
+    if (g.access === 'open') { joinGang(u, g, { switch: !!body.switch }); return { ok: true, member: true, id: g.id }; }
     if (g.access !== 'request') throw bad('В эту банду попадают только по приглашению.');
-    if (g.max_members && memberCount(g.id) >= g.max_members) throw bad('В банде нет мест.');
+    if (memberCount(g.id) >= gangLimit(g)) throw bad('В банде нет мест.');
+    // Заявка из другой банды — только с согласием: когда владелец примет, человек перейдёт
+    const others = otherGangs(u.id, g.id);
+    if (others.length && !body.switch) throw inGangError(others[0]);
     rateLimit('gapply:' + u.id, 10, 24 * 3600e3);
     const was = q('SELECT status FROM gang_requests WHERE gang_id = ? AND user_id = ?').get(g.id, u.id);
     if (was && was.status === 'declined') throw bad('Владелец уже отклонил заявку. Попробуй позже или попроси приглашение.');
@@ -814,7 +862,7 @@ function createApi(db) {
     if (!r) throw bad('Заявка уже неактуальна.');
     const who = q('SELECT * FROM users WHERE id = ?').get(r.user_id);
     if (params.action === 'accept') {
-      joinGang({ ...who, look: JSON.parse(who.look || '{}') }, g);
+      joinGang({ ...who, look: JSON.parse(who.look || '{}') }, g, { switch: true });
       fireAndForget(notify([who.id], { title: g.name, body: 'Заявка принята — ты в банде!', url: `/#gang/${g.id}`, tag: `greq-${g.id}` }));
       return { ok: true };
     }
@@ -834,7 +882,7 @@ function createApi(db) {
       if (prob) throw bad(prob);
       if (q('SELECT 1 FROM gangs WHERE name = ? COLLATE NOCASE AND id != ?').get(name, g.id)) throw bad('Банда с таким названием уже есть.');
     }
-    const max = body.maxMembers !== undefined ? Math.max(0, Math.min(200, Number(body.maxMembers) || 0)) : g.max_members;
+    const max = body.maxMembers !== undefined ? Math.max(0, Math.min(MAX_MEMBERS, Number(body.maxMembers) || 0)) : g.max_members;
     if (max && max < memberCount(g.id)) throw bad(`В банде уже ${memberCount(g.id)} — предел не может быть меньше.`);
     const who = body.whoInvites !== undefined ? (body.whoInvites === 'owner' ? 'owner' : 'all') : g.who_invites;
     const office = body.office !== undefined ? (body.office && officeById(body.office) ? body.office : null) : g.office_id;
@@ -844,7 +892,7 @@ function createApi(db) {
     // Открыли банду — висящие заявки принимаем сразу
     if (p.access === 'open') for (const r of q("SELECT user_id FROM gang_requests WHERE gang_id = ? AND status = 'pending'").all(g.id)) {
       const who2 = q('SELECT * FROM users WHERE id = ?').get(r.user_id);
-      try { joinGang({ ...who2, look: JSON.parse(who2.look || '{}') }, { ...g, max_members: max }); } catch {}
+      try { joinGang({ ...who2, look: JSON.parse(who2.look || '{}') }, { ...g, max_members: max }, { switch: true }); } catch {}
     }
     return { ok: true };
   });
@@ -854,6 +902,7 @@ function createApi(db) {
     const g = ownGang(u, params.id);
     const uid = Number(params.uid);
     if (uid === u.id) throw bad('Себя не выгоняют — передай банду и выйди.');
+    if (league) league.touch(g.id, [uid]);
     q('DELETE FROM gang_members WHERE gang_id = ? AND user_id = ?').run(g.id, uid);
     // Чтобы не вернулся заявкой на следующий же день — только новым приглашением
     q("INSERT OR REPLACE INTO gang_requests (gang_id, user_id, at, status) VALUES (?, ?, ?, 'declined')").run(g.id, uid, U.now());
@@ -937,7 +986,7 @@ function createApi(db) {
     const g = q('SELECT * FROM gangs WHERE id = ? AND hidden = 0').get(inv.gang_id);
     if (params.action === 'accept') {
       if (!g) throw bad('Банда закрыта.');
-      joinGang(u, g);
+      joinGang(u, g, { switch: !!body.switch });
       q("UPDATE gang_invites SET status = 'accepted' WHERE gang_id = ? AND to_id = ? AND status = 'pending'").run(g.id, u.id);
       if (inv.from_id && features) features.onEvent('recruit', inv.from_id);
       if (inv.from_id) fireAndForget(notify([inv.from_id], { title: g.name, body: `${u.nick} ${U.g(u.look, 'вступил', 'вступила')} в банду`, url: `/#gang/${g.id}`, tag: `ginv-${g.id}` }));
@@ -951,10 +1000,7 @@ function createApi(db) {
     const u = requireUser(req);
     const g = q('SELECT * FROM gangs WHERE id = ?').get(Number(params.id));
     if (!g || !isMember(g.id, u.id)) throw bad('Ты не в этой банде.');
-    q('DELETE FROM gang_members WHERE gang_id = ? AND user_id = ?').run(g.id, u.id);
-    const next = q('SELECT user_id FROM gang_members WHERE gang_id = ? ORDER BY joined_at LIMIT 1').get(g.id);
-    if (!next) q('DELETE FROM gangs WHERE id = ?').run(g.id);
-    else if (g.owner_id === u.id) q('UPDATE gangs SET owner_id = ? WHERE id = ?').run(next.user_id, g.id);
+    leaveGang(u.id, g.id);
     return { ok: true };
   });
 
@@ -1018,7 +1064,7 @@ function createApi(db) {
         code: (g.who_invites || 'all') === 'all' || g.owner_id === u.id ? g.code : null, link: (g.who_invites || 'all') === 'all' || g.owner_id === u.id ? `${config.baseUrl}/g/${g.code}` : null, isOwner: g.owner_id === u.id,
         depositPending: !!g.deposit && members.length < 3, count: members.length,
         about: g.about || '', area: g.area || null, interests: JSON.parse(g.interests || '[]'), emoji: g.emoji || null, access: g.access || 'invite',
-        max: g.max_members || 0, whoInvites: g.who_invites || 'all', office: g.office_id || null, canInvite: (g.who_invites || 'all') === 'all' || g.owner_id === u.id
+        max: gangLimit(g), maxSet: g.max_members || 0, league: league ? league.weekPlace(g.id) : null, trophies: league ? league.trophies(g.id) : null, legend: g.legend_month && league ? legendLabel(g.legend_month) : null, whoInvites: g.who_invites || 'all', office: g.office_id || null, canInvite: (g.who_invites || 'all') === 'all' || g.owner_id === u.id
       },
       requests: g.owner_id === u.id ? q(`SELECT r.user_id AS id, r.at, x.nick, x.look, x.profile, x.share_office FROM gang_requests r JOIN users x ON x.id = r.user_id WHERE r.gang_id = ? AND r.status = 'pending' ORDER BY r.at`).all(g.id).map((r) => ({ id: r.id, nick: r.nick, look: publicLook(r) })) : [],
       members: statuses.map((s) => ({ ...s, officeName: s.office ? officeName[s.office] : null })),
@@ -1204,6 +1250,7 @@ function createApi(db) {
     const u = requireUser(req);
     const it = SHOP.find((s) => s.id === body.item);
     if (!it) throw bad('Нет такого предмета.');
+    if (it.award) throw bad('Это не купить — только выиграть в Лиге банд.');
     if (it.kind === 'gang') {
       const g = q('SELECT * FROM gangs WHERE id = ?').get(Number(body.gangId));
       if (!g || !isMember(g.id, u.id)) throw bad('Выбери свою банду.');
@@ -1328,6 +1375,7 @@ function createApi(db) {
   battle = require('./battle').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, publicLook, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   blitz = require('./blitz').register({ db, q, route, requireUser, bad, U, addBeans, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   polls = require('./polls').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, rateLimit, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
+  league = require('./league').register({ db, q, route, requireUser, U, addBeans, notify, fireAndForget });
   feedback = require('./feedback').register({ db, q, route, requireUser, requireAdmin, bad, U, addBeans, notify, fireAndForget, HttpError, BUILD });
 
   // ---------- Обработчик ----------

@@ -706,3 +706,21 @@ button.quest:disabled { cursor: default; }
 .invite-app { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: linear-gradient(135deg, #FFF6DA, #FFE7A8); border: 0; border-radius: 16px; padding: 12px 14px; font: inherit; color: var(--ink); cursor: pointer; }
 .invite-app b { display: block; font-size: 15px; }
 .invite-app > span[aria-hidden] { font-size: 26px; }
+
+/* Лига банд */
+.lg-row { display: flex; align-items: center; gap: 10px; padding: 8px 6px; border-radius: 12px; }
+.lg-row.me { background: #FFF6DA; }
+.lg-row .g-badge { width: 36px; height: 36px; font-size: 18px; border-radius: 11px; }
+.lg-place { width: 28px; text-align: center; font-weight: 900; font-size: 18px; color: var(--muted); }
+.lg-score { font-size: 18px; font-weight: 900; color: var(--ink); }
+.lg-score.big { font-size: 28px; }
+.lg-mine { background: linear-gradient(135deg, #FFF6DA, #FFE7A8); border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.lg-mine .g-stats div { background: rgba(255,255,255,.7); }
+.lg-list { display: flex; flex-direction: column; gap: 2px; }
+.lg-rules summary { font-weight: 900; cursor: pointer; min-height: 32px; }
+.lg-card .lg-mini { display: flex; flex-direction: column; gap: 2px; font-size: 13px; font-weight: 800; color: var(--muted); }
+.lg-card .lg-mini .me { color: var(--ink); }
+.lg-strip { display: block; width: 100%; text-align: left; border: 0; border-radius: 12px; padding: 8px 12px; margin: 6px 0; background: #FFF6DA; font: inherit; font-size: 13px; color: var(--ink); cursor: pointer; }
+.g-legend { display: inline-block; align-self: flex-start; font-weight: 900; font-size: 13px; padding: 3px 10px; border-radius: 999px; background: linear-gradient(90deg, #FFD84D, #FFB020); color: #5B3B00; margin: 4px 0; }
+.g-why { display: block; font-size: 12px; font-weight: 800; color: #1F7A3A; margin-top: 2px; }
+.ava.champ { box-shadow: 0 0 0 2px #FFF3B0, 0 0 12px 2px rgba(255, 200, 40, .75); }

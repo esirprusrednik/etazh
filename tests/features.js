@@ -12,7 +12,7 @@ const server = spawn(process.execPath, ['--no-warnings', path.join(__dirname, '.
   env: {
     ...process.env, PORT: String(PORT), BASE_URL: BASE, DB_PATH: path.join(dir, 'db.sqlite'),
     EMAIL_PEPPER: 'test-pepper-test-pepper-test-pepper-123', MAIL_MODE: 'console', SECURE_COOKIES: 'false', ADMIN_EMAILS: 'boss@mts.ru',
-    TZ_OFFSET_HOURS: String(12 - new Date().getUTCHours())
+    TZ_OFFSET_HOURS: String(12 - new Date().getUTCHours()), LEAGUE_LAUNCH: '2020-01-01'
   },
   stdio: ['ignore', 'pipe', 'pipe']
 });
@@ -32,7 +32,8 @@ class Client {
     return { status: res.status, json };
   }
   get(u) { return this.req('GET', u); }
-  post(u, b = {}) { return this.req('POST', u, b); }
+  // Старые сценарии писались, когда банд могло быть несколько: переход подтверждаем сразу (правило «одна банда» проверяется отдельно)
+  post(u, b = {}) { return this.req('POST', u, this.strict || !/^\/api\/(gangs(\/join|\/\d+\/apply)?|invites\/\d+\/accept)$/.test(u) ? b : { switch: true, ...b }); }
   async login(email, nick) {
     const r = await this.post('/api/auth/request', { email, consent: true });
     await this.post('/api/auth/code', { email, code: r.json.devCode });
@@ -311,6 +312,60 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     await o.post(`/api/gangs/${gg.id}/owner/${x.id}`);
     assert.ok((await x.get(`/api/gangs/${gg.id}`)).json.gang.isOwner);
     assert.equal((await o.post(`/api/gangs/${gg.id}/settings`, { about: 'x' })).status, 400);
+  });
+
+  await step('одна банда на человека: без подтверждения нельзя, с ним — переход; предел 30', async () => {
+    const p1 = await new Client().login('pavel@mts.ru', 'один_в_поле');
+    const p2 = await new Client().login('polina@mts.ru', 'тихая_гавань');
+    p1.strict = p2.strict = true;
+    const g1 = (await p1.post('/api/gangs', { name: 'Первая', access: 'open' })).json;
+    const g2 = (await p2.post('/api/gangs', { name: 'Вторая', access: 'open' })).json;
+    const r = await p1.post(`/api/gangs/${g2.id}/apply`);
+    assert.equal(r.status, 400); assert.ok(/уже в банде «Первая»/.test(r.json.error));
+    assert.equal((await p1.post('/api/gangs/join', { code: g2.code })).status, 400);
+    assert.equal((await p1.post('/api/gangs', { name: 'Третья' })).status, 400, 'и новую не сколотить');
+    assert.ok((await p1.post(`/api/gangs/${g2.id}/apply`, { switch: true })).json.member);
+    const mine = (await p1.get('/api/me')).json.user.gangs;
+    assert.deepEqual(mine.map((x) => x.id), [g2.id], 'остался только в новой');
+    assert.equal((await p1.get(`/api/gangs/${g1.id}`)).status, 404, 'пустая старая банда удалена');
+    // Предел: в настройках больше 30 не поставить
+    await p2.post(`/api/gangs/${g2.id}/settings`, { maxMembers: 500 });
+    assert.equal((await p2.get(`/api/gangs/${g2.id}`)).json.gang.max, 30);
+  });
+
+  await step('лига банд: очки за отметку, средний вклад, «в сборе», призы за прошлую неделю', async () => {
+    const L = [];
+    for (const [e, n] of [['l1@mts.ru', 'лига_один'], ['l2@mts.ru', 'лига_два'], ['l3@mts.ru', 'лига_три']]) L.push(await new Client().login(e, n));
+    const lg = (await L[0].post('/api/gangs', { name: 'Лигачи', access: 'open' })).json;
+    await L[1].post(`/api/gangs/${lg.id}/apply`); await L[2].post(`/api/gangs/${lg.id}/apply`);
+    // Прошлая неделя: подкладываем очки и проверяем, что призы раздались один раз
+    const { DatabaseSync } = require('node:sqlite');
+    const sdb = new DatabaseSync(path.join(dir, 'db.sqlite'));
+    const { period } = require('../server/league');
+    const prev = period('W', new Date(Date.parse(mskToday() + 'T00:00:00Z') - 7 * 864e5).toISOString().slice(0, 10));
+    for (const x of L) {
+      sdb.prepare('INSERT INTO league_points (day, gang_id, user_id, points) VALUES (?, ?, ?, ?)').run(prev.from, lg.id, x.id, 30);
+      sdb.prepare('INSERT OR IGNORE INTO league_roster (period, gang_id, user_id) VALUES (?, ?, ?)').run(prev.key, lg.id, x.id);
+    }
+    sdb.close();
+    for (const x of L) await x.post('/api/checkin', { office: 'smol' });
+    const before = (await L[1].get('/api/me')).json.user.beans;
+    const w = (await L[0].get('/api/league')).json;
+    assert.ok(w.mine && w.mine.id === lg.id, 'моя банда в лиге');
+    assert.ok(w.mine.myPoints >= 5, 'отметка принесла очки');
+    assert.ok(w.mine.together >= 1, 'все трое отметились — банда в сборе');
+    assert.equal(w.mine.score, Math.round(w.mine.total / Math.max(3, w.mine.roster)) + w.mine.together * 10);
+    assert.ok(w.top.some((r) => r.id === lg.id && r.place));
+    const w2 = (await L[1].get('/api/league')).json;
+    assert.equal(w2.last.winners[0].name, 'Лигачи');
+    const after = (await L[1].get('/api/me')).json.user.beans;
+    assert.equal(after - before, 30, '+30 за первое место недели');
+    assert.ok((await L[1].get('/api/me')).json.user.owned.includes('p_trophy'), 'кубок в руке');
+    await L[1].get('/api/league');
+    assert.equal((await L[1].get('/api/me')).json.user.beans, after, 'второй раз не платим');
+    const prof = (await L[2].get(`/api/gangs/${lg.id}/profile`)).json;
+    assert.equal(prof.trophies.w[0], 1);
+    assert.equal((await L[1].post('/api/shop/buy', { item: 'p_laurel' })).status, 400, 'венок не купить');
   });
 
   console.log(`\nВсё прошло: ${passed} проверок`);

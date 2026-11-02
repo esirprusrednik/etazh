@@ -31,7 +31,8 @@ class Client {
     return { status: res.status, json };
   }
   get(u) { return this.req('GET', u); }
-  post(u, b = {}) { return this.req('POST', u, b); }
+  // Старые сценарии писались, когда банд могло быть несколько: переход подтверждаем сразу (правило «одна банда» проверяется отдельно)
+  post(u, b = {}) { return this.req('POST', u, this.strict || !/^\/api\/(gangs(\/join|\/\d+\/apply)?|invites\/\d+\/accept)$/.test(u) ? b : { switch: true, ...b }); }
   async login(email, nick) {
     const r = await this.post('/api/auth/request', { email, consent: true });
     await this.post('/api/auth/code', { email, code: r.json.devCode });

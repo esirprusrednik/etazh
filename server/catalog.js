@@ -42,6 +42,7 @@ const SHOP = [
   { id: 'fr_gold', kind: 'frame', name: 'Золотая рамка', price: 60, color: '#FFC93C' },
   { id: 'fr_neon', kind: 'frame', name: 'Неоновая рамка', price: 80, color: '#22D3EE' },
   { id: 'fr_fire', kind: 'frame', name: 'Огненная рамка', price: 120, color: '#F97316' },
+  { id: 'fr_champ', kind: 'frame', name: 'Рамка чемпиона', price: 0, award: true, how: '1 место в Лиге месяца', color: '#FFD84D' },
   { id: 'crown', kind: 'crown', name: 'Корона «Сотрудник месяца»', price: 150 },
   // Детали для конструктора аватара: покупаешь один раз, надеваешь в конструкторе
   { id: 'p_sign', kind: 'part', slot: 'prop', value: 'sign', name: 'Табличка «Я на совещании»', price: 30 },
@@ -56,6 +57,9 @@ const SHOP = [
   { id: 'p_cyber', kind: 'part', slot: 'outfit', value: 'cyber', name: 'Неоновая куртка', price: 150, legend: true },
   { id: 'p_visor', kind: 'part', slot: 'mask', value: 'visor', name: 'Кибервизор', price: 90, legend: true },
   { id: 'p_anime_hair', kind: 'part', slot: 'hairStyle', value: 'anime', name: 'Аниме-причёска', price: 100, legend: true },
+  // Трофеи Лиги банд: не продаются, только за призовое место
+  { id: 'p_trophy', kind: 'part', slot: 'prop', value: 'trophy', name: 'Кубок Лиги', price: 0, award: true, how: '1 место в Лиге недели' },
+  { id: 'p_laurel', kind: 'part', slot: 'hat', value: 'laurel', name: 'Лавровый венок', price: 0, award: true, how: 'топ-3 в Лиге месяца' },
   { id: 'p_anime_eyes', kind: 'part', slot: 'eyeShape', value: 'anime', name: 'Аниме-глаза', price: 80, legend: true },
   { id: 'g_gold', kind: 'gang', name: 'Позолоченное знамя', price: 100 },
   { id: 'g_motto', kind: 'gang', name: 'Девиз банды', price: 40 }
