@@ -841,7 +841,7 @@ async function refresh({ all = false } = {}) {
   if (all || t === 'chats' || t === 'games') jobs.push(loadCrew());
   if (all || (t === 'chats' && S.chatGang) || t === 'games') jobs.push(loadGang(), loadGangExtra());
   if (all || t === 'office') jobs.push(loadEvents());
-  if (all || t === 'games') jobs.push(loadQuiz(), loadBlitz(), loadLeague('W').catch(() => {}), loadDuels());
+  if (all || t === 'games') jobs.push(loadQuiz(), loadBlitz(), loadLeague('W').catch(() => {}), loadDuels(), loadTour());
   if (t === 'chats' && S.battle) jobs.push(loadBattle());
   if (t === 'chats' && S.dm) jobs.push(loadDm());
   await Promise.all(jobs);
@@ -1309,6 +1309,7 @@ function renderGames() {
   </section>`;
   return `${pageHead('Игры', 'Задания, квизы и бои со своими. За всё дают зёрна, их тратят в Лавке')}
     ${renderLeagueCard()}
+    ${renderTourCard()}
     ${renderDuelsCard()}
     ${renderQuests()}
     ${renderBlitzCard()}
@@ -1596,6 +1597,67 @@ function renderGEvents() {
     ${v.past.length ? `<details><summary class="small" style="cursor:pointer;min-height:32px">Недавно прошли (${v.past.length})</summary>${v.past.map(renderGEvent).join('')}</details>` : ''}
   </section>`;
 }
+// Подсказка: сворачиваемый блок «?» с правилами. Открытость запоминаем, чтобы не мешала
+function hint(id, title, html) {
+  const open = !!(S.hintOpen && S.hintOpen[id]);
+  return `<details class="hint" data-hint="${id}" ${open ? 'open' : ''}><summary><span class="hint-q" aria-hidden="true">?</span>${title}</summary><div class="hint-body">${html}</div></details>`;
+}
+const WAR_RULES = (r) => `<ol class="ol">
+  <li><b>Кто бросает вызов.</b> Владелец банды: выбирает соперника, вид битвы и героя. Обе банды — от 3 человек.</li>
+  <li><b>Ответ — ${r.pendingDays} дня.</b> Владелец соперника принимает и выставляет своего героя или отказывается. Молчание = отказ, отказы видны в статистике банды.</li>
+  <li><b>Срок битвы — 5 рабочих дней</b> с момента, как вызов приняли. Праздники и выходные не считаются.</li>
+  <li><b>Блиц:</b> 3 минуты вопросов по теме. Первым проходит герой принявшей банды, потом — вызвавшей. Счёт скрыт до итога. Больше верных — победа, поровну — побеждает тот, кто быстрее. Не успел — техническое поражение.</li>
+  <li><b>Морской бой:</b> быстрая партия героев, по 1,5 минуты на часах.</li>
+  <li><b>Ограничения:</b> не больше 2 битв у банды сразу, с одной бандой — одна битва и пауза ${r.rematchDays} дней перед реваншем. По одной теме банда бьётся один раз.</li>
+  <li><b>Награда:</b> герою-победителю +${r.prizeHero} зёрен, всей его банде по +${r.prizeTeam} и очки в Лигу.</li></ol>`;
+const HERO_RULES = `<ul class="ol">
+  <li>Нажми «🙋 Готов быть героем» — владелец увидит тебя первым в списке.</li>
+  <li><b>Ротация:</b> кто бился за банду в прошлый раз, в следующей битве не выходит — пусть пробуют все.</li>
+  <li>Не сможешь — откажись до старта, владелец назначит замену. После старта отказаться нельзя.</li>
+  <li>Рядом с ником — сколько раз был героем и сколько побед.</li></ul>`;
+const BET_RULES = (max) => `<ul class="ol">
+  <li>Ставит любой член банды — от 1 до ${max} зёрен, <b>только за свою банду</b>. Против своих ставить нельзя.</li>
+  <li>Ставки открыты, пока герои не начали: в блице — до старта первого героя, в морском бою — пока партия не пошла.</li>
+  <li>Победители забирают свои ставки и делят банк проигравших пропорционально ставкам. Ничья или отмена — всё возвращается.</li></ul>`;
+function warHeroPick(members, sel, act) {
+  return `<div class="hero-list">${members.map((p) => `<button class="hero-opt ${sel === p.id ? 'on' : ''}" data-act="${act}" data-v="${p.id}" ${p.rotation ? 'disabled' : ''}>
+    ${avatar(p.look, 34)}<span class="grow" style="min-width:0"><b class="ellipsis">${esc(p.nick)}${p.volunteer ? ' 🙋' : ''}</b>
+    <span class="small">${p.rotation ? 'бился в прошлый раз — ротация' : p.wars ? `героем ${p.wars} ${plural(p.wars, 'раз', 'раза', 'раз')} · побед ${p.wins}` : 'ещё не был героем'}</span></span></button>`).join('')}</div>`;
+}
+
+// ===== Турнир банд =====
+async function loadTour() { try { S.tour = await get('/api/tourney'); } catch { S.tour = null; } }
+const TOUR_RULES = (r) => `<ol class="ol">
+  <li><b>Запись</b> — с 15-го числа до старта. Записывает владелец, в банде — от 3 человек.</li>
+  <li><b>Старт</b> — за 6 рабочих дней до конца месяца. До ${r.maxTeams} банд, сетка — по очкам Лиги месяца: сильные получают слабых, лишним — проход без боя.</li>
+  <li><b>Матч</b> — блиц героев на 3 минуты по теме раунда, на матч — ${r.roundDays} рабочих дня. Героя назначает владелец, ротация действует. Ничья — проходит банда выше в Лиге.</li>
+  <li><b>Призы:</b> чемпиону — Кубок в профиль банды и по ${r.prizeChamp} зёрен каждому, финалисту — по ${r.prizeFinal}.</li></ol>`;
+const ddmmT = (d) => `${d.slice(8)}.${d.slice(5, 7)}`;
+function renderTourCard() {
+  const t = S.tour;
+  if (!t) return '';
+  const line = t.status === 'reg' ? (t.regOpen ? `запись открыта до ${ddmmT(t.startDay)}` : `запись с ${ddmmT(t.regFrom)}, старт ${ddmmT(t.startDay)}`)
+    : t.status === 'running' ? `идёт ${t.rounds.length ? t.rounds[t.rounds.length - 1].name : ''}` : t.status === 'done' ? `чемпион — «${t.champion ? esc(t.champion.name) : '—'}»` : 'перенесён: банд не хватило';
+  return `<section class="card tour-card"><div class="row" style="justify-content:space-between"><span class="card-title">🏆 ${esc(t.title)}</span><span class="small">${line}</span></div>
+    <p class="small" style="margin:0">Турнир банд на выбывание: блиц героев, сетка до 8 банд.${t.teams.length ? ` Записались: ${t.teams.length}.` : ''}${t.registered ? ' <b>Твоя банда в деле.</b>' : ''}</p>
+    ${t.last && t.last.champion ? `<p class="small" style="margin:0">Прошлый кубок — «${esc(t.last.champion.name)}»</p>` : ''}
+    <button class="btn small" data-act="tourney-open">Сетка и правила</button></section>`;
+}
+function renderTourney() {
+  const t = S.tour;
+  if (!t) return '<p class="sub">Загружаем…</p>';
+  const team = (g, win) => (g ? `<span class="tm ${win ? 'win' : ''} ${g.mine ? 'mine' : ''}">${crestSvg(crestOf(g), { size: 22 })}<span class="ellipsis">${esc(g.name)}</span></span>` : '<span class="tm bye">проход без боя</span>');
+  const bracket = t.rounds.length ? `<div class="bracket">${t.rounds.map((r) => `<div class="br-round"><div class="br-name">${esc(r.name)}<span class="small"> · ${esc(r.topic)}</span></div>
+      ${r.matches.map((m) => `<div class="br-match">${team(m.a, m.winner && m.winner === (m.a || {}).id)}${team(m.b, m.winner && m.b && m.winner === m.b.id)}</div>`).join('')}</div>`).join('')}</div>` : '';
+  const reg = t.status === 'reg' ? (t.canRegister ? `<button class="btn ${t.registered ? 'ghost' : 'war-call'}" data-act="tourney-reg" data-v="${t.registered ? 'off' : 'on'}">${t.registered ? 'Сняться с турнира' : '🏆 Записать банду'}</button>`
+    : `<p class="small" style="margin:0">${t.regOpen ? (t.myGangSmall ? 'В турнире — банды от 3 человек.' : t.registered ? 'Твоя банда записана.' : 'Записывает владелец банды.') : `Запись откроется ${ddmmT(t.regFrom)}.`}</p>`) : '';
+  return `${t.status === 'done' && t.champion ? `<div class="tour-champ">${crestSvg(crestOf(t.champion), { size: 90, full: true, motto: t.champion.name })}<b>Чемпион: «${esc(t.champion.name)}»</b>${t.runnerUp ? `<span class="small">финалист — «${esc(t.runnerUp.name)}»</span>` : ''}</div>` : ''}
+    <div class="tour-dates"><div><b>${ddmmT(t.regFrom)}</b><span>запись</span></div><div><b>${ddmmT(t.startDay)}</b><span>старт</span></div><div><b>${t.teams.length}</b><span>${plural(t.teams.length, 'банда', 'банды', 'банд')}</span></div></div>
+    ${reg}
+    ${bracket || (t.teams.length ? `<div class="g-tags big">${t.teams.map((g) => `<i>${esc(g.name)}</i>`).join('')}</div>` : '')}
+    ${hint('tour-rules', 'Регламент турнира', TOUR_RULES(t.rules))}`;
+}
+
 // ===== Битвы банд =====
 const fmtLeft = (ms) => { if (ms <= 0) return 'время вышло'; const h = Math.floor(ms / 3600e3); return h >= 24 ? `${Math.floor(h / 24)} дн ${h % 24} ч` : `${h} ч ${Math.floor((ms % 3600e3) / 60e3)} мин`; };
 async function loadWars() {
@@ -1615,11 +1677,21 @@ function renderWar(w) {
   if (w.canCancel) acts.push(`<button class="btn small ghost" data-act="war-decline" data-id="${w.id}">Отозвать вызов</button>`);
   if (w.canPlay) acts.push(`<button class="btn small war-go" data-act="war-play" data-id="${w.id}">▶ Пройти блиц за банду — 3 минуты</button>`);
   if (w.status === 'active' && w.kind === 'sea' && w.amHero && w.battleId) acts.push(`<button class="btn small war-go" data-act="battle-go" data-id="${w.battleId}" data-opp="${w.opp}">⚓ К бою</button>`);
+  const mySide = w.from.mine ? w.from : w.to.mine ? w.to : null;
+  if (w.canSetHero) acts.push(`<button class="btn small ghost" data-act="war-hero-open" data-id="${w.id}">${mySide && mySide.hero ? '🔁 Сменить героя' : '🦸 Назначить героя'}</button>`);
+  if (w.canStepDown) acts.push(`<button class="btn small ghost" data-act="war-step-down" data-id="${w.id}">Не смогу биться</button>`);
+  const live = ['pending', 'active'].includes(w.status);
+  const betLine = w.bets.mine ? `🎲 Твоя ставка: ${w.bets.mine.amount}${w.bets.mine.payout != null ? ` → получено ${w.bets.mine.payout}` : ''}`
+    : w.bets.open ? `<span class="bet-row">🎲 Ставка за своих: ${[1, 3, 5, 10].filter((x) => x <= w.bets.max).map((x) => `<button class="chip bet-chip" data-act="war-bet" data-id="${w.id}" data-v="${x}">${x}</button>`).join('')}</span>` : '';
+  const pools = (w.from.pool || w.to.pool) ? `<span class="small">банк: ${w.from.pool} : ${w.to.pool}</span>` : '';
+  const cheer = live && mySide && !w.amHero ? (w.cheered ? '<span class="small">💪 ты поддержал(а) героя</span>' : `<button class="btn small cheer" data-act="war-cheer" data-id="${w.id}">💪 Держись!</button>`) : '';
+  const extra = [betLine, pools, cheer, live && mySide && mySide.cheers ? `<span class="small">💪 болеют за нашего: ${mySide.cheers}</span>` : ''].filter(Boolean);
   return `<div class="war ${w.status} ${w.winner || ''}">
-    <div class="war-head"><span class="war-kind">${kind}</span><span class="small">${status}</span></div>
+    <div class="war-head"><span class="war-kind">${w.tour ? '🏆 Турнир · ' : ''}${kind}</span><span class="small">${status}</span></div>
     <div class="war-vs">${warSide(w.from, 'вызвали, герой')}<span class="war-x">VS</span>${warSide(w.to, 'приняли, герой')}</div>
     ${w.status === 'done' && w.result && w.result.note ? `<p class="small" style="margin:0;text-align:center">${esc(w.result.note)}</p>` : ''}
     ${w.waitReason ? `<p class="small" style="margin:0">${esc(w.waitReason)}</p>` : ''}
+    ${extra.length ? `<div class="war-extra">${extra.join('')}</div>` : ''}
     ${acts.length ? `<div class="row" style="flex-wrap:wrap;gap:6px">${acts.join('')}</div>` : ''}
   </div>`;
 }
@@ -1628,9 +1700,13 @@ function renderWars() {
   if (!v) return '';
   const rec = v.record;
   return `<section class="card wars">
-    <div class="chats-head"><h3>⚔️ Битвы банд</h3><span class="small">${rec.w + rec.l + rec.d ? `побед ${rec.w} · поражений ${rec.l}${rec.d ? ` · ничьих ${rec.d}` : ''}` : 'ещё не воевали'}</span></div>
+    <div class="chats-head"><h3>⚔️ Битвы банд</h3><span class="small">${rec.w + rec.l + rec.d ? `побед ${rec.w} · поражений ${rec.l}${rec.d ? ` · ничьих ${rec.d}` : ''}` : 'ещё не воевали'}${rec.declined ? ` · отказов ${rec.declined}` : ''}</span></div>
     ${v.items.length ? v.items.map(renderWar).join('') : '<p class="small" style="margin:4px 0 0">Вызови другую банду: блиц на 3 минуты по теме или быстрый морской бой. От каждой банды — один герой, на всё — рабочая неделя.</p>'}
-    ${v.isOwner ? `<button class="btn war-call" data-act="war-new">⚔️ Бросить вызов</button>` : '<p class="small" style="margin:0">Вызов бросает и принимает владелец банды. Хочешь быть героем — скажи ему.</p>'}
+    <button class="btn small ${v.volunteer ? 'green' : 'ghost'} vol-btn" data-act="war-volunteer" data-v="${v.volunteer ? '0' : '1'}">${v.volunteer ? '🙋 Ты в списке добровольцев — нажми, чтобы выйти' : '🙋 Готов быть героем'}</button>
+    ${v.isOwner ? (v.members < v.minMembers ? `<p class="small" style="margin:0">Битвы — для банд от ${v.minMembers} человек. Позови своих.</p>` : '<button class="btn war-call" data-act="war-new">⚔️ Бросить вызов</button>') : `<p class="small" style="margin:0">Вызов бросает и принимает владелец банды.${v.volunteers ? ` Добровольцев: ${v.volunteers}.` : ''}</p>`}
+    ${hint('war-rules', 'Как устроены битвы банд', WAR_RULES(v.rules))}
+    ${hint('war-hero', 'Кто становится героем', HERO_RULES)}
+    ${hint('war-bets', 'Как работают ставки', BET_RULES(v.rules.betMax))}
   </section>`;
 }
 function renderWarNew() {
@@ -1638,13 +1714,16 @@ function renderWarNew() {
   const m = S.warMeta;
   if (!m) return '<p class="sub">Загружаем…</p>';
   const rival = m.rivals.find((r) => r.id === d.to);
-  return `<div class="field">Кого вызываем<div class="war-rivals">${m.rivals.length ? m.rivals.map((r) => `<button class="war-rival ${d.to === r.id ? 'on' : ''}" data-act="war-set" data-k="to" data-v="${r.id}" ${r.busy ? 'disabled' : ''}>${crestSvg(crestOf(r), { size: 34 })}<span class="ellipsis">${esc(r.name)}</span><span class="small">${r.busy ? 'занята' : r.count + ' чел.'}</span></button>`).join('') : '<p class="small">Других банд пока нет — позови коллег сколотить свою.</p>'}</div></div>
-    <div class="field">Чем бьёмся<div class="war-kinds">
+  if (m.self) return `<p class="sub">${esc(m.self)}</p>`;
+  return `<p class="small" style="margin:0">Четыре шага: соперник → вид битвы → тема → герой. Соперник получит пуш и ответит в течение 3 дней.</p>
+    <div class="field">1. Кого вызываем<div class="war-rivals">${m.rivals.length ? m.rivals.map((r) => `<button class="war-rival ${d.to === r.id ? 'on' : ''}" data-act="war-set" data-k="to" data-v="${r.id}" ${r.block ? 'disabled' : ''}>${crestSvg(crestOf(r), { size: 34 })}<span class="grow" style="min-width:0"><b class="ellipsis" style="display:block">${esc(r.name)}</b><span class="small">${r.block ? esc(r.block) : r.count + ' чел.'}</span></span></button>`).join('') : '<p class="small">Других банд пока нет — позови коллег сколотить свою.</p>'}</div></div>
+    <div class="field">2. Чем бьёмся<div class="war-kinds">
       <button class="war-kindbtn ${d.kind === 'blitz' ? 'on' : ''}" data-act="war-set" data-k="kind" data-v="blitz"><span>🧠</span><b>Блиц</b><span class="small">3 минуты вопросов по теме. Первым проходит их герой, потом наш</span></button>
       <button class="war-kindbtn ${d.kind === 'sea' ? 'on' : ''}" data-act="war-set" data-k="kind" data-v="sea"><span>⚓</span><b>Морской бой</b><span class="small">Быстрая партия героев: по 1,5 минуты на часах</span></button></div></div>
-    ${d.kind === 'blitz' ? `<div class="field">Тема${!rival ? ' <span class="small">(сначала выбери соперника)</span>' : ''}<div class="war-topics">${m.topics.map((t) => `<button class="war-topic ${d.topic === t.id ? 'on' : ''}" data-act="war-set" data-k="topic" data-v="${t.id}" ${!t.free ? 'disabled' : ''}><span class="war-temo">${t.emoji}</span><span class="grow"><b>${esc(t.title)}</b><span class="small">${!t.free ? (t.usedByMe ? 'ваша банда уже билась по ней' : 'соперник уже бился по ней') : esc(t.desc)}</span></span></button>`).join('')}</div>
+    ${d.kind === 'blitz' ? `<div class="field">3. Тема${!rival ? ' <span class="small">(сначала выбери соперника)</span>' : ''}<div class="war-topics">${m.topics.map((t) => `<button class="war-topic ${d.topic === t.id ? 'on' : ''}" data-act="war-set" data-k="topic" data-v="${t.id}" ${!t.free ? 'disabled' : ''}><span class="war-temo">${t.emoji}</span><span class="grow"><b>${esc(t.title)}</b><span class="small">${!t.free ? (t.usedByMe ? 'ваша банда уже билась по ней' : 'соперник уже бился по ней') : esc(t.desc)}</span></span></button>`).join('')}</div>
       <p class="small" style="margin:0">По каждой теме банда бьётся один раз. Новая тема открывается каждую неделю.</p></div>` : ''}
-    <div class="field">Наш герой<div class="chips">${m.members.map((p) => `<button class="chip ${d.hero === p.id ? 'on' : ''}" data-act="war-set" data-k="hero" data-v="${p.id}">${esc(p.nick)}</button>`).join('')}</div></div>
+    <div class="field">${d.kind === 'blitz' ? '4' : '3'}. Наш герой <span class="small">— 🙋 добровольцы сверху</span>${warHeroPick(m.members, d.hero, 'war-hero-pick')}</div>
+    ${hint('war-hero-2', 'Кого выбрать героем', HERO_RULES)}
     <button class="btn" data-act="war-send" ${d.to && d.hero && (d.kind === 'sea' || d.topic) ? '' : 'disabled'}>⚔️ Бросить вызов</button>
     <p class="small" style="margin:0">Срок — рабочая неделя с момента, как соперник примет вызов. Не успел — техническое поражение. Победителям: герою +20 зёрен, всей банде по +5 и очки в Лигу.</p>`;
 }
@@ -1653,8 +1732,16 @@ function renderWarAccept() {
   const m = S.warMeta;
   if (!m || !d) return '<p class="sub">Загружаем…</p>';
   return `<p class="sub" style="margin:0">Кто будет защищать честь банды? ${d.kind === 'blitz' ? 'В блице наш герой проходит первым.' : 'Герои сыграют быструю партию морского боя.'}</p>
-    <div class="chips">${m.members.map((p) => `<button class="chip ${d.hero === p.id ? 'on' : ''}" data-act="war-acc-hero" data-v="${p.id}">${esc(p.nick)}</button>`).join('')}</div>
-    <button class="btn" data-act="war-accept" ${d.hero ? '' : 'disabled'}>⚔️ Принять бой</button>`;
+    ${warHeroPick(m.members, d.hero, 'war-acc-hero')}
+    <button class="btn" data-act="war-accept" ${d.hero ? '' : 'disabled'}>⚔️ Принять бой</button>
+    <p class="small" style="margin:0">Срок — 5 рабочих дней с этой минуты. Отказаться можно бесплатно, но отказы видны в статистике банды.</p>`;
+}
+function renderWarHero() {
+  const d = S.warHero; const m = S.warMeta;
+  if (!m || !d) return '<p class="sub">Загружаем…</p>';
+  return `<p class="sub" style="margin:0">Кто выйдет за банду? Пока герой не начал, его можно поменять.</p>
+    ${warHeroPick(m.members, d.hero, 'war-hero-pick2')}
+    <button class="btn" data-act="war-hero-save" ${d.hero ? '' : 'disabled'}>🦸 Назначить героем</button>`;
 }
 
 // ===== Личные дуэли =====
@@ -1666,9 +1753,11 @@ async function loadDuels(withId) {
   try { const r = await get(`/api/duels${withId ? '?with=' + withId : ''}`); if (withId) S.duelsWith = r.items; else S.duels = r.items; } catch {}
 }
 function duelHead(d) {
+  const stakeTag = d.stake ? `<span class="duel-stake-tag">💰 ${d.stake}${d.needPay ? ' — заплатишь первым ходом' : d.mine && !d.oppPaid && d.status === 'play' ? ' — соперник ещё не ответил' : ''}</span>` : '';
   const res = d.result === 'win' ? '<span class="duel-res win">🏆 Победа</span>' : d.result === 'lose' ? `<span class="duel-res lose">${d.resigned ? 'Сдался' : 'Поражение'}</span>` : d.result === 'draw' ? '<span class="duel-res">Ничья</span>' : '';
   const score = d.score ? `<span class="duel-score">${d.score.me} : ${d.score.opp}</span>` : '';
-  return `<div class="duel-head"><b>${{ rps: '✊ КНБ', dice: '🎲 Кости', ttt: '❌ Крестики-нолики' }[d.game]}</b>${score}${res}${d.status === 'play' ? `<button class="linkbtn small" data-act="duel-resign" data-id="${d.id}">сдаться</button>` : ''}</div>`;
+  const untouched = !d.mine && (d.game === 'ttt' ? !d.board.includes('me') : !d.rounds.some((r) => r.me));
+  return `<div class="duel-head"><b>${{ rps: '✊ КНБ', dice: '🎲 Кости', ttt: '❌ Крестики-нолики' }[d.game]}</b>${score}${res}${d.status === 'play' ? `<button class="linkbtn small" data-act="duel-resign" data-id="${d.id}" data-soft="${untouched ? 1 : 0}">${untouched ? 'отказаться' : 'сдаться'}</button>` : ''}</div>${stakeTag}`;
 }
 function renderDuel(d) {
   const fresh = S.duelAnim && S.duelAnim.id === d.id && S.duelAnim.seq === d.seq;
@@ -1708,7 +1797,9 @@ function renderDuelsBox(f) {
   const items = S.duelsWith || [];
   return `<section class="card duels">
     <div class="chats-head"><h3>🎮 Дуэль</h3><span class="small">победа +2 зерна</span></div>
+    <div class="duel-stake"><span class="small">Ставка:</span>${[0, 5, 10].map((x) => `<button class="chip ${(S.duelStake || 0) === x ? 'on' : ''}" data-act="duel-stake" data-v="${x}">${x ? x + ' зёрен' : 'без ставки'}</button>`).join('')}</div>
     <div class="duel-new">${[['rps', '✊', 'КНБ'], ['dice', '🎲', 'Кости'], ['ttt', '❌⭕', 'Крестики']].map(([g, e, t]) => `<button class="duel-start" data-act="duel-new" data-to="${f.id}" data-v="${g}"><span>${e}</span><b>${t}</b></button>`).join('')}</div>
+    ${hint('duel-rules', 'Правила дуэлей и ставок', `<ul class="ol"><li><b>КНБ</b> и <b>кости</b> — до двух побед. В КНБ ход соперника скрыт, пока не сходишь сам. Кости бросает сервер — подкрутить нельзя.</li><li><b>Крестики-нолики</b> — кто вызвал, ходит крестиками первым.</li><li><b>Ставка</b> 5 или 10 зёрен: вызвавший платит сразу, соперник — своим первым ходом. Не хочешь — откажись до хода, ничего не потеряешь. Победитель забирает обе ставки, ничья — возврат.</li><li>Победа без ставки — +2 зерна (до 3 раз в день). Брошенная на 3 дня дуэль закрывается, ставки возвращаются.</li></ul>`)}
     ${items.map(renderDuel).join('')}
   </section>`;
 }
@@ -2559,6 +2650,8 @@ function renderSheet() {
     case 'gev-new': return sheetWrap('Новое событие', renderGEventNew());
     case 'war-new': return sheetWrap('⚔️ Вызов на битву', renderWarNew());
     case 'war-accept': return sheetWrap('⚔️ Принять вызов', renderWarAccept());
+    case 'war-hero': return sheetWrap('🦸 Герой банды', renderWarHero());
+    case 'tourney': return sheetWrap(S.tour ? `🏆 ${S.tour.title}` : '🏆 Турнир', renderTourney());
     case 'dm-pick': return sheetWrap('Написать в личку', `<p class="sub" style="margin:0">Написать можно любому — если он сам не ограничил личку. Подельникам и своей банде — проще всего.</p>
       <button class="find-bar light" data-act="find-open">${ico('search', 18)}<span>Найти человека по нику или почте</span></button>
       ${(S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${p.crew ? '<span class="fav-star">★</span> ' : ''}${esc(p.nick)}</span><span class="where">${esc(p.gangs.map((g) => g.name).join(', ') || (p.crew ? 'подельник' : whereText(p)[0]))}</span></span><span aria-hidden="true">›</span></button>`).join('')}`);
@@ -2699,7 +2792,7 @@ function renderBlitzPlay() {
   const b = S.blitz;
   if (!b || !b.set) return '<p class="sub">Загружаем…</p>';
   if (S.blitzWar && b.state === 'new') {
-    return `<div class="war-intro"><span class="war-big">⚔️</span><p class="sub">Ты защищаешь честь банды. ${b.set.count} вопросов по теме «${esc(b.set.title)}», 3 минуты. Отвечай быстро: при равенстве верных побеждает тот, кто быстрее.</p>
+    return `<div class="war-intro"><span class="war-big">⚔️</span>${b.cheers && b.cheers.length ? `<div class="cheers">💪 За тебя болеют: ${b.cheers.map(esc).join(', ')}</div>` : ''}<p class="sub">Ты защищаешь честь банды. ${b.set.count} вопросов по теме «${esc(b.set.title)}», 3 минуты. Отвечай быстро: при равенстве верных побеждает тот, кто быстрее.</p>
       <button class="btn wide" data-act="war-start">Начать — таймер пойдёт сразу</button><p class="small" style="margin:0">Одна попытка. Закроешь окно — время всё равно идёт.</p></div>`;
   }
   if (S.blitzWar && b.state === 'done') {
@@ -2913,7 +3006,7 @@ function sfx(name, arg) {
 const tabSound = (tab) => sfx('tab', tab);
 
 // Какой звук у какого нажатия. Свои звуки у вкладок, выстрелов, сдачи и Лавки — их играют сами действия
-const FEEL_SELF = new Set(['duel-rps', 'duel-roll', 'duel-cell', 'duel-new', 'war-start', 'war-send', 'war-accept', 'tab', 'blitz-pick', 'bshoot', 'bresign', 'sound-toggle', 'vibro-toggle', 'sound-test', 'splash-skip']);
+const FEEL_SELF = new Set(['war-bet', 'war-cheer', 'war-volunteer', 'tourney-reg', 'duel-rps', 'duel-roll', 'duel-cell', 'duel-new', 'war-start', 'war-send', 'war-accept', 'tab', 'blitz-pick', 'bshoot', 'bresign', 'sound-toggle', 'vibro-toggle', 'sound-test', 'splash-skip']);
 const FEEL = {
   open: 'open', 'open-sec': 'open', person: 'open', 'find-open': 'open', 'poll-new': 'open', 'gev-new': 'open', 'ava-open': 'open', 'ava-open-vac': 'open', 'meme-open': 'open', 'pcall-open': 'open',
   'call-open': 'open', 'dm-call-open': 'open', 'battle-new': 'open', 'crew-share': 'open',
@@ -3454,7 +3547,7 @@ const actions = {
     S.sheet = 'crest'; render();
   },
   'war-new': () => run(async () => {
-    S.warDraft = { to: null, kind: 'blitz', topic: null, hero: S.me.id }; S.warMeta = null; S.sheet = 'war-new'; render();
+    S.warDraft = { to: null, kind: 'blitz', topic: null, hero: null }; S.warMeta = null; S.sheet = 'war-new'; render();
     S.warMeta = await get(`/api/gangwar/rivals?gang=${S.activeGang}`);
   }),
   'war-set': (el) => run(async () => {
@@ -3472,6 +3565,16 @@ const actions = {
     S.warAccept = { id: w.id, kind: w.kind, hero: null }; S.warMeta = null; S.sheet = 'war-accept'; render();
     S.warMeta = await get(`/api/gangwar/rivals?gang=${S.activeGang}`);
   }),
+  'war-hero-pick'(el) { S.warDraft.hero = Number(el.dataset.v); sfx('pick'); render(); },
+  'war-hero-pick2'(el) { S.warHero.hero = Number(el.dataset.v); sfx('pick'); render(); },
+  'war-hero-open': (el) => run(async () => { S.warHero = { id: Number(el.dataset.id), hero: null }; S.warMeta = null; S.sheet = 'war-hero'; render(); S.warMeta = await get(`/api/gangwar/rivals?gang=${S.activeGang}`); }),
+  'war-hero-save': () => run(async () => { await post(`/api/wars/${S.warHero.id}/hero`, { hero: S.warHero.hero }); S.sheet = null; toast('Герой назначен — ему придёт пуш'); await loadWars(); }),
+  'war-step-down': (el) => run(async () => { if (!confirmInline('war-sd' + el.dataset.id, 'Нажми ещё раз: владелец назначит замену')) return; await post(`/api/wars/${el.dataset.id}/step-down`); toast('Владелец получит пуш'); await loadWars(); }),
+  'war-volunteer': (el) => run(async () => { await post(`/api/gangs/${S.activeGang}/volunteer`, { on: el.dataset.v === '1' }); sfx(el.dataset.v === '1' ? 'confirm' : 'off'); toast(el.dataset.v === '1' ? 'Владелец увидит тебя первым' : 'Убрали из добровольцев'); await loadWars(); }),
+  'war-bet': (el) => run(async () => { if (!confirmInline('war-bet' + el.dataset.id + el.dataset.v, `Нажми ещё раз: ставка ${el.dataset.v} ${plural(Number(el.dataset.v), 'зерно', 'зерна', 'зёрен')} за свою банду`)) return; await post(`/api/wars/${el.dataset.id}/bet`, { amount: Number(el.dataset.v) }); sfx('coin'); await Promise.all([loadWars(), loadMe()]); }),
+  'war-cheer': (el) => run(async () => { await post(`/api/wars/${el.dataset.id}/cheer`); sfx('fanfare'); if (navigator.vibrate && vibroOn()) navigator.vibrate([30, 30, 60]); await loadWars(); }),
+  'tourney-open': () => run(async () => { S.sheet = 'tourney'; render(); await loadTour(); }),
+  'tourney-reg': (el) => run(async () => { S.tour = await post('/api/tourney/register', { off: el.dataset.v === 'off' }); sfx('fanfare'); }),
   'war-acc-hero'(el) { S.warAccept.hero = Number(el.dataset.v); sfx('pick'); render(); },
   'war-accept': () => run(async () => {
     await post(`/api/wars/${S.warAccept.id}/accept`, { hero: S.warAccept.hero });
@@ -3488,9 +3591,11 @@ const actions = {
   'war-start': () => run(async () => { S.blitz = await post(`/api/wars/${S.blitzWar}/start`); S.blitzFb = null; S.blitzLastTick = null; sfx('fanfare'); blitzTick(); }),
   'war-play-close': () => run(async () => { S.sheet = null; S.blitzWar = null; await Promise.all([loadBlitz(), loadWars()]); }),
   'duel-new': (el) => run(async () => {
-    const r = await post('/api/duels', { to: Number(el.dataset.to), game: el.dataset.v });
+    const r = await post('/api/duels', { to: Number(el.dataset.to), game: el.dataset.v, stake: S.duelStake || 0 });
+    if (S.duelStake) loadMe().catch(() => {});
     sfx(r.existing ? 'open' : 'fanfare'); toast(r.existing ? 'Эта дуэль уже идёт' : 'Вызов брошен!'); await loadDuels(S.dm);
   }),
+  'duel-stake'(el) { S.duelStake = Number(el.dataset.v); sfx('pick'); render(); },
   'duel-rps': (el) => run(async () => {
     sfx('swish'); const d = await post(`/api/duels/${el.dataset.id}/move`, { move: el.dataset.v });
     S.duelAnim = { id: d.id, seq: d.seq }; duelOutcomeSfx(d); await loadDuels(S.dm);
@@ -3505,8 +3610,9 @@ const actions = {
     duelOutcomeSfx(d); await loadDuels(S.dm);
   }),
   'duel-resign': (el) => run(async () => {
-    if (!confirmInline('duel-resign' + el.dataset.id, 'Нажми ещё раз — засчитаем поражение')) return;
-    await post(`/api/duels/${el.dataset.id}/resign`); sfx('lose'); await loadDuels(S.dm);
+    const soft = el.dataset.soft === '1';
+    if (!confirmInline('duel-resign' + el.dataset.id, soft ? 'Нажми ещё раз — откажешься без потерь' : 'Нажми ещё раз — засчитаем поражение')) return;
+    await post(`/api/duels/${el.dataset.id}/resign`); sfx(soft ? 'off' : 'lose'); await Promise.all([loadDuels(S.dm), loadMe()]);
   }),
   'cv-vote': (el) => run(async () => {
     const r = await post(`/api/crest-vote/${el.dataset.id}/vote`, { vote: Number(el.dataset.v) });
@@ -4182,6 +4288,11 @@ document.addEventListener('input', (e) => {
   store.set('soundVol', Number(e.target.value)); store.set('sound', Number(e.target.value) > 0);
   const n = $('#vol-n'); if (n) n.textContent = Number(e.target.value) ? e.target.value + '%' : 'выкл';
 });
+document.addEventListener('toggle', (e) => {
+  const d = e.target;
+  if (!d || !d.dataset || !d.dataset.hint) return;
+  S.hintOpen = S.hintOpen || {}; S.hintOpen[d.dataset.hint] = d.open;
+}, true);
 document.addEventListener('change', (e) => {
   if (e.target.id === 'snd-vol') { sfx('pick'); return; }
   if (e.target.id === 'home-office') { sfx('pick'); run(async () => { await post('/api/me/profile', { profile: { home: e.target.value || null } }); await loadMe(); toast(e.target.value ? 'Мой офис сохранён' : 'Мой офис сброшен'); }); return; }

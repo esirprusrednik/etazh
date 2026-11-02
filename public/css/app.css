@@ -918,3 +918,45 @@ button.quest:disabled { cursor: default; }
 @media (prefers-reduced-motion: reduce) { .war-x, .war-big, .die.spin, .ttt-cell.win, .rps-reveal.anim .rps-hand { animation: none !important; } .ttt-cell .draw { stroke-dashoffset: 0; animation: none; } }
 
 .war .btn.ghost { color: var(--ink); }
+
+/* Подсказки «?» */
+.hint { border-radius: 14px; background: #F1F4FB; padding: 0 12px; }
+.hint summary { list-style: none; cursor: pointer; min-height: 38px; display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 14px; color: var(--ink); }
+.hint summary::-webkit-details-marker { display: none; }
+.hint-q { width: 22px; height: 22px; border-radius: 50%; background: #3A86FF; color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 900; flex: none; }
+.hint[open] { padding-bottom: 8px; }
+.hint-body { font-size: 13px; line-height: 1.45; color: #3B4866; }
+.hint-body .ol { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; }
+.duel .hint { background: rgba(255,255,255,.08); } .duel .hint summary, .duel .hint-body { color: #fff; }
+/* Герои, ставки, клич */
+.hero-list { display: flex; flex-direction: column; gap: 6px; max-height: 300px; overflow-y: auto; }
+.hero-opt { display: flex; align-items: center; gap: 10px; border: 2px solid #E3E8F4; border-radius: 14px; background: #fff; padding: 6px 10px; font: inherit; color: var(--ink); cursor: pointer; text-align: left; }
+.hero-opt b { display: block; }
+.hero-opt.on { border-color: #E5484D; background: #FFF0F0; }
+.hero-opt:disabled { opacity: .5; }
+.war-extra { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; font-weight: 700; }
+.bet-row { display: inline-flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.bet-chip { min-height: 30px; padding: 0 10px; background: #FFC93C; color: #3B2A00; }
+.cheer { background: linear-gradient(135deg, #2FA84F, #1F7A3A); color: #fff; box-shadow: 0 3px 0 #145228; }
+.cheers { background: #EAF7EE; color: #1F4D2E; border-radius: 12px; padding: 8px 12px; font-weight: 800; font-size: 14px; }
+.vol-btn { align-self: flex-start; }
+/* Турнир */
+.tour-card { background: linear-gradient(135deg, #FFF8E1, #FFE7A8); display: flex; flex-direction: column; gap: 6px; }
+.tour-dates { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.tour-dates div { background: #F4F6FB; border-radius: 12px; padding: 8px; text-align: center; display: flex; flex-direction: column; }
+.tour-dates b { font-size: 18px; font-weight: 900; }
+.tour-dates span { font-size: 11px; color: var(--muted); font-weight: 700; }
+.tour-champ { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px; border-radius: 18px; background: radial-gradient(circle, #FFF3C4, #fff); }
+.bracket { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; }
+.br-round { flex: none; min-width: 160px; display: flex; flex-direction: column; gap: 8px; justify-content: space-around; }
+.br-name { font-weight: 900; font-size: 13px; }
+.br-name::first-letter { text-transform: uppercase; }
+.br-match { display: flex; flex-direction: column; border: 2px solid #E3E8F4; border-radius: 12px; overflow: hidden; background: #fff; }
+.br-match .tm { display: flex; align-items: center; gap: 6px; padding: 5px 8px; font-size: 13px; font-weight: 700; min-width: 0; }
+.br-match .tm + .tm { border-top: 1px solid #EEF1F7; }
+.br-match .tm.win { background: #EAF7EE; font-weight: 900; }
+.br-match .tm.mine .ellipsis { color: #B4232B; }
+.br-match .tm.bye { color: var(--muted); font-style: italic; }
+/* Ставка в дуэли */
+.duel-stake { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.duel-stake-tag { font-size: 12px; font-weight: 800; color: #FFD84D; }

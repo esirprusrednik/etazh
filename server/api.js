@@ -174,6 +174,7 @@ function createApi(db) {
   let crestvote = null;
   let gangwar = null;
   let duels = null;
+  let tourney = null;
   const MAX_MEMBERS = 30;      // больше 30 — уже не банда, а отдел
   const gangLimit = (g) => Math.min(g.max_members || MAX_MEMBERS, MAX_MEMBERS);
   let crew = null;
@@ -816,7 +817,7 @@ function createApi(db) {
     return {
       id: g.id, name: g.name, color: g.color, emoji: g.emoji || null, about: g.about || '', area: g.area || null, interests: JSON.parse(g.interests || '[]'),
       access: g.access || 'invite', count, max: gangLimit(g), full: count >= gangLimit(g), owner,
-      ...U.crestPub(g), wars: gangwar ? gangwar.record(g.id) : null, trophies: league ? league.trophies(g.id) : null, legend: g.legend_month && league ? legendLabel(g.legend_month) : null, motto: g.motto || '', gold: !!g.gold,
+      ...U.crestPub(g), wars: gangwar ? gangwar.record(g.id) : null, cups: tourney ? tourney.cups(g.id) : 0, trophies: league ? league.trophies(g.id) : null, legend: g.legend_month && league ? legendLabel(g.legend_month) : null, motto: g.motto || '', gold: !!g.gold,
       officeName: g.office_id ? (officeById(g.office_id) || {}).name || null : null,
       inOffice: gangOffice(g.id), msgsWeek: q('SELECT COUNT(*) AS n FROM messages WHERE gang_id = ? AND at > ?').get(g.id, U.now() - 7 * 864e5).n,
       since: g.created_at, faces, member: uid ? isMember(g.id, uid) : false, requested: !!(req && req.status === 'pending')
@@ -1415,9 +1416,10 @@ function createApi(db) {
   polls = require('./polls').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, rateLimit, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   gevents = require('./gevents').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, rateLimit, readProfile, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   crestvote = require('./crestvote').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, crestClean });
-  duels = require('./duels').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, addBeans, publicLook, canDm: (u, t) => (crew ? crew.canDm(u, t) : false), onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
-  gangwar = require('./gangwar').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, battle, publicLook });
+  duels = require('./duels').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, addBeans, spendBeans, publicLook, canDm: (u, t) => (crew ? crew.canDm(u, t) : false), onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
+  gangwar = require('./gangwar').register({ db, q, route, requireUser, requireAdmin, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, spendBeans, battle, publicLook });
   league = require('./league').register({ db, q, route, requireUser, U, addBeans, notify, fireAndForget });
+  tourney = require('./tourney').register({ db, q, route, requireUser, requireAdmin, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, gangwar, league });
   feedback = require('./feedback').register({ db, q, route, requireUser, requireAdmin, bad, U, addBeans, notify, fireAndForget, HttpError, BUILD });
 
   // ---------- Обработчик ----------

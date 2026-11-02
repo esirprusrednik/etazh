@@ -44,6 +44,7 @@ server/crestvote.js
 server/gangwar.js
 server/wartopics.js
 server/duels.js
+server/tourney.js
 server/holidays.js
 server/index.js
 server/mailer.js

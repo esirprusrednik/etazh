@@ -11,7 +11,7 @@ const MIN_ROSTER = 3;
 const TOGETHER_SHARE = 0.7;     // «Банда в сборе»: столько участников отметились за день (офис или дом)
 const TOGETHER_BONUS = 10;
 const LAUNCH = process.env.LEAGUE_LAUNCH || '2026-11-02';    // периоды раньше старта не разыгрываем
-const COUNT_REASONS = new Set(['checkin', 'home', 'canteen', 'reply', 'signal_confirmed', 'thanks', 'sea_win', 'guess', 'quiz', 'food_rate', 'blitz', 'quest', 'quest_all', 'ach', 'gangwar', 'gangwar_team']);
+const COUNT_REASONS = new Set(['checkin', 'home', 'canteen', 'reply', 'signal_confirmed', 'thanks', 'sea_win', 'guess', 'quiz', 'food_rate', 'blitz', 'quest', 'quest_all', 'ach', 'gangwar', 'gangwar_team', 'tour_win', 'tour_final']);
 
 const PRIZES = {
   W: [{ beans: 30, items: ['p_trophy'] }, { beans: 20, items: [] }, { beans: 10, items: [] }],

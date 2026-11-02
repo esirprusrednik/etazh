@@ -68,14 +68,35 @@ function quizCard(items) {
   </div>`;
 }
 
+function topicsCard(t) {
+  return `<div class="card"><h2>Темы блица для битв банд</h2>
+    <p class="small">Встроенные темы — в коде, свои добавляются здесь. Банда бьётся по каждой теме один раз, поэтому новые темы продлевают игру. Нужно минимум 8 вопросов, лучше 15–16.</p>
+    ${t.items.map((x) => `<div class="item"><div class="grow"><b>${esc(x.emoji)} ${esc(x.title)}</b> · ${x.count} вопр. · с ${esc(x.from)}${x.custom ? ' · своя' : ''}
+      <div class="small">${x.sample.map((q) => esc(q[0])).join(' / ')}</div></div>${x.custom ? `<button class="btn small ghost" data-a="topic-toggle" data-id="${x.id}">Выключить</button>` : ''}</div>`).join('')}
+    ${t.inactive.length ? `<p class="small">Выключены: ${t.inactive.map((x) => `${esc(x.title)} <button class="btn small ghost" data-a="topic-toggle" data-id="${x.id}">Включить</button>`).join(' ')}</p>` : ''}
+    <h3>Новая тема</h3>
+    <div class="row" style="flex-wrap:wrap;gap:8px"><label class="field" style="width:70px">Значок<input id="tp-emoji" value="❓" maxlength="4"></label>
+      <label class="field grow">Название<input id="tp-title" maxlength="40" placeholder="Тарифы без паники"></label>
+      <label class="field" style="width:150px">Открыть с<input id="tp-from" type="date"></label></div>
+    <label class="field">Описание<input id="tp-desc" maxlength="120" placeholder="Коротко, о чём тема"></label>
+    <label class="field">Вопросы — по одному на строку: <code>Вопрос | Правильный | Неверный | Неверный | Неверный</code>
+      <textarea id="tp-q" rows="10" placeholder="Что такое ARPU? | Средняя выручка на абонента | Аварийный резерв | Автоответчик | Код тарифа"></textarea></label>
+    <p class="small">Правильный ответ — всегда второй в строке, игрокам варианты перемешиваются. Неверных — от 1 до 3, лучше смешные, но правдоподобные.</p>
+    <button class="btn" data-a="topic-create">Добавить тему</button>
+    <h3>Турнир</h3><p class="small">Обычно стартует сам за 6 рабочих дней до конца месяца. Кнопка — запустить сейчас с записавшимися бандами.</p>
+    <button class="btn small ghost" data-a="tour-start">Запустить турнир сейчас</button></div>`;
+}
+
 async function load() {
   try {
     const [d, m, qz, food, fb] = await Promise.all([call('GET', '/api/admin/overview'), call('GET', '/api/admin/metrics').catch(() => null), call('GET', '/api/admin/quizzes').catch(() => ({ items: [] })), call('GET', '/api/admin/food').catch(() => ({ offices: [] })), call('GET', '/api/admin/feedback').catch(() => ({ items: [] }))]);
+    const tp = await call('GET', '/api/admin/topics').catch(() => ({ items: [], inactive: [] }));
     root.innerHTML = `
     <div class="card"><h2>Сводка</h2><p class="sub">Пользователей: <b>${d.users}</b> · отмечались сегодня: <b>${d.activeToday}</b> · банд: <b>${d.gangs}</b></p></div>
     ${feedbackCard(fb)}
     ${m ? metricsCard(m) : ''}
     ${quizCard(qz.items)}
+    ${topicsCard(tp)}
     ${foodCard(food.offices)}
     <div class="card"><h2>Жалобы</h2>${d.reports.length ? d.reports.map((r) => `
       <div class="item"><div class="grow"><div style="font-weight:900">${TYPES[r.object_type]} #${r.object_id} · жалоб: ${r.n}${r.preview && r.preview.hidden ? ' · скрыто' : ''}</div>
@@ -107,6 +128,14 @@ document.addEventListener('click', async (e) => {
       const id = b.dataset.id;
       const r = await call('POST', `/api/admin/feedback/${id}`, { status: document.getElementById('fb-st-' + id).value, reply: document.getElementById('fb-re-' + id).value });
       if (r.beans) alert(`Автору начислено ${r.beans} зёрен`);
+    } else if (b.dataset.a === 'topic-create') {
+      const r = await call('POST', '/api/admin/topics', { title: document.getElementById('tp-title').value, emoji: document.getElementById('tp-emoji').value, from: document.getElementById('tp-from').value, desc: document.getElementById('tp-desc').value, questions: document.getElementById('tp-q').value });
+      alert(`Тема добавлена: ${r.count} вопросов`);
+    } else if (b.dataset.a === 'topic-toggle') {
+      await call('POST', `/api/admin/topics/${b.dataset.id}/toggle`);
+    } else if (b.dataset.a === 'tour-start') {
+      const r = await call('POST', '/api/admin/tourney/start');
+      alert(r.status === 'running' ? 'Турнир запущен' : 'Банд меньше двух — турнир перенесён');
     } else if (b.dataset.a === 'quiz-close') {
       await call('POST', `/api/admin/quizzes/${b.dataset.id}/close`);
     } else if (b.dataset.a === 'coffee-now') {

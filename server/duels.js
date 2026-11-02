@@ -4,6 +4,8 @@
 //  • Кости: каждый бросает две кости, у кого сумма больше — тот взял раунд. До двух побед. Бросает сервер — честно.
 //  • Крестики-нолики: вызвавший ходит крестиками первым.
 // Победителю — пара зёрен (не больше трёх раз в день). Брошенная на 3 дня дуэль закрывается без победителя.
+// СТАВКА (по желанию вызвавшего): 0, 5 или 10 зёрен. Вызвавший ставит сразу, соперник — своим первым ходом.
+// Не хочет ставить — может отказаться без потерь, ставка вернётся. Победитель забирает обе, ничья — возврат.
 
 const GAMES = { rps: 'Камень, ножницы, бумага', dice: 'Кости', ttt: 'Крестики-нолики' };
 const RPS = ['rock', 'scissors', 'paper'];
@@ -15,7 +17,8 @@ const STALE_DAYS = 3;
 const roll = () => 1 + Math.floor(Math.random() * 6);
 
 function register(ctx) {
-  const { db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, addBeans, canDm, publicLook, onEvent } = ctx;
+  const { db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, addBeans, spendBeans, canDm, publicLook, onEvent } = ctx;
+  const STAKES = [0, 5, 10];
 
   db.exec(`
   CREATE TABLE IF NOT EXISTS duels (
@@ -29,6 +32,7 @@ function register(ctx) {
   CREATE INDEX IF NOT EXISTS duels_a ON duels(a, status);
   CREATE INDEX IF NOT EXISTS duels_b ON duels(b, status);
   `);
+  for (const col of ['stake INTEGER NOT NULL DEFAULT 0', 'b_paid INTEGER NOT NULL DEFAULT 0']) { try { db.exec(`ALTER TABLE duels ADD COLUMN ${col}`); } catch {} }
 
   const userRow = (id) => q('SELECT * FROM users WHERE id = ? AND nick IS NOT NULL').get(id);
   const side = (d, uid) => (d.a === uid ? 'a' : d.b === uid ? 'b' : null);
@@ -51,7 +55,7 @@ function register(ctx) {
       id: d.id, game: d.game, gameName: GAMES[d.game], status: d.status, seq: d.seq, me: s,
       opp: opp ? { id: opp.id, nick: opp.nick, look: publicLook(opp) } : { id: 0, nick: 'удалённый аккаунт', look: {} },
       result: d.status === 'done' ? (d.winner ? (d.winner === uid ? 'win' : 'lose') : 'draw') : null, resigned: !!d.resigned,
-      mine: d.a === uid
+      mine: d.a === uid, stake: d.stake, needPay: d.status === 'play' && s === 'b' && d.stake > 0 && !d.b_paid, oppPaid: s === 'a' ? !!d.b_paid : true
     };
     if (d.game === 'ttt') {
       return { ...base, board: st.board.map((c) => (c ? (c === s ? 'me' : 'opp') : null)), mark: s === 'a' ? 'x' : 'o', line: st.line, myTurn: d.status === 'play' && d.turn === uid };
@@ -73,6 +77,11 @@ function register(ctx) {
     return q('SELECT * FROM duels WHERE id = ?').get(d.id);
   }
   function finish(d, winner) {
+    if (d.stake) {
+      if (winner && d.b_paid) addBeans(winner, 'duel_pot', d.stake * 2);
+      else if (winner && !d.b_paid) addBeans(d.a, 'duel_refund', d.stake);
+      else { addBeans(d.a, 'duel_refund', d.stake); if (d.b_paid) addBeans(d.b, 'duel_refund', d.stake); }
+    }
     if (winner) {
       addBeans(winner, 'duel_win');
       if (onEvent) onEvent('duel_win', winner);
@@ -97,11 +106,13 @@ function register(ctx) {
     if (!canDm(u, t)) throw bad('Этому человеку сейчас нельзя написать — значит, и вызвать нельзя.');
     const ex = q(`SELECT id FROM duels WHERE status = 'play' AND game = ? AND ((a = ? AND b = ?) OR (a = ? AND b = ?))`).get(body.game, u.id, t.id, t.id, u.id);
     if (ex) return { id: ex.id, existing: true };
+    const stake = STAKES.includes(Number(body.stake)) ? Number(body.stake) : 0;
     if (q("SELECT COUNT(*) AS n FROM duels WHERE status = 'play' AND (a = ? OR b = ?)").get(u.id, u.id).n >= 10) throw bad('Одновременно — не больше 10 дуэлей. Доиграй какую-нибудь.');
+    if (stake && !spendBeans(u.id, stake, 'duel_stake')) throw bad('Не хватает зёрен на ставку.');
     const now = U.now();
-    const id = Number(q('INSERT INTO duels (a, b, game, state, turn, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .run(u.id, t.id, body.game, JSON.stringify(initState(body.game)), body.game === 'ttt' ? u.id : null, now, now).lastInsertRowid);
-    ping(t.id, u, { id, game: body.game }, `${U.g(u.look, 'Вызвал', 'Вызвала')} тебя на дуэль — ответь в личке`);
+    const id = Number(q('INSERT INTO duels (a, b, game, state, turn, created_at, updated_at, stake) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(u.id, t.id, body.game, JSON.stringify(initState(body.game)), body.game === 'ttt' ? u.id : null, now, now, stake).lastInsertRowid);
+    ping(t.id, u, { id, game: body.game }, `${U.g(u.look, 'Вызвал', 'Вызвала')} тебя на дуэль${stake ? ` на ${stake} зёрен` : ''} — ответь в личке`);
     if (onEvent) onEvent('duel', u.id);
     return { id, duel: view(q('SELECT * FROM duels WHERE id = ?').get(id), u.id) };
   });
@@ -119,6 +130,12 @@ function register(ctx) {
     const st = JSON.parse(d.state);
     const opp = d[o];
     let extra = {};
+    // Первый ход соперника — согласие на ставку: списываем её
+    if (s === 'b' && d.stake && !d.b_paid) {
+      if (!spendBeans(u.id, d.stake, 'duel_stake')) throw bad(`Ставка — ${d.stake} зёрен, у тебя не хватает. Можно отказаться без потерь.`);
+      q('UPDATE duels SET b_paid = 1 WHERE id = ?').run(d.id);
+      d = q('SELECT * FROM duels WHERE id = ?').get(d.id);
+    }
     if (d.game === 'ttt') {
       if (d.turn !== u.id) throw bad('Сейчас ход соперника.');
       const cell = Number(body.cell);
@@ -126,7 +143,7 @@ function register(ctx) {
       st.board[cell] = s;
       const line = LINES.find((l) => l.every((i) => st.board[i] === s));
       if (line) { st.line = line; d = save(d, st, { status: 'done', winner: u.id, turn: null }); finish(d, u.id); ping(opp, u, d, 'Три в ряд — партия за мной!'); }
-      else if (st.board.every(Boolean)) { d = save(d, st, { status: 'done', winner: null, turn: null }); ping(opp, u, d, 'Ничья — поле кончилось'); }
+      else if (st.board.every(Boolean)) { d = save(d, st, { status: 'done', winner: null, turn: null }); finish(d, null); ping(opp, u, d, 'Ничья — поле кончилось'); }
       else { d = save(d, st, { turn: opp }); ping(opp, u, d, 'Твой ход в крестиках-ноликах'); }
       return view(d, u.id);
     }
@@ -150,7 +167,7 @@ function register(ctx) {
         d = save(d, st, { status: 'done', winner: w }); finish(d, w);
         ping(opp, u, d, w === u.id ? 'Дуэль за мной. Реванш?' : 'Ты победил(а) в дуэли!');
       } else if (st.rounds.length >= MAX_ROUNDS) {
-        d = save(d, st, { status: 'done', winner: null }); ping(opp, u, d, 'Ничья — раунды кончились');
+        d = save(d, st, { status: 'done', winner: null }); finish(d, null); ping(opp, u, d, 'Ничья — раунды кончились');
       } else {
         st.rounds.push({ a: null, b: null });
         d = save(d, st);
@@ -168,6 +185,15 @@ function register(ctx) {
     let d = load(params.id, u.id);
     if (d.status !== 'play') return view(d, u.id);
     const opp = d[other(side(d, u.id))];
+    // Соперник ещё не сходил и не ставил — это отказ от дуэли, а не поражение
+    const st0 = JSON.parse(d.state);
+    const bMoved = d.game === 'ttt' ? st0.board.some((c) => c === 'b') : st0.rounds.some((r) => r.b !== null);
+    if (side(d, u.id) === 'b' && !bMoved) {
+      d = save(d, JSON.parse(d.state), { status: 'done', winner: null, resigned: 1, turn: null });
+      finish(d, null);
+      ping(opp, u, d, 'Отказался(лась) от дуэли');
+      return view(d, u.id);
+    }
     d = save(d, JSON.parse(d.state), { status: 'done', winner: opp, resigned: 1, turn: null });
     finish(d, opp);
     ping(opp, u, d, 'Сдался(лась) — победа твоя');
@@ -175,7 +201,10 @@ function register(ctx) {
   });
 
   function cleanup() {
-    q("UPDATE duels SET status = 'done', winner = NULL WHERE status = 'play' AND updated_at < ?").run(U.now() - STALE_DAYS * 864e5);
+    for (const d of q("SELECT * FROM duels WHERE status = 'play' AND updated_at < ?").all(U.now() - STALE_DAYS * 864e5)) {
+      q("UPDATE duels SET status = 'done', winner = NULL WHERE id = ?").run(d.id);
+      finish(d, null);
+    }
     q("DELETE FROM duels WHERE status = 'done' AND updated_at < ?").run(U.now() - 30 * 864e5);
   }
   // Сколько дуэлей ждут моего хода — для бейджа «Игр»
