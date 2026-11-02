@@ -113,4 +113,13 @@ const GANG_INTERESTS = ['Кофе', 'Обеды', 'Настолки', 'Спор�
   'Excel', 'SQL', 'Python', 'Data Science', 'Agile', 'Продукты', 'Английский', 'Волонтёрство', 'Мемы'];
 const GANG_EMOJI = ['☕', '🍕', '🚀', '📊', '💻', '🎯', '🎲', '🏃', '🎸', '📚', '🧠', '🔥', '🐉', '🦉', '⚡', '🌿', '📡', '💼'];
 
-module.exports = { GANG_AREAS, GANG_INTERESTS, GANG_EMOJI, MOODS_F, MOODS, CALLS, SIGNALS, SHOP, EARN, GANG_DEPOSIT, GANG_COLORS, MEMES, MEME_EMOS };
+// Части герба банды — ключи совпадают с public/js/crest.js
+const CREST = {
+  shape: ['heater', 'french', 'round', 'kite', 'badge', 'swiss'],
+  div: ['plain', 'pale', 'fess', 'bend', 'perbend', 'quarterly', 'chevron', 'chief', 'cross', 'saltire', 'bars', 'paly', 'checky', 'bordure'],
+  tincture: ['gold', 'silver', 'red', 'blue', 'green', 'purple', 'black', 'orange', 'sky', 'pink'],
+  charge: ['chart', 'search', 'gear', 'code', 'coin', 'megaphone', 'scales', 'tower', 'briefcase', 'bag', 'headset', 'people', 'lock', 'crown', 'star', 'bolt', 'cup', 'book', 'note', 'plane', 'ball', 'rocket', 'flame', 'tree', 'heart', 'dice', 'film', 'pizza', 'medal', 'globe', 'snake', 'wolf', 'owl', 'anchor', 'sword'],
+  top: ['none', 'crown', 'laurel', 'wings', 'stars', 'helm']
+};
+
+module.exports = { CREST, GANG_AREAS, GANG_INTERESTS, GANG_EMOJI, MOODS_F, MOODS, CALLS, SIGNALS, SHOP, EARN, GANG_DEPOSIT, GANG_COLORS, MEMES, MEME_EMOS };

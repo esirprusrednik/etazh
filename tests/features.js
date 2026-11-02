@@ -401,6 +401,19 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.ok(!(await b.get(`/api/gangs/${g.id}/gevents`)).json.upcoming.some((x) => x.id === id));
   });
 
+  await step('герб банды: только известные части, null — вернуть автогерб, чужой не меняет', async () => {
+    await a.post(`/api/gangs/${g.id}/settings`, { crest: { shape: 'kite', div: 'chief', c1: 'red', c2: 'gold', charge: 'snake', cc: 'silver', top: 'crown', hack: '<script>' } });
+    let cr = (await a.get(`/api/gangs/${g.id}`)).json.gang.crest;
+    assert.deepEqual(cr, { shape: 'kite', div: 'chief', c1: 'red', c2: 'gold', charge: 'snake', cc: 'silver', top: 'crown', motto: true });
+    await a.post(`/api/gangs/${g.id}/settings`, { crest: { shape: 'evil', charge: 'x' } });
+    cr = (await a.get(`/api/gangs/${g.id}`)).json.gang.crest;
+    assert.equal(cr.shape, 'heater'); assert.equal(cr.charge, 'star');
+    assert.equal((await b.post(`/api/gangs/${g.id}/settings`, { crest: null })).status, 400);
+    await a.post(`/api/gangs/${g.id}/settings`, { crest: null });
+    assert.equal((await a.get(`/api/gangs/${g.id}`)).json.gang.crest, null);
+    assert.ok('crest' in (await a.get('/api/me')).json.user.gangs[0]);
+  });
+
   console.log(`\nВсё прошло: ${passed} проверок`);
 })()
   .catch((e) => { console.error('\nПровал:', e.message, '\n--- лог ---\n' + log.slice(-2000)); process.exitCode = 1; })

@@ -100,8 +100,16 @@ function fem(look) {
 // g(look, 'вступил', 'вступила')
 const g = (look, m, f) => (fem(look) ? f : m);
 
+// Герб банды для клиента: собранный (или null — клиент соберёт сам из направления, интересов и id)
+function crestPub(row) {
+  let crest = null, interests = [];
+  try { crest = row.crest ? JSON.parse(row.crest) : null; } catch {}
+  try { interests = JSON.parse(row.interests || '[]'); } catch {}
+  return { crest, area: row.area || null, interests };
+}
+
 module.exports = {
-  fem, g,
+  fem, g, crestPub,
   now, msk, isAfterCheckinCutoff, isQuietHour,
   b64url, fromB64url, randomToken, sha256, hashEmail, normalizeEmail, emailDomainAllowed, shortCode,
   moderationProblem, cleanText

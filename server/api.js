@@ -1,6 +1,6 @@
 const { config } = require('./config');
 const U = require('./util');
-const { GANG_AREAS, GANG_INTERESTS, GANG_EMOJI, MOODS_F, MOODS, CALLS, SIGNALS, SHOP, EARN, GANG_DEPOSIT, GANG_COLORS, MEMES, MEME_EMOS } = require('./catalog');
+const { CREST, GANG_AREAS, GANG_INTERESTS, GANG_EMOJI, MOODS_F, MOODS, CALLS, SIGNALS, SHOP, EARN, GANG_DEPOSIT, GANG_COLORS, MEMES, MEME_EMOS } = require('./catalog');
 const { sendLoginLink } = require('./mailer');
 const { sendPush } = require('./webpush');
 
@@ -87,7 +87,7 @@ const NICK_PRICE = 50;
 // иначе у коллег, которые неделями не закрывают вкладку, остаётся старая отрисовка (например, аватаров)
 const BUILD = (() => {
   const fs = require('node:fs'), path = require('node:path'), h = require('node:crypto').createHash('sha1');
-  for (const f of ['js/app.js', 'js/building.js', 'css/app.css']) { try { h.update(fs.readFileSync(path.join(__dirname, '..', 'public', f))); } catch {} }
+  for (const f of ['js/app.js', 'js/building.js', 'js/crest.js', 'css/app.css']) { try { h.update(fs.readFileSync(path.join(__dirname, '..', 'public', f))); } catch {} }
   return h.digest('hex').slice(0, 10);
 })();
 const DEFAULT_LOOK = { preset: 'm', face: 'oval', eyes: '#22252D', mouth: 'smile', beard: 'none', freckles: false, eyeShape: 'normal', outfit: 'hoodie', neck: 'none', hat: 'none', prop: 'none', bg: 'auto', hairStyle: 'short', hair: '#2B1D14', skin: '#E8B48A', hoodie: 'blue', glasses: false, phones: false, status: null, frame: null, crown: false,
@@ -484,7 +484,7 @@ function createApi(db) {
         id: u.id, nick: u.nick, beans: u.beans, look: u.look, profile: u.profile, shareOffice: !!u.share_office, quiet: !!u.quiet,
         welcomed: !!u.welcomed, isAdmin: u.isAdmin, owned, newbie: U.now() - (u.created_at || 0) < 7 * 864e5, status: statusName(u.look.status), streak, level,
         nickChangeableAt: u.nick_changed_at ? u.nick_changed_at + 30 * 864e5 : null,
-        gangs: myGangs(u.id).map((g) => ({ id: g.id, name: g.name, color: g.color, emoji: g.emoji || null }))
+        gangs: myGangs(u.id).map((g) => ({ id: g.id, name: g.name, color: g.color, emoji: g.emoji || null, ...U.crestPub(g) }))
       },
       vapidKey: config.vapid.publicKey || null, build: BUILD,
       domains: config.allowedDomains,
@@ -725,8 +725,8 @@ function createApi(db) {
     let code;
     do code = U.shortCode(6); while (q('SELECT 1 FROM gangs WHERE code = ?').get(code));
     const prof = gangProfileInput(body, {});
-    const r = q('INSERT INTO gangs (name, color, code, owner_id, deposit, created_at, about, area, interests, emoji, access) VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)')
-      .run(name, color, code, u.id, U.now(), prof.about, prof.area, JSON.stringify(prof.interests), prof.emoji, prof.access || 'request');
+    const r = q('INSERT INTO gangs (name, color, code, owner_id, deposit, created_at, about, area, interests, emoji, access, crest) VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)')
+      .run(name, color, code, u.id, U.now(), prof.about, prof.area, JSON.stringify(prof.interests), prof.emoji, prof.access || 'request', prof.crest || null);
     for (const o of was) leaveGang(u.id, o.id);
     q('INSERT INTO gang_members (gang_id, user_id, joined_at) VALUES (?, ?, ?)').run(r.lastInsertRowid, u.id, U.now());
     if (league) league.touch(Number(r.lastInsertRowid), [u.id]);
@@ -788,6 +788,14 @@ function createApi(db) {
     out.interests = b.interests !== undefined ? (Array.isArray(b.interests) ? [...new Set(b.interests.filter((x) => GANG_INTERESTS.includes(x)))].slice(0, 6) : []) : JSON.parse(cur.interests || '[]');
     out.emoji = b.emoji !== undefined ? (GANG_EMOJI.includes(b.emoji) ? b.emoji : null) : cur.emoji || null;
     out.access = b.access !== undefined ? (ACCESS.includes(b.access) ? b.access : 'request') : cur.access;
+    // Герб: только известные части; null — вернуть автогерб
+    if (b.crest === null) out.crest = null;
+    else if (b.crest && typeof b.crest === 'object') {
+      const c = b.crest;
+      const ok = (list, v, d) => (list.includes(v) ? v : d);
+      out.crest = JSON.stringify({ shape: ok(CREST.shape, c.shape, 'heater'), div: ok(CREST.div, c.div, 'plain'), c1: ok(CREST.tincture, c.c1, 'blue'), c2: ok(CREST.tincture, c.c2, 'gold'),
+        charge: ok(CREST.charge, c.charge, 'star'), cc: ok(CREST.tincture, c.cc, 'gold'), top: ok(CREST.top, c.top, 'none'), motto: c.motto !== false });
+    } else out.crest = cur.crest || null;
     return out;
   }
   const gangOffice = (gid) => q(`SELECT COUNT(*) AS n FROM gang_members m JOIN users u ON u.id = m.user_id
@@ -804,7 +812,7 @@ function createApi(db) {
     return {
       id: g.id, name: g.name, color: g.color, emoji: g.emoji || null, about: g.about || '', area: g.area || null, interests: JSON.parse(g.interests || '[]'),
       access: g.access || 'invite', count, max: gangLimit(g), full: count >= gangLimit(g), owner,
-      trophies: league ? league.trophies(g.id) : null, legend: g.legend_month && league ? legendLabel(g.legend_month) : null, motto: g.motto || '', gold: !!g.gold,
+      ...U.crestPub(g), trophies: league ? league.trophies(g.id) : null, legend: g.legend_month && league ? legendLabel(g.legend_month) : null, motto: g.motto || '', gold: !!g.gold,
       officeName: g.office_id ? (officeById(g.office_id) || {}).name || null : null,
       inOffice: gangOffice(g.id), msgsWeek: q('SELECT COUNT(*) AS n FROM messages WHERE gang_id = ? AND at > ?').get(g.id, U.now() - 7 * 864e5).n,
       since: g.created_at, faces, member: uid ? isMember(g.id, uid) : false, requested: !!(req && req.status === 'pending')
@@ -911,8 +919,8 @@ function createApi(db) {
     const who = body.whoInvites !== undefined ? (body.whoInvites === 'owner' ? 'owner' : 'all') : g.who_invites;
     const office = body.office !== undefined ? (body.office && officeById(body.office) ? body.office : null) : g.office_id;
     const color = GANG_COLORS.includes(body.color) ? body.color : g.color;
-    q('UPDATE gangs SET name = ?, about = ?, area = ?, interests = ?, emoji = ?, access = ?, max_members = ?, who_invites = ?, office_id = ?, color = ? WHERE id = ?')
-      .run(name, p.about, p.area, JSON.stringify(p.interests), p.emoji, p.access, max, who, office, color, g.id);
+    q('UPDATE gangs SET name = ?, about = ?, area = ?, interests = ?, emoji = ?, access = ?, max_members = ?, who_invites = ?, office_id = ?, color = ?, crest = ? WHERE id = ?')
+      .run(name, p.about, p.area, JSON.stringify(p.interests), p.emoji, p.access, max, who, office, color, p.crest, g.id);
     // Открыли банду — висящие заявки принимаем сразу
     if (p.access === 'open') for (const r of q("SELECT user_id FROM gang_requests WHERE gang_id = ? AND status = 'pending'").all(g.id)) {
       const who2 = q('SELECT * FROM users WHERE id = ?').get(r.user_id);
@@ -998,9 +1006,9 @@ function createApi(db) {
 
   route('GET', '/api/invites', async (req) => {
     const u = requireUser(req);
-    const rows = q(`SELECT i.id, i.at, g.id AS gid, g.name, g.color, f.nick AS from_nick FROM gang_invites i JOIN gangs g ON g.id = i.gang_id
+    const rows = q(`SELECT i.id, i.at, g.id AS gid, g.name, g.color, g.crest, g.area, g.interests, f.nick AS from_nick FROM gang_invites i JOIN gangs g ON g.id = i.gang_id
                     LEFT JOIN users f ON f.id = i.from_id WHERE i.to_id = ? AND i.status = 'pending' AND g.hidden = 0 ORDER BY i.at DESC`).all(u.id);
-    return { items: rows.map((r) => ({ id: r.id, gang: { id: r.gid, name: r.name, color: r.color, members: memberCount(r.gid) }, from: r.from_nick || 'кто-то' })) };
+    return { items: rows.map((r) => ({ id: r.id, gang: { id: r.gid, name: r.name, color: r.color, ...U.crestPub(r), members: memberCount(r.gid) }, from: r.from_nick || 'кто-то' })) };
   });
 
   route('POST', '/api/invites/:id/:action', async (req, body, query, params) => {
@@ -1087,7 +1095,7 @@ function createApi(db) {
         id: g.id, name: g.name, color: g.color, motto: g.motto, gold: !!g.gold, mottoOwned: !!g.motto_owned,
         code: (g.who_invites || 'all') === 'all' || g.owner_id === u.id ? g.code : null, link: (g.who_invites || 'all') === 'all' || g.owner_id === u.id ? `${config.baseUrl}/g/${g.code}` : null, isOwner: g.owner_id === u.id,
         depositPending: !!g.deposit && members.length < 3, count: members.length,
-        about: g.about || '', area: g.area || null, interests: JSON.parse(g.interests || '[]'), emoji: g.emoji || null, access: g.access || 'invite',
+        about: g.about || '', ...U.crestPub(g), emoji: g.emoji || null, access: g.access || 'invite',
         max: gangLimit(g), maxSet: g.max_members || 0, league: league ? league.weekPlace(g.id) : null, trophies: league ? league.trophies(g.id) : null, legend: g.legend_month && league ? legendLabel(g.legend_month) : null, whoInvites: g.who_invites || 'all', office: g.office_id || null, canInvite: (g.who_invites || 'all') === 'all' || g.owner_id === u.id
       },
       requests: g.owner_id === u.id ? q(`SELECT r.user_id AS id, r.at, x.nick, x.look, x.profile, x.share_office FROM gang_requests r JOIN users x ON x.id = r.user_id WHERE r.gang_id = ? AND r.status = 'pending' ORDER BY r.at`).all(g.id).map((r) => ({ id: r.id, nick: r.nick, look: publicLook(r) })) : [],

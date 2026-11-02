@@ -172,7 +172,7 @@ function register(ctx) {
       const last = q('SELECT m.*, u.nick FROM messages m LEFT JOIN users u ON u.id = m.user_id WHERE m.gang_id = ? AND m.hidden = 0 ORDER BY m.at DESC LIMIT 1').get(g.id);
       const n = q('SELECT COUNT(*) AS n FROM gang_members WHERE gang_id = ?').get(g.id).n;
       items.push({
-        type: 'gang', id: g.id, name: g.name, color: g.color, emoji: g.emoji || null, members: n, lastAt: last ? last.at : g.created_at || 0,
+        type: 'gang', id: g.id, name: g.name, color: g.color, emoji: g.emoji || null, ...U.crestPub(g), members: n, lastAt: last ? last.at : g.created_at || 0,
         polls: pollsUnvoted ? pollsUnvoted(u.id, g.id) : 0,
         lastTime: last ? U.msk(last.at).hhmm : null,
         last: last ? { mine: last.user_id === u.id, who: last.nick, text: last.type === 'call' ? (CALLS[last.kind] || {}).verb || 'зов' : last.text } : null

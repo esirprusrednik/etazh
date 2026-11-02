@@ -19,6 +19,7 @@ public/index.html
 public/js/admin.js
 public/js/app.js
 public/js/building.js
+public/js/crest.js
 public/manifest.webmanifest
 public/privacy.html
 public/rules.html

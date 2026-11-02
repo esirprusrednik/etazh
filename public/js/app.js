@@ -1,5 +1,6 @@
 // Клиент «Этажа»: без фреймворков, рендер строками + делегирование событий (CSP запрещает inline-обработчики).
 import { officeSvg } from './building.js';
+import { crestSvg, crestOf, autoCrest, randomCrest, CREST_PARTS, TINCTURES, TINCTURE_NAMES, SHAPE_NAMES, DIV_NAMES, CHARGE_NAMES, TOP_NAMES } from './crest.js';
 
 const $ = (sel) => document.querySelector(sel);
 const root = $('#app');
@@ -1158,7 +1159,7 @@ function renderChats() {
     if (x.type === 'gang') {
       const unread = x.last && !x.last.mine && x.lastAt > (seenG[x.id] || 0);
       return `<button class="chat-row" data-act="gang-open" data-id="${x.id}">
-        <span class="chat-gang" style="background:${esc(x.color)}">${x.emoji ? esc(x.emoji) : esc(x.name.slice(0, 1).toUpperCase())}</span>
+        <span class="chat-gang-crest">${gangBadge(x, 42)}</span>
         <span class="grow" style="min-width:0"><span class="chat-title">${esc(x.name)} <span class="small">· ${x.members}</span></span>
           <span class="where ellipsis ${unread ? 'unread' : ''}">${x.last ? `${x.last.mine ? 'Ты' : esc(x.last.who || '')}: ${esc(x.last.text || '')}` : 'Сообщений пока нет — начни первым'}</span></span>
         <span class="crew-side">${x.lastTime ? `<span class="small">${x.lastTime}</span>` : ''}${x.polls ? `<span class="poll-badge" title="Опросы без твоего голоса">📊 ${x.polls}</span>` : unread ? '<span class="crew-badge">•</span>' : ''}</span></button>`;
@@ -1184,7 +1185,7 @@ function renderChats() {
     : '<p class="sub chats-empty">Пока тихо. Написать лично можно любому, кто не закрыл личку: найди по нику или открой карточку человека.</p>';
   return `${pageHead('Чаты', 'Банды и личка')}
     ${findBar()}
-    ${(S.invites || []).length ? `<section class="card"><h3>Тебя зовут в банду</h3>${S.invites.map((i) => `<div class="person2"><span class="chat-gang" style="background:${esc(i.gang.color)}">${esc(i.gang.name.slice(0, 1).toUpperCase())}</span>
+    ${(S.invites || []).length ? `<section class="card"><h3>Тебя зовут в банду</h3>${S.invites.map((i) => `<div class="person2">${gangBadge(i.gang, 38)}
       <div class="grow" style="min-width:0"><div style="font-weight:900">${esc(i.gang.name)}</div><div class="where">${i.gang.members} ${plural(i.gang.members, 'человек', 'человека', 'человек')} · зовёт ${esc(i.from)}</div></div>
       <button class="btn small" data-act="invite-accept" data-id="${i.id}">Вступить</button><button class="btn small ghost" data-act="invite-decline" data-id="${i.id}" aria-label="Отказаться">Нет</button></div>`).join('')}</section>` : ''}
     ${reqs}
@@ -1541,7 +1542,8 @@ function renderPollNew() {
 
 // ----- Банды: создание, поиск, профиль, настройки -----
 const ACCESS_NAMES = { open: ['Открытая', 'вступить может любой'], request: ['По заявке', 'вступление подтверждает владелец'], invite: ['Закрытая', 'только по ссылке или приглашению, в поиске не видна'] };
-const gangBadge = (g) => `<span class="g-badge" style="background:${esc(g.color)}">${g.emoji ? esc(g.emoji) : esc(g.name.slice(0, 1).toUpperCase())}</span>`;
+// Значок банды — её герб (собранный владельцем или автоматический)
+const gangBadge = (g, size = 40) => `<span class="g-crest" style="width:${size}px">${crestSvg(crestOf(g), { size })}</span>`;
 function areaSelect(id, cur) {
   return `<select id="${id}"><option value="">Не выбрано</option>${S.cat.gangAreas.map((a) => `<option ${cur === a ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>`;
 }
@@ -1551,12 +1553,47 @@ function accessPicker(cur) {
 function interestChips(sel) {
   return `<div class="chips">${S.cat.gangInterests.map((t) => `<button class="chip ${sel.includes(t) ? 'on' : ''}" data-act="gs-int" data-v="${esc(t)}">${esc(t)}</button>`).join('')}</div>`;
 }
+// ----- Генератор герба -----
+function crestField(d, ctx) {
+  const g = { id: (S.gang && ctx === 'set' && S.gang.gang.id) || 0, name: d.name || 'Банда', color: d.color, area: d.area, interests: d.interests, crest: d.crest };
+  return `<div class="field">Герб<div class="row crest-field">${crestSvg(crestOf(g), { size: 70, full: true, motto: d.name || '' })}
+    <div class="grow" style="display:flex;flex-direction:column;gap:6px"><span class="small" style="font-weight:600">${d.crest ? 'Собран вручную' : 'Собирается сам — по направлению и интересам'}</span>
+    <button class="btn small" data-act="crest-open" data-ctx="${ctx}">🛡 Собрать герб</button></div></div></div>`;
+}
+const CREST_TABS = [['shape', 'Щит'], ['field', 'Поле'], ['charge', 'Фигура'], ['top', 'Навершие']];
+function renderCrestEditor() {
+  const e = S.crestEd;
+  const c = e.crest;
+  const tab = e.tab || 'shape';
+  const mini = (patch, size = 46) => crestSvg({ ...c, ...patch }, { size });
+  const tile = (k, v, name) => `<button class="ava-tile crest-tile ${c[k] === v ? 'on' : ''}" data-act="crest-set" data-k="${k}" data-v="${v}">${mini({ [k]: v })}<span>${esc(name)}</span></button>`;
+  const sw = (k) => `<div class="row" style="flex-wrap:wrap;gap:8px">${CREST_PARTS.tincture.map((t) => `<button class="swatch ${c[k] === t ? 'on' : ''}" style="background:${TINCTURES[t][0]}" data-act="crest-set" data-k="${k}" data-v="${t}" title="${TINCTURE_NAMES[t]}" aria-label="${TINCTURE_NAMES[t]}"></button>`).join('')}</div>`;
+  const body = {
+    shape: `<div class="ava-tiles">${CREST_PARTS.shape.map((v) => tile('shape', v, SHAPE_NAMES[v])).join('')}</div>`,
+    field: `<div class="field">Основной цвет${sw('c1')}</div><div class="field">Второй цвет${sw('c2')}</div>
+      <div class="field">Деление<div class="ava-tiles">${CREST_PARTS.div.map((v) => tile('div', v, DIV_NAMES[v])).join('')}</div></div>
+      <p class="small" style="margin:0">Правило геральдики: металл (золото, серебро) кладут на цвет, а цвет — на металл. Так герб читается даже в маленьком значке.</p>`,
+    charge: `<div class="field">Цвет фигуры${sw('cc')}</div><div class="ava-tiles crest-charges">${CREST_PARTS.charge.map((v) => tile('charge', v, CHARGE_NAMES[v])).join('')}</div>`,
+    top: `<div class="ava-tiles">${CREST_PARTS.top.map((v) => `<button class="ava-tile crest-tile ${c.top === v ? 'on' : ''}" data-act="crest-set" data-k="top" data-v="${v}">${crestSvg({ ...c, top: v }, { size: 52, full: true })}<span>${TOP_NAMES[v]}</span></button>`).join('')}</div>
+      <div class="chips"><button class="chip ${c.motto !== false ? 'on' : ''}" data-act="crest-set" data-k="motto" data-v="${c.motto !== false ? '0' : '1'}">${c.motto !== false ? '✓ ' : ''}Лента с девизом</button></div>
+      <p class="small" style="margin:0">На ленте — девиз банды (покупается в Лавке), а пока его нет — название.</p>`
+  }[tab];
+  return `<div class="ava-ed">
+    <div class="ava-stage crest-stage">${crestSvg(c, { size: 150, full: true, motto: e.mottoText })}
+      <div class="ava-tools"><button class="tool" data-act="crest-random" aria-label="Случайный герб">🎲</button><button class="tool" data-act="crest-auto" aria-label="Подобрать по направлению и интересам" title="По направлению">✨</button></div></div>
+    <p class="small" style="margin:0;text-align:center">🎲 — случайный, ✨ — по направлению и интересам банды</p>
+    <div class="cats" role="tablist">${CREST_TABS.map(([id, label]) => `<button class="cat ${tab === id ? 'on' : ''}" role="tab" aria-selected="${tab === id}" data-act="crest-tab" data-v="${id}">${label}</button>`).join('')}</div>
+    <div class="cat-body">${body}</div>
+    <div class="ava-foot"><button class="btn grow" data-act="crest-save">Готово</button><button class="btn ghost" data-act="crest-reset" title="Вернуть автоматический">Авто</button></div>
+  </div>`;
+}
+
 function renderGangNew() {
   const d = S.gnew || (S.gnew = { access: 'request', interests: [], emoji: null });
   return `<p class="sub" style="margin-top:0">Банда — твои люди: команда, отдел, соседи по этажу, кофейный клуб. Общий чат, зовы, неделя офиса, опросы. Залог 50 зёрен вернётся, когда в банде будет 3 человека. В банде до 30 человек, а сам ты можешь быть только в одной банде${S.me.gangs.length ? ` — сколотишь новую, выйдешь из «${esc(S.me.gangs[0].name)}»` : ''}.</p>
     <label class="field">Название<input id="gang-name" maxlength="30" placeholder="Например, Аналитики 5 этажа" value="${esc(d.name || '')}"></label>
     <label class="field">Направление${areaSelect('gang-area', d.area)}</label>
-    <div class="field">Значок<div class="chips">${S.cat.gangEmoji.map((e) => `<button class="chip emo ${d.emoji === e ? 'on' : ''}" data-act="gs-emoji" data-v="${e}">${e}</button>`).join('')}</div></div>
+    ${crestField(d, 'new')}
     <div class="field">Кто может вступить${accessPicker(d.access)}</div>
     <div class="field">Интересы — до 6, по ним банду найдут${interestChips(d.interests)}</div>
     <label class="field">Пара слов о банде (необязательно)<input id="gang-about" maxlength="160" placeholder="Кто мы и зачем собрались" value="${esc(d.about || '')}"></label>
@@ -1597,7 +1634,7 @@ function renderGangProfile() {
   if (!c) return '<p class="sub">Загружаем…</p>';
   const [accT, accD] = ACCESS_NAMES[c.access] || ACCESS_NAMES.invite;
   const days = Math.max(1, Math.round((Date.now() - c.since) / 864e5));
-  return `<div class="g-hero" style="--gc:${esc(c.color)}">${gangBadge(c)}<div><div class="g-title">${esc(c.name)}${c.gold ? ' 👑' : ''}</div>
+  return `<div class="g-hero" style="--gc:${esc(c.color)}"><span class="g-crest">${crestSvg(crestOf(c), { size: 92, full: true, motto: c.motto || c.name })}</span><div><div class="g-title">${esc(c.name)}${c.gold ? ' 👑' : ''}</div>
       <div class="small">${c.area ? esc(c.area) : 'Направление не указано'}</div></div></div>
     ${c.legend ? `<div class="g-legend">👑 ${esc(c.legend)}</div>` : ''}
     ${trophyLine(c.trophies) ? `<p class="small" style="margin:0">Трофеи Лиги: ${trophyLine(c.trophies)}</p>` : ''}
@@ -1629,7 +1666,7 @@ function trophyLine(t) {
   return parts.join(' · ');
 }
 function leagueRow(r) {
-  return `<div class="lg-row ${r.me ? 'me' : ''}"><span class="lg-place">${r.place ? (MEDAL[r.place - 1] || r.place) : '—'}</span>${gangBadge(r)}
+  return `<div class="lg-row ${r.me ? 'me' : ''}"><span class="lg-place">${r.place ? (MEDAL[r.place - 1] || r.place) : '—'}</span>${gangBadge(r, 32)}
     <span class="grow" style="min-width:0"><span class="g-name ellipsis">${esc(r.name)}</span><span class="small">${r.members} ${plural(r.members, 'человек', 'человека', 'человек')}${r.together ? ` · в сборе ${r.together} ${plural(r.together, 'день', 'дня', 'дней')}` : ''}</span></span>
     <b class="lg-score">${r.score}</b></div>`;
 }
@@ -1688,7 +1725,7 @@ function renderGangSettings() {
   const d = S.gset;
   if (!d) return '<p class="sub">Загружаем…</p>';
   return `<label class="field">Название<input id="gs-name" maxlength="30" value="${esc(d.name || '')}"></label>
-    <div class="field">Значок<div class="chips">${S.cat.gangEmoji.map((e) => `<button class="chip emo ${d.emoji === e ? 'on' : ''}" data-act="gs-emoji" data-v="${e}">${e}</button>`).join('')}</div></div>
+    ${crestField(d, 'set')}
     <div class="field">Цвет<div class="row" style="gap:8px">${S.cat.gangColors.map((c) => `<button class="swatch ${d.color === c ? 'on' : ''}" style="background:${c}" data-act="gs-color" data-v="${c}" aria-label="Цвет ${c}"></button>`).join('')}</div></div>
     <label class="field">Направление${areaSelect('gs-area', d.area)}</label>
     <label class="field">О банде<input id="gs-about" maxlength="160" value="${esc(d.about || '')}" placeholder="Кто мы и зачем собрались"></label>
@@ -1728,7 +1765,7 @@ function renderGang() {
   const msgs = v.messages.map(renderMsg).join('') || '<p class="sub">Сообщения и зовы живут 24 часа. Начни первым.</p>';
   return `${multi}${chips}
   <section class="card" style="${g.gold ? 'border:3px solid #FFC93C' : ''}">
-    <div class="row">${gangBadge(g)}<div class="grow" style="min-width:0"><h2 style="margin:0">${esc(g.name)}</h2><span class="small">${g.area ? esc(g.area) + ' · ' : ''}${v.gang.count}${g.max ? '/' + g.max : ''} ${plural(v.gang.count, 'участник', 'участника', 'участников')} · ${(ACCESS_NAMES[g.access] || ACCESS_NAMES.invite)[0].toLowerCase()}</span></div>
+    <div class="row"><button class="crest-btn" data-act="${g.isOwner ? 'crest-open' : 'gang-profile'}" data-id="${g.id}" aria-label="${g.isOwner ? 'Собрать герб банды' : 'Профиль банды'}">${crestSvg(crestOf(g), { size: 58, full: true })}${g.isOwner ? '<i aria-hidden="true">✎</i>' : ''}</button><div class="grow" style="min-width:0"><h2 style="margin:0">${esc(g.name)}</h2><span class="small">${g.area ? esc(g.area) + ' · ' : ''}${v.gang.count}${g.max ? '/' + g.max : ''} ${plural(v.gang.count, 'участник', 'участника', 'участников')} · ${(ACCESS_NAMES[g.access] || ACCESS_NAMES.invite)[0].toLowerCase()}</span></div>
       ${g.isOwner ? '<button class="icon-btn" data-act="gang-settings" aria-label="Настройки банды">⚙️</button>' : `<button class="icon-btn" data-act="gang-profile" data-id="${g.id}" aria-label="Профиль банды">ℹ️</button>`}</div>
     ${g.legend ? `<div class="g-legend">👑 ${esc(g.legend)}</div>` : ''}
     ${g.league ? `<button class="lg-strip" data-act="league-open">🏆 Лига недели: <b>${g.league.place ? `${MEDAL[g.league.place - 1] || ''} ${g.league.place} место из ${g.league.of}` : g.league.eligible ? 'пока без очков' : 'нужно 3 человека'}</b> · счёт ${g.league.score}${trophyLine(g.trophies) ? ` · ${trophyLine(g.trophies)}` : ''}</button>` : ''}
@@ -2253,6 +2290,7 @@ function renderSheet() {
     case 'crew': return sheetWrap('Подельники', renderCrew());
     case 'stats': return sheetWrap('Этаж сегодня', renderStats());
     case 'about': store.set('aboutSeen', true); return sheetWrap('Об Этаже', aboutHtml());
+    case 'crest': return sheetWrap('Герб банды', renderCrestEditor());
     case 'gang-switch': return sheetWrap('Перейти в другую банду?', renderGangSwitch());
     case 'league': return sheetWrap('Лига банд', renderLeague());
     case 'crew-new': return sheetWrap('Позвать в личку', `<p class="sub">С участниками твоих банд переписываться можно сразу. Тех, кто не в банде, зови по нику или личной ссылкой.</p>
@@ -3136,6 +3174,30 @@ const actions = {
   }),
   'dm-from': (el) => run(async () => { await post('/api/me/profile', { profile: { dmFrom: el.dataset.v } }); await loadMe(); toast('Сохранили'); }),
   'about-ok'() { store.set('aboutSeen', true); S.sheet = null; render(); },
+  'crest-open'(el) {
+    const ctx = (el && el.dataset.ctx) || 'view';
+    let src;
+    if (ctx === 'new') { saveGangForm('new'); src = S.gnew; }
+    else if (ctx === 'set') { saveGangForm('set'); src = S.gset; }
+    else { const g = S.gang.gang; src = { name: g.name, color: g.color, area: g.area, interests: g.interests, crest: g.crest }; }
+    const gid = ctx === 'new' ? 0 : S.gang.gang.id;
+    const base = { id: gid, name: src.name || 'Банда', color: src.color, area: src.area, interests: src.interests, crest: src.crest };
+    S.crestEd = { ctx, gid, base, crest: crestOf(base), mottoText: (ctx !== 'new' && S.gang && S.gang.gang.motto) || src.name || 'Банда', tab: 'shape' };
+    S.sheet = 'crest'; render();
+  },
+  'crest-tab'(el) { S.crestEd.tab = el.dataset.v; render(); },
+  'crest-set'(el) { const k = el.dataset.k; S.crestEd.isAuto = false; S.crestEd.crest = { ...S.crestEd.crest, [k]: k === 'motto' ? el.dataset.v === '1' : el.dataset.v }; sfx('pick'); render(); },
+  'crest-random'() { S.crestEd.isAuto = false; S.crestEd.crest = randomCrest(S.crestEd.base); sfx('pick'); render(); },
+  'crest-auto'() { S.crestEd.isAuto = false; S.crestEd.crest = { ...randomCrest(S.crestEd.base), charge: autoCrest(S.crestEd.base).charge }; sfx('pick'); render(); },
+  'crest-reset'() { S.crestEd.crest = autoCrest(S.crestEd.base); S.crestEd.isAuto = true; render(); },
+  'crest-save': () => run(async () => {
+    const e = S.crestEd;
+    const val = e.isAuto ? null : e.crest;
+    if (e.ctx === 'new') { S.gnew.crest = val; S.sheet = 'gang-new'; }
+    else if (e.ctx === 'set') { S.gset.crest = val; S.sheet = 'gang-settings'; }
+    else { await post(`/api/gangs/${e.gid}/settings`, { crest: val }); S.sheet = null; toast('Герб сохранён'); await Promise.all([loadMe(), loadGang(), loadChats()]); }
+    S.crestEd = null;
+  }),
   'league-open': () => run(async () => { S.sheet = 'league'; render(); await loadLeague(); }),
   'league-tab': (el) => run(async () => { S.leagueType = el.dataset.v; render(); await loadLeague(el.dataset.v); }),
   'gang-switch-go': () => run(async () => { const a = S.switchAsk; S.switchAsk = null; S.sheet = null; if (a) await a.go(); }),
@@ -3161,12 +3223,12 @@ const actions = {
   },
   'gang-settings': () => run(async () => {
     const g = S.gang.gang;
-    S.gset = { name: g.name, emoji: g.emoji, color: g.color, area: g.area, about: g.about, interests: [...(g.interests || [])], access: g.access, whoInvites: g.whoInvites, maxMembers: g.maxSet, office: g.office };
+    S.gset = { name: g.name, emoji: g.emoji, crest: g.crest || null, color: g.color, area: g.area, about: g.about, interests: [...(g.interests || [])], access: g.access, whoInvites: g.whoInvites, maxMembers: g.maxSet, office: g.office };
     S.sheet = 'gang-settings';
   }),
   'gs-save': () => run(async () => {
     saveGangForm('set'); const d = S.gset;
-    await post(`/api/gangs/${S.gang.gang.id}/settings`, { name: d.name, emoji: d.emoji, color: d.color, area: d.area || null, about: d.about, interests: d.interests, access: d.access, whoInvites: d.whoInvites, maxMembers: Number(d.maxMembers) || 0, office: d.office || null });
+    await post(`/api/gangs/${S.gang.gang.id}/settings`, { name: d.name, emoji: d.emoji, crest: d.crest, color: d.color, area: d.area || null, about: d.about, interests: d.interests, access: d.access, whoInvites: d.whoInvites, maxMembers: Number(d.maxMembers) || 0, office: d.office || null });
     S.sheet = null; toast('Настройки сохранены'); await loadMe(); await loadGang();
   }),
   greq: (el) => run(async () => { await post(`/api/gangs/${S.gang.gang.id}/requests/${el.dataset.id}/${el.dataset.v}`); toast(el.dataset.v === 'accept' ? 'Принят в банду' : 'Заявка отклонена'); await loadGang(); await loadState(); }),
@@ -3177,7 +3239,7 @@ const actions = {
     saveGangForm('new'); const d = S.gnew || {};
     let r;
     await switchable(async (sw) => {
-      r = await post('/api/gangs', { name: d.name, area: d.area || null, about: d.about, interests: d.interests, emoji: d.emoji, access: d.access, switch: sw });
+      r = await post('/api/gangs', { name: d.name, area: d.area || null, about: d.about, interests: d.interests, emoji: d.emoji, crest: d.crest || autoCrest({ id: 0, name: d.name || 'Банда', area: d.area, interests: d.interests }), access: d.access, switch: sw });
       if (sw) await afterCreate(r);
     });
     if (r) await afterCreate(r);
