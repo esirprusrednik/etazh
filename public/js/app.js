@@ -524,7 +524,7 @@ function renderApp() {
       ${S.tab === 'near' ? renderNear() : S.tab === 'chats' ? renderChats() : S.tab === 'office' ? renderOfficeTab() : renderGames()}
     </main>
     <nav class="tabs"><div class="in">
-      ${tabBtn('near', 'Рядом', 0)}${tabBtn('chats', 'Чаты', (b.chat || 0) + (b.crew || 0) + (b.invites || 0))}${tabBtn('office', 'Офис', 0)}${tabBtn('games', 'Игры', (S.quiz || []).filter((z) => !z.answered).length + (S.battles || []).filter((x) => x.myTurn && x.status !== 'done').length)}
+      ${tabBtn('near', 'Рядом', 0)}${tabBtn('chats', 'Чаты', (b.chat || 0) + (b.crew || 0) + (b.invites || 0) + (b.polls || 0))}${tabBtn('office', 'Офис', 0)}${tabBtn('games', 'Игры', (S.quiz || []).filter((z) => !z.answered).length + (S.battles || []).filter((x) => x.myTurn && x.status !== 'done').length)}
     </div></nav>
   </div>
   ${S.sheet ? renderSheet() : ''}`;
@@ -669,7 +669,7 @@ function renderChats() {
         <span class="chat-gang" style="background:${esc(x.color)}">${esc(x.name.slice(0, 1).toUpperCase())}</span>
         <span class="grow" style="min-width:0"><span class="chat-title">${esc(x.name)} <span class="small">· ${x.members}</span></span>
           <span class="where ellipsis ${unread ? 'unread' : ''}">${x.last ? `${x.last.mine ? 'Ты' : esc(x.last.who || '')}: ${esc(x.last.text || '')}` : 'Сообщений пока нет — начни первым'}</span></span>
-        <span class="crew-side">${x.lastTime ? `<span class="small">${x.lastTime}</span>` : ''}${unread ? '<span class="crew-badge">•</span>' : ''}</span></button>`;
+        <span class="crew-side">${x.lastTime ? `<span class="small">${x.lastTime}</span>` : ''}${x.polls ? `<span class="poll-badge" title="Опросы без твоего голоса">📊 ${x.polls}</span>` : unread ? '<span class="crew-badge">•</span>' : ''}</span></button>`;
     }
     const [w, color] = whereText(x);
     const turn = (S.battles || []).find((b) => b.oppId === x.id && b.myTurn && b.status !== 'done');
@@ -961,7 +961,8 @@ const pollLeft = (ts) => {
 };
 function renderPoll(p) {
   const who = (v) => v.length ? `<span class="poll-who">${esc(v.slice(0, 3).join(', '))}${v.length > 3 ? ` +${v.length - 3}` : ''}</span>` : '';
-  return `<div class="poll ${p.closed ? 'closed' : ''}">
+  return `<div class="poll ${p.closed ? 'closed' : ''} ${!p.closed && !p.voted && !p.mine ? 'todo' : ''}">
+    ${!p.closed && !p.voted && !p.mine ? '<span class="poll-todo">Ждём твой голос</span>' : ''}
     <div class="poll-q">${esc(p.question)}</div>
     <div class="small">${esc(p.author)} · ${p.closed ? 'опрос завершён' : `ещё ${pollLeft(p.closesAt)}`} · ${p.total} ${plural(p.total, 'голос', 'голоса', 'голосов')}${p.multi ? ' · можно несколько' : ''}</div>
     <div class="poll-opts">${p.options.map((o) => `<button class="poll-opt ${o.me ? 'me' : ''} ${o.lead ? 'lead' : ''}" data-act="poll-vote" data-id="${p.id}" data-v="${o.id}" ${p.closed ? 'disabled' : ''} aria-pressed="${o.me}">
@@ -2380,6 +2381,7 @@ const actions = {
   'poll-vote': (el) => run(async () => {
     const r = await post(`/api/polls/${el.dataset.id}/vote`, { option: Number(el.dataset.v) });
     S.polls = (S.polls || []).map((p) => (p.id === r.poll.id ? r.poll : p)); sfx('click');
+    loadState().then(render).catch(() => {}); // бейдж «Чаты» пересчитает сервер
   }),
   'poll-add': (el) => run(async () => {
     const inp = $('#poll-add-' + el.dataset.id);

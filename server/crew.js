@@ -11,7 +11,7 @@ const PENDING_TTL_DAYS = 30;    // неотвеченная заявка сго�
 const DM_CALLS = ['coffee', 'lunch', 'call', 'where', 'online', 'wait', 'room']; // «Домой — кто с ним?» в личке не нужен
 
 function register(ctx) {
-  const { db, q, route, requireUser, bad, U, config, notify, fireAndForget, rateLimit, memberStatus, HttpError, publicLook, onEvent } = ctx;
+  const { db, q, route, requireUser, bad, U, config, notify, fireAndForget, rateLimit, memberStatus, HttpError, publicLook, onEvent, pollsUnvoted } = ctx;
 
   db.exec(`
   -- Пара хранится упорядоченно: lo < hi. status: pending | ok
@@ -141,6 +141,7 @@ function register(ctx) {
       const n = q('SELECT COUNT(*) AS n FROM gang_members WHERE gang_id = ?').get(g.id).n;
       items.push({
         type: 'gang', id: g.id, name: g.name, color: g.color, members: n, lastAt: last ? last.at : g.created_at || 0,
+        polls: pollsUnvoted ? pollsUnvoted(u.id, g.id) : 0,
         lastTime: last ? U.msk(last.at).hhmm : null,
         last: last ? { mine: last.user_id === u.id, who: last.nick, text: last.type === 'call' ? (CALLS[last.kind] || {}).verb || 'зов' : last.text } : null
       });

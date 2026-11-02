@@ -595,7 +595,7 @@ function createApi(db) {
       canteen: office ? canteenEstimate(office) : null,
       inCanteen: !!canteenOpen,
       gangNow: { hasGang: gangs.length > 0, rows: rows.slice(0, 6), more: Math.max(0, rows.length - 6) },
-      badges: { chat: newChat, feed: newFeed, crew: crew ? crew.unread(u.id) : 0, invites: q("SELECT COUNT(*) AS n FROM gang_invites WHERE to_id = ? AND status = 'pending'").get(u.id).n, feedback: feedback ? feedback.unseen(u.id) : 0 }
+      badges: { chat: newChat, feed: newFeed, crew: crew ? crew.unread(u.id) : 0, invites: q("SELECT COUNT(*) AS n FROM gang_invites WHERE to_id = ? AND status = 'pending'").get(u.id).n, feedback: feedback ? feedback.unseen(u.id) : 0, polls: polls ? polls.unvoted(u.id) : 0 }
     };
   });
 
@@ -1132,6 +1132,7 @@ function createApi(db) {
 
   // ---------- Подельники: личные контакты ----------
   crew = require('./crew').register({
+    pollsUnvoted: (uid, gid) => (polls ? polls.unvoted(uid, gid) : 0),
     db, q, route, requireUser, bad, U, config, notify, fireAndForget, rateLimit, memberStatus, HttpError, publicLook,
     onEvent: (t, uid, d) => features && features.onEvent(t, uid, d)
   });

@@ -220,7 +220,11 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     const p = r.json.poll;
     assert.equal(p.options.length, 2, 'дубль варианта отброшен');
     assert.equal((await d.get(`/api/gangs/${gg.id}/polls`)).status, 404, 'не член банды — не видит');
+    assert.equal((await b.get('/api/state')).json.badges.polls, 1, 'бейдж: опрос без голоса');
+    assert.equal((await a.get('/api/state')).json.badges.polls, 0, 'свой опрос в бейдж не идёт');
+    assert.equal((await b.get('/api/chats')).json.items.find((x) => x.type === 'gang' && x.id === gg.id).polls, 1);
     let v = (await b.post(`/api/polls/${p.id}/vote`, { option: p.options[0].id })).json.poll;
+    assert.equal((await b.get('/api/state')).json.badges.polls, 0, 'проголосовал — бейдж погас');
     assert.equal(v.total, 1); assert.ok(v.options[0].me);
     v = (await b.post(`/api/polls/${p.id}/vote`, { option: p.options[1].id })).json.poll;
     assert.ok(!v.options[0].me && v.options[1].me, 'одиночный выбор: голос переехал');

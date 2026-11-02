@@ -164,7 +164,14 @@ function register(ctx) {
     q('DELETE FROM polls WHERE closes_at < ?').run(U.now() - KEEP_CLOSED_DAYS * 864e5);
   }
 
-  return { cleanup };
+  // Опросы, где ты ещё не голосовал (свои не считаем): для бейджа «Чаты» и строки банды
+  function unvoted(uid, gangId = null) {
+    return q(`SELECT COUNT(*) AS n FROM polls p JOIN gang_members gm ON gm.gang_id = p.gang_id AND gm.user_id = ?
+      WHERE p.closes_at > ? AND (p.user_id IS NULL OR p.user_id != ?)
+      AND NOT EXISTS (SELECT 1 FROM poll_votes v WHERE v.poll_id = p.id AND v.user_id = ?)${gangId ? ' AND p.gang_id = ?' : ''}`).get(uid, U.now(), uid, uid, ...(gangId ? [gangId] : [])).n;
+  }
+
+  return { cleanup, unvoted };
 }
 
 module.exports = { register };

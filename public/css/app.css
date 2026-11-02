@@ -599,3 +599,5 @@ body { font-weight: 500; }
 .poll-pct { font-weight: 900; font-size: 14px; }
 .poll-add input { min-height: 40px; }
 .pd-o { min-height: 44px; border-radius: 12px; border: 2px solid var(--line); padding: 8px 12px; color: var(--ink); font-weight: 600; }
+.poll-badge { font-size: 12px; font-weight: 900; color: #fff; background: #3A86FF; border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
+.poll-todo { align-self: flex-start; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; color: #1E4FA8; background: #E3EDFF; border-radius: 999px; padding: 3px 9px; }
