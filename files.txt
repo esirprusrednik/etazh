@@ -26,6 +26,7 @@ public/sw.js
 scripts/backup.sh
 scripts/gen-secrets.js
 scripts/install.sh
+scripts/rename-gang.js
 scripts/set-nick.js
 server/api.js
 server/battle.js
