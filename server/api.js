@@ -110,7 +110,7 @@ function vacRest(v, today, night) {
   let workLeft = 0;
   for (let d = today; d <= lastWork && workLeft < 60; d = addDays(d, 1)) if (weekdayName(d) && !(d === today && night)) workLeft++;
   const vacDays = dayDiff(v.from, v.to) + 1;
-  return { from: v.from, to: v.to, in: dayDiff(today, v.from), vacDays, restFrom, restDays: dayDiff(restFrom, back), back, backDow: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'][new Date(back + 'T00:00:00Z').getUTCDay()], lastWork, workLeft };
+  return { from: v.from, to: v.to, in: dayDiff(today, v.from), restIn: dayDiff(today, (() => { let r = v.from; for (let i = 0; i < 14 && !weekdayName(addDays(r, -1)); i++) r = addDays(r, -1); return r; })()), vacDays, restFrom, restDays: dayDiff(restFrom, back), back, backDow: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'][new Date(back + 'T00:00:00Z').getUTCDay()], lastWork, workLeft };
 }
 // День плана недели для рабочего дня; null — выходной или праздник по производственному календарю
 const HOL = require('./holidays');
@@ -146,7 +146,8 @@ function readProfile(json) {
   // Старое поле days («обычно в офисе») превращается в план
   if (prof.days.length && !Object.keys(prof.plan).length) prof.plan = Object.fromEntries(prof.days.map((d) => [d, 'office']));
   const today = U.msk().day;
-  prof.vacations = prof.vacations.filter((v) => v.to >= today);
+  // Прошедший отпуск держим ещё неделю: выходные сразу после него — тоже «в отпуске»
+  prof.vacations = prof.vacations.filter((v) => addDays(v.to, 7) >= today);
   // today: { kind, day, to } — ручной статус; «болею» может длиться несколько дней
   if (prof.today && (prof.today.to || prof.today.day) < today) prof.today = null;
   if (prof.today && prof.today.day > today) prof.today = null;
@@ -159,8 +160,12 @@ function presenceOf(prof, checkin, seed = 0) {
   const day = U.msk().day;
   const manual = prof.today ? prof.today.kind : null;
   if (checkin) return { where: 'office', office: checkin.office_id };
-  const vac = prof.vacations.find((v) => v.from <= day && day <= v.to);
-  if (vac) return { where: 'vacation', until: vac.to };
+  // Отпуск вместе с прилегающими выходными и праздниками: «в отпуске» уже с первого нерабочего дня перед ним
+  // и до последнего выходного после — в эти дни зовы тоже не беспокоят
+  for (const v of prof.vacations) {
+    const r = vacRest(v, day, true);
+    if (r.restFrom <= day && day < r.back) return { where: 'vacation', until: addDays(r.back, -1) };
+  }
   if (manual === 'vacation') return { where: 'vacation', until: day };
   if (manual === 'sick') return { where: 'sick', until: prof.today.to || day };
   if (!weekdayName(day)) return { where: 'weekend', holiday: HOL.holidayName(day) };
@@ -593,7 +598,7 @@ function createApi(db) {
           if (v.to < v.from) throw bad('Конец отпуска раньше начала.');
           if (v.to > maxDay) throw bad('Планировать отпуск можно не дальше чем на год вперёд.');
           if (Date.parse(v.to) - Date.parse(v.from) > 60 * 864e5) throw bad('Один отпуск — не длиннее 60 дней. Разбей на части.');
-          if (v.to >= today) list.push({ from: v.from, to: v.to });
+          if (addDays(v.to, 7) >= today) list.push({ from: v.from, to: v.to });
         }
         list.sort((a, b) => a.from.localeCompare(b.from));
         for (let i = 1; i < list.length; i++) if (list[i].from <= list[i - 1].to) throw bad('Отпуска пересекаются.');

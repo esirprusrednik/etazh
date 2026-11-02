@@ -1512,6 +1512,7 @@ function renderSignalsMini() {
   </section>`;
 }
 
+const addDaysC = (d, n) => new Date(Date.parse(d + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
 const ddmm = (d) => (d ? `${d.slice(8, 10)}.${d.slice(5, 7)}` : '');
 function whereText(r) {
   const [t, c] = whereText0(r);
@@ -1586,11 +1587,15 @@ function renderVacSoon() {
   const bonus = v.restDays > v.vacDays;
   const ann = store.get('vacAnn:' + v.from);
   const hasGang = S.me.gangs.length > 0;
-  const big = v.in === 1 ? 'завтра' : v.workLeft === 0 ? 'вот-вот' : '';
-  const segs = v.workLeft > 0 && v.workLeft <= 10 ? `<div class="vac-prog"><div class="vac-segs">${Array.from({ length: v.workLeft }, () => '<i></i>').join('')}</div><span>${v.workLeft === 1 ? 'последний рабочий день' : `ещё ${v.workLeft} ${plural(v.workLeft, 'рабочий день', 'рабочих дня', 'рабочих дней')}`}</span></div>` : '';
+  const n = v.restIn ?? v.in;
+  const big = n === 1 ? 'завтра' : v.workLeft === 0 ? 'вот-вот' : '';
+  const today = S.state.today;
+  const dowOf = (d) => ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'][new Date(d + 'T00:00:00Z').getUTCDay()];
+  const lastLabel = v.lastWork === today ? 'сегодня' : v.lastWork === addDaysC(today, 1) ? 'завтра' : `${dowOf(v.lastWork)} ${ddmm(v.lastWork)}`;
+  const segs = v.workLeft > 0 && v.workLeft <= 10 ? `<div class="vac-prog"><div class="vac-segs">${Array.from({ length: v.workLeft }, () => '<i></i>').join('')}</div><span>${v.workLeft === 1 ? `последний рабочий день — <b>${lastLabel}</b>` : `ещё ${v.workLeft} ${plural(v.workLeft, 'рабочий день', 'рабочих дня', 'рабочих дней')}, последний — <b>${lastLabel}</b>`}</span></div>` : '';
   return `<section class="card vac-soon">
     <div class="vac-main">
-      <div class="vac-num">${big ? `<b class="w">${big}</b>` : `<b>${v.in}</b>`}<span>${big ? 'отпуск' : `${plural(v.in, 'день', 'дня', 'дней')} до отпуска`}</span></div>
+      <div class="vac-num">${big ? `<b class="w">${big}</b>` : `<b>${n}</b>`}<span>${big ? 'отпуск' : `${plural(n, 'день', 'дня', 'дней')} до отпуска`}</span></div>
       <div class="vac-info">
         <div class="vac-range">${range}</div>
         <div class="vac-sub">${bonus ? `${v.vacDays} ${plural(v.vacDays, 'день', 'дня', 'дней')} отпуска = <b>${v.restDays} ${plural(v.restDays, 'день', 'дня', 'дней')} отдыха</b>` : `<b>${v.restDays} ${plural(v.restDays, 'день', 'дня', 'дней')} отдыха</b>`}</div>
