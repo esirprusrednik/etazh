@@ -1043,28 +1043,27 @@ button.quest:disabled { cursor: default; }
 .tr-hist .plus { color: var(--tint-g-fg); } .tr-hist .minus { color: var(--tint-r-fg); }
 @media (prefers-reduced-motion: reduce) { .gname.plate_fire, .aura.aura_fire svg { animation: none; } }
 
-/* Скорый отпуск */
-.vac-far { margin: 0 0 12px; padding: 10px 14px; border-radius: 14px; background: rgba(255,255,255,.08); color: #FFD9A8; font-weight: 700; font-size: 14px; }
-.card.vac-soon { position: relative; overflow: hidden; color: #fff; background: linear-gradient(135deg, #FF9A3C 0%, #FF5E7E 55%, #8A4BFF 100%); box-shadow: 0 5px 0 #B23A6B; }
-.card.vac-soon::before { content: ''; position: absolute; right: -56px; top: -56px; width: 150px; height: 150px; border-radius: 50%; background: radial-gradient(circle, rgba(255,236,150,.55) 0 34%, rgba(255,236,150,.18) 35% 52%, transparent 53%); }
-.card.vac-soon::after { content: '🌴'; position: absolute; right: 10px; bottom: -6px; font-size: 64px; opacity: .22; transform: rotate(-8deg); }
-.vac-top { position: relative; z-index: 1; display: flex; gap: 14px; align-items: center; }
-.vac-count { flex: none; width: 78px; height: 78px; border-radius: 22px; background: rgba(255,255,255,.95); color: #E5484D; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 4px 0 rgba(0,0,0,.15); }
-.vac-count b { font-size: 38px; line-height: 1; font-weight: 900; }
-.vac-count b.w { font-size: 17px; }
-.vac-count span { font-size: 12px; font-weight: 800; color: #8A4B5E; }
-.vac-k { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; opacity: .9; }
-.vac-range { font-size: 26px; font-weight: 900; line-height: 1.15; }
-.vac-sub { font-size: 14px; line-height: 1.35; opacity: .95; margin-top: 2px; }
-.vac-sub b { background: rgba(255,255,255,.25); padding: 0 6px; border-radius: 6px; }
-.vac-dots { position: relative; display: flex; align-items: center; gap: 5px; margin-top: 12px; font-size: 13px; font-weight: 700; }
-.vac-dots i { width: 12px; height: 12px; border-radius: 4px; background: #fff; box-shadow: 0 2px 0 rgba(0,0,0,.15); }
-.vac-dots span { margin-left: 6px; opacity: .95; }
-.vac-acts { position: relative; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
-.vac-btn { border: 0; border-radius: 999px; padding: 9px 14px; background: rgba(255,255,255,.95); color: #3A1D4A; font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; box-shadow: 0 3px 0 rgba(0,0,0,.15); }
-.vac-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0,0,0,.15); }
-.vac-done { padding: 9px 12px; font-size: 14px; font-weight: 800; color: #fff; }
-.vac-back { margin: 2px 0 6px; font-size: 16px; }
+/* Скорый отпуск: тёплая жёлтая карточка с пляжем */
+.vac-far { margin: 0 0 12px; padding: 10px 14px; border-radius: 14px; background: var(--tint-y); color: var(--tint-y-fg); font-weight: 700; font-size: 14px; border: 1px solid var(--wallet-bd); }
+.card.vac-soon { padding: 0; gap: 0; overflow: hidden; color: #3B2400; background: linear-gradient(180deg, #FFE6A0 0%, #FFD36E 100%); border: 0; box-shadow: 0 10px 24px rgba(240,160,40,.28); }
+.vac-hero { position: relative; height: 128px; }
+.vac-scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.vac-count { position: absolute; left: 16px; top: 14px; display: flex; align-items: center; gap: 8px; color: #3B2400; }
+.vac-count b { font-family: var(--font-display); font-size: 46px; line-height: 1; font-weight: 800; letter-spacing: -.03em; text-shadow: 0 2px 0 rgba(255,255,255,.5); }
+.vac-count b.w { font-size: 26px; }
+.vac-count span { font-size: 13px; font-weight: 800; line-height: 1.15; color: #6B4510; }
+.vac-body { position: relative; padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 6px; }
+.vac-range { font-family: var(--font-display); font-size: 22px; font-weight: 800; letter-spacing: -.02em; color: #3B2400; }
+.vac-sub { font-size: 14px; line-height: 1.4; color: #6B4510; }
+.vac-sub b { color: #3B2400; background: rgba(255,255,255,.55); padding: 1px 6px; border-radius: 6px; }
+.vac-dots { display: flex; align-items: center; gap: 5px; margin-top: 4px; font-size: 13px; font-weight: 700; color: #6B4510; }
+.vac-dots i { width: 12px; height: 12px; border-radius: 4px; background: #fff; box-shadow: inset 0 0 0 1.5px #E0A23A; }
+.vac-dots span { margin-left: 6px; }
+.vac-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.vac-btn { border: 0; border-radius: 999px; padding: 9px 14px; background: rgba(255,255,255,.85); color: #3B2400; font: 700 14px var(--font); cursor: pointer; box-shadow: 0 1px 0 rgba(160,100,20,.25), 0 2px 8px rgba(160,100,20,.12); }
+.vac-btn:active { transform: translateY(1px); }
+.vac-done { padding: 9px 4px; font-size: 14px; font-weight: 800; color: #3B6B1F; }
+:root[data-theme="dark"] .card.vac-soon { box-shadow: 0 0 0 1px rgba(255,210,63,.35), 0 12px 30px rgba(255,176,32,.18); }
 
 /* Голосовые */
 .mic-btn { flex: none; min-width: 48px; padding-left: 0; padding-right: 0; font-size: 20px; }
@@ -1201,4 +1200,3 @@ a { color: var(--link); }
 .cat.on { background: var(--chip-on-bg); color: var(--chip-on-fg); }
 .onb, .onb .sub { color: var(--fg); } .onb .sub { color: var(--fg-muted); }
 .logo { color: var(--fg); }
-.card.vac-soon { box-shadow: 0 8px 20px rgba(255,94,126,.25); border: 0; }

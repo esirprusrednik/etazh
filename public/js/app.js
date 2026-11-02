@@ -1489,11 +1489,14 @@ function renderToday() {
   const p = st.presence;
   const next = renderVacSoon();
   if (p.where === 'vacation') {
-    return `<section class="card" style="background:var(--tint-y)">
-      <h2>🌴 Ты в отпуске${p.until === st.today ? ' сегодня' : ` до ${ddmm(p.until)}`}</h2>
-      ${st.vacNow ? `<p class="vac-back">Выходить <b>${st.vacNow.backDow.toLowerCase()} ${ddmm(st.vacNow.back)}</b>${st.vacNow.restDays > 1 ? ` · ещё ${st.vacNow.restDays} ${plural(st.vacNow.restDays, 'день', 'дня', 'дней')} отдыха` : ' · последний день, лови момент'}</p>` : ''}
-      <p class="sub">Банда видит статус «в отпуске», зовы не присылают пуши — прочитаешь в чате, когда вернёшься.</p>
-      <div class="row" style="gap:8px"><button class="btn ghost grow" data-act="vac-end">Вышел из отпуска</button><button class="btn ghost grow" data-act="open" data-v="profile">График</button></div>
+    return `<section class="card vac-soon">
+      <div class="vac-hero">${beachScene()}<div class="vac-count"><b class="w">отпуск</b></div></div>
+      <div class="vac-body">
+        <div class="vac-range">${p.until === st.today ? 'Отдыхаешь сегодня' : `Отдыхаешь до ${ddmm(p.until)}`}</div>
+        ${st.vacNow ? `<div class="vac-sub">Выходить <b>${st.vacNow.backDow.toLowerCase()} ${ddmm(st.vacNow.back)}</b>${st.vacNow.restDays > 1 ? ` · ещё ${st.vacNow.restDays} ${plural(st.vacNow.restDays, 'день', 'дня', 'дней')} отдыха` : ' · последний день, лови момент'}</div>` : ''}
+        <div class="vac-sub">Банда видит «в отпуске», зовы не присылают пуши — прочитаешь в чате, когда вернёшься.</div>
+        <div class="vac-acts"><button class="vac-btn" data-act="vac-end">Вышел из отпуска</button><button class="vac-btn" data-act="open" data-v="profile">График</button></div>
+      </div>
     </section>`;
   }
   if (p.where === 'sick') {
@@ -1525,6 +1528,46 @@ function renderToday() {
   return next;
 }
 
+// Пляж для плашки отпуска: небо, садящееся солнце, море, песок, зонтик и пальма
+function beachScene() {
+  return `<svg class="vac-scene" viewBox="0 0 360 120" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs>
+      <linearGradient id="vsSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF4CF"/><stop offset=".75" stop-color="#FFD98A"/><stop offset="1" stop-color="#FFC266"/></linearGradient>
+      <linearGradient id="vsSea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3DB8C9"/><stop offset="1" stop-color="#1A86A8"/></linearGradient>
+      <radialGradient id="vsSun" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#FFFBEA"/><stop offset=".5" stop-color="#FFE9A0"/><stop offset="1" stop-color="#FFC54D"/></radialGradient>
+    </defs>
+    <rect width="360" height="120" fill="url(#vsSky)"/>
+    <circle cx="250" cy="80" r="48" fill="#FFE08A" opacity=".5"/><circle cx="250" cy="80" r="36" fill="#FFD56B" opacity=".35"/>
+    <circle cx="250" cy="80" r="27" fill="url(#vsSun)"/>
+    <g fill="#fff" opacity=".8"><ellipse cx="196" cy="22" rx="20" ry="5.5"/><ellipse cx="210" cy="18" rx="12" ry="5.5"/><ellipse cx="300" cy="12" rx="14" ry="3.5"/></g>
+    <g fill="none" stroke="#9A6A2E" stroke-width="1.6" stroke-linecap="round" opacity=".7"><path d="M168 44q4-4 8 0q4-4 8 0"/><path d="M190 36q3-3 6 0q3-3 6 0"/></g>
+    <rect y="80" width="360" height="26" fill="url(#vsSea)"/>
+    <g stroke="#FFEBB0" stroke-linecap="round"><path d="M226 84h48" stroke-width="2.4"/><path d="M234 89h32" stroke-width="2.2"/><path d="M240 94h20" stroke-width="2"/><path d="M245 99h10" stroke-width="1.8"/></g>
+    <g stroke="#fff" stroke-linecap="round" stroke-width="1.4" opacity=".55"><path d="M40 88h14M90 95h10M150 87h12M300 92h12M330 86h8"/></g>
+    <path d="M0 101C70 94 150 106 230 99S330 95 360 99V120H0Z" fill="#F5CF84"/>
+    <path d="M0 110C90 104 190 113 280 107S350 106 360 108V120H0Z" fill="#FBE0A6"/>
+    <g transform="translate(176 0)">
+      <path d="M2 113L5 86" stroke="#7A4A22" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M-18 90Q5 66 28 90Z" fill="#fff"/>
+      <path d="M-18 90Q-12 74 -1 70L-4 90ZM5 68Q16 72 22 82L28 90L13 90Z" fill="#E5484D"/>
+      <path d="M-18 90Q5 66 28 90" fill="none" stroke="#C2343A" stroke-width="1.2"/>
+      <rect x="-30" y="104" width="26" height="5" rx="2.5" fill="#3A86FF" transform="rotate(-6 -17 106)"/>
+    </g>
+    <g>
+      <path d="M332 116C328 92 320 70 304 50" fill="none" stroke="#7A4A22" stroke-width="7" stroke-linecap="round"/>
+      <g stroke="#5E3818" stroke-width="1.4" stroke-linecap="round" opacity=".7"><path d="M327 104l6-2M324 92l6-2.5M320 81l6-3M315 70l5.5-3.5M310 61l5-4"/></g>
+      <path d="M304 50C290 30 268 26 255 33C272 32 290 38 304 51Z" fill="#23704A"/>
+      <path d="M304 50C322 50 340 60 347 77C334 65 320 58 304 52Z" fill="#23704A"/>
+      <path d="M304 50C285 40 262 44 249 61C266 50 286 50 304 53Z" fill="#2F8A57"/>
+      <path d="M304 50C302 30 312 17 327 15C316 26 310 38 305 51Z" fill="#2F8A57"/>
+      <path d="M304 50C320 34 342 31 356 40C339 40 321 44 305 51Z" fill="#38A066"/>
+      <path d="M304 51C292 59 284 72 284 87C290 73 296 63 305 53Z" fill="#38A066"/>
+      <g fill="none" stroke="#1B5A3A" stroke-width="1" opacity=".6"><path d="M304 51C285 45 266 48 252 58M304 50C320 37 340 35 353 40M304 51C318 53 334 62 344 74"/></g>
+      <circle cx="301" cy="55" r="3.4" fill="#6B3E1E"/><circle cx="308" cy="56" r="3.4" fill="#5A3318"/><circle cx="304" cy="60" r="3.2" fill="#6B3E1E"/>
+    </g>
+  </svg>`;
+}
+
 // Скорый отпуск: обратный отсчёт, «2 дня отпуска → 5 дней отдыха», что сделать до ухода
 function renderVacSoon() {
   const v = S.state.nextVacation;
@@ -1537,19 +1580,18 @@ function renderVacSoon() {
   const big = v.in === 1 ? 'завтра' : v.workLeft === 0 ? 'вот-вот' : '';
   const dots = v.workLeft > 0 && v.workLeft <= 10 ? `<div class="vac-dots">${Array.from({ length: v.workLeft }, () => '<i></i>').join('')}<span>${v.workLeft === 1 ? 'последний рабочий день' : `осталось отработать ${v.workLeft} ${plural(v.workLeft, 'день', 'дня', 'дней')}`}</span></div>` : '';
   return `<section class="card vac-soon">
-    <div class="vac-top">
-      <div class="vac-count">${big ? `<b class="w">${big}</b>` : `<b>${v.in}</b><span>${plural(v.in, 'день', 'дня', 'дней')}</span>`}</div>
-      <div class="grow">
-        <div class="vac-k">до отпуска 🌴</div>
-        <div class="vac-range">${range}</div>
-        <div class="vac-sub">${bonus ? `${v.vacDays} ${plural(v.vacDays, 'день', 'дня', 'дней')} отпуска → <b>${v.restDays} ${plural(v.restDays, 'день', 'дня', 'дней')} отдыха</b>` : `${v.restDays} ${plural(v.restDays, 'день', 'дня', 'дней')} отдыха`} · выходить ${v.backDow.toLowerCase()} ${ddmm(v.back)}</div>
-      </div>
+    <div class="vac-hero">${beachScene()}
+      <div class="vac-count">${big ? `<b class="w">${big}</b>` : `<b>${v.in}</b><span>${plural(v.in, 'день', 'дня', 'дней')}<br>до отпуска</span>`}</div>
     </div>
-    ${dots}
-    <div class="vac-acts">
-      ${hasGang ? (ann ? '<span class="vac-done">✓ Банда в курсе</span>' : '<button class="vac-btn" data-act="vac-tell">📣 Сказать банде</button>') : ''}
-      ${hasGang ? '<button class="vac-btn" data-act="vac-party">🎉 Проводы</button>' : ''}
-      ${!S.me.profile.vacationLook ? '<button class="vac-btn" data-act="ava-open-vac">🕶 Образ для отпуска</button>' : ''}
+    <div class="vac-body">
+      <div class="vac-range">${range}</div>
+      <div class="vac-sub">${bonus ? `${v.vacDays} ${plural(v.vacDays, 'день', 'дня', 'дней')} отпуска → <b>${v.restDays} ${plural(v.restDays, 'день', 'дня', 'дней')} отдыха</b>` : `<b>${v.restDays} ${plural(v.restDays, 'день', 'дня', 'дней')} отдыха</b>`} · выходить ${v.backDow.toLowerCase()} ${ddmm(v.back)}</div>
+      ${dots}
+      <div class="vac-acts">
+        ${hasGang ? (ann ? '<span class="vac-done">✓ Банда в курсе</span>' : '<button class="vac-btn" data-act="vac-tell">📣 Сказать банде</button>') : ''}
+        ${hasGang ? '<button class="vac-btn" data-act="vac-party">🎉 Проводы</button>' : ''}
+        ${!S.me.profile.vacationLook ? '<button class="vac-btn" data-act="ava-open-vac">🕶 Образ для отпуска</button>' : ''}
+      </div>
     </div>
   </section>`;
 }
