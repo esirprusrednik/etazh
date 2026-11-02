@@ -6,6 +6,8 @@ const MOODS = {
   flow: 'В потоке',
   dnd: 'Не беспокоить'
 };
+// Те же статусы в женском роде
+const MOODS_F = { coffee: 'Готова к кофе', lunch: 'Открыта к обеду' };
 
 const DEFAULT_REPLIES = ['Иду', 'Через 10 мин', 'Не могу'];
 
@@ -13,7 +15,7 @@ const CALLS = {
   coffee: { label: 'На кофе', verb: 'зовёт на кофе', opts: ['Сейчас', 'Через 15 мин', 'В 16:00'], replies: DEFAULT_REPLIES },
   lunch: { label: 'На обед', verb: 'зовёт на обед', opts: ['Сейчас', '12:30', '13:00', '13:30'], replies: DEFAULT_REPLIES },
   room: { label: 'Совещание', verb: 'зовёт на совещание', opts: ['В переговорке', 'В Skype', 'В Линке'], textLabel: 'Где и когда (необязательно)', textHint: 'Например, «Марс», 5 этаж, через 10 минут', replies: DEFAULT_REPLIES },
-  home: { label: 'Домой', verb: 'собирается домой — кто с ним?', opts: ['Через 10 мин', 'В 18:00', 'В 19:00'], replies: ['Я с тобой', 'Чуть позже', 'Без меня'] },
+  home: { label: 'Домой', verb: 'собирается домой — кто за компанию?', opts: ['Через 10 мин', 'В 18:00', 'В 19:00'], replies: ['Я с тобой', 'Чуть позже', 'Без меня'] },
   call: { label: 'Перезвони', verb: 'просит перезвонить', opts: ['Когда сможешь', 'Срочно'], replies: ['Перезвоню', 'Через 15 мин', 'Напиши лучше'] },
   where: { label: 'Ты где?', verb: 'спрашивает: ты где?', opts: [], replies: ['В офисе', 'Дома', 'На встрече', 'Скоро буду'] },
   online: { label: 'На связи?', verb: 'спрашивает: на связи?', opts: [], replies: ['На связи', 'Через 15 мин', 'Не сейчас'] },
@@ -100,4 +102,4 @@ const MEME_EMOS = {
   calm: { label: 'Как есть', mouth: null, eyeShape: null }
 };
 
-module.exports = { MOODS, CALLS, SIGNALS, SHOP, EARN, GANG_DEPOSIT, GANG_COLORS, MEMES, MEME_EMOS };
+module.exports = { MOODS_F, MOODS, CALLS, SIGNALS, SHOP, EARN, GANG_DEPOSIT, GANG_COLORS, MEMES, MEME_EMOS };

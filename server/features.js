@@ -281,7 +281,7 @@ function register(ctx) {
       q('INSERT OR IGNORE INTO achievements (user_id, ach, at) VALUES (?, ?, ?)').run(uid, a.id, U.now());
       addBeans(uid, 'ach', ACH_REWARD[a.tier]);
       // Секретные в общую ленту не попадают — на то они и секретные
-      if (!a.secret) pushEvent(null, uid, `${u.nick} получил ачивку «${a.name}»`, 'ach');
+      if (!a.secret) pushEvent(null, uid, `${u.nick} ${U.g(u.look, 'получил', 'получила')} ачивку «${a.name}»`, 'ach');
       got.push(a.id);
     }
     return got;
@@ -529,7 +529,7 @@ function register(ctx) {
     if (!shared) throw bad('Подарить можно только своим — тем, кто с тобой в банде.');
     const prof = readProfile(to.profile);
     if (!prof.showBday || bdayInDays(prof.bday) !== 0) throw bad('Подарок можно отправить только в день рождения.');
-    if (q('SELECT 1 FROM gifts WHERE from_id = ? AND to_id = ? AND day = ?').get(u.id, toId, today())) throw bad('Ты уже поздравил.');
+    if (q('SELECT 1 FROM gifts WHERE from_id = ? AND to_id = ? AND day = ?').get(u.id, toId, today())) throw bad(U.g(u.look, 'Ты уже поздравил.', 'Ты уже поздравила.'));
     if (!spendBeans(u.id, GIFT_BEANS, 'gift')) throw bad(`Нужно ${GIFT_BEANS} зёрен.`);
     q('INSERT INTO gifts (from_id, to_id, day, at) VALUES (?, ?, ?, ?)').run(u.id, toId, today(), U.now());
     addBeans(toId, 'gift_got', GIFT_BEANS);
@@ -605,7 +605,7 @@ function register(ctx) {
     const p = q('SELECT * FROM coffee_pairs WHERE week = ? AND (a = ? OR b = ?)').get(mondayOf(today()), u.id, u.id);
     if (!p || !p.ping_by || p.ping_by === u.id) throw bad('Пока нечего отвечать.');
     if (!COFFEE_REPLIES.includes(body.label)) throw bad('Неизвестный ответ.');
-    if (p.reply) throw bad('Ты уже ответил.');
+    if (p.reply) throw bad(U.g(u.look, 'Ты уже ответил.', 'Ты уже ответила.'));
     q('UPDATE coffee_pairs SET reply = ?, reply_at = ? WHERE id = ?').run(body.label, U.now(), p.id);
     if (body.label === 'Иду') {
       [p.a, p.b].forEach((id) => { bump(id, 'coffee'); checkAchievements(id); });

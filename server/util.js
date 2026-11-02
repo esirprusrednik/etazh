@@ -79,7 +79,17 @@ function cleanText(s, max) {
   return String(s || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
+// Женский род в текстах: пол берём из аватара (preset 'f'). look — объект или JSON-строка
+function fem(look) {
+  if (!look) return false;
+  if (typeof look === 'string') { try { look = JSON.parse(look); } catch { return false; } }
+  return look.preset === 'f';
+}
+// g(look, 'вступил', 'вступила')
+const g = (look, m, f) => (fem(look) ? f : m);
+
 module.exports = {
+  fem, g,
   now, msk, isAfterCheckinCutoff, isQuietHour,
   b64url, fromB64url, randomToken, sha256, hashEmail, normalizeEmail, emailDomainAllowed, shortCode,
   moderationProblem, cleanText

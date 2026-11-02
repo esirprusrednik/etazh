@@ -1,6 +1,6 @@
 const { config } = require('./config');
 const U = require('./util');
-const { MOODS, CALLS, SIGNALS, SHOP, EARN, GANG_DEPOSIT, GANG_COLORS, MEMES, MEME_EMOS } = require('./catalog');
+const { MOODS_F, MOODS, CALLS, SIGNALS, SHOP, EARN, GANG_DEPOSIT, GANG_COLORS, MEMES, MEME_EMOS } = require('./catalog');
 const { sendLoginLink } = require('./mailer');
 const { sendPush } = require('./webpush');
 
@@ -163,6 +163,7 @@ function presenceOf(prof, checkin, seed = 0) {
 // Шуточные статусы для тех, кто не отметился к 11:00 и ничего не указал.
 // Нарочно без «отлынивает»: система не знает, почему человека не видно, — обвинять нельзя.
 const IDLE_JOKES = ['в астрале', 'где-то между Wi-Fi и кофе', 'режим невидимки', 'в параллельной вселенной', 'на секретной миссии', 'ушёл в себя, скоро вернётся'];
+const IDLE_JOKES_F = ['в астрале', 'где-то между Wi-Fi и кофе', 'режим невидимки', 'в параллельной вселенной', 'на секретной миссии', 'ушла в себя, скоро вернётся'];
 const TAGS = ['Кофе', 'Настолки', 'Бег', 'Велосипед', 'Викторины', 'Кино', 'Музыка', 'Книги', 'Путешествия', 'Кулинария', 'Футбол', 'Йога'];
 const DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт'];
 
@@ -334,7 +335,7 @@ function createApi(db) {
     const pr = member.share_office ? presenceOf(prof, activeCheckin(member.id), member.id) : { where: 'hidden' };
     const look = publicLook(member);
     return {
-      id: member.id, nick: member.nick, name: fullName(prof, 'gang'), mood: MOODS[prof.mood] || '', where: pr.where, office: pr.office || null,
+      id: member.id, nick: member.nick, name: fullName(prof, 'gang'), mood: (U.fem(look) && MOODS_F[prof.mood]) || MOODS[prof.mood] || '', where: pr.where, office: pr.office || null,
       until: pr.until || null, planned: !!pr.planned, joke: pr.joke ?? null, look, status: statusName(look.status)
     };
   }
@@ -462,7 +463,7 @@ function createApi(db) {
       vapidKey: config.vapid.publicKey || null, build: BUILD,
       domains: config.allowedDomains,
       catalog: {
-        moods: MOODS,
+        moods: MOODS, moodsF: { ...MOODS, ...MOODS_F }, idleJokesF: IDLE_JOKES_F,
         calls: Object.fromEntries(Object.entries(CALLS).map(([k, v]) => [k, { label: v.label, opts: v.opts, needsText: !!v.needsText, textLabel: v.textLabel || (v.needsText ? 'Уточни' : null), textHint: v.textHint || '' }])),
         signals: Object.fromEntries(Object.entries(SIGNALS).map(([k, v]) => [k, v.label])),
         tags: TAGS, days: DAYS, look: LOOK, nickPrice: NICK_PRICE, memes: MEMES, memeEmos: MEME_EMOS,
@@ -500,7 +501,7 @@ function createApi(db) {
     if (first && !u.welcomed) {
       addBeans(u.id, 'welcome');
       q('UPDATE users SET welcomed = 1 WHERE id = ?').run(u.id);
-      pushEvent(null, u.id, `${nick} присоединился к Этажу`, 'join');
+      pushEvent(null, u.id, `${nick} ${U.g(u.look, 'присоединился', 'присоединилась')} к Этажу`, 'join');
     }
     return { ok: true, nick };
   });
@@ -788,7 +789,7 @@ function createApi(db) {
       joinGang(u, g);
       q("UPDATE gang_invites SET status = 'accepted' WHERE gang_id = ? AND to_id = ? AND status = 'pending'").run(g.id, u.id);
       if (inv.from_id && features) features.onEvent('recruit', inv.from_id);
-      if (inv.from_id) fireAndForget(notify([inv.from_id], { title: g.name, body: `${u.nick} вступил в банду`, url: `/#gang/${g.id}`, tag: `ginv-${g.id}` }));
+      if (inv.from_id) fireAndForget(notify([inv.from_id], { title: g.name, body: `${u.nick} ${U.g(u.look, 'вступил', 'вступила')} в банду`, url: `/#gang/${g.id}`, tag: `ginv-${g.id}` }));
       return { ok: true, gang: g.id };
     }
     if (params.action === 'decline') { q("UPDATE gang_invites SET status = 'declined' WHERE id = ?").run(inv.id); return { ok: true }; }
@@ -936,7 +937,7 @@ function createApi(db) {
     const def = CALLS[m.kind];
     if (!def.replies.includes(body.label)) throw bad('Неизвестный ответ.');
     const r = q('INSERT OR IGNORE INTO replies (message_id, user_id, label, at) VALUES (?, ?, ?, ?)').run(m.id, u.id, body.label, U.now());
-    if (!r.changes) throw bad('Ты уже ответил.');
+    if (!r.changes) throw bad(U.g(u.look, 'Ты уже ответил.', 'Ты уже ответила.'));
     const got = addBeans(u.id, 'reply');
     if (features) features.onEvent('reply', u.id);
     if (m.user_id) fireAndForget(notify([m.user_id], { title: 'Ответ на зов', body: `${u.nick}: ${body.label}`, url: `/#gang/${m.gang_id}`, tag: `reply-${m.id}` }));
@@ -1067,7 +1068,7 @@ function createApi(db) {
     if (it.kind === 'frame') look.frame = it.id;
     if (it.kind === 'crown') look.crown = true;
     q('UPDATE users SET look = ? WHERE id = ?').run(JSON.stringify(look), u.id);
-    pushEvent(null, u.id, `${u.nick} купил в лавке «${it.name}»`, 'shop');
+    pushEvent(null, u.id, `${u.nick} ${U.g(u.look, 'купил', 'купила')} в лавке «${it.name}»`, 'shop');
     return { ok: true };
   });
 

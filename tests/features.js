@@ -249,6 +249,20 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.ok((await x.get('/api/features')).json.achievements.find((a) => a.id === 'st_ghost').got);
   });
 
+  await step('женский род: ачивка «получила», статус «Готова к кофе»', async () => {
+    const w = await new Client().login('olga@mts.ru', 'ленивый_удав');
+    await w.post('/api/me/profile', { look: { preset: 'f' }, shareOffice: true, profile: { mood: 'coffee' } });
+    const gw = (await w.post('/api/gangs', { name: 'Девичник' })).json;
+    const m = await new Client().login('misha@mts.ru', 'тихий_медведь');
+    await m.post('/api/gangs/join', { code: gw.code });
+    await w.post('/api/checkin', { office: 'smol' });
+    const ev = (await m.get('/api/events')).json.events.map((e) => e.text).join('\n');
+    assert.ok(/ленивый_удав получила ачивку/.test(ev), 'в ленте — «получила»');
+    assert.ok(!/ленивый_удав получил ачивку/.test(ev));
+    const me = (await m.get(`/api/gangs/${gw.id}`)).json.members.find((x) => x.nick === 'ленивый_удав');
+    assert.equal(me.mood, 'Готова к кофе');
+  });
+
   console.log(`\nВсё прошло: ${passed} проверок`);
 })()
   .catch((e) => { console.error('\nПровал:', e.message, '\n--- лог ---\n' + log.slice(-2000)); process.exitCode = 1; })

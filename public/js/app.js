@@ -5,6 +5,9 @@ const $ = (sel) => document.querySelector(sel);
 const root = $('#app');
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+// Род в текстах: по полу аватара. gw(look, 'ушёл', 'ушла'); me(...) — про себя
+const gw = (look, m, f) => (look && look.preset === 'f' ? f : m);
+const meG = (m, f) => gw(S.me && S.me.look, m, f);
 const store = {
   get(k, d) { try { const v = localStorage.getItem('etazh:' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem('etazh:' + k, JSON.stringify(v)); } catch {} }
@@ -683,7 +686,7 @@ function setBattleView(v) {
     if (fresh.length) { S.bFresh = new Set(fresh); S.bFreshUntil = Date.now() + 1400; }
     if (v.last && !v.last.mine && v.seq !== S.bv.seq) {
       sfx(v.last.r === 'miss' ? 'splash' : v.last.r);
-      S.bShout = { text: v.last.r === 'miss' ? `${v.opp.nick} промахнулся` : v.last.r === 'sunk' ? `${v.opp.nick} потопил твой корабль` : `${v.opp.nick} попал!`, cls: v.last.r, until: Date.now() + 1600, board: 'm' };
+      S.bShout = { text: v.last.r === 'miss' ? `${v.opp.nick} ${gw(v.opp.look, 'промахнулся', 'промахнулась')}` : v.last.r === 'sunk' ? `${v.opp.nick} ${gw(v.opp.look, 'потопил', 'потопила')} твой корабль` : `${v.opp.nick} ${gw(v.opp.look, 'попал', 'попала')}!`, cls: v.last.r, until: Date.now() + 1600, board: 'm' };
     }
   }
   // Реакция соперника: показываем пузырь, если она новее последней увиденной
@@ -961,7 +964,7 @@ function renderStatusBlock() {
         <button class="icon-btn" data-act="open" data-v="office" aria-label="Сменить офис">${ico('swap', 16)}</button>
       </div>
       <span class="small">с ${st.checkin.since || ''} · твоих здесь <b style="color:#1F7A3A">${here}</b> · до 19:00</span>
-      <button class="btn small ghost" style="align-self:flex-start" data-act="checkout">Ушёл домой</button>
+      <button class="btn small ghost" style="align-self:flex-start" data-act="checkout">${meG('Ушёл домой', 'Ушла домой')}</button>
     </div>
   </section>`;
 }
@@ -1127,7 +1130,7 @@ function renderOffice() {
       <h2>${['home', 'vacation', 'sick', 'slack'].includes(st.presence.where) ? 'Всё-таки в офисе?' : 'Где ты сегодня?'}</h2>
       <p class="sub">Отметься — и увидишь свой офис: кто из банды рядом и есть ли очередь в столовой. +5 зёрен в день — за офис или «из дома».</p>
       ${officePicker()}
-      <p class="small">Отметка действует до 19:00 или пока не нажмёшь «Ушёл». Видно только офис, где ты отметился.</p>
+      <p class="small">Отметка действует до 19:00 или пока не нажмёшь «${meG('Ушёл', 'Ушла')}». Видно только офис, где ты ${meG('отметился', 'отметилась')}.</p>
       ${['home', 'vacation', 'sick', 'slack'].includes(st.presence.where) ? '' : `<div class="today-grid">
         <button class="btn ghost" data-act="today" data-v="home">🏠 Из дома</button>
         <button class="btn ghost" data-act="open" data-v="sick">🤒 Болею</button>
@@ -1151,7 +1154,7 @@ function renderOffice() {
         <button class="icon-btn" data-act="open" data-v="office" aria-label="Сменить офис">${ico('swap', 16)}</button>
       </div>
       <span class="small">с ${since} · из банды здесь <b style="color:#1F7A3A">${here}</b> · до 19:00</span>
-      <button class="btn small ghost" style="align-self:flex-start" data-act="checkout">Ушёл домой</button>
+      <button class="btn small ghost" style="align-self:flex-start" data-act="checkout">${meG('Ушёл домой', 'Ушла домой')}</button>
     </div>
   </section>
   ${renderBirthdays()}
@@ -1255,12 +1258,12 @@ function whereText(r) {
   if (r.where === 'plan_office') return ['собирается в офис (по плану)', '#7BC79A'];
   if (r.where === 'vacation') return [r.until === (S.state && S.state.today) ? 'в отпуске сегодня' : `в отпуске до ${ddmm(r.until)}`, '#F97316'];
   if (r.where === 'sick') return [r.until && r.until !== (S.state && S.state.today) ? `болеет до ${ddmm(r.until)} — выздоравливай!` : 'болеет — выздоравливай!', '#DC2626'];
-  if (r.where === 'slack') return ['отлынивает 😏 (сам признался)', '#A855F7'];
-  if (r.where === 'idle') return [(S.cat.idleJokes || [])[r.joke] || 'в астрале', '#9AA3B5'];
+  if (r.where === 'slack') return [gw(r.look, 'отлынивает 😏 (сам признался)', 'отлынивает 😏 (сама призналась)'), '#A855F7'];
+  if (r.where === 'idle') return [(gw(r.look, S.cat.idleJokes, S.cat.idleJokesF || S.cat.idleJokes) || [])[r.joke] || 'в астрале', '#9AA3B5'];
   if (r.where === 'weekend') return [r.holiday ? `выходной · ${r.holiday.replace(/ \(.*\)$/, '')}` : 'выходной', '#9AA3B5'];
   if (r.where === 'none') return ['ещё в пути', '#9AA3B5'];
   if (r.where === 'night') return ['офисы спят', '#9AA3B5'];
-  return ['скрывает, где он', '#9AA3B5'];
+  return [gw(r.look, 'скрывает, где он', 'скрывает, где она'), '#9AA3B5'];
 }
 
 // Плашка «мой статус сегодня» над выбором офиса
@@ -1286,13 +1289,13 @@ function renderToday() {
   if (p.where === 'slack') {
     return `<section class="card" style="background:#F3E8FF">
       <h2>😏 Сегодня отлыниваешь</h2>
-      <p class="sub">Честность — лучшая политика. Банда видит «отлынивает (сам признался)».</p>
+      <p class="sub">Честность — лучшая политика. Банда видит «отлынивает (${meG('сам признался', 'сама призналась')})».</p>
       <button class="btn ghost" data-act="today" data-v="">Ладно, работаю</button>
     </section>`;
   }
   if (p.where === 'idle') {
     return `<section class="card">
-      <p class="sub">Ты не отметился, и банда видит про тебя шутку: <b>«${esc((S.cat.idleJokes || [])[p.joke] || 'в астрале')}»</b>. Выбери статус или отметься в офисе.</p>${next}
+      <p class="sub">Ты не ${meG('отметился', 'отметилась')}, и банда видит про тебя шутку: <b>«${esc((S.cat.idleJokes || [])[p.joke] || 'в астрале')}»</b>. Выбери статус или отметься в офисе.</p>${next}
     </section>`;
   }
   if (p.where === 'home') {
@@ -1312,7 +1315,7 @@ function renderGangNow() {
     return `<section class="card"><h3>Моя банда сейчас</h3><p class="sub">Ты пока ни в одной банде. Сколоти свою или вступи по ссылке от своих.</p>
       <button class="btn blue" data-act="open" data-v="gang-new">Создать банду</button></section>`;
   }
-  const dnd = S.cat.moods.dnd;
+  const dnd = (meG(S.cat.moods, S.cat.moodsF || S.cat.moods)).dnd;
   const rows = g.rows.map((r) => {
     const [w, color] = whereText(r);
     const sameOffice = S.state.checkin && r.where === 'office' && r.office === S.state.checkin.office;
@@ -1664,7 +1667,7 @@ function renderBattle() {
   }
   const done = v.status === 'done';
   const banner = done
-    ? `<div class="b-banner ${v.winner === 'me' ? 'win' : 'lose'}">${v.winner === 'me' ? (v.timeout ? `⏱ У ${esc(v.opp.nick)} кончилось время. Победа!` : v.resigned ? `🏆 ${esc(v.opp.nick)} сдался. Победа!` : '🏆 Победа! Весь флот соперника на дне') : (v.timeout ? '⏱ Время вышло. В следующий раз быстрее!' : v.resigned ? '🐔 Ты сдался. Бывает' : `💥 ${esc(v.opp.nick)} потопил твой флот`)}</div>`
+    ? `<div class="b-banner ${v.winner === 'me' ? 'win' : 'lose'}">${v.winner === 'me' ? (v.timeout ? `⏱ У ${esc(v.opp.nick)} кончилось время. Победа!` : v.resigned ? `🏆 ${esc(v.opp.nick)} ${gw(v.opp.look, 'сдался', 'сдалась')}. Победа!` : '🏆 Победа! Весь флот соперника на дне') : (v.timeout ? '⏱ Время вышло. В следующий раз быстрее!' : v.resigned ? `🐔 Ты ${meG('сдался', 'сдалась')}. Бывает` : `💥 ${esc(v.opp.nick)} ${gw(v.opp.look, 'потопил', 'потопила')} твой флот`)}</div>`
     : v.myTurn ? '<div class="b-banner go">🎯 Твой ход — стреляй по полю соперника</div>'
     : `<div class="b-banner wait">⏳ Ход ${esc(v.opp.nick)}. Придёт уведомление, когда выстрелит</div>`;
   const oppFleet = v.fleet.map((len) => ({ len, sunk: false }));
@@ -1791,7 +1794,7 @@ function renderCoffee() {
   }
   const p = c.pair;
   let state = '';
-  if (p.ping && p.ping.reply) state = `<div class="note ${p.ping.reply === 'Иду' ? 'good' : 'warn'}" style="margin:0">${p.ping.mine ? esc(p.partner.nick) + ': ' : 'Ты ответил: '}${esc(p.ping.reply)} · ${esc(p.ping.opt.toLowerCase())}</div>`;
+  if (p.ping && p.ping.reply) state = `<div class="note ${p.ping.reply === 'Иду' ? 'good' : 'warn'}" style="margin:0">${p.ping.mine ? esc(p.partner.nick) + ': ' : (meG('Ты ответил: ', 'Ты ответила: '))}${esc(p.ping.reply)} · ${esc(p.ping.opt.toLowerCase())}</div>`;
   else if (p.ping && p.ping.mine) state = `<div class="note warn" style="margin:0">Ты предложил: ${esc(p.ping.opt.toLowerCase())}. Ждём ответа.</div>`;
   else if (p.canReply) state = `<div class="note good" style="margin:0">${esc(p.partner.nick)} предлагает: ${esc(p.ping.opt.toLowerCase())}</div>
     <div class="chips">${p.replies.map((r) => `<button class="chip" data-act="coffee-reply" data-v="${esc(r)}">${esc(r)}</button>`).join('')}</div>`;
@@ -1809,7 +1812,7 @@ function renderGangBirthdays() {
   return `<section class="card"><span class="card-title">Дни рождения</span>
     ${x.birthdays.map((b) => `<div class="person2">${tap(b.id, `<span class="ava-wrap">${avatar(b.look, 32)}</span>`)}
       <div class="grow"><div style="font-weight:700">${esc(b.nick)}${b.me ? ' (ты)' : ''}</div><div class="where">${b.inDays === 0 ? 'сегодня!' : b.inDays === 1 ? 'завтра' : `через ${b.inDays} ${plural(b.inDays, 'день', 'дня', 'дней')}`} · ${esc(b.bday)}</div></div>
-      ${b.inDays === 0 && !b.me ? (b.gifted ? '<span class="small">поздравил ✓</span>' : `<button class="btn small" data-act="gift" data-id="${b.id}">+10 ${BEAN}</button>`) : ''}</div>`).join('')}
+      ${b.inDays === 0 && !b.me ? (b.gifted ? `<span class="small">${meG('поздравил', 'поздравила')} ✓</span>` : `<button class="btn small" data-act="gift" data-id="${b.id}">+10 ${BEAN}</button>`) : ''}</div>`).join('')}
   </section>`;
 }
 
@@ -1951,7 +1954,7 @@ function renderSheet() {
     case 'vacation': return sheetWrap('Я в отпуске', `
       <p class="sub">С сегодняшнего дня. Банда увидит «в отпуске до …», зовы не будут присылать пуши. Отпуск попадёт в график — его можно поправить в профиле.</p>
       <label class="field">По какое число (включительно)<input id="vac-until" type="date" min="${S.state.today}" value="${S.state.today}"></label>
-      <button class="btn wide" data-act="vac-now">Ушёл в отпуск</button>`);
+      <button class="btn wide" data-act="vac-now">${meG('Ушёл в отпуск', 'Ушла в отпуск')}</button>`);
     default: return '';
   }
 }
@@ -2522,7 +2525,7 @@ function renderFeedback() {
       <button class="chip ${bug ? '' : 'on'}" data-act="fb-kind" data-v="idea" aria-pressed="${!bug}">Идея</button>
       <button class="chip ${bug ? 'on' : ''}" data-act="fb-kind" data-v="bug" aria-pressed="${bug}">Ошибка</button>
     </div>
-    <label class="field"><span class="hidden">Текст</span><textarea id="fb-text" rows="5" maxlength="1000" placeholder="${bug ? 'Что делал → что ожидал → что получилось. Например: открыл чат банды, нажал «На кофе», ничего не пришло' : 'Чего не хватает или что сделать удобнее. Например: хочу видеть, кто сегодня обедает в столовой'}">${esc(f.text)}</textarea></label>
+    <label class="field"><span class="hidden">Текст</span><textarea id="fb-text" rows="5" maxlength="1000" placeholder="${bug ? meG('Что делал → что ожидал → что получилось.', 'Что делала → что ожидала → что получилось.') + ' Например: в чате банды нажимаю «На кофе» — пуш никому не приходит' : 'Чего не хватает или что сделать удобнее. Например: хочу видеть, кто сегодня обедает в столовой'}">${esc(f.text)}</textarea></label>
     <button class="btn" data-act="fb-send">Отправить</button>
     <p class="small" style="margin:0">${bug ? 'К сообщению приложим версию приложения и тип телефона и браузера — чтобы повторить ошибку. ' : ''}Видит только модератор.</p>
     <h3 style="margin:18px 0 6px">Мои сообщения</h3>
@@ -2569,7 +2572,7 @@ function renderProfile() {
     <button class="btn ghost" data-act="name-save">Сохранить имя</button>`;
 
   const workBody = `
-    <div class="field">Статус<div class="chips">${Object.entries(S.cat.moods).map(([k, l]) => `<button class="chip ${p.mood === k ? 'on' : ''}" data-act="prof" data-k="mood" data-v="${k}">${esc(l)}</button>`).join('')}</div></div>
+    <div class="field">Статус<div class="chips">${Object.entries(meG(S.cat.moods, S.cat.moodsF || S.cat.moods)).map(([k, l]) => `<button class="chip ${p.mood === k ? 'on' : ''}" data-act="prof" data-k="mood" data-v="${k}">${esc(l)}</button>`).join('')}</div></div>
     <label class="field">Мой офис — на главной кнопке отметки<select id="home-office">
       <option value="">Не выбран</option>${S.cat.offices.slice().sort((x, y) => x.name.localeCompare(y.name, 'ru')).map((o) => `<option value="${esc(o.id)}" ${p.home === o.id ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select></label>
     <div class="field">План недели — нажимай, чтобы переключить: офис → дом → не знаю

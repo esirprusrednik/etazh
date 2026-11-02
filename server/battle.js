@@ -142,7 +142,7 @@ function register(ctx) {
     q(`UPDATE battles SET status = 'done', winner = ?, timeout = 1, clock_${who} = 0, turn = NULL, seq = seq + 1, updated_at = ? WHERE id = ? AND status = 'play'`).run(winner, U.now(), g.id);
     addWin(winner, g[who]);
     const loser = userRow(g[who]);
-    ping(winner, g.id, `${loser ? loser.nick : 'Соперник'} не успел — время вышло. Победа твоя!`);
+    ping(winner, g.id, `${loser ? loser.nick : 'Соперник'} ${loser ? U.g(loser.look, 'не успел', 'не успела') : 'не успел'} — время вышло. Победа твоя!`);
     ping(g[who], g.id, 'Время вышло — партия проиграна');
     return true;
   }
@@ -251,9 +251,9 @@ function register(ctx) {
     if (g[o + '_ready']) {
       const first = Math.random() < 0.5 ? g.a : g.b;
       q("UPDATE battles SET status = 'play', turn = ?, turn_started = ?, seq = seq + 1 WHERE id = ?").run(first, U.now(), g.id);
-      ping(g[o], g.id, first === g[o] ? `${u.nick} готов. Твой выстрел первый!` : `${u.nick} готов и стреляет первым`);
+      ping(g[o], g.id, first === g[o] ? `${u.nick} ${U.g(u.look, 'готов', 'готова')}. Твой выстрел первый!` : `${u.nick} ${U.g(u.look, 'готов', 'готова')} и стреляет первым`);
     } else {
-      ping(g[o], g.id, `${u.nick} расставил флот и ждёт тебя`);
+      ping(g[o], g.id, `${u.nick} ${U.g(u.look, 'расставил', 'расставила')} флот и ждёт тебя`);
     }
     return view(load(g.id, u.id), u.id);
   });
@@ -287,9 +287,9 @@ function register(ctx) {
       const before = q('SELECT beans FROM users WHERE id = ?').get(u.id).beans;
       if (onEvent) onEvent('sea_win', u.id, { clean, newRival });
       res.beans = q('SELECT beans FROM users WHERE id = ?').get(u.id).beans - before;
-      ping(g[o], g.id, `${u.nick} потопил весь твой флот. Реванш?`);
+      ping(g[o], g.id, `${u.nick} ${U.g(u.look, 'потопил', 'потопила')} весь твой флот. Реванш?`);
     }
-    else if (res.result === 'miss') ping(g[o], g.id, `${u.nick} промахнулся. Твой ход!`);
+    else if (res.result === 'miss') ping(g[o], g.id, `${u.nick} ${U.g(u.look, 'промахнулся', 'промахнулась')}. Твой ход!`);
     return { result: res.result, beans: res.beans || 0, view: view(load(g.id, u.id), u.id) };
   });
 
@@ -313,7 +313,7 @@ function register(ctx) {
     if (g.status === 'done') throw bad('Партия уже закончена.');
     q("UPDATE battles SET status = 'done', winner = ?, resigned = 1, turn = NULL, seq = seq + 1, updated_at = ? WHERE id = ?").run(g[o], U.now(), g.id);
     if (g.status === 'play') addWin(g[o], u.id);
-    ping(g[o], g.id, g.status === 'play' ? `${u.nick} сдался. Победа твоя!` : `${u.nick} отказался от партии`);
+    ping(g[o], g.id, g.status === 'play' ? `${u.nick} ${U.g(u.look, 'сдался', 'сдалась')}. Победа твоя!` : `${u.nick} ${U.g(u.look, 'отказался', 'отказалась')} от партии`);
     return view(load(g.id, u.id), u.id);
   });
 

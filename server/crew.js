@@ -229,7 +229,7 @@ function register(ctx) {
     }
     if (!target) throw bad('Человек не найден.');
     if (target.id === u.id) throw bad('Себя в подельники не берут.');
-    if (blocked(u.id, target.id)) throw bad('Ты его заблокировал. Сначала разблокируй в списке подельников.');
+    if (blocked(u.id, target.id)) throw bad('Этот человек у тебя в блоке. Сначала разблокируй его в списке.');
 
     const l = link(u.id, target.id);
     if (l && l.status === 'ok') return { ok: true, already: true, id: target.id };
@@ -237,7 +237,7 @@ function register(ctx) {
     if (l && l.status === 'pending' && l.from_id === target.id) {
       if (crewCount(u.id) >= MAX_CREW) throw bad(`Больше ${MAX_CREW} подельников не бывает. Кого-то придётся отпустить.`);
       q("UPDATE crew SET status = 'ok', at = ? WHERE lo = ? AND hi = ?").run(U.now(), l.lo, l.hi);
-      fireAndForget(notify([target.id], { title: 'Новый подельник', body: `${u.nick} принял заявку`, url: `/#crew/${u.id}`, tag: `crew-${u.id}` }));
+      fireAndForget(notify([target.id], { title: 'Новый подельник', body: `${u.nick} ${U.g(u.look, 'принял', 'приняла')} заявку`, url: `/#crew/${u.id}`, tag: `crew-${u.id}` }));
       return { ok: true, accepted: true, id: target.id };
     }
     // Личную ссылку человек отправил сам — это и есть согласие, заявку подтверждать не нужно
@@ -245,7 +245,7 @@ function register(ctx) {
       if (crewCount(u.id) >= MAX_CREW || crewCount(target.id) >= MAX_CREW) throw bad(`У кого-то из вас уже ${MAX_CREW} подельников.`);
       if (l) q("UPDATE crew SET status = 'ok', at = ? WHERE lo = ? AND hi = ?").run(U.now(), l.lo, l.hi);
       else q('INSERT INTO crew (lo, hi, from_id, status, at) VALUES (?, ?, ?, ?, ?)').run(...pair(u.id, target.id), u.id, 'ok', U.now());
-      fireAndForget(notify([target.id], { title: 'Новый подельник', body: `${u.nick} пришёл по твоей ссылке`, url: `/#crew/${u.id}`, tag: `crew-${u.id}` }));
+      fireAndForget(notify([target.id], { title: 'Новый подельник', body: `${u.nick} ${U.g(u.look, 'пришёл', 'пришла')} по твоей ссылке`, url: `/#crew/${u.id}`, tag: `crew-${u.id}` }));
       return { ok: true, accepted: true, id: target.id };
     }
     if (l && l.status === 'pending') return { ok: true, pending: true };
@@ -266,7 +266,7 @@ function register(ctx) {
     if (!l || l.status !== 'pending' || l.from_id === u.id || blocked(u.id, l.from_id)) throw bad('Заявки нет.');
     if (crewCount(u.id) >= MAX_CREW) throw bad(`Больше ${MAX_CREW} подельников не бывает. Кого-то придётся отпустить.`);
     q("UPDATE crew SET status = 'ok', at = ? WHERE lo = ? AND hi = ?").run(U.now(), l.lo, l.hi);
-    fireAndForget(notify([l.from_id], { title: 'Новый подельник', body: `${u.nick} принял заявку`, url: `/#crew/${u.id}`, tag: `crew-${u.id}` }));
+    fireAndForget(notify([l.from_id], { title: 'Новый подельник', body: `${u.nick} ${U.g(u.look, 'принял', 'приняла')} заявку`, url: `/#crew/${u.id}`, tag: `crew-${u.id}` }));
     return { ok: true };
   });
 
@@ -377,7 +377,7 @@ function register(ctx) {
     const u = requireUser(req);
     const m = q("SELECT * FROM dms WHERE id = ? AND type = 'call' AND hidden = 0").get(Number(params.id));
     if (!m || m.to_id !== u.id || !areCrew(m.from_id, u.id)) throw bad('Зов не найден.');
-    if (m.reply) throw bad('Ты уже ответил.');
+    if (m.reply) throw bad(U.g(u.look, 'Ты уже ответил.', 'Ты уже ответила.'));
     const def = CALLS[m.kind];
     if (!def || !def.replies.includes(body.label)) throw bad('Неизвестный ответ.');
     q('UPDATE dms SET reply = ?, reply_at = ? WHERE id = ?').run(body.label, U.now(), m.id);
