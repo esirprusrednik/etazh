@@ -3,30 +3,100 @@
 // Подключается из api.js через register(ctx) и получает оттуда общие помощники.
 const crypto = require('node:crypto');
 
+// Ачивки. cat — раздел в профиле; series — ступени одной ачивки (бронза → серебро → золото = common → rare → legendary);
+// m/goal — счётчик и порог (по ним же считается прогресс); secret — описание скрыто, пока не получишь.
+// id старых ачивок не меняем: они уже выданы людям.
+const A = (cat, id, tier, name, desc, m, goal, extra = {}) => ({ cat, id, tier, name, desc, m, goal, ...extra });
 const ACH = [
-  { id: 'profile_full', tier: 'rare', name: 'Открытая книга', desc: 'Заполнить профиль на 100%', test: (c) => c.profile >= 100 },
-  { id: 'first_checkin', tier: 'common', name: 'Первый шаг', desc: 'Отметиться в офисе', test: (c) => c.checkins >= 1 },
-  { id: 'gang', tier: 'common', name: 'В банде', desc: 'Вступить в банду или создать свою', test: (c) => c.gangs >= 1 },
-  { id: 'reply', tier: 'common', name: 'На связи', desc: 'Ответить на зов банды', test: (c) => c.replies >= 1 },
-  { id: 'thanks_give', tier: 'common', name: 'Вежливость', desc: 'Сказать спасибо кому-то из банды', test: (c) => c.thanks_given >= 1 },
-  { id: 'canteen5', tier: 'common', name: 'Завсегдатай', desc: '5 раз отметиться в столовой', test: (c) => c.canteen >= 5 },
-  { id: 'streak5', tier: 'rare', name: 'Пятидневка', desc: '5 рабочих дней подряд в офисе', test: (c) => c.streak >= 5 },
-  { id: 'two_offices', tier: 'rare', name: 'Путешественник', desc: 'Побывать в двух офисах', test: (c) => c.offices >= 2 },
-  { id: 'thanks10', tier: 'rare', name: 'Душа банды', desc: 'Получить 10 спасибо', test: (c) => c.thanks_got >= 10 },
-  { id: 'signals5', tier: 'rare', name: 'Глаза офиса', desc: '5 подтверждённых сигналов', test: (c) => c.signals >= 5 },
-  { id: 'coffee', tier: 'rare', name: 'Новые лица', desc: 'Договориться о случайном кофе', test: (c) => c.coffee >= 1 },
-  { id: 'quiz_first', tier: 'common', name: 'Первый квиз', desc: 'Ответить на квиз недели', test: (c) => c.quiz_any >= 1 },
-  { id: 'guess10', tier: 'rare', name: 'Знаток банды', desc: '10 раз угадать, кто из наших', test: (c) => c.guess_ok >= 10 },
-  { id: 'quiz5', tier: 'rare', name: 'Эрудит', desc: '5 верных ответов в квизах недели', test: (c) => c.quiz_ok >= 5 },
-  { id: 'sea_first', tier: 'common', name: 'Юнга', desc: 'Выиграть морской бой', test: (c) => c.sea_wins >= 1 },
-  { id: 'sea_10', tier: 'rare', name: 'Капитан', desc: '10 побед в морском бою', test: (c) => c.sea_wins >= 10 },
-  { id: 'sea_clean', tier: 'rare', name: 'Ни царапины', desc: 'Победить, не потеряв ни одного корабля', test: (c) => c.sea_clean >= 1 },
-  { id: 'sea_rivals', tier: 'rare', name: 'Гроза морей', desc: 'Обыграть 5 разных соперников', test: (c) => c.sea_rivals >= 5 },
-  { id: 'streak20', tier: 'legendary', name: 'Железная воля', desc: '20 рабочих дней подряд в офисе', test: (c) => c.streak >= 20 },
-  { id: 'all_offices', tier: 'legendary', name: 'Все этажи', desc: 'Побывать во всех трёх офисах', test: (c) => c.offices >= 3 },
-  { id: 'thanks50', tier: 'legendary', name: 'Легенда банды', desc: 'Получить 50 спасибо', test: (c) => c.thanks_got >= 50 },
-  { id: 'sea_30', tier: 'legendary', name: 'Адмирал', desc: '30 побед в морском бою', test: (c) => c.sea_wins >= 30 }
+  // ---- Первые шаги ----
+  A('first', 'first_checkin', 'common', 'Первый шаг', 'Отметиться в офисе', 'checkins', 1),
+  A('first', 'gang', 'common', 'В банде', 'Вступить в банду или создать свою', 'gangs', 1),
+  A('first', 'first_msg', 'common', 'Голос подал', 'Написать в чат банды', 'msgs', 1),
+  A('first', 'first_call', 'common', 'Кто со мной?', 'Позвать банду или кого-то лично — на кофе, обед, совещание', 'calls', 1),
+  A('first', 'reply', 'common', 'На связи', 'Ответить на зов', 'replies', 1),
+  A('first', 'first_dm', 'common', 'Лично в руки', 'Написать кому-то в личку', 'dms', 1),
+  A('first', 'thanks_give', 'common', 'Вежливость', 'Сказать спасибо кому-то из банды', 'thanks_given', 1),
+  A('first', 'first_meme', 'common', 'Мемолог', 'Отправить мем-открытку', 'memes', 1),
+  A('first', 'first_lunch', 'common', 'Обед по расписанию', 'Собрать обед компанией или присоединиться', 'lunches', 1),
+  A('first', 'first_food', 'common', 'Ресторанный критик', 'Оценить обед в столовой', 'food', 1),
+  A('first', 'first_signal', 'common', 'Сигнальщик', 'Отправить сигнал офиса', 'signals_sent', 1),
+  A('first', 'first_look', 'common', 'Стилист', 'Собрать свой аватар в конструкторе', 'looks', 1),
+  A('first', 'first_battle', 'common', 'Свистать всех наверх', 'Вызвать кого-то на морской бой', 'battles', 1),
+  A('first', 'quiz_first', 'common', 'Первый квиз', 'Ответить на квиз недели', 'quiz_any', 1),
+  A('first', 'profile_full', 'rare', 'Открытая книга', 'Заполнить профиль на 100%', 'profile', 100),
+
+  // ---- Ступени: повторяющиеся действия ----
+  A('grow', 'checkin_10', 'common', 'Офисный житель', '10 отметок в офисе', 'checkins', 10, { series: 'checkins' }),
+  A('grow', 'checkin_50', 'rare', 'Офисный житель II', '50 отметок в офисе', 'checkins', 50, { series: 'checkins' }),
+  A('grow', 'checkin_150', 'legendary', 'Офисный житель III', '150 отметок в офисе', 'checkins', 150, { series: 'checkins' }),
+  A('grow', 'streak3', 'common', 'Разгон', '3 рабочих дня подряд в офисе', 'streak', 3, { series: 'streak' }),
+  A('grow', 'streak5', 'rare', 'Пятидневка', '5 рабочих дней подряд в офисе', 'streak', 5, { series: 'streak' }),
+  A('grow', 'streak20', 'legendary', 'Железная воля', '20 рабочих дней подряд в офисе', 'streak', 20, { series: 'streak' }),
+  A('grow', 'canteen5', 'common', 'Завсегдатай', '5 раз отметиться в столовой', 'canteen', 5, { series: 'canteen' }),
+  A('grow', 'canteen25', 'rare', 'Завсегдатай II', '25 раз в столовой', 'canteen', 25, { series: 'canteen' }),
+  A('grow', 'canteen100', 'legendary', 'Свой на раздаче', '100 раз в столовой', 'canteen', 100, { series: 'canteen' }),
+  A('grow', 'calls5', 'common', 'Заводила', '5 зовов', 'calls', 5, { series: 'calls' }),
+  A('grow', 'calls25', 'rare', 'Заводила II', '25 зовов', 'calls', 25, { series: 'calls' }),
+  A('grow', 'calls100', 'legendary', 'Главный по движу', '100 зовов', 'calls', 100, { series: 'calls' }),
+  A('grow', 'replies10', 'common', 'Отзывчивый', 'Ответить на 10 зовов', 'replies', 10, { series: 'replies' }),
+  A('grow', 'replies50', 'rare', 'Отзывчивый II', 'Ответить на 50 зовов', 'replies', 50, { series: 'replies' }),
+  A('grow', 'replies200', 'legendary', 'Всегда на проводе', 'Ответить на 200 зовов', 'replies', 200, { series: 'replies' }),
+  A('grow', 'sea_first', 'common', 'Юнга', 'Выиграть морской бой', 'sea_wins', 1, { series: 'sea' }),
+  A('grow', 'sea_10', 'rare', 'Капитан', '10 побед в морском бою', 'sea_wins', 10, { series: 'sea' }),
+  A('grow', 'sea_30', 'legendary', 'Адмирал', '30 побед в морском бою', 'sea_wins', 30, { series: 'sea' }),
+  A('grow', 'guess3', 'common', 'Наблюдательный', '3 раза угадать, кто из наших', 'guess_ok', 3, { series: 'guess' }),
+  A('grow', 'guess10', 'rare', 'Знаток банды', '10 раз угадать, кто из наших', 'guess_ok', 10, { series: 'guess' }),
+  A('grow', 'guess50', 'legendary', 'Ходячее досье', '50 раз угадать, кто из наших', 'guess_ok', 50, { series: 'guess' }),
+  A('grow', 'quiz1', 'common', 'Угадал', 'Верно ответить на квиз недели', 'quiz_ok', 1, { series: 'quiz' }),
+  A('grow', 'quiz5', 'rare', 'Эрудит', '5 верных ответов в квизах недели', 'quiz_ok', 5, { series: 'quiz' }),
+  A('grow', 'quiz15', 'legendary', 'Профессор', '15 верных ответов в квизах недели', 'quiz_ok', 15, { series: 'quiz' }),
+  A('grow', 'signals1', 'common', 'Зоркий', '1 подтверждённый сигнал', 'signals', 1, { series: 'signals' }),
+  A('grow', 'signals5', 'rare', 'Глаза офиса', '5 подтверждённых сигналов', 'signals', 5, { series: 'signals' }),
+  A('grow', 'signals20', 'legendary', 'Всевидящее око', '20 подтверждённых сигналов', 'signals', 20, { series: 'signals' }),
+  A('grow', 'two_offices', 'rare', 'Путешественник', 'Побывать в двух офисах', 'offices', 2, { series: 'offices' }),
+  A('grow', 'all_offices', 'legendary', 'Все этажи', 'Побывать во всех трёх офисах', 'offices', 3, { series: 'offices' }),
+  A('grow', 'sea_clean', 'rare', 'Ни царапины', 'Победить, не потеряв ни одного корабля', 'sea_clean', 1),
+
+  // ---- Каждый день ----
+  A('daily', 'day3', 'common', 'Заглядываю', 'Заходить 3 рабочих дня подряд', 'day_streak', 3, { series: 'days' }),
+  A('daily', 'day10', 'rare', 'Привычка', 'Заходить 10 рабочих дней подряд', 'day_streak', 10, { series: 'days' }),
+  A('daily', 'day30', 'legendary', 'Месяц с Этажом', 'Заходить 30 рабочих дней подряд', 'day_streak', 30, { series: 'days' }),
+  A('daily', 'active30', 'rare', 'Старожил', '30 дней в приложении', 'active_days', 30, { series: 'active' }),
+  A('daily', 'active100', 'legendary', 'Часть интерьера', '100 дней в приложении', 'active_days', 100, { series: 'active' }),
+  A('daily', 'quests1', 'common', 'Отличник', 'Выполнить все задания дня', 'quest_all', 1, { series: 'quests' }),
+  A('daily', 'quests10', 'rare', 'Отличник II', 'Все задания дня — 10 раз', 'quest_all', 10, { series: 'quests' }),
+  A('daily', 'quests30', 'legendary', 'Круглый отличник', 'Все задания дня — 30 раз', 'quest_all', 30, { series: 'quests' }),
+  A('daily', 'early5', 'rare', 'Ранняя пташка', '5 раз отметиться в офисе до 9:00', 'early', 5),
+
+  // ---- Коммуникабельность ----
+  A('social', 'dm3', 'common', 'Свой человек', 'Переписываться лично с тремя людьми', 'dm_people', 3, { series: 'dm_people' }),
+  A('social', 'dm10', 'rare', 'Нетворкер', 'Переписываться лично с десятью людьми', 'dm_people', 10, { series: 'dm_people' }),
+  A('social', 'msgs10', 'common', 'Разговорчивый', '10 сообщений в чатах банд', 'msgs', 10, { series: 'msgs' }),
+  A('social', 'msgs50', 'rare', 'Душа чата', '50 сообщений в чатах банд', 'msgs', 50, { series: 'msgs' }),
+  A('social', 'msgs200', 'legendary', 'Язык без костей', '200 сообщений в чатах банд', 'msgs', 200, { series: 'msgs' }),
+  A('social', 'thanks3', 'common', 'Приятно', 'Получить 3 спасибо', 'thanks_got', 3, { series: 'thanks' }),
+  A('social', 'thanks10', 'rare', 'Душа банды', 'Получить 10 спасибо', 'thanks_got', 10, { series: 'thanks' }),
+  A('social', 'thanks50', 'legendary', 'Легенда банды', 'Получить 50 спасибо', 'thanks_got', 50, { series: 'thanks' }),
+  A('social', 'thanks_people5', 'rare', 'Щедрая душа', 'Сказать спасибо пятерым разным людям', 'thanks_people', 5),
+  A('social', 'gangs3', 'rare', 'Многостаночник', 'Состоять в трёх бандах', 'gangs', 3),
+  A('social', 'recruit1', 'common', 'Вербовщик', 'Позвать человека в банду — и он вступил', 'recruits', 1, { series: 'recruits' }),
+  A('social', 'recruit5', 'rare', 'Сколотил братву', '5 человек вступили по твоему приглашению', 'recruits', 5, { series: 'recruits' }),
+  A('social', 'coffee', 'rare', 'Новые лица', 'Договориться о случайном кофе', 'coffee', 1, { series: 'coffee' }),
+  A('social', 'coffee5', 'legendary', 'Кофейный дипломат', '5 раз договориться о случайном кофе', 'coffee', 5, { series: 'coffee' }),
+  A('social', 'sea_rivals', 'rare', 'Гроза морей', 'Обыграть 5 разных соперников', 'sea_rivals', 5),
+  A('social', 'big_lunch', 'rare', 'Застольный', 'Собрать обед, к которому присоединились трое', 'big_lunch', 1),
+
+  // ---- Скрытность: секретные и шуточные ----
+  A('stealth', 'st_hide', 'common', 'Агент 007', 'Скрыть от банды, где ты работаешь', 'st_hide', 1, { secret: true }),
+  A('stealth', 'st_unfindable', 'common', 'Партизан', 'Выключить поиск по себе', 'st_unfindable', 1, { secret: true }),
+  A('stealth', 'st_incognito', 'common', 'Инкогнито', 'Указать имя — и никому его не показывать', 'st_incognito', 1, { secret: true }),
+  A('stealth', 'st_night', 'common', 'Полуночник', 'Заглянуть в Этаж между полуночью и пятью утра', 'st_night', 1, { secret: true }),
+  A('stealth', 'st_ghost', 'rare', 'Призрак офиса', 'Отметиться в офисе и уйти меньше чем через час', 'st_ghost', 1, { secret: true }),
+  A('stealth', 'st_slack', 'rare', 'Чистосердечное', 'Трижды честно признаться, что отлыниваешь', 'st_slack', 3, { secret: true }),
+  A('stealth', 'st_lurker', 'rare', 'Читаю молча', 'Заходить 10 дней — и не написать ни слова', 'lurker', 1, { secret: true }),
+  A('stealth', 'st_master', 'legendary', 'Мастер маскировки', 'Собрать все остальные секретные ачивки', 'st_all', 6, { secret: true })
 ];
+const ACH_CATS = [['first', 'Первые шаги'], ['grow', 'Ступени'], ['daily', 'Каждый день'], ['social', 'Душа компании'], ['stealth', 'Скрытность']];
 const ACH_REWARD = { common: 5, rare: 15, legendary: 40 };
 
 const QUESTS = [
@@ -70,6 +140,7 @@ function migrate(db) {
   CREATE INDEX IF NOT EXISTS thanks_gang_at ON thanks(gang_id, at);
 
   CREATE TABLE IF NOT EXISTS achievements (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, ach TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (user_id, ach));
+  CREATE TABLE IF NOT EXISTS ach_pairs (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, kind TEXT NOT NULL, other_id INTEGER NOT NULL, PRIMARY KEY (user_id, kind, other_id));
   CREATE TABLE IF NOT EXISTS counters (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, key TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, key));
   -- Только набор офисов, где человек бывал, без дат
   CREATE TABLE IF NOT EXISTS user_offices (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, office_id TEXT NOT NULL, PRIMARY KEY (user_id, office_id));
@@ -124,7 +195,7 @@ function register(ctx) {
   const seenToday = new Set();
   function markActive(uid) {
     const key = today() + ':' + uid;
-    if (seenToday.has(key)) return;
+    if (seenToday.has(key)) return false;
     if (seenToday.size > 20000) seenToday.clear();
     seenToday.add(key);
     // Псевдоним вместо id: связь с аккаунтом не восстановить без секрета сервера
@@ -148,30 +219,62 @@ function register(ctx) {
     return streak;
   }
 
+  // Флаги «сделал хоть раз»: счётчик сразу 1, повторы не копятся
+  const flag = (uid, key) => q('INSERT OR IGNORE INTO counters (user_id, key, n) VALUES (?, ?, 1)').run(uid, key).changes > 0;
+  const setCounter = (uid, key, n) => q('INSERT INTO counters (user_id, key, n) VALUES (?, ?, ?) ON CONFLICT(user_id, key) DO UPDATE SET n = excluded.n').run(uid, key, n);
+  // Уникальные собеседники: храним только пары «кто — с кем — по какому поводу», без содержания
+  const seenPair = (uid, kind, other) => q('INSERT OR IGNORE INTO ach_pairs (user_id, kind, other_id) VALUES (?, ?, ?)').run(uid, kind, other).changes > 0;
+
+  const COUNTER_KEYS = ['checkins', 'replies', 'thanks_given', 'thanks_got', 'canteen', 'signals', 'coffee', 'guess_ok', 'quiz_ok', 'quiz_any',
+    'sea_wins', 'sea_clean', 'sea_rivals', 'msgs', 'calls', 'dms', 'memes', 'lunches', 'food', 'looks', 'battles', 'signals_sent',
+    'day_streak', 'active_days', 'quest_all', 'early', 'dm_people', 'thanks_people', 'recruits', 'big_lunch',
+    'st_hide', 'st_unfindable', 'st_incognito', 'st_night', 'st_ghost', 'st_slack'];
+  function countersOf(uid, u) {
+    const c = Object.fromEntries(COUNTER_KEYS.map((k) => [k, 0]));
+    for (const r of q('SELECT key, n FROM counters WHERE user_id = ?').all(uid)) if (r.key in c) c[r.key] = r.n;
+    c.gangs = q('SELECT COUNT(*) AS n FROM gang_members WHERE user_id = ?').get(uid).n;
+    c.offices = q('SELECT COUNT(*) AS n FROM user_offices WHERE user_id = ?').get(uid).n;
+    c.streak = streakOf(uid);
+    c.profile = profilePct ? profilePct(u) : 0;
+    c.lurker = c.active_days >= 10 && !(c.msgs + c.dms + c.calls + c.memes + c.replies + c.thanks_given) ? 1 : 0;
+    c.st_all = ['st_hide', 'st_unfindable', 'st_incognito', 'st_night', 'st_ghost'].filter((k) => c[k] >= 1).length + (c.st_slack >= 3 ? 1 : 0);
+    return c;
+  }
+
   function checkAchievements(uid) {
     const u = userRow(uid);
     if (!u || !u.nick) return [];
     const have = new Set(q('SELECT ach FROM achievements WHERE user_id = ?').all(uid).map((r) => r.ach));
-    if (have.size === ACH.length) return [];
-    const c = {
-      checkins: counter(uid, 'checkins'), replies: counter(uid, 'replies'), thanks_given: counter(uid, 'thanks_given'),
-      thanks_got: counter(uid, 'thanks_got'), canteen: counter(uid, 'canteen'), signals: counter(uid, 'signals'), coffee: counter(uid, 'coffee'),
-      gangs: q('SELECT COUNT(*) AS n FROM gang_members WHERE user_id = ?').get(uid).n,
-      offices: q('SELECT COUNT(*) AS n FROM user_offices WHERE user_id = ?').get(uid).n,
-      streak: streakOf(uid),
-      profile: profilePct ? profilePct(u) : 0,
-      guess_ok: counter(uid, 'guess_ok'), quiz_ok: counter(uid, 'quiz_ok'), quiz_any: counter(uid, 'quiz_any'),
-      sea_wins: counter(uid, 'sea_wins'), sea_clean: counter(uid, 'sea_clean'), sea_rivals: counter(uid, 'sea_rivals')
-    };
+    if (have.size >= ACH.length) return [];
+    const c = countersOf(uid, u);
     const got = [];
+    // «Читаю молча» — только пока человек молчит; «Мастер маскировки» считается после остальных секретных
     for (const a of ACH) {
-      if (have.has(a.id) || !a.test(c)) continue;
+      if (have.has(a.id) || (c[a.m] || 0) < a.goal) continue;
       q('INSERT OR IGNORE INTO achievements (user_id, ach, at) VALUES (?, ?, ?)').run(uid, a.id, U.now());
       addBeans(uid, 'ach', ACH_REWARD[a.tier]);
-      pushEvent(null, uid, `${u.nick} получил ачивку «${a.name}»`, 'ach');
+      // Секретные в общую ленту не попадают — на то они и секретные
+      if (!a.secret) pushEvent(null, uid, `${u.nick} получил ачивку «${a.name}»`, 'ach');
       got.push(a.id);
     }
     return got;
+  }
+
+  // Дни в приложении: всего и подряд (по рабочим дням; выходные и праздники серию не рвут)
+  function noteActiveDay(uid) {
+    const t = today();
+    const tn = Number(t.replace(/-/g, ''));
+    const last = counter(uid, 'last_active');
+    if (last >= tn) return false;
+    setCounter(uid, 'last_active', tn);
+    bump(uid, 'active_days');
+    if (weekdayName(t)) {
+      let prev = addDays(t, -1);
+      for (let i = 0; i < 20 && !weekdayName(prev); i++) prev = addDays(prev, -1);
+      const prevN = Number(prev.replace(/-/g, ''));
+      setCounter(uid, 'day_streak', last >= prevN ? counter(uid, 'day_streak') + 1 : 1);
+    }
+    return true;
   }
 
   function completeQuest(uid, quest) {
@@ -179,20 +282,43 @@ function register(ctx) {
     if (!r.changes) return;
     addBeans(uid, 'quest', QUEST_REWARD);
     const n = q('SELECT COUNT(*) AS n FROM quests_done WHERE user_id = ? AND day = ?').get(uid, today()).n;
-    if (n === QUESTS.length) addBeans(uid, 'quest_all', QUEST_ALL_BONUS);
+    if (n === QUESTS.length) { addBeans(uid, 'quest_all', QUEST_ALL_BONUS); bump(uid, 'quest_all'); }
   }
 
   function onEvent(type, uid, data = {}) {
     try {
-      if (type === 'active') return markActive(uid);
+      if (type === 'active') {
+        // Полуночник: первый же запрос ночью
+        if (U.msk().hour < 5 && flag(uid, 'st_night')) checkAchievements(uid);
+        if (markActive(uid) === false) return;
+        if (noteActiveDay(uid)) checkAchievements(uid);
+        return;
+      }
       if (type === 'checkin') {
+        if (U.msk().hour < 9) bump(uid, 'early');
         bump(uid, 'checkins'); stat('checkins'); completeQuest(uid, 'checkin');
         q('INSERT OR IGNORE INTO user_offices (user_id, office_id) VALUES (?, ?)').run(uid, data.office);
       }
       if (type === 'canteen') { bump(uid, 'canteen'); stat('canteen'); }
       if (type === 'reply') { bump(uid, 'replies'); stat('replies'); completeQuest(uid, 'reply'); }
-      if (type === 'call') stat('calls');
-      if (type === 'text') stat('messages');
+      if (type === 'call') { stat('calls'); bump(uid, 'calls'); }
+      if (type === 'text') { stat('messages'); bump(uid, 'msgs'); }
+      if (type === 'dm') { bump(uid, data.call ? 'calls' : 'dms'); if (seenPair(uid, 'dm', data.to)) bump(uid, 'dm_people'); }
+      if (type === 'meme') { bump(uid, 'memes'); if (seenPair(uid, 'dm', data.to)) bump(uid, 'dm_people'); }
+      if (type === 'dm_reply') bump(uid, 'replies');
+      if (type === 'signal_sent') bump(uid, 'signals_sent');
+      if (type === 'battle_start') bump(uid, 'battles');
+      if (type === 'recruit') bump(uid, 'recruits');
+      if (type === 'checkout' && data.since && U.now() - data.since < 3600e3) flag(uid, 'st_ghost');
+      if (type === 'profile') {
+        const u = q('SELECT share_office, profile FROM users WHERE id = ?').get(uid);
+        const p = readProfile(u.profile);
+        if (!u.share_office) flag(uid, 'st_hide');
+        if (p.findable === false) flag(uid, 'st_unfindable');
+        if (p.nameVis === 'hidden' && (p.firstName || p.lastName)) flag(uid, 'st_incognito');
+        if (data.look) flag(uid, 'looks');
+        if (data.slack) bump(uid, 'st_slack');
+      }
       if (type === 'signal_confirmed') { bump(uid, 'signals'); stat('signals_confirmed'); }
       if (type === 'signal') stat('signals');
       if (type === 'guess_ok') { bump(uid, 'guess_ok'); stat('guess_ok'); }
@@ -295,6 +421,7 @@ function register(ctx) {
     q('INSERT INTO thanks (gang_id, from_id, to_id, text, day, at) VALUES (?, ?, ?, ?, ?, ?)').run(gangId, u.id, toId, text, today(), U.now());
     const got = addBeans(toId, 'thanks');
     bump(u.id, 'thanks_given'); bump(toId, 'thanks_got'); stat('thanks');
+    if (seenPair(u.id, 'thanks', toId)) bump(u.id, 'thanks_people');
     completeQuest(u.id, 'thanks');
     checkAchievements(u.id); checkAchievements(toId);
     fireAndForget(notify([toId], { title: 'Тебе спасибо!', body: `${u.nick}: ${text || 'спасибо за помощь'}${got ? ' · +1 зерно' : ''}`, url: `/#gang/${gangId}`, tag: `thanks-${u.id}` }));
@@ -433,7 +560,7 @@ function register(ctx) {
     if (place) { const prob = U.moderationProblem(place); if (prob) throw bad(prob); }
     q('DELETE FROM lunches WHERE user_id = ? AND day = ?').run(u.id, today());
     q('INSERT INTO lunches (office_id, user_id, time, place, day, at) VALUES (?, ?, ?, ?, ?, ?)').run(ci.office_id, u.id, body.time, place, today(), U.now());
-    stat('lunches');
+    stat('lunches'); bump(u.id, 'lunches'); checkAchievements(u.id);
     return { ok: true };
   });
 
@@ -444,6 +571,10 @@ function register(ctx) {
     if (!l || !ci || ci.office_id !== l.office_id) throw bad('Сбор не найден или он в другом офисе.');
     if (l.user_id === u.id) throw bad('Это твой сбор.');
     const r = q('INSERT OR IGNORE INTO lunch_joins (lunch_id, user_id, at) VALUES (?, ?, ?)').run(l.id, u.id, U.now());
+    if (r.changes) {
+      bump(u.id, 'lunches'); checkAchievements(u.id);
+      if (q('SELECT COUNT(*) AS n FROM lunch_joins WHERE lunch_id = ?').get(l.id).n >= 3 && flag(l.user_id, 'big_lunch')) checkAchievements(l.user_id);
+    }
     if (r.changes) fireAndForget(notify([l.user_id], { title: 'Обед компанией', body: `${u.nick} идёт с тобой в ${l.time}`, url: '/', tag: `lunch-${l.id}` }));
     return { ok: true };
   });
@@ -481,7 +612,17 @@ function register(ctx) {
     }
     return {
       quests: { items: QUESTS.map((x) => ({ ...x, done: done.has(x.id) })), reward: QUEST_REWARD, bonus: QUEST_ALL_BONUS },
-      achievements: ACH.map((a) => ({ id: a.id, tier: a.tier, name: a.name, desc: a.desc, reward: ACH_REWARD[a.tier], got: !!owned[a.id], at: owned[a.id] || null })),
+      achievements: (() => {
+        const c = countersOf(u.id, userRow(u.id));
+        return ACH.map((a) => {
+          const got = !!owned[a.id];
+          const hide = a.secret && !got;
+          return { id: a.id, cat: a.cat, series: a.series || null, tier: a.tier, secret: !!a.secret, reward: ACH_REWARD[a.tier], got, at: owned[a.id] || null,
+            name: hide ? '???' : a.name, desc: hide ? 'Секретная ачивка' : a.desc,
+            n: hide ? null : Math.min(c[a.m] || 0, a.goal), goal: hide ? null : a.goal };
+        });
+      })(),
+      achCats: ACH_CATS,
       weekHint: gangId ? gangWeek(gangId, u.id).best : null,
       coffee: { optIn: !!prof.coffee, hasHome: !!prof.home, pair: myPair(u.id) },
       lunches: lunchesFor(u.id),
@@ -522,7 +663,7 @@ function register(ctx) {
        ON CONFLICT(day, office_id, user_id) DO UPDATE SET up = excluded.up, tags = excluded.tags, comment = excluded.comment, at = excluded.at`)
       .run(today(), officeId, u.id, up ? 1 : 0, JSON.stringify(tags), comment || null, U.now());
     const beans = first ? addBeans(u.id, 'food_rate') || 0 : 0;
-    if (first) stat('food_rates');
+    if (first) { stat('food_rates'); bump(u.id, 'food'); checkAchievements(u.id); }
     return { ok: true, beans, food: foodSummary(officeId, u.id) };
   });
 

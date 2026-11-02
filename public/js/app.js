@@ -1419,11 +1419,40 @@ function renderThanks(v) {
 function renderAchievements() {
   const f = S.fx;
   if (!f) return '<p class="small">Загружаем ачивки…</p>';
-  const got = f.achievements.filter((a) => a.got).length;
-  const tiers = [['common', 'Обычные'], ['rare', 'Редкие'], ['legendary', 'Легендарные']];
-  return `${tiers.map(([t, title]) => `<div class="eyebrow" style="margin-top:4px">${title} · +${f.achievements.find((a) => a.tier === t).reward} ${plural(f.achievements.find((a) => a.tier === t).reward, 'зерно', 'зерна', 'зёрен')}</div>
-      <div class="ach-grid">${f.achievements.filter((a) => a.tier === t).map((a) => `<div class="ach ${t} ${a.got ? 'got' : ''}" title="${esc(a.desc)}">
-        <span class="ach-ico" aria-hidden="true">${a.got ? '★' : '?'}</span><span class="ach-name">${esc(a.name)}</span><span class="ach-desc">${esc(a.desc)}</span></div>`).join('')}</div>`).join('')}`;
+  const all = f.achievements;
+  const cats = f.achCats || [['all', 'Ачивки']];
+  const R = Object.fromEntries(all.map((a) => [a.tier, a.reward]));
+  const prog = (n, goal) => goal > 1 ? `<span class="ach-prog"><i style="width:${Math.round((n / goal) * 100)}%"></i></span><span class="ach-num">${n} / ${goal}</span>` : '';
+  const tile = (a) => `<div class="ach ${a.tier} ${a.got ? 'got' : ''} ${a.secret ? 'secret' : ''}" title="${esc(a.desc)}">
+      <span class="ach-ico" aria-hidden="true">${a.got ? '★' : a.secret ? '🕶' : '?'}</span><span class="ach-name">${esc(a.name)}</span><span class="ach-desc">${esc(a.desc)}</span>${a.got ? '' : prog(a.n, a.goal)}</div>`;
+  // Ступени одной серии — одна плитка: уровень, точки уровней, прогресс до следующего
+  const seriesTile = (lv) => {
+    const done = lv.filter((x) => x.got);
+    const top = done[done.length - 1];
+    const next = lv.find((x) => !x.got);
+    const shown = top || lv[0];
+    return `<div class="ach ${shown.tier} ${top ? 'got' : ''} series" title="${esc(next ? 'Дальше: ' + next.desc : 'Все ступени взяты')}">
+      <span class="ach-ico" aria-hidden="true">${top ? '★' : '?'}</span><span class="ach-name">${esc(shown.name)}</span>
+      <span class="ach-lv">${lv.map((x) => `<i class="${x.tier} ${x.got ? 'on' : ''}"></i>`).join('')}</span>
+      <span class="ach-desc">${esc(next ? next.desc : 'Все ступени взяты')}</span>${next ? prog(next.n, next.goal) : ''}</div>`;
+  };
+  return `<p class="small" style="margin:0 0 6px">Обычные +${R.common} · редкие +${R.rare} · легендарные +${R.legendary} зёрен</p>
+    ${cats.map(([cat, title]) => {
+      const items = all.filter((a) => (a.cat || 'all') === cat);
+      if (!items.length) return '';
+      const tiles = [];
+      const seen = new Set();
+      for (const a of items) {
+        if (!a.series) { tiles.push(tile(a)); continue; }
+        if (seen.has(a.series)) continue;
+        seen.add(a.series);
+        tiles.push(seriesTile(items.filter((x) => x.series === a.series)));
+      }
+      const got = items.filter((a) => a.got).length;
+      return `<div class="eyebrow" style="margin-top:6px">${title} · ${got} из ${items.length}</div>
+        ${cat === 'stealth' ? '<p class="small" style="margin:2px 0 0">Как получить — секрет. Подсказка: иногда лучше не отсвечивать.</p>' : ''}
+        <div class="ach-grid">${tiles.join('')}</div>`;
+    }).join('')}`;
 }
 
 // ----- Шторки -----

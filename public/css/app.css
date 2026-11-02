@@ -564,3 +564,13 @@ body { font-weight: 500; }
 .wk-h { position: relative; }
 .wk-short { display: block; font-style: normal; font-size: 9px; font-weight: 800; color: #B7791F; }
 .wk-notes { margin-top: 8px; padding: 8px 10px; border-radius: 12px; background: #FFF4F4; color: #7A2328; font-size: 13px; line-height: 1.45; }
+
+/* Ачивки: ступени и прогресс */
+.ach-prog { width: 80%; height: 5px; border-radius: 3px; background: #DDE2EE; overflow: hidden; margin-top: 2px; }
+.ach-prog i { display: block; height: 100%; background: #3A86FF; border-radius: 3px; }
+.ach-num { font-size: 10px; font-weight: 800; color: var(--muted); }
+.ach-lv { display: flex; gap: 3px; }
+.ach-lv i { width: 9px; height: 9px; border-radius: 50%; background: #DDE2EE; }
+.ach-lv i.on.common { background: #3A86FF; } .ach-lv i.on.rare { background: var(--violet); } .ach-lv i.on.legendary { background: #F4A72C; }
+.ach.secret:not(.got) { background: #2A3352; color: #AEB6CF; opacity: 1; }
+.ach.secret:not(.got) .ach-ico { background: #3A4466; color: #fff; }

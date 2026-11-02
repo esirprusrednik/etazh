@@ -222,6 +222,7 @@ function register(ctx) {
     const mode = body.mode === 'fast' ? 'fast' : 'calm';
     const r = q('INSERT INTO battles (a, b, status, a_ships, b_ships, created_at, updated_at, mode, clock_a, clock_b) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
       .run(u.id, to, 'setup', JSON.stringify(randomFleet()), JSON.stringify(randomFleet()), t, t, mode, FAST_MS, FAST_MS);
+    if (onEvent) onEvent('battle_start', u.id);
     ping(to, Number(r.lastInsertRowid), mode === 'fast' ? `${u.nick} зовёт на быструю партию в морской бой — 3 минуты` : `${u.nick} вызывает на морской бой`);
     return { id: Number(r.lastInsertRowid) };
   });

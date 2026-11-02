@@ -402,6 +402,8 @@ function createApi(db) {
   // Удалить аккаунт и все данные
   route('DELETE', '/api/me', async (req) => {
     const u = requireUser(req, { nick: false });
+    // У других тоже стираем упоминание этого человека в счётчиках ачивок (кто с кем переписывался)
+    try { q('DELETE FROM ach_pairs WHERE other_id = ?').run(u.id); } catch {}
     q('DELETE FROM users WHERE id = ?').run(u.id);
     return { ok: true, _setCookie: sessionCookie('', 0) };
   });
@@ -550,7 +552,7 @@ function createApi(db) {
     const share = body.shareOffice === undefined ? u.share_office : body.shareOffice ? 1 : 0;
     const quiet = body.quiet === undefined ? u.quiet : body.quiet ? 1 : 0;
     q('UPDATE users SET look = ?, profile = ?, share_office = ?, quiet = ? WHERE id = ?').run(JSON.stringify(look), JSON.stringify(prof), share, quiet, u.id);
-    if (features) features.onEvent('profile', u.id);
+    if (features) features.onEvent('profile', u.id, { look: body.look !== undefined && Object.keys(body.look || {}).length > 0, slack: !!(body.profile && body.profile.today && body.profile.today.kind === 'slack') });
     return { ok: true };
   });
 
@@ -619,6 +621,7 @@ function createApi(db) {
     const ci = activeCheckin(u.id);
     if (ci) q('UPDATE checkins SET left_at = ? WHERE id = ?').run(U.now(), ci.id);
     q('UPDATE canteen SET done_at = ? WHERE user_id = ? AND done_at IS NULL').run(U.now(), u.id);
+    if (ci && features) features.onEvent('checkout', u.id, { since: ci.at });
     return { ok: true };
   });
 
@@ -751,6 +754,7 @@ function createApi(db) {
       if (!g) throw bad('Банда закрыта.');
       joinGang(u, g);
       q("UPDATE gang_invites SET status = 'accepted' WHERE gang_id = ? AND to_id = ? AND status = 'pending'").run(g.id, u.id);
+      if (inv.from_id && features) features.onEvent('recruit', inv.from_id);
       if (inv.from_id) fireAndForget(notify([inv.from_id], { title: g.name, body: `${u.nick} вступил в банду`, url: `/#gang/${g.id}`, tag: `ginv-${g.id}` }));
       return { ok: true, gang: g.id };
     }
@@ -950,6 +954,7 @@ function createApi(db) {
     }
     q('INSERT INTO signals (office_id, type, zone, comment, user_id, at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
       .run(ci.office_id, body.type, zone, comment, u.id, U.now(), U.now() + def.hours * 3600e3);
+    if (features) features.onEvent('signal_sent', u.id);
     return { ok: true };
   });
 
@@ -1126,7 +1131,8 @@ function createApi(db) {
 
   // ---------- Подельники: личные контакты ----------
   crew = require('./crew').register({
-    db, q, route, requireUser, bad, U, config, notify, fireAndForget, rateLimit, memberStatus, HttpError, publicLook
+    db, q, route, requireUser, bad, U, config, notify, fireAndForget, rateLimit, memberStatus, HttpError, publicLook,
+    onEvent: (t, uid, d) => features && features.onEvent(t, uid, d)
   });
   quiz = require('./quiz').register({ db, q, route, requireUser, requireAdmin, bad, U, addBeans, isMember, gangMembers, readProfile, HttpError, DEFAULT_LOOK, publicLook, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   battle = require('./battle').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, publicLook, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });

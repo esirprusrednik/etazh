@@ -203,6 +203,33 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.ok(!fp || fp.partner.nick !== 'смелый_ёж');
   });
 
+  await step('ачивки: первые шаги, ступени с прогрессом, секретные скрыты и не попадают в ленту', async () => {
+    const x = await new Client().login('xena@mts.ru', 'тихая_рысь');
+    const y = await new Client().login('yan@mts.ru', 'быстрый_ёрш');
+    const gx = (await x.post('/api/gangs', { name: 'Тихий угол' })).json;
+    await y.post('/api/gangs/join', { code: gx.code });
+    await x.post(`/api/gangs/${gx.id}/messages`, { type: 'text', text: 'всем привет' });
+    await x.post(`/api/crew/${y.id}/messages`, { type: 'text', text: 'привет лично' });
+    await x.post('/api/me/profile', { shareOffice: false, profile: { findable: false } });
+    const f = (await x.get('/api/features')).json;
+    const by = Object.fromEntries(f.achievements.map((a) => [a.id, a]));
+    assert.ok(by.first_msg.got && by.first_dm.got && by.gang.got, 'первые шаги');
+    assert.ok(by.st_hide.got && by.st_unfindable.got, 'Агент 007 и Партизан');
+    assert.equal(by.st_ghost.name, '???', 'неполученная секретная — без названия');
+    assert.equal(by.st_ghost.goal, null);
+    assert.equal(by.msgs10.n, 1); assert.equal(by.msgs10.goal, 10);
+    assert.equal(by.dm3.n, 1);
+    assert.ok(by.day3.n >= 1, 'день в приложении засчитан');
+    assert.deepEqual(f.achCats.map((c) => c[0]), ['first', 'grow', 'daily', 'social', 'stealth']);
+    const ev = (await y.get('/api/events')).json.events.map((e) => e.text).join('\n');
+    assert.ok(/Голос подал/.test(ev), 'обычная ачивка — в ленте');
+    assert.ok(!/Агент 007|Партизан/.test(ev), 'секретная — не в ленте');
+    // Призрак офиса: пришёл и ушёл меньше чем через час
+    await x.post('/api/checkin', { office: 'smol' });
+    await x.post('/api/checkout');
+    assert.ok((await x.get('/api/features')).json.achievements.find((a) => a.id === 'st_ghost').got);
+  });
+
   console.log(`\nВсё прошло: ${passed} проверок`);
 })()
   .catch((e) => { console.error('\nПровал:', e.message, '\n--- лог ---\n' + log.slice(-2000)); process.exitCode = 1; })

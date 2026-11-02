@@ -252,7 +252,7 @@ async function waitUp() {
       await c.post(`/api/signals/${s.id}/vote`, { vote: 1 });
       const ev2 = (await a.get('/api/events')).json;
       assert.ok(ev2.signals[0].confirmed);
-      assert.equal((await a.get('/api/me')).json.user.beans - before, 2);
+      assert.equal((await a.get('/api/me')).json.user.beans - before, 2 + 5, '+2 за сигнал и +5 за ачивку «Зоркий»');
     });
 
     await step('столовая: вход, выход, оценка', async () => {

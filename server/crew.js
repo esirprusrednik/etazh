@@ -11,7 +11,7 @@ const PENDING_TTL_DAYS = 30;    // неотвеченная заявка сго�
 const DM_CALLS = ['coffee', 'lunch', 'call', 'where', 'online', 'wait', 'room']; // «Домой — кто с ним?» в личке не нужен
 
 function register(ctx) {
-  const { db, q, route, requireUser, bad, U, config, notify, fireAndForget, rateLimit, memberStatus, HttpError, publicLook } = ctx;
+  const { db, q, route, requireUser, bad, U, config, notify, fireAndForget, rateLimit, memberStatus, HttpError, publicLook, onEvent } = ctx;
 
   db.exec(`
   -- Пара хранится упорядоченно: lo < hi. status: pending | ok
@@ -337,6 +337,7 @@ function register(ctx) {
       const prob = U.moderationProblem(text, { allowAt: true });
       if (prob) throw bad(prob);
       ins.run(lo, hi, u.id, f.id, 'text', null, null, text, U.now());
+      if (onEvent) onEvent('dm', u.id, { to: f.id });
       // Текст в пуш не кладём: уведомление видно на заблокированном экране
       fireAndForget(notify([f.id], { title: u.nick, body: 'Личное сообщение', url: `/#crew/${u.id}`, tag: `dm-${u.id}` }));
       return { ok: true };
@@ -348,6 +349,7 @@ function register(ctx) {
         throw bad('Не больше 10 мемов в час одному человеку.');
       }
       ins.run(lo, hi, u.id, f.id, 'meme', body.kind, body.opt, JSON.stringify(u.look || {}), U.now());
+      if (onEvent) onEvent('meme', u.id, { to: f.id });
       fireAndForget(notify([f.id], { title: u.nick, body: 'Прислал мем-открытку', url: `/#crew/${u.id}`, tag: `dm-${u.id}` }));
       return { ok: true };
     }
@@ -365,6 +367,7 @@ function register(ctx) {
       if (prob) throw bad(prob);
     }
     ins.run(lo, hi, u.id, f.id, 'call', body.kind, opt, text, U.now());
+    if (onEvent) onEvent('dm', u.id, { to: f.id, call: true });
     fireAndForget(notify([f.id], { title: u.nick, body: `${def.verb}${opt ? ' · ' + opt.toLowerCase() : ''}`, url: `/#crew/${u.id}`, tag: `dm-${u.id}` }));
     return { ok: true, quiet: U.isQuietHour() };
   });
@@ -377,6 +380,7 @@ function register(ctx) {
     const def = CALLS[m.kind];
     if (!def || !def.replies.includes(body.label)) throw bad('Неизвестный ответ.');
     q('UPDATE dms SET reply = ?, reply_at = ? WHERE id = ?').run(body.label, U.now(), m.id);
+    if (onEvent) onEvent('dm_reply', u.id);
     fireAndForget(notify([m.from_id], { title: u.nick, body: `Ответ: ${body.label}`, url: `/#crew/${u.id}`, tag: `dm-${u.id}` }));
     return { ok: true };
   });
