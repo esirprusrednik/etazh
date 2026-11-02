@@ -552,15 +552,49 @@ function tabBtn(id, label, n) {
 // ----- Офис -----
 // ===== Вкладка «Рядом»: мой статус и все мои люди одним списком =====
 const pageHead = (title, sub) => `<div class="page-head"><h1>${title}</h1><p>${sub}</p></div>`;
+// ----- Выбор офиса: одна большая кнопка «мой офис» и список остальных в шторке -----
+// Офисов может быть сколько угодно: на экране всегда одна кнопка, остальные — в списке с поиском
+const officeColor = (o) => OFFICE_BG[o.id] || o.color || '#3A86FF';
+function recentOffices() { try { return (store.get('recentOffices', []) || []).filter((id) => S.cat.offices.some((o) => o.id === id)); } catch { return []; } }
+function primaryOffice() {
+  const offs = S.cat.offices;
+  const home = S.me && S.me.profile && S.me.profile.home;
+  return offs.find((o) => o.id === home) || offs.find((o) => o.id === recentOffices()[0]) || offs[0];
+}
+function officePicker() {
+  const o = primaryOffice();
+  if (!o) return '';
+  const others = S.cat.offices.length - 1;
+  const isHome = S.me.profile && S.me.profile.home === o.id;
+  const sub = isHome ? 'мой офис · отметиться в одно касание' : recentOffices()[0] === o.id ? 'был здесь в прошлый раз' : 'свой офис отметь ★ в «Другой офис»';
+  return `<button class="office-btn" style="background:${officeColor(o)}" data-act="checkin" data-v="${esc(o.id)}">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V5l8-3 8 3v16z"/><path d="M9 21v-5h6v5M8 8h2M14 8h2M8 12h2M14 12h2"/></svg>
+      <span class="grow"><span class="ob-name">${esc(o.name)}</span><span class="ob-sub">${sub}</span></span></button>
+    ${others > 0 ? `<button class="office-more" data-act="open" data-v="office"><span class="grow">Другой офис</span><span class="small">ещё ${others}</span><span aria-hidden="true">›</span></button>` : ''}`;
+}
+function renderOfficeList() {
+  const all = S.cat.offices;
+  const cur = S.state && S.state.checkin && S.state.checkin.office;
+  const home = S.me.profile && S.me.profile.home;
+  const qv = (S.officeQ || '').trim().toLocaleLowerCase('ru');
+  const row = (o) => `<div class="ofl-row ${o.id === cur ? 'cur' : ''}">
+      <button class="ofl-pick" data-act="checkin" data-v="${esc(o.id)}"><span class="ofl-dot" style="background:${officeColor(o)}"></span><span class="grow">${esc(o.name)}</span>${o.id === cur ? '<span class="small">сейчас здесь</span>' : ''}</button>
+      <button class="ofl-star ${o.id === home ? 'on' : ''}" data-act="prof" data-k="home" data-v="${esc(o.id)}" aria-label="${o.id === home ? 'Убрать из «мой офис»' : 'Сделать моим офисом'}" title="${o.id === home ? 'Мой офис' : 'Сделать моим офисом'}">${o.id === home ? '★' : '☆'}</button></div>`;
+  const recent = recentOffices().map((id) => all.find((o) => o.id === id)).filter(Boolean).slice(0, 3);
+  const list = (qv ? all.filter((o) => o.name.toLocaleLowerCase('ru').includes(qv)) : all).slice().sort((x, y) => x.name.localeCompare(y.name, 'ru'));
+  return `${all.length > 6 ? `<label class="field" style="gap:0"><span class="hidden">Поиск офиса</span><input id="office-q" placeholder="Найти офис" value="${esc(S.officeQ || '')}" autocomplete="off"></label>` : ''}
+    ${!qv && recent.length && all.length > 4 ? `<div class="eyebrow" style="margin-top:6px">Недавние</div>${recent.map(row).join('')}<div class="eyebrow" style="margin-top:10px">Все офисы</div>` : ''}
+    ${list.length ? list.map(row).join('') : '<p class="sub">Ничего не нашли. Нет твоего офиса — напиши в «Идеи и ошибки», добавим.</p>'}
+    <p class="small" style="margin:8px 0 0">★ — «мой офис»: он будет на главной кнопке, отмечаться в одно касание.${cur ? ' Зёрна за отметку — один раз в день.' : ''}</p>`;
+}
+
 function renderStatusBlock() {
   const st = S.state;
   if (st.night) return `${renderToday()}<div class="card"><h2>Офисы засыпают</h2><p class="sub">После 19:00 отметки сбрасываются. Утром отметься снова — увидишь, кто из твоих рядом.</p></div>`;
   if (!st.checkin) {
     return `${renderToday()}<div class="card">
       <h2>${['home', 'vacation', 'sick', 'slack'].includes(st.presence.where) ? 'Всё-таки в офисе?' : 'Где ты сегодня?'}</h2>
-      ${S.cat.offices.map((o) => `<button class="office-btn" style="background:${OFFICE_BG[o.id] || o.color}" data-act="checkin" data-v="${o.id}">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V5l8-3 8 3v16z"/><path d="M9 21v-5h6v5M8 8h2M14 8h2M8 12h2M14 12h2"/></svg>
-        <span class="grow">${esc(o.name)}</span></button>`).join('')}
+      ${officePicker()}
       ${['home', 'vacation', 'sick', 'slack'].includes(st.presence.where) ? '' : `<div class="today-grid">
         <button class="btn ghost" data-act="today" data-v="home">🏠 Из дома</button>
         <button class="btn ghost" data-act="open" data-v="sick">🤒 Болею</button>
@@ -743,9 +777,7 @@ function renderOffice() {
     return `${renderToday()}<div class="card">
       <h2>${['home', 'vacation', 'sick', 'slack'].includes(st.presence.where) ? 'Всё-таки в офисе?' : 'Где ты сегодня?'}</h2>
       <p class="sub">Отметься — и увидишь свой офис: кто из банды рядом и есть ли очередь в столовой. +5 зёрен в день — за офис или «из дома».</p>
-      ${S.cat.offices.map((o) => `<button class="office-btn" style="background:${OFFICE_BG[o.id] || o.color}" data-act="checkin" data-v="${o.id}">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V5l8-3 8 3v16z"/><path d="M9 21v-5h6v5M8 8h2M14 8h2M8 12h2M14 12h2"/></svg>
-        <span class="grow">${esc(o.name)}</span></button>`).join('')}
+      ${officePicker()}
       <p class="small">Отметка действует до 19:00 или пока не нажмёшь «Ушёл». Видно только офис, где ты отметился.</p>
       ${['home', 'vacation', 'sick', 'slack'].includes(st.presence.where) ? '' : `<div class="today-grid">
         <button class="btn ghost" data-act="today" data-v="home">🏠 Из дома</button>
@@ -1556,8 +1588,7 @@ function renderSheet() {
     case 'install': return sheetWrap('Установи на телефон', renderInstall());
     case 'compose': return sheetWrap(S.cat.calls[S.compose.kind].label, renderCompose());
     case 'signal': return sheetWrap('Сигнал офиса', renderSignal());
-    case 'office': return sheetWrap('Сменить офис', `<p class="sub">Отметка перенесётся в выбранный офис. Зёрна за отметку начисляются один раз в день.</p>
-      ${S.cat.offices.map((o) => `<button class="office-btn" style="background:${OFFICE_BG[o.id] || o.color}" data-act="checkin" data-v="${o.id}">${esc(o.name)}${S.state.checkin && S.state.checkin.office === o.id ? ' · сейчас здесь' : ''}</button>`).join('')}`);
+    case 'office': return sheetWrap(S.state && S.state.checkin ? 'Сменить офис' : 'Выбери офис', renderOfficeList());
     case 'sick': return sheetWrap('Болею', `
       <p class="sub">Банда увидит «болеет — выздоравливай!», зовы не будут присылать пуши. Диагноз и подробности не нужны и нигде не сохраняются. Статус снимется сам после последнего дня.</p>
       <label class="field">По какое число (включительно, до 14 дней)<input id="sick-until" type="date" min="${S.state.today}" value="${S.state.today}"></label>
@@ -2052,7 +2083,8 @@ function renderProfile() {
 
   const workBody = `
     <div class="field">Статус<div class="chips">${Object.entries(S.cat.moods).map(([k, l]) => `<button class="chip ${p.mood === k ? 'on' : ''}" data-act="prof" data-k="mood" data-v="${k}">${esc(l)}</button>`).join('')}</div></div>
-    <div class="field">Мой офис<div class="chips">${S.cat.offices.map((o) => `<button class="chip ${p.home === o.id ? 'on' : ''}" data-act="prof" data-k="home" data-v="${o.id}">${esc(o.name)}</button>`).join('')}</div></div>
+    <label class="field">Мой офис — на главной кнопке отметки<select id="home-office">
+      <option value="">Не выбран</option>${S.cat.offices.slice().sort((x, y) => x.name.localeCompare(y.name, 'ru')).map((o) => `<option value="${esc(o.id)}" ${p.home === o.id ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select></label>
     <div class="field">План недели — нажимай, чтобы переключить: офис → дом → не знаю
       <div class="plan">${S.cat.days.map((d) => { const v = p.plan[d]; return `<button class="plan-day ${v || 'none'}" data-act="plan-day" data-v="${d}" aria-label="${d}: ${v === 'office' ? 'офис' : v === 'home' ? 'дом' : 'не задано'}"><b>${d}</b><span>${v === 'office' ? 'Офис' : v === 'home' ? 'Дом' : '—'}</span></button>`; }).join('')}</div>
       <span class="small" style="font-weight:600">Банда видит «по плану из дома» или «собирается в офис». Отметка в офисе всегда важнее плана.</span></div>`;
@@ -2230,6 +2262,8 @@ const actions = {
   checkin: (el) => run(async () => {
     S.sheet = null;
     const r = await post('/api/checkin', { office: el.dataset.v });
+    try { store.set('recentOffices', [el.dataset.v, ...recentOffices().filter((id) => id !== el.dataset.v)].slice(0, 5)); } catch {}
+    S.officeQ = '';
     if (r.beans) toast(`+${r.beans} зёрен за отметку`);
     await refresh({ all: true });
   }),
@@ -2776,12 +2810,18 @@ document.addEventListener('click', (e) => {
 });
 // Ползунок громкости: число меняется на ходу, образец звука — когда отпустил
 document.addEventListener('input', (e) => {
+  if (e.target.id === 'office-q') {
+    S.officeQ = e.target.value; render();
+    const i = $('#office-q'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
+    return;
+  }
   if (e.target.id !== 'snd-vol') return;
   store.set('soundVol', Number(e.target.value)); store.set('sound', Number(e.target.value) > 0);
   const n = $('#vol-n'); if (n) n.textContent = Number(e.target.value) ? e.target.value + '%' : 'выкл';
 });
 document.addEventListener('change', (e) => {
   if (e.target.id === 'snd-vol') { sfx('pick'); return; }
+  if (e.target.id === 'home-office') { sfx('pick'); run(async () => { await post('/api/me/profile', { profile: { home: e.target.value || null } }); await loadMe(); toast(e.target.value ? 'Мой офис сохранён' : 'Мой офис сброшен'); }); return; }
   const el = e.target;
   if (el.tagName === 'INPUT' && el.type === 'checkbox' && el.dataset.act && actions[el.dataset.act]) { if (!FEEL_SELF.has(el.dataset.act)) sfx(el.checked ? 'on' : 'off'); actions[el.dataset.act](el, e); }
   else if (el.tagName === 'INPUT' && el.type === 'checkbox') sfx(el.checked ? 'on' : 'off');
