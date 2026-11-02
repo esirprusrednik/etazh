@@ -665,3 +665,4 @@ button.quest:disabled { cursor: default; }
 @keyframes sp-in { from { opacity: 0; transform: translateY(10px); } }
 @keyframes sp-pop { from { opacity: 0; transform: scale(.6); } }
 @media (prefers-reduced-motion: reduce) { .splash *, .splash { animation: none !important; } }
+.splash-tap { font-size: 12px; color: #7F8BB0; margin: 18px 0 0; animation: sp-in .5s 1.6s ease both; }

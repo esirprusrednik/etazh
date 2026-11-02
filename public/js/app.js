@@ -3354,15 +3354,15 @@ function greeting() {
   const day = now.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
   return { text, day };
 }
-// Заставка: логотип, аватар и приветствие. Минимум ~1,6 с, тап — пропустить
+// Заставка: логотип, аватар и приветствие. 4 секунды, тап — пропустить
 async function splash() {
-  const t0 = Date.now();
   try { await loadState(); } catch {}
   const g = greeting();
   root.innerHTML = `<div class="splash" data-act="splash-skip"><div class="logo">Этаж<span>.</span></div>
     <div class="splash-ava">${avatar(S.me.look, 96)}</div>
-    <p class="splash-hi">${esc(g.text)}</p><p class="splash-day">${esc(g.day)}</p></div>`;
-  await new Promise((res) => { S.splashDone = res; setTimeout(res, Math.max(1600, 2200 - (Date.now() - t0))); });
+    <p class="splash-hi">${esc(g.text)}</p><p class="splash-day">${esc(g.day)}</p><p class="splash-tap">нажми, чтобы продолжить</p></div>`;
+  // Фраза видна целиком 4 секунды (отсчёт — с момента показа, а не с загрузки); тап — пропустить
+  await new Promise((res) => { S.splashDone = res; setTimeout(res, 4000); });
   S.splashDone = null;
 }
 
