@@ -2610,6 +2610,7 @@ function renderAchievements() {
       const got = items.filter((a) => a.got).length;
       return `<div class="eyebrow" style="margin-top:6px">${title} · ${got} из ${items.length}</div>
         ${cat === 'stealth' ? '<p class="small" style="margin:2px 0 0">Как получить — секрет. Подсказка: иногда лучше не отсвечивать.</p>' : ''}
+        ${cat === 'duels' ? '<p class="small" style="margin:2px 0 0">Часть ачивок — секретные и смешные: за то, как красиво ты проигрываешь.</p>' : ''}
         <div class="ach-grid">${tiles.join('')}</div>`;
     }).join('')}`;
 }
@@ -3450,7 +3451,12 @@ function renderShop() {
     ${groups.map(([k, title]) => `<h3>${title}</h3>${k === 'gang' ? gangSel : ''}${S.shop.items.filter((i) => (k === 'award' ? i.award : i.kind === k && !i.award)).map(item).join('')}`).join('')}
     ${S.gang && S.gang.gang.mottoOwned ? `<label class="field">Девиз банды «${esc(S.gang.gang.name)}»<input id="motto" maxlength="40" value="${esc(S.gang.gang.motto || '')}"></label><button class="btn ghost" data-act="motto-save">Сохранить девиз</button>` : ''}
     <h3>Как заработать</h3>
-    <ol class="ol"><li>Отметка в офисе — +5 (раз в день)</li><li>Отметка в столовой — +2 (до 2 раз в день)</li><li>Ответ на зов банды — +1 (до 10 в день)</li><li>Подтверждённый сигнал офиса — +2 (до 3 в день)</li><li>Банда набрала 3 человек — залог 50 вернётся</li></ol>`;
+    <div class="earn">
+      <div class="earn-g"><b>📍 Каждый день</b><span>Отметка в офисе или «из дома» — +5</span><span>Столовая — +2 (до 2 раз)</span><span>Ответ на зов — +1 (до 10)</span><span>Подтверждённый сигнал офиса — +2 (до 3)</span><span>Задания дня — +3 за каждое, +5 за все</span><span>Спасибо от коллеги — +1</span></div>
+      <div class="earn-g"><b>🎮 Игры</b><span>🎮 <b>Дуэли</b> (КНБ, кости, крестики) — +2 за победу, до 3 раз в день</span><span>💰 Дуэль на ставку — победитель забирает обе ставки (5 или 10 зёрен)</span><span>⚓ Морской бой — +5 за первую победу в день</span><span>Квиз недели — +3 за верный ответ, блиц — до +10</span><span>«Кто из наших?» — +1 за верный ответ</span></div>
+      <div class="earn-g"><b>⚔️ Банда</b><span>Битва банд: герою-победителю +20, всей банде по +5</span><span>Ставки в битвах — делите банк соперника</span><span>Кубок месяца: чемпионам по +15, финалистам по +5</span><span>Призовые места в Лиге: до +30 за неделю и до +100 за месяц</span><span>Банда набрала 3 человек — залог 50 вернётся</span></div>
+      <div class="earn-g"><b>🏅 Прочее</b><span>Ачивки: обычные, редкие и легендарные — в том числе за дуэли</span><span>Приведи новичка по своей ссылке — +15</span><span>Принятая идея или найденный баг — +10</span></div>
+    </div>`;
 }
 
 // ---------- Действия ----------

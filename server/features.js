@@ -101,9 +101,33 @@ const ACH = [
   A('stealth', 'st_ghost', 'rare', 'Призрак офиса', 'Отметиться в офисе и уйти меньше чем через час', 'st_ghost', 1, { secret: true }),
   A('stealth', 'st_slack', 'rare', 'Чистосердечное', 'Трижды честно признаться, что отлыниваешь', 'st_slack', 3, { secret: true }),
   A('stealth', 'st_lurker', 'rare', 'Читаю молча', 'Заходить 10 дней — и не написать ни слова', 'lurker', 1, { secret: true }),
-  A('stealth', 'st_master', 'legendary', 'Мастер маскировки', 'Собрать все остальные секретные ачивки', 'st_all', 6, { secret: true })
+  A('stealth', 'st_master', 'legendary', 'Мастер маскировки', 'Собрать все остальные секретные ачивки', 'st_all', 6, { secret: true }),
+
+  // ---- Дуэли ----
+  A('duels', 'duel_start', 'common', 'Перчатка брошена', 'Вызвать кого-нибудь на дуэль', 'duels_started', 1),
+  A('duels', 'duel_win1', 'common', 'Первая кровь', 'Выиграть дуэль', 'duel_wins', 1, { series: 'duel_wins' }),
+  A('duels', 'duel_win10', 'rare', 'Дуэлянт', '10 побед в дуэлях', 'duel_wins', 10, { series: 'duel_wins' }),
+  A('duels', 'duel_win50', 'legendary', 'Мушкетёр', '50 побед в дуэлях', 'duel_wins', 50, { series: 'duel_wins' }),
+  A('duels', 'duel_rps5', 'rare', 'Камень-Ножницы-Мастер', '5 побед в камень-ножницы-бумагу', 'duel_wins_rps', 5),
+  A('duels', 'duel_dice5', 'rare', 'Любимчик фортуны', '5 побед в кости', 'duel_wins_dice', 5),
+  A('duels', 'duel_ttt5', 'rare', 'Гроссмейстер клеточек', '5 побед в крестики-нолики', 'duel_wins_ttt', 5),
+  A('duels', 'duel_rivals5', 'rare', 'Гроза кабинетов', 'Обыграть пятерых разных людей', 'duel_rivals', 5),
+  A('duels', 'duel_streak3', 'rare', 'На кураже', 'Выиграть 3 дуэли подряд', 'duel_streak_best', 3, { series: 'duel_streak' }),
+  A('duels', 'duel_streak7', 'legendary', 'Неудержимый', 'Выиграть 7 дуэлей подряд', 'duel_streak_best', 7, { series: 'duel_streak' }),
+  A('duels', 'duel_pot', 'common', 'Банк сорван', 'Выиграть дуэль на ставку', 'duel_pots', 1),
+  A('duels', 'duel_comeback', 'rare', 'Камбэк', 'Проигрывать 0:1 и всё равно выиграть', 'duel_comeback', 1),
+  A('duels', 'duel_sixes', 'common', 'Две шестёрки', 'Выбросить 6 и 6 в кости', 'duel_sixes', 1),
+  A('duels', 'duel_ttt_draw', 'common', 'Боевая ничья', 'Сыграть вничью в крестики-нолики', 'duel_ttt_draw', 1),
+  // смешные — за поражения и сдачу
+  A('duels', 'duel_resign1', 'common', 'Белый флаг', 'Сдаться в дуэли. Бывает', 'duel_resign', 1, { secret: true, series: 'duel_resign' }),
+  A('duels', 'duel_resign5', 'rare', 'Тактическое отступление', 'Сдаться 5 раз. Это не бегство, это манёвр', 'duel_resign', 5, { secret: true, series: 'duel_resign' }),
+  A('duels', 'duel_resign15', 'legendary', 'Пацифист', 'Сдаться 15 раз. Ты за мир во всём мире', 'duel_resign', 15, { secret: true, series: 'duel_resign' }),
+  A('duels', 'duel_resign_lead', 'rare', 'Странный выбор', 'Сдаться, когда сам ведёшь в счёте', 'duel_resign_lead', 1, { secret: true }),
+  A('duels', 'duel_declined', 'common', 'Не сегодня', 'Отказаться от дуэли, не сделав ни хода', 'duel_declined', 1, { secret: true }),
+  A('duels', 'duel_lost3', 'common', 'Не мой день', 'Проиграть 3 дуэли подряд', 'duel_lost3', 1, { secret: true }),
+  A('duels', 'duel_snake', 'common', 'Змеиные глаза', 'Выбросить 1 и 1 в кости', 'duel_snake', 1, { secret: true })
 ];
-const ACH_CATS = [['first', 'Первые шаги'], ['grow', 'Ступени'], ['daily', 'Каждый день'], ['social', 'Душа компании'], ['stealth', 'Скрытность']];
+const ACH_CATS = [['first', 'Первые шаги'], ['grow', 'Ступени'], ['daily', 'Каждый день'], ['social', 'Душа компании'], ['stealth', 'Скрытность'], ['duels', 'Дуэли']];
 const ACH_REWARD = { common: 5, rare: 15, legendary: 40 };
 
 // Задания дня. Каждый день — «Отметься» (в рабочие дни) плюс три случайных из пула, которые тебе сейчас доступны.
@@ -255,7 +279,9 @@ function register(ctx) {
   const COUNTER_KEYS = ['checkins', 'replies', 'thanks_given', 'thanks_got', 'canteen', 'signals', 'coffee', 'guess_ok', 'quiz_ok', 'quiz_any',
     'sea_wins', 'sea_clean', 'sea_rivals', 'msgs', 'calls', 'dms', 'memes', 'lunches', 'food', 'looks', 'battles', 'signals_sent',
     'day_streak', 'active_days', 'quest_all', 'polls', 'poll_votes', 'blitz', 'blitz_best', 'early', 'dm_people', 'thanks_people', 'recruits', 'big_lunch',
-    'st_hide', 'st_unfindable', 'st_incognito', 'st_night', 'st_ghost', 'st_slack'];
+    'st_hide', 'st_unfindable', 'st_incognito', 'st_night', 'st_ghost', 'st_slack',
+    'duels_started', 'duel_wins', 'duel_wins_rps', 'duel_wins_dice', 'duel_wins_ttt', 'duel_rivals', 'duel_streak_best', 'duel_pots', 'duel_comeback', 'duel_sixes', 'duel_snake',
+    'duel_resign', 'duel_resign_lead', 'duel_declined', 'duel_lost3', 'duel_ttt_draw'];
   function countersOf(uid, u) {
     const c = Object.fromEntries(COUNTER_KEYS.map((k) => [k, 0]));
     for (const r of q('SELECT key, n FROM counters WHERE user_id = ?').all(uid)) if (r.key in c) c[r.key] = r.n;
@@ -403,6 +429,30 @@ function register(ctx) {
       if (type === 'quiz_ok') bump(uid, 'quiz_ok');
       if (type === 'quiz_any') { bump(uid, 'quiz_any'); stat('quiz_answers'); completeQuest(uid, 'quiz'); }
       // Морской бой: в зачёт идут только победы потоплением всего флота — сдача соперника не считается
+      if (type === 'duel') bump(uid, 'duels_started');
+      if (type === 'duel_roll' && Array.isArray(data.dice)) {
+        if (data.dice[0] === 6 && data.dice[1] === 6) flag(uid, 'duel_sixes');
+        if (data.dice[0] === 1 && data.dice[1] === 1) flag(uid, 'duel_snake');
+      }
+      if (type === 'duel_end') {
+        if (data.result === 'win') {
+          bump(uid, 'duel_wins'); bump(uid, 'duel_wins_' + data.game);
+          if (data.opp && seenPair(uid, 'duel', data.opp)) bump(uid, 'duel_rivals');
+          const streak = counter(uid, 'duel_streak') + 1;
+          setCounter(uid, 'duel_streak', streak); setCounter(uid, 'duel_lose_streak', 0);
+          if (streak > counter(uid, 'duel_streak_best')) setCounter(uid, 'duel_streak_best', streak);
+          if (data.stake) bump(uid, 'duel_pots');
+          if (data.comeback) flag(uid, 'duel_comeback');
+        } else if (data.result === 'lose') {
+          setCounter(uid, 'duel_streak', 0);
+          const ls = counter(uid, 'duel_lose_streak') + 1;
+          setCounter(uid, 'duel_lose_streak', ls);
+          if (ls >= 3) flag(uid, 'duel_lost3');
+        } else if (data.game === 'ttt' && !data.aborted) flag(uid, 'duel_ttt_draw');
+        if (data.resigned) bump(uid, 'duel_resign');
+        if (data.lead) flag(uid, 'duel_resign_lead');
+        if (data.declined) flag(uid, 'duel_declined');
+      }
       if (type === 'sea_win') {
         bump(uid, 'sea_wins'); stat('sea_wins');
         if (data.clean) bump(uid, 'sea_clean');

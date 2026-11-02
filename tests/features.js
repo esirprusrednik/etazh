@@ -241,7 +241,7 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.equal(by.msgs10.n, 1); assert.equal(by.msgs10.goal, 10);
     assert.equal(by.dm3.n, 1);
     assert.ok(by.day3.n >= 1, 'день в приложении засчитан');
-    assert.deepEqual(f.achCats.map((c) => c[0]), ['first', 'grow', 'daily', 'social', 'stealth']);
+    assert.deepEqual(f.achCats.map((c) => c[0]), ['first', 'grow', 'daily', 'social', 'stealth', 'duels']);
     const ev = (await y.get('/api/events')).json.events.map((e) => e.text).join('\n');
     assert.ok(/Голос подал/.test(ev), 'обычная ачивка — в ленте');
     assert.ok(!/Агент 007|Партизан/.test(ev), 'секретная — не в ленте');

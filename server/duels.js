@@ -76,7 +76,29 @@ function register(ctx) {
     q(`UPDATE duels SET ${keys.map((k) => k + ' = ?').join(', ')} WHERE id = ?`).run(...keys.map((k) => f[k]), d.id);
     return q('SELECT * FROM duels WHERE id = ?').get(d.id);
   }
-  function finish(d, winner) {
+  // Ход счёта по раундам: был ли у победителя «камбэк» (проигрывал 0:1 и вытащил)
+  function comebackOf(d, winner) {
+    if (!winner || d.game === 'ttt') return false;
+    const ws = d.a === winner ? 'a' : 'b', ls = ws === 'a' ? 'b' : 'a';
+    const sc = { a: 0, b: 0 };
+    for (const r of JSON.parse(d.state).rounds) { if (r.win) sc[r.win]++; if (sc[ls] > sc[ws]) return true; }
+    return false;
+  }
+  // Итог дуэли — в ачивки обоим: кто выиграл, кто сдался, при каком счёте
+  function report(d, winner, info = {}) {
+    if (!onEvent) return;
+    const st = JSON.parse(d.state);
+    const score = st.score || { a: 0, b: 0 };
+    for (const who of ['a', 'b']) {
+      const uid = d[who], opp = d[who === 'a' ? 'b' : 'a'];
+      const result = winner ? (winner === uid ? 'win' : 'lose') : 'draw';
+      const mineResign = info.resigner === uid;
+      onEvent('duel_end', uid, { game: d.game, result, opp, stake: !!(d.stake && d.b_paid && winner === uid), comeback: result === 'win' && comebackOf(d, uid),
+        aborted: !!(info.declined || info.stale), resigned: mineResign && !info.declined, declined: mineResign && !!info.declined, lead: mineResign && score[who] > score[who === 'a' ? 'b' : 'a'] });
+    }
+  }
+  function finish(d, winner, info = {}) {
+    report(d, winner, info);
     if (d.stake) {
       if (winner && d.b_paid) addBeans(winner, 'duel_pot', d.stake * 2);
       else if (winner && !d.b_paid) addBeans(d.a, 'duel_refund', d.stake);
@@ -84,7 +106,6 @@ function register(ctx) {
     }
     if (winner) {
       addBeans(winner, 'duel_win');
-      if (onEvent) onEvent('duel_win', winner);
     }
   }
   const ping = (uid, by, d, text) => fireAndForget(notify([uid], { title: `${GAMES[d.game]}: ${by.nick}`, body: text, url: `/#crew/${by.id}`, tag: `duel-${d.id}` }));
@@ -154,6 +175,7 @@ function register(ctx) {
       cur[s] = body.move;
     } else {
       cur[s] = [roll(), roll()];
+      if (onEvent) onEvent('duel_roll', u.id, { dice: cur[s] });
       extra.rolled = cur[s];
     }
     if (cur[o] !== null) {
@@ -190,12 +212,12 @@ function register(ctx) {
     const bMoved = d.game === 'ttt' ? st0.board.some((c) => c === 'b') : st0.rounds.some((r) => r.b !== null);
     if (side(d, u.id) === 'b' && !bMoved) {
       d = save(d, JSON.parse(d.state), { status: 'done', winner: null, resigned: 1, turn: null });
-      finish(d, null);
+      finish(d, null, { resigner: u.id, declined: true });
       ping(opp, u, d, 'Отказался(лась) от дуэли');
       return view(d, u.id);
     }
     d = save(d, JSON.parse(d.state), { status: 'done', winner: opp, resigned: 1, turn: null });
-    finish(d, opp);
+    finish(d, opp, { resigner: u.id });
     ping(opp, u, d, 'Сдался(лась) — победа твоя');
     return view(d, u.id);
   });
@@ -203,7 +225,7 @@ function register(ctx) {
   function cleanup() {
     for (const d of q("SELECT * FROM duels WHERE status = 'play' AND updated_at < ?").all(U.now() - STALE_DAYS * 864e5)) {
       q("UPDATE duels SET status = 'done', winner = NULL WHERE id = ?").run(d.id);
-      finish(d, null);
+      finish(d, null, { stale: true });
     }
     q("DELETE FROM duels WHERE status = 'done' AND updated_at < ?").run(U.now() - 30 * 864e5);
   }

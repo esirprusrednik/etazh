@@ -960,3 +960,7 @@ button.quest:disabled { cursor: default; }
 /* Ставка в дуэли */
 .duel-stake { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .duel-stake-tag { font-size: 12px; font-weight: 800; color: #FFD84D; }
+
+.earn { display: flex; flex-direction: column; gap: 8px; }
+.earn-g { display: flex; flex-direction: column; gap: 3px; background: #F4F6FB; border-radius: 14px; padding: 10px 12px; font-size: 13.5px; color: #3B4866; }
+.earn-g b:first-child { color: var(--ink); font-size: 14.5px; margin-bottom: 2px; }

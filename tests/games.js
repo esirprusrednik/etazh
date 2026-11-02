@@ -207,6 +207,9 @@ async function step(name, fn) {
   });
 
   await step('ставка в дуэли: списывается у вызвавшего, у соперника — первым ходом; отказ без потерь', async () => {
+    // разогрев: ачивки «Перчатка брошена» и «Не сегодня» дают зёрна — получаем их заранее, чтобы считать только ставки
+    const warm = (await A2.post('/api/duels', { to: A3.id, game: 'rps' })).json.duel;
+    await A3.post(`/api/duels/${warm.id}/resign`);
     const a0 = (await A2.get('/api/me')).json.user.beans, b0 = (await A3.get('/api/me')).json.user.beans;
     const d = (await A2.post('/api/duels', { to: A3.id, game: 'ttt', stake: 5 })).json.duel;
     assert.equal((await A2.get('/api/me')).json.user.beans, a0 - 5);
@@ -223,6 +226,24 @@ async function step(name, fn) {
     await A2.post(`/api/duels/${d2.id}/move`, { cell: 2 });
     const won = (await A2.get('/api/me')).json.user.beans;
     assert.ok(won >= a0 + 5, 'победитель забрал банк');
+  });
+
+  await step('ачивки за дуэли: первая кровь, перчатка, смешные за сдачу и отказ', async () => {
+    const got = async (c) => new Set((await c.get('/api/features')).json.achievements.filter((x) => x.got).map((x) => x.id));
+    const a1 = await got(A1);
+    assert.ok(a1.has('duel_start') && a1.has('duel_win1'), 'A1: вызвал и выиграл');
+    // B1 сдаётся при счёте 1:0 в свою пользу — «Странный выбор»
+    const d = (await A1.post('/api/duels', { to: B1.id, game: 'rps' })).json.duel;
+    await A1.post(`/api/duels/${d.id}/move`, { move: 'scissors' });
+    await B1.post(`/api/duels/${d.id}/move`, { move: 'rock' });
+    await B1.post(`/api/duels/${d.id}/resign`);
+    const b1 = await got(B1);
+    assert.ok(b1.has('duel_resign1'), 'Белый флаг');
+    assert.ok(b1.has('duel_resign_lead'), 'сдался, когда вёл');
+    const a3 = await got(A3);
+    assert.ok(a3.has('duel_declined'), 'отказ от дуэли — «Не сегодня»');
+    const cats = (await A1.get('/api/features')).json.achCats.map((c) => c[0]);
+    assert.ok(cats.includes('duels'));
   });
 
   console.log(`\nВсё прошло: ${passed} проверок`);
