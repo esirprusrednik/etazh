@@ -371,6 +371,7 @@ async function loadGangExtra() {
   try { S.gx = await get(`/api/gangs/${S.activeGang}/extra`); } catch { S.gx = null; }
   try { S.guess = await get(`/api/gangs/${S.activeGang}/guess`); } catch { S.guess = null; }
 }
+async function loadBlitz() { try { S.blitz = await get('/api/blitz'); } catch { S.blitz = null; } }
 async function loadQuiz() { try { S.quiz = (await get('/api/quiz')).items; } catch { S.quiz = []; } }
 
 async function loadFeedback() {
@@ -394,7 +395,7 @@ async function refresh({ all = false } = {}) {
   if (all || t === 'chats' || t === 'games') jobs.push(loadCrew());
   if (all || (t === 'chats' && S.chatGang) || t === 'games') jobs.push(loadGang(), loadGangExtra());
   if (all || t === 'office') jobs.push(loadEvents());
-  if (all || t === 'games') jobs.push(loadQuiz());
+  if (all || t === 'games') jobs.push(loadQuiz(), loadBlitz());
   if (t === 'chats' && S.battle) jobs.push(loadBattle());
   if (t === 'chats' && S.dm) jobs.push(loadDm());
   await Promise.all(jobs);
@@ -757,6 +758,7 @@ function renderGames() {
   </section>`;
   return `${pageHead('Игры', 'Задания, квизы и бои со своими. За всё дают зёрна, их тратят в Лавке')}
     ${renderQuests()}
+    ${renderBlitzCard()}
     ${renderQuiz()}
     ${S.me.gangs.length > 1 ? `<div class="chips dark">${S.me.gangs.map((g) => `<button class="chip ${g.id === S.activeGang ? 'on' : ''}" data-act="gang-select" data-v="${g.id}">${esc(g.name)}</button>`).join('')}</div>` : ''}
     ${renderGuess()}
@@ -1573,6 +1575,7 @@ function renderSheet() {
       <button class="btn ghost" data-act="dm-open" data-id="${S.pcallTo}">💬 Написать сообщение</button>`);
     case 'find': return sheetWrap('Найти своих', renderFind());
     case 'feedback': return sheetWrap('Идеи и ошибки', renderFeedback());
+    case 'blitz': return sheetWrap(S.blitz && S.blitz.set ? `${S.blitz.set.emoji} ${S.blitz.set.title}` : 'Блиц', renderBlitzPlay());
     case 'poll-new': return sheetWrap('Новый опрос', renderPollNew());
     case 'dm-pick': return sheetWrap('Написать в личку', (S.people || []).length ? '<p class="sub">Лично можно писать любому члену твоих банд.</p>' + (S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${esc(p.nick)}</span><span class="where">${esc(p.gangs.map((g) => g.name).join(', ') || whereText(p)[0])}</span></span><span aria-hidden="true">›</span></button>`).join('') : '<p class="sub">Пока некому писать. Сколоти банду и позови в неё своих.</p>');
     case 'battle-pick': return sheetWrap('С кем сыграть?', (S.people || []).length ? (S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${esc(p.nick)}</span><span class="where">${esc(whereText(p)[0])}</span></span><span aria-hidden="true">›</span></button>`).join('') + '<p class="small">Откроется переписка — там выбери «Без спешки» или «Быстрая».</p>' : '<p class="sub">Сначала сколоти банду и позови в неё своих.</p>');
@@ -1677,6 +1680,77 @@ function renderGuess() {
 }
 
 // Квиз недели от модератора
+// ----- Блиц: вопросы на время -----
+const mmss = (ms) => { const t = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
+function blitzBoard(b, limit = 10) {
+  if (!b || !b.top.length) return '<p class="small" style="margin:0">Пока никто не прошёл — стань первым в таблице.</p>';
+  return `<div class="bl-board">${b.top.slice(0, limit).map((r) => `<div class="bl-row ${r.me ? 'me' : ''}"><span class="bl-place">${r.place <= 3 ? ['🥇', '🥈', '🥉'][r.place - 1] : r.place}</span><span class="grow ellipsis">${esc(r.nick)}${r.me ? ' (ты)' : ''}</span><b>${r.score}</b><span class="small">${mmss(r.secs * 1000)}</span></div>`).join('')}</div>
+    ${b.place && b.place > limit ? `<p class="small" style="margin:6px 0 0">Ты на ${b.place} месте из ${b.players}</p>` : ''}`;
+}
+function renderBlitzCard() {
+  const b = S.blitz;
+  if (!b || !b.set) return '';
+  const st = b.set;
+  const head = `<div class="row" style="justify-content:space-between"><span class="card-title">${st.emoji} Блиц: ${esc(st.title)}</span><span class="small">до ${ddmm(st.to)}</span></div>`;
+  if (b.state === 'new') {
+    return `<section class="card blitz">${head}
+      <p class="sub" style="margin:6px 0 10px">${esc(st.desc)}</p>
+      <div class="bl-facts"><span>⏱ ${Math.round(st.secs / 60)} мин</span><span>❓ ${st.count} вопросов</span><span>${BEAN} до +${st.maxBeans}</span></div>
+      <button class="btn wide" data-act="blitz-start">Начать — таймер пойдёт сразу</button>
+      <p class="small" style="margin:8px 0 6px">Одна попытка. Закроешь окно — время всё равно идёт.</p>
+      ${b.board && b.board.top.length ? `<div class="eyebrow">Лидеры</div>${blitzBoard(b.board, 3)}` : ''}
+    </section>`;
+  }
+  if (b.state === 'play') {
+    return `<section class="card blitz">${head}<p class="sub" style="margin:6px 0 10px">Блиц идёт: осталось <b>${mmss(b.leftMs)}</b>, верных ${b.score}.</p>
+      <button class="btn wide" data-act="blitz-open">Продолжить</button></section>`;
+  }
+  return `<section class="card blitz">${head}
+    <div class="bl-result"><b>${b.score}</b><span>верных из ${b.answered} отвеченных · за ${mmss(b.secs * 1000)}${b.beans ? ` · +${b.beans} зёрен` : ''}</span></div>
+    ${b.board && b.board.place ? `<p class="small" style="margin:0 0 8px">Место: <b>${b.board.place}</b> из ${b.board.players}</p>` : ''}
+    <div class="eyebrow">Лидеры</div>${blitzBoard(b.board)}
+  </section>`;
+}
+function renderBlitzPlay() {
+  const b = S.blitz;
+  if (!b || !b.set) return '<p class="sub">Загружаем…</p>';
+  if (b.state !== 'play' || !b.question) {
+    return `<div class="bl-result big"><b>${b.score || 0}</b><span>верных${b.answered != null ? ` из ${b.answered}` : ''}${b.beans ? ` · +${b.beans} зёрен` : ''}</span></div>
+      ${b.board && b.board.place ? `<p class="sub" style="text-align:center">Твоё место — ${b.board.place} из ${b.board.players}</p>` : ''}
+      <div class="eyebrow">Лидеры</div>${blitzBoard(b.board)}
+      <button class="btn wide" style="margin-top:12px" data-act="close">Готово</button>`;
+  }
+  const qn = b.question;
+  const fb = S.blitzFb;
+  const pct = Math.max(0, Math.min(100, (b.leftMs / (b.set.secs * 1000)) * 100));
+  return `<div class="bl-top"><span class="bl-time ${b.leftMs < 15000 ? 'hot' : ''}" id="bl-time">${mmss(b.leftMs)}</span><span class="small">вопрос ${qn.n} из ${qn.total} · верных <b>${b.score}</b></span></div>
+    <div class="bl-bar"><i id="bl-bar" style="width:${pct}%"></i></div>
+    <p class="bl-q">${esc(qn.text)}</p>
+    <div class="bl-opts">${qn.options.map((o, i) => `<button class="gopt bl-opt ${fb && fb.n === qn.n ? (i === fb.right ? 'ok' : i === fb.pick ? 'bad' : 'dim') : ''}" data-act="blitz-pick" data-n="${qn.n}" data-v="${i}" ${fb && fb.n === qn.n ? 'disabled' : ''}>${esc(o)}</button>`).join('')}</div>`;
+}
+// Тикающий таймер блица: обновляем только время и полоску, без перерисовки
+let blitzTimer = null;
+function blitzTick() {
+  clearInterval(blitzTimer);
+  if (!S.blitz || S.blitz.state !== 'play') return;
+  const end = Date.now() + S.blitz.leftMs;
+  S.blitzEnd = end;
+  blitzTimer = setInterval(() => {
+    if (!S.blitz || S.blitz.state !== 'play') { clearInterval(blitzTimer); return; }
+    const left = end - Date.now();
+    S.blitz.leftMs = left;
+    const t = $('#bl-time'), bar = $('#bl-bar');
+    if (t) { t.textContent = mmss(left); t.classList.toggle('hot', left < 15000); }
+    if (bar) bar.style.width = `${Math.max(0, (left / (S.blitz.set.secs * 1000)) * 100)}%`;
+    const sec = Math.ceil(left / 1000);
+    if (S.sheet === 'blitz' && sec <= 10 && sec > 0 && S.blitzLastTick !== sec) { S.blitzLastTick = sec; sfx('tick'); }
+    if (left <= 0) {
+      clearInterval(blitzTimer);
+      setTimeout(() => run(async () => { await loadBlitz(); sfx('confirm'); toast('Время вышло!'); loadMe().catch(() => {}); }), 400);
+    }
+  }, 250);
+}
+
 function renderQuiz() {
   const z = (S.quiz || [])[0];
   if (!z) return '';
@@ -1842,7 +1916,7 @@ function sfx(name, arg) {
 const tabSound = (tab) => sfx('tab', tab);
 
 // Какой звук у какого нажатия. Свои звуки у вкладок, выстрелов, сдачи и Лавки — их играют сами действия
-const FEEL_SELF = new Set(['tab', 'bshoot', 'bresign', 'sound-toggle', 'vibro-toggle', 'sound-test']);
+const FEEL_SELF = new Set(['tab', 'blitz-pick', 'bshoot', 'bresign', 'sound-toggle', 'vibro-toggle', 'sound-test']);
 const FEEL = {
   open: 'open', 'open-sec': 'open', person: 'open', 'find-open': 'open', 'poll-new': 'open', 'ava-open': 'open', 'ava-open-vac': 'open', 'meme-open': 'open', 'pcall-open': 'open',
   'call-open': 'open', 'dm-call-open': 'open', 'battle-new': 'open', 'crew-share': 'open',
@@ -2525,6 +2599,31 @@ const actions = {
     else S.tab = 'chats';
     window.scrollTo(0, 0);
     run(() => refresh());
+  },
+  'blitz-start': () => run(async () => {
+    S.blitz = await post('/api/blitz/start'); S.blitzFb = null; S.blitzLastTick = null;
+    S.sheet = 'blitz'; blitzTick();
+  }),
+  'blitz-open': () => run(async () => { await loadBlitz(); S.blitzFb = null; S.sheet = 'blitz'; blitzTick(); }),
+  'blitz-pick': (el) => {
+    if (S.blitzBusy) return;
+    S.blitzBusy = true;
+    const n = Number(el.dataset.n), pick = Number(el.dataset.v);
+    run(async () => {
+      try {
+        const r = await post('/api/blitz/answer', { n, pick });
+        if (r.result) {
+          S.blitzFb = { n, pick, right: r.result.right };
+          sfx(r.result.correct ? 'on' : 'error');
+          render();
+          await new Promise((res) => setTimeout(res, r.result.correct ? 380 : 750));
+        }
+        const left = S.blitzEnd ? S.blitzEnd - Date.now() : r.leftMs;
+        S.blitz = r; if (r.state === 'play') S.blitz.leftMs = left;
+        S.blitzFb = null;
+        if (r.state === 'done') { clearInterval(blitzTimer); sfx(r.score >= 10 ? 'fanfare' : 'confirm'); loadMe().catch(() => {}); loadFeatures().catch(() => {}); }
+      } finally { S.blitzBusy = false; }
+    });
   },
   close() { S.sheet = null; S.error = ''; render(); },
   'close-bg'(el, e) { if (e.target === el) actions.close(); },

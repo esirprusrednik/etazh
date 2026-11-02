@@ -627,3 +627,30 @@ button.quest:disabled { cursor: default; }
 .ofl-dot { width: 14px; height: 14px; border-radius: 50%; flex: none; }
 .ofl-star { width: 44px; height: 44px; border: 0; background: none; font-size: 22px; color: #C9D1EA; cursor: pointer; }
 .ofl-star.on { color: #F4A72C; }
+
+/* Блиц */
+.bl-facts { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.bl-facts span { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 800; background: #F1F4FA; color: var(--ink); border-radius: 999px; padding: 5px 10px; }
+.bl-facts svg { width: 14px; height: 14px; }
+.bl-board { display: flex; flex-direction: column; gap: 2px; }
+.bl-row { display: flex; align-items: center; gap: 10px; padding: 7px 4px; border-bottom: 1px solid #EEF1F7; font-size: 14px; }
+.bl-row.me { background: #FFF6DA; border-radius: 10px; }
+.bl-place { width: 26px; text-align: center; font-weight: 900; }
+.bl-result { display: flex; align-items: baseline; gap: 10px; margin: 8px 0; }
+.bl-result b { font-size: 40px; font-weight: 900; line-height: 1; color: var(--ink); }
+.bl-result span { color: var(--muted); font-weight: 700; font-size: 14px; }
+.bl-result.big { justify-content: center; flex-direction: column; align-items: center; margin: 10px 0 14px; }
+.bl-result.big b { font-size: 64px; }
+.bl-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.bl-time { font-size: 30px; font-weight: 900; font-variant-numeric: tabular-nums; color: var(--ink); }
+.bl-time.hot { color: #E5484D; animation: bl-pulse 1s ease-in-out infinite; }
+@keyframes bl-pulse { 50% { transform: scale(1.08); } }
+.bl-bar { height: 8px; border-radius: 4px; background: #E7EBF4; overflow: hidden; margin: 8px 0 14px; }
+.bl-bar i { display: block; height: 100%; background: linear-gradient(90deg, #3A86FF, #7C5CFF); transition: width .25s linear; }
+.bl-q { font-size: 18px; font-weight: 900; line-height: 1.35; margin: 0 0 12px; min-height: 3em; color: var(--ink); }
+.bl-opts { display: flex; flex-direction: column; gap: 8px; }
+.bl-opt { text-align: left; }
+.bl-opt.ok { background: var(--green) !important; color: #fff !important; }
+.bl-opt.bad { background: #E5484D !important; color: #fff !important; }
+.bl-opt.dim { opacity: .45; }
+@media (prefers-reduced-motion: reduce) { .bl-time.hot { animation: none; } }

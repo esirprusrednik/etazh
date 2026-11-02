@@ -240,6 +240,40 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.ok(msgs.some((m) => /Опрос: «Куда идём обедать\?»/.test(m.text)), 'отметка в чате');
   });
 
+  await step('блиц: вопрос без ответа, проверка после ответа, одна попытка, таблица лидеров, зёрна', async () => {
+    let v = (await a.get('/api/blitz')).json;
+    if (!v.set) { console.log('    (блиц сейчас не активен по датам — пропускаю)'); return; }
+    assert.equal(v.state, 'new');
+    v = (await a.post('/api/blitz/start')).json;
+    assert.equal(v.state, 'play'); assert.ok(v.leftMs > 170000);
+    assert.ok(v.question && v.question.options.length === 4 && !('right' in v.question), 'ответ не уходит клиенту');
+    const { SETS } = require('../server/blitz');
+    const set = SETS.find((x) => x.id === v.set.id);
+    const before = (await a.get('/api/me')).json.user.beans;
+    let score = 0, guard = 0;
+    while (v.state === 'play' && guard++ < 40) {
+      const qq = set.questions.find((x) => x[0] === v.question.text);
+      const pick = v.question.options.indexOf(qq[1][0]);
+      const r = (await a.post('/api/blitz/answer', { n: v.question.n, pick })).json;
+      assert.ok(r.result.correct); score++;
+      assert.equal(r.result.right, pick);
+      v = r;
+    }
+    assert.equal(v.state, 'done'); assert.equal(v.score, set.questions.length);
+    assert.equal(v.beans, 10, 'не больше 10 зёрен');
+    assert.ok((await a.get('/api/me')).json.user.beans - before >= 10);
+    assert.equal((await a.post('/api/blitz/start')).json.state, 'done', 'вторая попытка не начинается');
+    const w = (await b.post('/api/blitz/start')).json;
+    const r1 = (await b.post('/api/blitz/answer', { n: w.question.n, pick: 0 })).json;
+    assert.equal(typeof r1.result.correct, 'boolean');
+    assert.equal((await b.post('/api/blitz/answer', { n: w.question.n, pick: 0 })).json.question.n, 2, 'повтор ответа на тот же вопрос не засчитывается');
+    const board = (await b.get('/api/blitz')).json;
+    assert.equal(board.state, 'play');
+    const done = (await a.get('/api/blitz')).json.board;
+    assert.equal(done.top[0].nick, 'бодрый_енот'); assert.equal(done.place, 1);
+    assert.ok((await a.get('/api/features')).json.achievements.find((x) => x.id === 'blitz_15').got);
+  });
+
   console.log(`\nВсё прошло: ${passed} проверок`);
 })()
   .catch((e) => { console.error('\nПровал:', e.message, '\n--- лог ---\n' + log.slice(-2000)); process.exitCode = 1; })

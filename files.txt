@@ -30,6 +30,7 @@ scripts/rename-gang.js
 scripts/set-nick.js
 server/api.js
 server/battle.js
+server/blitz.js
 server/catalog.js
 server/config.js
 server/crew.js

@@ -23,6 +23,7 @@ const ACH = [
   A('first', 'first_look', 'common', 'Стилист', 'Собрать свой аватар в конструкторе', 'looks', 1),
   A('first', 'first_battle', 'common', 'Свистать всех наверх', 'Вызвать кого-то на морской бой', 'battles', 1),
   A('first', 'first_poll', 'common', 'Демократия', 'Запустить опрос в банде', 'polls', 1),
+  A('first', 'first_blitz', 'common', 'Скорострел', 'Пройти блиц на время', 'blitz', 1),
   A('first', 'quiz_first', 'common', 'Первый квиз', 'Ответить на квиз недели', 'quiz_any', 1),
   A('first', 'profile_full', 'rare', 'Открытая книга', 'Заполнить профиль на 100%', 'profile', 100),
 
@@ -59,6 +60,8 @@ const ACH = [
   A('grow', 'votes5', 'common', 'Избиратель', 'Проголосовать в 5 опросах банды', 'poll_votes', 5, { series: 'votes' }),
   A('grow', 'votes25', 'rare', 'Избиратель II', 'Проголосовать 25 раз', 'poll_votes', 25, { series: 'votes' }),
   A('grow', 'votes100', 'legendary', 'Голос народа', 'Проголосовать 100 раз', 'poll_votes', 100, { series: 'votes' }),
+  A('grow', 'blitz_10', 'rare', 'Быстрый ум', '10 верных ответов в одном блице', 'blitz_best', 10, { series: 'blitz' }),
+  A('grow', 'blitz_15', 'legendary', 'Гуру', '15 верных ответов в одном блице', 'blitz_best', 15, { series: 'blitz' }),
   A('grow', 'sea_clean', 'rare', 'Ни царапины', 'Победить, не потеряв ни одного корабля', 'sea_clean', 1),
 
   // ---- Каждый день ----
@@ -251,7 +254,7 @@ function register(ctx) {
 
   const COUNTER_KEYS = ['checkins', 'replies', 'thanks_given', 'thanks_got', 'canteen', 'signals', 'coffee', 'guess_ok', 'quiz_ok', 'quiz_any',
     'sea_wins', 'sea_clean', 'sea_rivals', 'msgs', 'calls', 'dms', 'memes', 'lunches', 'food', 'looks', 'battles', 'signals_sent',
-    'day_streak', 'active_days', 'quest_all', 'polls', 'poll_votes', 'early', 'dm_people', 'thanks_people', 'recruits', 'big_lunch',
+    'day_streak', 'active_days', 'quest_all', 'polls', 'poll_votes', 'blitz', 'blitz_best', 'early', 'dm_people', 'thanks_people', 'recruits', 'big_lunch',
     'st_hide', 'st_unfindable', 'st_incognito', 'st_night', 'st_ghost', 'st_slack'];
   function countersOf(uid, u) {
     const c = Object.fromEntries(COUNTER_KEYS.map((k) => [k, 0]));
@@ -379,6 +382,7 @@ function register(ctx) {
       if (type === 'guess_any') completeQuest(uid, 'guess');
       if (type === 'sea_shot') completeQuest(uid, 'sea');
       if (type === 'signal_sent') bump(uid, 'signals_sent');
+      if (type === 'blitz') { bump(uid, 'blitz'); if ((data.score || 0) > counter(uid, 'blitz_best')) setCounter(uid, 'blitz_best', data.score); }
       if (type === 'poll') { bump(uid, 'polls'); completeQuest(uid, 'vote'); }
       if (type === 'poll_vote') { bump(uid, 'poll_votes'); completeQuest(uid, 'vote'); }
       if (type === 'battle_start') { bump(uid, 'battles'); completeQuest(uid, 'sea'); }

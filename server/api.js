@@ -151,6 +151,7 @@ function createApi(db) {
   let quiz = null;
   let feedback = null;
   let polls = null;
+  let blitz = null;
   const q = (sql) => db.prepare(sql);
   const adminHashes = new Set(config.adminEmails.map((e) => U.hashEmail(e)));
 
@@ -1147,6 +1148,7 @@ function createApi(db) {
   });
   quiz = require('./quiz').register({ db, q, route, requireUser, requireAdmin, bad, U, addBeans, isMember, gangMembers, readProfile, HttpError, DEFAULT_LOOK, publicLook, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   battle = require('./battle').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, publicLook, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
+  blitz = require('./blitz').register({ db, q, route, requireUser, bad, U, addBeans, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   polls = require('./polls').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, rateLimit, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   feedback = require('./feedback').register({ db, q, route, requireUser, requireAdmin, bad, U, addBeans, notify, fireAndForget, HttpError, BUILD });
 
