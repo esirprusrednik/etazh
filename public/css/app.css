@@ -800,3 +800,22 @@ button.quest:disabled { cursor: default; }
 .crest-stage { display: flex; justify-content: center; padding: 8px 0; background: radial-gradient(circle at 50% 45%, #FFF6DA, transparent 70%); }
 .crest-tile { padding-top: 6px; }
 .crest-charges .crest-tile span { font-size: 11px; }
+
+/* Моя банда, герой-одиночка, голосование за герб */
+.my-gang { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; border: 0; background: linear-gradient(135deg, #F4F6FB, #EAF0FF); border-radius: 18px; padding: 12px; font: inherit; color: var(--ink); cursor: pointer; margin-top: 4px; }
+.my-gang + .my-gang { margin-top: 10px; }
+.mg-crest { flex: none; filter: drop-shadow(0 3px 4px rgba(13,18,32,.22)); }
+.mg-name { font-size: 19px; font-weight: 900; }
+.mg-flags { display: flex; flex-wrap: wrap; gap: 4px; }
+.mg-flag { font-size: 12px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: #FFE7A8; color: #5B3B00; }
+.my-gang .chev { font-size: 26px; color: var(--muted); }
+.loner { text-align: center; align-items: stretch; display: flex; flex-direction: column; gap: 10px; background: linear-gradient(180deg, #fff, #F6F2FF); }
+.loner-ico { font-size: 44px; line-height: 1; }
+.cv { display: flex; flex-direction: column; gap: 10px; }
+.cv-pair { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.cv-pair > div { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.cv-arrow { font-size: 26px; color: var(--muted); }
+.cv-bar { display: flex; height: 10px; border-radius: 999px; background: #EEF1F7; overflow: hidden; }
+.cv-bar .za { background: #2FA84F; }
+.cv-bar .pr { background: #E5484D; margin-left: auto; }
+.cv-done { padding-top: 10px; padding-bottom: 10px; }

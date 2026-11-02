@@ -401,17 +401,29 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.ok(!(await b.get(`/api/gangs/${g.id}/gevents`)).json.upcoming.some((x) => x.id === id));
   });
 
-  await step('герб банды: только известные части, null — вернуть автогерб, чужой не меняет', async () => {
-    await a.post(`/api/gangs/${g.id}/settings`, { crest: { shape: 'kite', div: 'chief', c1: 'red', c2: 'gold', charge: 'snake', cc: 'silver', top: 'crown', hack: '<script>' } });
-    let cr = (await a.get(`/api/gangs/${g.id}`)).json.gang.crest;
-    assert.deepEqual(cr, { shape: 'kite', div: 'chief', c1: 'red', c2: 'gold', charge: 'snake', cc: 'silver', top: 'crown', motto: true });
-    await a.post(`/api/gangs/${g.id}/settings`, { crest: { shape: 'evil', charge: 'x' } });
-    cr = (await a.get(`/api/gangs/${g.id}`)).json.gang.crest;
-    assert.equal(cr.shape, 'heater'); assert.equal(cr.charge, 'star');
-    assert.equal((await b.post(`/api/gangs/${g.id}/settings`, { crest: null })).status, 400);
-    await a.post(`/api/gangs/${g.id}/settings`, { crest: null });
+  await step('герб: только голосованием банды, голос тайный, досрочно — большинство, у владельца нет особых прав', async () => {
+    // настройки владельца герб больше не меняют
+    await a.post(`/api/gangs/${g.id}/settings`, { crest: { shape: 'kite', charge: 'snake' } });
     assert.equal((await a.get(`/api/gangs/${g.id}`)).json.gang.crest, null);
-    assert.ok('crest' in (await a.get('/api/me')).json.user.gangs[0]);
+    const n = (await a.get(`/api/gangs/${g.id}`)).json.gang.count;
+    assert.ok(n >= 3, 'в банде минимум трое');
+    const r = await b.post(`/api/gangs/${g.id}/crest-vote`, { crest: { shape: 'kite', div: 'chief', c1: 'red', c2: 'gold', charge: 'snake', cc: 'silver', top: 'crown', hack: '<script>' } });
+    assert.equal(r.status, 200); assert.equal(r.json.status, 'open');
+    assert.deepEqual(r.json.active.crest, { shape: 'kite', div: 'chief', c1: 'red', c2: 'gold', charge: 'snake', cc: 'silver', top: 'crown', motto: true });
+    assert.equal((await c.post(`/api/gangs/${g.id}/crest-vote`, { crest: { shape: 'round' } })).status, 400, 'одно голосование за раз');
+    const pid = r.json.active.id;
+    const v = (await a.post(`/api/crest-vote/${pid}/vote`, { vote: -1 })).json;
+    assert.ok(!JSON.stringify(v).includes('бодрый_енот'), 'голос тайный — ников нет');
+    assert.equal(v.active.za, 1); assert.equal(v.active.protiv, 1);
+    const outsider = await new Client().login('chuzhoy2@mts.ru', 'посторонний_лис');
+    assert.equal((await outsider.post(`/api/crest-vote/${pid}/vote`, { vote: 1 })).status, 404);
+    // c — за: при банде из трёх это уже больше половины
+    const after = (await c.post(`/api/crest-vote/${pid}/vote`, { vote: 1 })).json;
+    if (n === 3) {
+      assert.equal(after.status, 'accepted');
+      assert.equal((await a.get(`/api/gangs/${g.id}`)).json.gang.crest.charge, 'snake');
+      assert.ok((await a.get(`/api/gangs/${g.id}`)).json.messages.some((m) => /Новый герб принят/.test(m.text)));
+    }
   });
 
   console.log(`\nВсё прошло: ${passed} проверок`);

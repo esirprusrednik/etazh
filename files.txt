@@ -40,6 +40,7 @@ server/features.js
 server/feedback.js
 server/league.js
 server/gevents.js
+server/crestvote.js
 server/holidays.js
 server/index.js
 server/mailer.js

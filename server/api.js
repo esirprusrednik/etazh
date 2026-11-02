@@ -171,6 +171,7 @@ function createApi(db) {
   let features = null;
   let league = null;
   let gevents = null;
+  let crestvote = null;
   const MAX_MEMBERS = 30;      // больше 30 — уже не банда, а отдел
   const gangLimit = (g) => Math.min(g.max_members || MAX_MEMBERS, MAX_MEMBERS);
   let crew = null;
@@ -776,6 +777,11 @@ function createApi(db) {
 
   // ---------- Профиль банды, поиск банд, заявки, настройки ----------
   const ACCESS = ['open', 'request', 'invite'];
+  function crestClean(c) {
+    const ok = (list, v, d) => (list.includes(v) ? v : d);
+    return JSON.stringify({ shape: ok(CREST.shape, c.shape, 'heater'), div: ok(CREST.div, c.div, 'plain'), c1: ok(CREST.tincture, c.c1, 'blue'), c2: ok(CREST.tincture, c.c2, 'gold'),
+      charge: ok(CREST.charge, c.charge, 'star'), cc: ok(CREST.tincture, c.cc, 'gold'), top: ok(CREST.top, c.top, 'none'), motto: c.motto !== false });
+  }
   function gangProfileInput(b, cur) {
     const out = {};
     if (b.about !== undefined) {
@@ -790,12 +796,8 @@ function createApi(db) {
     out.access = b.access !== undefined ? (ACCESS.includes(b.access) ? b.access : 'request') : cur.access;
     // Герб: только известные части; null — вернуть автогерб
     if (b.crest === null) out.crest = null;
-    else if (b.crest && typeof b.crest === 'object') {
-      const c = b.crest;
-      const ok = (list, v, d) => (list.includes(v) ? v : d);
-      out.crest = JSON.stringify({ shape: ok(CREST.shape, c.shape, 'heater'), div: ok(CREST.div, c.div, 'plain'), c1: ok(CREST.tincture, c.c1, 'blue'), c2: ok(CREST.tincture, c.c2, 'gold'),
-        charge: ok(CREST.charge, c.charge, 'star'), cc: ok(CREST.tincture, c.cc, 'gold'), top: ok(CREST.top, c.top, 'none'), motto: c.motto !== false });
-    } else out.crest = cur.crest || null;
+    else if (b.crest && typeof b.crest === 'object') out.crest = crestClean(b.crest);
+    else out.crest = cur.crest || null;
     return out;
   }
   const gangOffice = (gid) => q(`SELECT COUNT(*) AS n FROM gang_members m JOIN users u ON u.id = m.user_id
@@ -905,7 +907,7 @@ function createApi(db) {
   route('POST', '/api/gangs/:id/settings', async (req, body, query, params) => {
     const u = requireUser(req);
     const g = ownGang(u, params.id);
-    const p = gangProfileInput(body, g);
+    const p = gangProfileInput({ ...body, crest: undefined }, g); // герб меняется только голосованием банды
     let name = g.name;
     if (body.name !== undefined && U.cleanText(body.name, 30) !== g.name) {
       name = U.cleanText(body.name, 30);
@@ -1400,6 +1402,8 @@ function createApi(db) {
   crew = require('./crew').register({
     addBeans,
     pollsUnvoted: (uid, gid) => (polls ? polls.unvoted(uid, gid) : 0),
+    // Важное о банде для карточки «Моя банда»: кто в офисе, место в Лиге, ближайшее событие, голосование за герб
+    gangSummary: (gid, uid) => ({ inOffice: gangOffice(gid), league: league ? league.weekPlace(gid) : null, next: gevents ? gevents.next(gid) : null, crestVote: crestvote ? crestvote.pending(gid, uid) : null }),
     db, q, route, requireUser, bad, U, config, notify, fireAndForget, rateLimit, memberStatus, HttpError, publicLook,
     onEvent: (t, uid, d) => features && features.onEvent(t, uid, d)
   });
@@ -1408,6 +1412,7 @@ function createApi(db) {
   blitz = require('./blitz').register({ db, q, route, requireUser, bad, U, addBeans, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   polls = require('./polls').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, rateLimit, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   gevents = require('./gevents').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, rateLimit, readProfile, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
+  crestvote = require('./crestvote').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, crestClean });
   league = require('./league').register({ db, q, route, requireUser, U, addBeans, notify, fireAndForget });
   feedback = require('./feedback').register({ db, q, route, requireUser, requireAdmin, bad, U, addBeans, notify, fireAndForget, HttpError, BUILD });
 

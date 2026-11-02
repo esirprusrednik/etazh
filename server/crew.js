@@ -14,7 +14,7 @@ const PENDING_TTL_DAYS = 30;    // неотвеченная заявка сго�
 const DM_CALLS = ['coffee', 'lunch', 'call', 'where', 'online', 'wait', 'room']; // «Домой — кто с ним?» в личке не нужен
 
 function register(ctx) {
-  const { db, q, route, requireUser, bad, U, config, notify, fireAndForget, rateLimit, memberStatus, HttpError, publicLook, onEvent, pollsUnvoted, addBeans } = ctx;
+  const { db, q, route, requireUser, bad, U, config, notify, fireAndForget, rateLimit, memberStatus, HttpError, publicLook, onEvent, pollsUnvoted, addBeans, gangSummary } = ctx;
 
   db.exec(`
   -- Пара хранится упорядоченно: lo < hi. status: pending | ok
@@ -174,6 +174,7 @@ function register(ctx) {
       items.push({
         type: 'gang', id: g.id, name: g.name, color: g.color, emoji: g.emoji || null, ...U.crestPub(g), members: n, lastAt: last ? last.at : g.created_at || 0,
         polls: pollsUnvoted ? pollsUnvoted(u.id, g.id) : 0,
+        ...(gangSummary ? gangSummary(g.id, u.id) : {}), motto: g.motto || '',
         lastTime: last ? U.msk(last.at).hhmm : null,
         last: last ? { mine: last.user_id === u.id, who: last.nick, text: last.type === 'call' ? (CALLS[last.kind] || {}).verb || 'зов' : last.text } : null
       });
