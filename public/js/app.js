@@ -1894,8 +1894,8 @@ function renderWarHero() {
 
 // ===== Личные дуэли =====
 const RPS_EMO = { rock: 'rock', scissors: 'scissors', paper: 'paper' };
-// Плитка «Камень, ножницы, бумага»: кулак и ножницы друг напротив друга
-const rpsDuo = () => `<svg class="rps-duo" viewBox="0 0 54 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><g transform="rotate(90 12 12)"><path d="${ICONS.rock}"/></g><g transform="translate(30 0) rotate(-90 12 12)"><path d="${ICONS.scissors}"/></g></svg>`;
+// Плитка «Камень, ножницы, бумага»: кулак сжимает ножницы — лезвие слева, кольца справа
+const rpsDuo = () => `<svg class="rps-duo" viewBox="0 0 44 28" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 9.4 3 11.1l12 1.5"/><path d="M33.6 9.6l2.4-.5M33.6 12.2l2.3 1"/><circle cx="39" cy="8.2" r="3"/><circle cx="39.4" cy="15.3" r="3"/><path d="M15 13.6V7.4a2.3 2.3 0 0 1 4.6 0v6.2"/><path d="M19.6 13.6V6.1a2.3 2.3 0 0 1 4.6 0v7.5"/><path d="M24.2 13.6V6.6a2.3 2.3 0 0 1 4.6 0v7"/><path d="M28.8 11.2V8.2a2.3 2.3 0 0 1 4.6 0v6.6a7 7 0 0 1-3.4 6V25H18.6v-4.4a6.4 6.4 0 0 1-3.6-5.7v-1.3"/><path d="M15 13.6h10.6a2.2 2.2 0 0 1 0 4.4H20"/></svg>`;
 const RPS_NAME = { rock: 'Камень', scissors: 'Ножницы', paper: 'Бумага' };
 const PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
 const dieFace = (n, cls = '') => `<span class="die ${cls}" aria-label="${n}">${Array.from({ length: 9 }, (_, i) => `<i class="${PIPS[n] && PIPS[n].includes(i) ? 'on' : ''}"></i>`).join('')}</span>`;
