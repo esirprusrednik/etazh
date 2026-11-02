@@ -2724,13 +2724,14 @@ function renderAvatarEditor() {
   // Это только показ: в сохранённый аватар ничего не попадает. Кнопками над вкладками можно вернуть
   const auto = { face: { hat: true, hair: true }, hair: { hat: true }, eyes: { glasses: true } }[cat] || {};
   const hide = { ...auto, ...((S.avaHide || {})[cat] || {}) };
-  const view = (l) => ({ ...l, ...(hide.hat ? { hat: 'none', phones: false, crown: false } : {}), ...(hide.hair ? { hairStyle: 'bald' } : {}), ...(hide.glasses ? { glasses: false } : {}) });
+  const view = (l) => ({ ...l, ...(hide.hat ? { hat: 'none', phones: false, crown: false } : {}), ...(hide.hair ? { hairStyle: 'bald' } : {}), ...(hide.glasses ? { glasses: false } : {}), ...(hide.beard ? { beard: 'none' } : {}) });
   const hasHat = (d.hat && d.hat !== 'none') || d.phones;
   const hideChip = (k, on, off) => `<button class="chip ${hide[k] ? 'on' : ''}" data-act="ava-hide" data-k="${k}" data-c="${cat}" data-v="${hide[k] ? '0' : '1'}">${hide[k] ? on : off}</button>`;
   const hideBar = [
     hasHat && (cat === 'face' || cat === 'hair') ? hideChip('hat', 'Шапка скрыта', 'Скрыть шапку') : '',
     d.hairStyle !== 'bald' && cat === 'face' ? hideChip('hair', 'Волосы скрыты', 'Скрыть волосы') : '',
-    d.glasses && (cat === 'eyes' || cat === 'face') ? hideChip('glasses', 'Очки скрыты', 'Скрыть очки') : ''
+    d.glasses && (cat === 'eyes' || cat === 'face') ? hideChip('glasses', 'Очки скрыты', 'Скрыть очки') : '',
+    d.preset !== 'f' && d.beard && d.beard !== 'none' && (cat === 'face' || cat === 'mouth') ? hideChip('beard', 'Борода скрыта', 'Скрыть бороду') : ''
   ].filter(Boolean).join('');
   const tiles = (key, vals, names, zoom = false) => `<div class="ava-tiles">${vals.map((v) => {
     const lock = partLocked(key, v);
