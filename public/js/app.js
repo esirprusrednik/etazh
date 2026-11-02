@@ -829,6 +829,25 @@ function render() {
   if (sheetNew && keepSheet) sheetNew.scrollTop = keepSheet;
 }
 
+// «Об Этаже»: цель и функции в шести карточках, мемным тоном. Один текст — для входа, новичков и профиля
+const ABOUT_TILES = [
+  ['🏢', 'Кто в офисе', 'Отметился — и банда видит, что ты тут. Больше никаких «ты сегодня где?» в пяти чатах.'],
+  ['☕', 'Зовы', 'Кофе, обед, «домой», «перезвони» — в одно касание. Банда отвечает кнопкой, а не созвоном.'],
+  ['🍽', 'Очередь в столовой', 'Свои подсказывают, есть ли очередь. Лучше узнать заранее, чем стоять с подносом и рефлексировать.'],
+  ['🏴', 'Банды', 'Твои люди: команда, этаж, кофейный клуб. Общий чат, опросы, неделя офиса, дни рождения.'],
+  ['🎮', 'Игры и зёрна', 'Задания дня, квизы, блиц, морской бой. За всё — зёрна, на них — шмотки для аватара.'],
+  ['🏆', 'Лига банд', 'Банды соревнуются за неделю и месяц. Победителям — кубки, венки и вечная слава до следующего месяца.']
+];
+function aboutHtml({ cta = true } = {}) {
+  return `<div class="about">
+    <p class="about-lead"><b>Этаж</b> — неофициальное приложение для своих, чтобы <b>видеть, кто рядом, и собираться без лишней переписки</b>. Рабочие задачи — в рабочих системах. Тут — кофе, обед, игры и банда.</p>
+    <div class="about-grid">${ABOUT_TILES.map(([e, t, d]) => `<div class="about-tile"><span class="about-emo" aria-hidden="true">${e}</span><b>${t}</b><span>${d}</span></div>`).join('')}</div>
+    <div class="about-not"><b>Чего Этаж не делает</b>
+      <span>Не следит: никакой геолокации — только твоя кнопка «я в офисе», и её можно скрыть. Не хранит почту — только зашифрованный отпечаток. Не для начальства: это не табель, а кофе-машина с интерфейсом.</span></div>
+    ${cta ? '<button class="btn" data-act="about-ok">Понятно, погнали</button>' : ''}
+  </div>`;
+}
+
 function renderLogin() {
   const o = S.onb;
   const params = new URLSearchParams(location.search);
@@ -851,6 +870,7 @@ function renderLogin() {
   return `<div class="onb">
     <div class="logo">Этаж<span>.</span></div>
     <p class="sub" style="color:#C9D1EA">Неофициальное приложение для своих: кто из твоей банды в офисе, есть ли очередь в столовой, позвать на кофе одной кнопкой.</p>
+    <details class="about-login"><summary>Что такое Этаж? За 30 секунд</summary>${aboutHtml({ cta: false })}</details>
     <div class="card">
       <h2>Вход по рабочей почте</h2>
       <p class="sub">Только ${S.domains.map((d) => '@' + esc(d)).join(', ')}. Почту мы не храним — только её зашифрованный отпечаток. Остальные видят только твой ник.</p>
@@ -1054,7 +1074,9 @@ function renderPeople() {
 
 function renderNear() {
   if (!S.state) return '<div class="card"><p class="sub">Загружаем…</p></div>';
+  const aboutCard = S.me.newbie && !store.get('aboutSeen') ? `<button class="about-card" data-act="open" data-v="about"><span aria-hidden="true">🤔</span><span class="grow"><b>Что это вообще такое?</b><span class="small">Этаж за 30 секунд: зачем он и что тут есть</span></span><span class="chev" aria-hidden="true">›</span></button>` : '';
   return `${pageHead('Рядом', 'Где ты сегодня и кто из твоих людей рядом')}
+    ${aboutCard}
     ${renderStatusBlock()}
     ${(S.people && !S.people.length) || !S.me.gangs.length ? findBar() : ''}
     ${renderQuickCalls()}
@@ -2126,6 +2148,7 @@ function renderSheet() {
     case 'gang-find': return sheetWrap('Найти банду', renderGangFind());
     case 'gang-profile': return sheetWrap('Банда', renderGangProfile());
     case 'gang-settings': return sheetWrap('Настройки банды', renderGangSettings());
+    case 'about': store.set('aboutSeen', true); return sheetWrap('Об Этаже', aboutHtml());
     case 'gang-switch': return sheetWrap('Перейти в другую банду?', renderGangSwitch());
     case 'league': return sheetWrap('Лига банд', renderLeague());
     case 'crew-new': return sheetWrap('Позвать в личку', `<p class="sub">С участниками твоих банд переписываться можно сразу. Тех, кто не в банде, зови по нику или личной ссылкой.</p>
@@ -2842,6 +2865,7 @@ function renderProfile() {
     ${section('vac', 'Отпуска', p.vacations.length ? p.vacations.map((v) => `${ddmm(v.from)}–${ddmm(v.to)}`).join(', ') : 'не запланированы', vacBody)}
     ${section('about', 'О себе', [p.about && esc(p.about), p.bday && 'ДР ' + esc(p.bday)].filter(Boolean).join(' · ') || 'интересы, пара слов, день рождения', aboutBody)}
     ${section('priv', 'Приватность, звук и уведомления', `${me.shareOffice ? 'банда видит, где я' : 'где я — скрыто'}${me.quiet ? ' · тихие часы' : ''} · ${soundVol() ? 'звук ' + soundVol() + '%' : 'без звука'}`, privBody)}
+    <button class="fb-entry about-entry" data-act="open" data-v="about"><span class="grow"><b>Об Этаже</b><span class="small">Зачем он и что тут есть — коротко и без канцелярита</span></span><span class="chev" aria-hidden="true">›</span></button>
     <button class="fb-entry" data-act="open" data-v="feedback"><span class="grow"><b>Есть идея или нашёл ошибку?</b><span class="small">Напиши — ответим. За принятую идею +10 зёрен</span></span>${(S.state && S.state.badges && S.state.badges.feedback) ? `<span class="fb-count">${S.state.badges.feedback}</span>` : '<span class="chev" aria-hidden="true">›</span>'}</button>
     ${me.isAdmin ? '<a class="btn violet" style="display:flex;align-items:center;justify-content:center;text-decoration:none" href="/admin.html">Модерация</a>' : ''}
     <div class="row" style="justify-content:space-between">
@@ -2990,6 +3014,7 @@ const actions = {
   'gang-find-go': () => run(async () => { S.gfind.q = ($('#gfind-q') || {}).value || ''; await loadGangFind(); }),
   'gang-find-area'(el) { S.gfind.q = ($('#gfind-q') || {}).value || ''; S.gfind.area = el.dataset.v; run(loadGangFind); },
   'gang-profile': (el) => run(async () => { S.gprofile = null; S.sheet = 'gang-profile'; render(); S.gprofile = await get(`/api/gangs/${el.dataset.id}/profile`); }),
+  'about-ok'() { store.set('aboutSeen', true); S.sheet = null; render(); },
   'league-open': () => run(async () => { S.sheet = 'league'; render(); await loadLeague(); }),
   'league-tab': (el) => run(async () => { S.leagueType = el.dataset.v; render(); await loadLeague(el.dataset.v); }),
   'gang-switch-go': () => run(async () => { const a = S.switchAsk; S.switchAsk = null; S.sheet = null; if (a) await a.go(); }),

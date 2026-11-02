@@ -724,3 +724,25 @@ button.quest:disabled { cursor: default; }
 .g-legend { display: inline-block; align-self: flex-start; font-weight: 900; font-size: 13px; padding: 3px 10px; border-radius: 999px; background: linear-gradient(90deg, #FFD84D, #FFB020); color: #5B3B00; margin: 4px 0; }
 .g-why { display: block; font-size: 12px; font-weight: 800; color: #1F7A3A; margin-top: 2px; }
 .ava.champ { box-shadow: 0 0 0 2px #FFF3B0, 0 0 12px 2px rgba(255, 200, 40, .75); }
+
+/* Об Этаже */
+.about { display: flex; flex-direction: column; gap: 12px; }
+.about-lead { margin: 0; font-size: 15px; line-height: 1.45; color: var(--ink); }
+.about-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.about-tile { background: #F4F6FB; border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 3px; }
+.about-tile b { font-size: 14px; color: var(--ink); }
+.about-tile span:not(.about-emo) { font-size: 12.5px; line-height: 1.35; color: var(--muted); font-weight: 600; }
+.about-emo { font-size: 24px; }
+.about-not { background: #EAF7EE; border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; font-size: 13px; color: #1F4D2E; line-height: 1.4; }
+.about-login { background: rgba(255,255,255,.08); border-radius: 16px; padding: 10px 14px; color: #fff; }
+.about-login summary { font-weight: 900; cursor: pointer; min-height: 32px; display: flex; align-items: center; }
+.about-login[open] { background: var(--card); color: var(--ink); }
+.about-login[open] summary { color: var(--ink); margin-bottom: 8px; }
+.about-card { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; border: 0; border-radius: 16px; padding: 12px 14px; background: linear-gradient(135deg, #E9E2FF, #CFC2FF); font: inherit; color: var(--ink); cursor: pointer; }
+.about-card > span[aria-hidden] { font-size: 28px; }
+.about-card b { display: block; font-size: 15px; }
+.about-card .chev { font-size: 22px; color: var(--muted); }
+.about-login summary { list-style: none; justify-content: space-between; }
+.about-login summary::-webkit-details-marker { display: none; }
+.about-login summary::after { content: '›'; font-size: 24px; transition: transform .2s; }
+.about-login[open] summary::after { transform: rotate(90deg); }
