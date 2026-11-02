@@ -15,7 +15,7 @@ const COUNT_REASONS = new Set(['checkin', 'home', 'canteen', 'reply', 'signal_co
 
 const PRIZES = {
   W: [{ beans: 30, items: ['p_trophy'] }, { beans: 20, items: [] }, { beans: 10, items: [] }],
-  M: [{ beans: 100, items: ['p_laurel', 'fr_champ'] }, { beans: 70, items: ['p_laurel'] }, { beans: 50, items: ['p_laurel'] }, { beans: 30, items: [] }, { beans: 20, items: [] }]
+  M: [{ beans: 100, items: ['p_laurel', 'fr_champ'] }, { beans: 70, items: ['p_laurel'] }, { beans: 50, items: ['p_laurel'] }]
 };
 const MONTHS = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
 const MONTHS_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
@@ -178,7 +178,7 @@ function register(ctx) {
   // Трофеи банды для профиля и карточки
   function trophies(gid) {
     const rows = q('SELECT period, place FROM league_results WHERE gang_id = ?').all(gid);
-    const t = { w: [0, 0, 0], m: [0, 0, 0, 0, 0] };
+    const t = { w: [0, 0, 0], m: [0, 0, 0] };
     for (const r of rows) { const a = r.period.startsWith('W:') ? t.w : t.m; if (r.place <= a.length) a[r.place - 1]++; }
     return t;
   }

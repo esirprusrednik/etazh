@@ -1491,6 +1491,7 @@ function renderGangProfile() {
     ${c.interests.length ? `<div class="g-tags big">${c.interests.map((t) => `<i>${esc(t)}</i>`).join('')}</div>` : ''}
     <div class="g-stats"><div><b>${c.count}${c.max ? '/' + c.max : ''}</b><span>${plural(c.count, 'участник', 'участника', 'участников')}</span></div><div><b>${c.inOffice}</b><span>в офисе сегодня</span></div><div><b>${c.msgsWeek}</b><span>сообщений за неделю</span></div><div><b>${days}</b><span>${plural(days, 'день', 'дня', 'дней')} банде</span></div></div>
     <div class="g-faces">${c.faces.map((m) => `<span title="${esc(m.nick)}">${avatar(m.look, 34)}</span>`).join('')}${c.count > c.faces.length ? `<span class="small">и ещё ${c.count - c.faces.length}</span>` : ''}</div>
+    ${leagueRules()}
     <p class="small" style="margin:0"><b>${accT}</b> — ${accD}${c.owner ? ` · владелец ${esc(c.owner)}` : ''}${c.officeName ? ` · офис ${esc(c.officeName)}` : ''}</p>
     ${gangCardHtml(c).replace(/^<div class="g-card"><button class="g-main"[\s\S]*?<\/button>/, '<div class="g-card solo">')}`;
 }
@@ -1509,13 +1510,33 @@ function trophyLine(t) {
   if (!t) return '';
   const parts = [];
   t.w.forEach((n, i) => n && parts.push(`${MEDAL[i]}×${n} нед.`));
-  t.m.slice(0, 3).forEach((n, i) => n && parts.push(`${MEDAL[i]}×${n} мес.`));
+  t.m.forEach((n, i) => n && parts.push(`${MEDAL[i]}×${n} мес.`));
   return parts.join(' · ');
 }
 function leagueRow(r) {
   return `<div class="lg-row ${r.me ? 'me' : ''}"><span class="lg-place">${r.place ? (MEDAL[r.place - 1] || r.place) : '—'}</span>${gangBadge(r)}
     <span class="grow" style="min-width:0"><span class="g-name ellipsis">${esc(r.name)}</span><span class="small">${r.members} ${plural(r.members, 'человек', 'человека', 'человек')}${r.together ? ` · в сборе ${r.together} ${plural(r.together, 'день', 'дня', 'дней')}` : ''}</span></span>
     <b class="lg-score">${r.score}</b></div>`;
+}
+// Методика Лиги — одна на таблицу, профиль и шапку банды. Числа совпадают с server/league.js
+const LEAGUE_RULES = { dayCap: 40, minRoster: 3, together: 70, togetherBonus: 10,
+  prizes: { W: [[30, 'Кубок Лиги в руку аватара'], [20, ''], [10, '']], M: [[100, 'лавровый венок, рамка чемпиона и титул «Легенда месяца» для банды'], [70, 'лавровый венок'], [50, 'лавровый венок']] } };
+function leagueRules(type = null) {
+  const R = LEAGUE_RULES;
+  const pr = (t) => R.prizes[t].map(([b, extra], i) => `<li><b>${MEDAL[i]}</b> +${b} зёрен каждому, кто принёс очки${extra ? ` + ${extra}` : ''}</li>`).join('');
+  return `<details class="lg-rules"><summary>ℹ️ Как устроена Лига банд</summary>
+    <ul class="ol">
+      <li><b>Очки.</b> Каждое зерно за дело — очко твоей банде: отметка в офисе или из дома, столовая, ответ на зов, задания дня, квизы, блиц, морской бой, спасибо, ачивки. Зёрна за призы, приглашения и возврат залога не считаются.</li>
+      <li><b>Лимит.</b> Один человек приносит не больше ${R.dayCap} очков в день — одиночка банду не вытянет, нужна вся банда.</li>
+      <li><b>Счёт банды</b> — средний вклад на участника: сумма очков делится на число людей, которые были в банде за период (не меньше ${R.minRoster}). Маленькая дружная банда спорит на равных с большой. Ушедшие и исключённые тоже в знаменателе — выгнать молчунов ради среднего не выйдет.</li>
+      <li><b>«Банда в сборе».</b> Если за день отметились ${R.together}% банды (не меньше трёх человек) — +${R.togetherBonus} к счёту.</li>
+      <li><b>Кто участвует.</b> Банды от ${R.minRoster} человек. Человек может быть только в одной банде; при переходе его очки остаются старой банде.</li>
+      <li><b>Периоды.</b> Неделя — с понедельника по воскресенье, месяц — календарный. Итоги и призы — сами: за неделю в понедельник, за месяц 1-го числа.</li>
+    </ul>
+    ${!type || type === 'W' ? `<h3 style="margin:6px 0">Призы недели</h3><ul class="ol">${pr('W')}</ul>` : ''}
+    ${!type || type === 'M' ? `<h3 style="margin:6px 0">Призы месяца</h3><ul class="ol">${pr('M')}</ul>` : ''}
+    <p class="small" style="margin:0">Трофеи не продаются в Лавке — только за места в Лиге.</p>
+  </details>`;
 }
 function renderLeague() {
   const type = S.leagueType || 'W';
@@ -1527,20 +1548,11 @@ function renderLeague() {
     : `<div class="lg-mine"><div class="row" style="gap:10px">${gangBadge(m)}<div class="grow"><b>${esc(m.name)}</b><div class="small">${m.place ? `${m.place} место из ${L.count}` : m.eligible ? 'пока без очков' : `в Лиге с ${L.rules.minRoster} человек — зови своих`}</div></div><b class="lg-score big">${m.score}</b></div>
       <div class="g-stats" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div><b>${m.myPoints}</b><span>твой вклад</span></div><div><b>${m.todayPts}/${m.dayCap}</b><span>очков сегодня</span></div><div><b>${m.together}</b><span>${plural(m.together, 'день', 'дня', 'дней')} в сборе</span></div></div></div>`;
   const outside = m && m.place && m.place > 10 ? leagueRow(m) : '';
-  const prizes = L.prizes.map((p) => `<li><b>${MEDAL[p.place - 1] || p.place + ' место'}</b> — +${p.beans} зёрен каждому, кто принёс очки${p.items.length ? ', ' + p.items.map((i) => TROPHY_NAMES[i]).join(', ') : ''}</li>`).join('');
   const last = L.last.winners.length ? `<h3 style="margin:6px 0 0">Итоги: ${esc(L.last.label)}</h3>${L.last.winners.slice(0, 5).map((w) => `<div class="lg-row"><span class="lg-place">${MEDAL[w.place - 1] || w.place}</span>${gangBadge(w)}<span class="grow g-name ellipsis">${esc(w.name)}</span><b class="lg-score">${w.score}</b></div>`).join('')}` : '';
   return `${tabs}<p class="small" style="margin:0">${esc(L.period.label)} · ${L.period.daysLeft > 1 ? `до финиша ${L.period.daysLeft} ${plural(L.period.daysLeft, 'день', 'дня', 'дней')}` : 'финиш сегодня в полночь'}</p>
     ${mine}
     <div class="lg-list">${L.top.length ? L.top.map(leagueRow).join('') + outside : '<p class="sub">Пока никто не набрал очков. Отметься — и твоя банда первая.</p>'}</div>
-    <details class="lg-rules"><summary>Как считаются очки и что дают</summary>
-      <ul class="ol"><li>Каждое зерно за дело — очко твоей банде: отметка в офисе или из дома, столовая, ответ на зов, задания дня, квизы, блиц, морской бой, спасибо, ачивки.</li>
-      <li>Один человек приносит не больше ${L.rules.dayCap} очков в день — одиночка банду не вытянет, нужна вся банда.</li>
-      <li>Счёт банды — средний вклад на участника, поэтому маленькая дружная банда спорит на равных с большой. Ушедшие и выгнанные за период тоже в знаменателе.</li>
-      <li>«Банда в сборе»: в день отметились ${Math.round(L.rules.togetherShare * 100)}% банды (не меньше трёх) — +${L.rules.togetherBonus} к счёту.</li>
-      <li>В Лиге — банды от ${L.rules.minRoster} человек. Призы раздаются сами: за неделю — в понедельник, за месяц — 1-го числа.</li></ul>
-      <h3 style="margin:6px 0">Призы ${type === 'W' ? 'недели' : 'месяца'}</h3><ul class="ol">${prizes}</ul>
-      ${type === 'M' ? '<p class="small">Победитель месяца весь следующий месяц носит титул «Легенда» — его видно в поиске и профиле банды.</p>' : ''}
-    </details>
+    ${leagueRules(type)}
     ${last}`;
 }
 async function loadLeague(type = S.leagueType || 'W') {
@@ -1605,6 +1617,7 @@ function renderGang() {
       ${g.isOwner ? '<button class="icon-btn" data-act="gang-settings" aria-label="Настройки банды">⚙️</button>' : `<button class="icon-btn" data-act="gang-profile" data-id="${g.id}" aria-label="Профиль банды">ℹ️</button>`}</div>
     ${g.legend ? `<div class="g-legend">👑 ${esc(g.legend)}</div>` : ''}
     ${g.league ? `<button class="lg-strip" data-act="league-open">🏆 Лига недели: <b>${g.league.place ? `${MEDAL[g.league.place - 1] || ''} ${g.league.place} место из ${g.league.of}` : g.league.eligible ? 'пока без очков' : 'нужно 3 человека'}</b> · счёт ${g.league.score}${trophyLine(g.trophies) ? ` · ${trophyLine(g.trophies)}` : ''}</button>` : ''}
+    ${g.league ? leagueRules() : ''}
     ${g.motto ? `<p class="sub" style="font-style:italic">«${esc(g.motto)}»</p>` : ''}
     ${g.about ? `<p class="sub" style="margin:0">${esc(g.about)}</p>` : ''}
     ${g.interests && g.interests.length ? `<div class="g-tags">${g.interests.map((t) => `<i>${esc(t)}</i>`).join('')}</div>` : ''}
