@@ -1154,12 +1154,13 @@ function renderChats() {
           <span class="where ellipsis ${unread ? 'unread' : ''}">${x.last ? `${x.last.mine ? 'Ты' : esc(x.last.who || '')}: ${esc(x.last.text || '')}` : 'Сообщений пока нет — начни первым'}</span></span>
         <span class="crew-side">${x.lastTime ? `<span class="small">${x.lastTime}</span>` : ''}${x.polls ? `<span class="poll-badge" title="Опросы без твоего голоса">📊 ${x.polls}</span>` : unread ? '<span class="crew-badge">•</span>' : ''}</span></button>`;
     }
-    const [w, color] = whereText(x);
+    const [w, color] = x.where ? whereText(x) : ['', '#C9D1EA'];
     const turn = (S.battles || []).find((b) => b.oppId === x.id && b.myTurn && b.status !== 'done');
-    return `<button class="chat-row" data-act="dm-open" data-id="${x.id}">
-      <span class="ava-wrap"><span class="ava-ring" style="border-color:${color}">${avatar(x.look, 32)}</span><span class="ava-dot" style="background:${color}"></span></span>
-      <span class="grow" style="min-width:0"><span class="chat-title">${esc(x.nick)}</span><span class="where ellipsis ${x.unread ? 'unread' : ''}">${x.last ? `${x.last.mine ? 'Ты: ' : ''}${esc(x.last.text || '')}` : esc(w)}</span></span>
-      <span class="crew-side">${turn ? '<span class="crew-turn" title="Твой ход в морском бою">⚓</span>' : ''}${x.lastTime ? `<span class="small">${x.lastTime}</span>` : ''}${x.unread ? `<span class="crew-badge">${x.unread > 9 ? '9+' : x.unread}</span>` : ''}</span></button>`;
+    return `<div class="dm-line ${x.closed ? 'closed' : ''}"><button class="chat-row" data-act="dm-open" data-id="${x.id}">
+      <span class="ava-wrap"><span class="ava-ring" style="border-color:${color}">${avatar(x.look, 32)}</span>${x.where ? `<span class="ava-dot" style="background:${color}"></span>` : ''}</span>
+      <span class="grow" style="min-width:0"><span class="chat-title">${x.crew ? '<span class="fav-star" title="Подельник">★</span> ' : ''}${esc(x.nick)}</span><span class="where ellipsis ${x.unread ? 'unread' : ''}">${x.closed ? '🔒 ' : ''}${x.last ? `${x.last.mine ? 'Ты: ' : ''}${esc(x.last.text || '')}` : esc(w)}</span></span>
+      <span class="crew-side">${turn ? '<span class="crew-turn" title="Твой ход в морском бою">⚓</span>' : ''}${x.lastTime ? `<span class="small">${x.lastTime}</span>` : ''}${x.unread ? `<span class="crew-badge">${x.unread > 9 ? '9+' : x.unread}</span>` : ''}</span></button>
+      <button class="dm-x" data-act="dm-close" data-id="${x.id}" aria-label="${x.closed ? 'Убрать из списка' : 'Закрыть личку с ' + esc(x.nick)}" title="${x.closed ? 'Убрать из списка' : 'Закрыть личку'}">×</button></div>`;
   };
   const gangs = c.items.filter((x) => x.type === 'gang');
   const dms = c.items.filter((x) => x.type !== 'gang');
@@ -1167,9 +1168,12 @@ function renderChats() {
   const head = (title, n, act, label, hot) => `<div class="chats-head"><h3>${title}${n ? ` <span class="chats-n ${hot ? 'hot' : ''}">${n}</span>` : ''}</h3><button class="linkbtn" data-act="open" data-v="${act}">＋ ${label}</button></div>`;
   const gangList = gangs.length ? gangs.map(row).join('')
     : '<p class="sub chats-empty">Ты пока ни в одной банде. Сколоти свою — у неё будет общий чат и зовы на кофе и обед.</p><button class="btn" data-act="open" data-v="gang-new">Сколотить банду</button>';
+  const favs = c.favorites || [];
+  const favStrip = `<div class="fav-head"><span class="small"><b>★ Подельники</b> — избранные контакты: им можно писать всегда</span><button class="linkbtn" data-act="open" data-v="crew">${favs.length ? 'все' : '＋ добавить'}</button></div>
+    ${favs.length ? `<div class="fav-strip">${favs.map((f) => { const [, col] = whereText(f); return `<button class="fav" data-act="dm-open" data-id="${f.id}"><span class="ava-ring" style="border-color:${col}">${avatar(f.look, 40)}</span><span class="ellipsis">${esc(f.nick)}</span></button>`; }).join('')}</div>` : ''}`;
   const dmList = dms.length ? dms.map(row).join('')
-    : `<p class="sub chats-empty">${gangs.length ? 'Пока тихо. Напиши кому-нибудь из своих — один на один, банда не увидит.' : 'Лично можно писать тем, кто с тобой в банде. Сначала сколоти банду или вступи в неё.'}</p>`;
-  return `${pageHead('Чаты', 'Общие чаты банд и личка с членами твоих банд')}
+    : '<p class="sub chats-empty">Пока тихо. Написать лично можно любому, кто не закрыл личку: найди по нику или открой карточку человека.</p>';
+  return `${pageHead('Чаты', 'Банды и личка')}
     ${findBar()}
     ${(S.invites || []).length ? `<section class="card"><h3>Тебя зовут в банду</h3>${S.invites.map((i) => `<div class="person2"><span class="chat-gang" style="background:${esc(i.gang.color)}">${esc(i.gang.name.slice(0, 1).toUpperCase())}</span>
       <div class="grow" style="min-width:0"><div style="font-weight:900">${esc(i.gang.name)}</div><div class="where">${i.gang.members} ${plural(i.gang.members, 'человек', 'человека', 'человек')} · зовёт ${esc(i.from)}</div></div>
@@ -1177,7 +1181,7 @@ function renderChats() {
     ${reqs}
     <button class="invite-app" data-act="crew-share"><span class="grow"><b>Позвать коллегу в Этаж</b><span class="small">Личная ссылка: придёт — сразу будете на связи. +15 зёрен за каждого новичка</span></span><span aria-hidden="true">📨</span></button>
     <section class="card chats"><div class="chats-head"><h3>Банды${gangs.length ? ` <span class="chats-n">${gangs.length}</span>` : ''}</h3><span class="row" style="gap:12px"><button class="linkbtn" data-act="gang-find">🔍 Найти</button><button class="linkbtn" data-act="open" data-v="gang-new">＋ Сколотить</button></span></div><p class="small chats-hint">Общий чат на всю банду · сообщения живут 24 часа</p>${gangList}</section>
-    <section class="card chats">${head('Личка', dmUnread ? `${dmUnread} ${plural(dmUnread, 'новое', 'новых', 'новых')}` : '', 'dm-pick', 'Написать', true)}<p class="small chats-hint">Один на один · видите только вы двое</p>${dmList}</section>`;
+    <section class="card chats">${head('Личка', dmUnread ? `${dmUnread} ${plural(dmUnread, 'новое', 'новых', 'новых')}` : '', 'dm-pick', 'Написать', true)}${favStrip}<p class="small chats-hint">Один на один · видите только вы двое · × закрывает переписку у обоих</p>${dmList}</section>`;
 }
 
 // ===== Вкладка «Офис»: столовая, обед компанией, сигналы и лента =====
@@ -1749,8 +1753,8 @@ function renderCrew() {
   }).join('');
   return `${incoming}
   <section class="card">
-    <div class="row" style="justify-content:space-between"><h2>Подельники</h2><span class="small">${c.list.length} из ${c.max}</span></div>
-    <p class="sub">Твои люди один на один, без банды. Переписку и зовы видите только вы двое, сообщения живут ${c.ttlDays} ${plural(c.ttlDays, 'день', 'дня', 'дней')}.</p>
+    <div class="row" style="justify-content:space-between"><h2>★ Подельники</h2><span class="small">${c.list.length} из ${c.max}</span></div>
+    <p class="sub">Избранные контакты для постоянного общения — из любой банды или вообще без неё. Подельникам можно писать всегда, даже если личка закрыта для остальных. Они сверху в «Личке» и видят, где ты сегодня.</p>
     ${rows || '<p class="sub"><b>Пока никого.</b> Позови по нику или скинь свою ссылку. Ещё можно нажать «＋» у человека в составе банды.</p>'}
   </section>
   <section class="card">
@@ -1769,8 +1773,13 @@ function renderDm() {
   const v = S.dmView;
   if (!v) return '<div class="card"><p class="sub">Открываем переписку…</p></div>';
   const f = v.friend;
-  const [w, color] = whereText(f);
-  const msgs = v.messages.map((m) => renderDmMsg(m, f)).join('') || `<p class="sub">Тут пусто. Напиши первым или позови на кофе. Сообщения живут ${v.ttlDays} ${plural(v.ttlDays, 'день', 'дня', 'дней')}.</p>`;
+  const [w, color] = f.where ? whereText(f) : ['не в твоей банде', '#C9D1EA'];
+  const shut = v.cantWrite;
+  const msgs = v.messages.map((m) => renderDmMsg(m, f)).join('') || (v.closedByOther ? '' : `<p class="sub">Тут пусто. Напиши первым или позови на кофе. Сообщения живут ${v.ttlDays} ${plural(v.ttlDays, 'день', 'дня', 'дней')}.</p>`);
+  const star = v.crewState === 'ok' ? `<button class="star-btn on" data-act="crew-remove" data-id="${f.id}" title="Подельник. Нажми дважды, чтобы убрать">★ Подельник</button>`
+    : v.crewState === 'sent' ? '<span class="star-btn wait">☆ заявка ушла</span>'
+    : v.crewState === 'incoming' ? `<button class="star-btn" data-act="crew-accept" data-id="${f.id}">★ Принять в подельники</button>`
+    : `<button class="star-btn" data-act="crew-add-id" data-id="${f.id}" title="Избранный контакт: писать можно всегда">☆ В подельники</button>`;
   const away = f.where === 'vacation' || f.where === 'sick';
   return `
   <button class="linkbtn back" data-act="dm-back">‹ Все чаты</button>
@@ -1778,20 +1787,23 @@ function renderDm() {
     <div class="row">
       <span class="ava-wrap"><span class="ava-ring" style="border-color:${color}">${avatar(f.look, 32)}</span><span class="ava-dot" style="background:${color}"></span></span>
       <div class="grow" style="min-width:0"><div style="font-weight:900;font-size:17px">${esc(f.nick)}</div><div class="where ellipsis">${esc(w)}${f.mood && f.where === 'office' ? ' · ' + esc(f.mood) : ''}</div></div>
+      ${star}
     </div>
     ${away ? '<div class="note warn">Сейчас отдыхает: пуш не придёт, увидит, когда вернётся.</div>' : ''}
-    <div class="chips">${v.calls.map((k) => `<button class="chip" data-act="dm-call-open" data-kind="${k}">${esc(S.cat.calls[k].label)}</button>`).join('')}<button class="chip meme-chip" data-act="meme-open" data-to="${f.id}">🖼 Мем</button></div>
+    ${shut ? `<div class="note dm-shut">🔒 ${esc(shut)}</div>` : ''}
+    ${shut ? '' : `<div class="chips">${v.calls.map((k) => `<button class="chip" data-act="dm-call-open" data-kind="${k}">${esc(S.cat.calls[k].label)}</button>`).join('')}<button class="chip meme-chip" data-act="meme-open" data-to="${f.id}">🖼 Мем</button></div>`}
   </section>
-  ${renderBattleInvite(f)}
-  <section class="card">
+  ${f.crew && !shut ? renderBattleInvite(f) : ''}
+  ${shut && !v.messages.length ? '' : `<section class="card">
     <div class="chat" id="dm-chat">${msgs}</div>
-    <div class="row"><label class="field grow" style="gap:0"><span class="hidden">Сообщение</span><input id="dm-text" maxlength="500" placeholder="Написать ${esc(f.nick)}" aria-label="Личное сообщение"></label>
-      <button class="btn" data-act="dm-send" aria-label="Отправить">→</button></div>
-  </section>
+    ${shut ? '' : `<div class="row"><label class="field grow" style="gap:0"><span class="hidden">Сообщение</span><input id="dm-text" maxlength="500" placeholder="Написать ${esc(f.nick)}" aria-label="Личное сообщение"></label>
+      <button class="btn" data-act="dm-send" aria-label="Отправить">→</button></div>`}
+    ${v.closedByMe ? '<p class="small" style="margin:0">Ты закрыл эту личку. Напишешь — она откроется снова.</p>' : ''}
+  </section>`}
   <section class="card">
     <p class="small">Переписку видите только вы двое. Модератор увидит сообщение, только если на него пожалуются (⚑).</p>
     <div class="row" style="justify-content:space-between">
-      ${f.crew ? `<button class="linkbtn" data-act="crew-remove" data-id="${f.id}">Удалить контакт</button>` : '<span></span>'}
+      <button class="linkbtn" data-act="dm-close" data-id="${f.id}">${v.closedByOther ? 'Убрать из списка' : '× Закрыть личку'}</button>
       <button class="linkbtn" data-act="crew-block" data-id="${f.id}">Заблокировать</button>
     </div>
   </section>`;
@@ -2182,6 +2194,7 @@ function renderSheet() {
     case 'gang-find': return sheetWrap('Найти банду', renderGangFind());
     case 'gang-profile': return sheetWrap('Банда', renderGangProfile());
     case 'gang-settings': return sheetWrap('Настройки банды', renderGangSettings());
+    case 'crew': return sheetWrap('Подельники', renderCrew());
     case 'stats': return sheetWrap('Этаж сегодня', renderStats());
     case 'about': store.set('aboutSeen', true); return sheetWrap('Об Этаже', aboutHtml());
     case 'gang-switch': return sheetWrap('Перейти в другую банду?', renderGangSwitch());
@@ -2199,7 +2212,9 @@ function renderSheet() {
     case 'feedback': return sheetWrap('Идеи и ошибки', renderFeedback());
     case 'blitz': return sheetWrap(S.blitz && S.blitz.set ? `${S.blitz.set.emoji} ${S.blitz.set.title}` : 'Блиц', renderBlitzPlay());
     case 'poll-new': return sheetWrap('Новый опрос', renderPollNew());
-    case 'dm-pick': return sheetWrap('Написать в личку', (S.people || []).length ? '<p class="sub">Лично можно писать любому члену твоих банд.</p>' + (S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${esc(p.nick)}</span><span class="where">${esc(p.gangs.map((g) => g.name).join(', ') || whereText(p)[0])}</span></span><span aria-hidden="true">›</span></button>`).join('') : '<p class="sub">Пока некому писать. Сколоти банду и позови в неё своих.</p>');
+    case 'dm-pick': return sheetWrap('Написать в личку', `<p class="sub" style="margin:0">Написать можно любому — если он сам не ограничил личку. Подельникам и своей банде — проще всего.</p>
+      <button class="find-bar light" data-act="find-open">${ico('search', 18)}<span>Найти человека по нику или почте</span></button>
+      ${(S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${p.crew ? '<span class="fav-star">★</span> ' : ''}${esc(p.nick)}</span><span class="where">${esc(p.gangs.map((g) => g.name).join(', ') || (p.crew ? 'подельник' : whereText(p)[0]))}</span></span><span aria-hidden="true">›</span></button>`).join('')}`);
     case 'battle-pick': return sheetWrap('С кем сыграть?', (S.people || []).length ? (S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${esc(p.nick)}</span><span class="where">${esc(whereText(p)[0])}</span></span><span aria-hidden="true">›</span></button>`).join('') + '<p class="small">Откроется переписка — там выбери «Без спешки» или «Быстрая».</p>' : '<p class="sub">Сначала сколоти банду и позови в неё своих.</p>');
     case 'whatsnew': return sheetWrap('Что поменялось', `<div class="wn">
       <div class="wn-i"><span>👥</span><div><b>Рядом</b><p>Главный экран: где ты сегодня и все твои люди одним списком — кто в офисе, кто дома, кто в отпуске.</p></div></div>
@@ -2870,6 +2885,8 @@ function renderProfile() {
     <label class="check"><input type="checkbox" data-act="toggle" data-k="shareOffice" ${me.shareOffice ? 'checked' : ''}> <span>Показывать банде, где я: офис, дома или в отпуске</span></label>
     <label class="check"><input type="checkbox" data-act="toggle" data-k="quiet" ${me.quiet ? 'checked' : ''}> <span>Тихие часы 19:00–09:00 — не присылать зовы</span></label>
     <label class="check"><input type="checkbox" data-act="findable-toggle" ${p.findable !== false ? 'checked' : ''}> <span>Меня можно найти по нику и рабочей почте — и позвать в банду</span></label>
+    <div class="field">Кто может писать мне в личку<div class="chips">${[['all', 'Все'], ['gang', 'Моя банда'], ['none', 'Никто']].map(([k, t]) => `<button class="chip ${(p.dmFrom || 'all') === k ? 'on' : ''}" data-act="dm-from" data-v="${k}">${t}</button>`).join('')}</div>
+      <span class="small" style="font-weight:600">Подельники (избранные) могут писать всегда. Уже начатые переписки ограничение не обрывает — их закрывают крестиком.</span></div>
     <div class="snd-set">
       <label class="field" style="gap:4px"><span>Громкость звуков: <b id="vol-n">${soundVol() ? soundVol() + '%' : 'выкл'}</b></span>
         <input type="range" id="snd-vol" min="0" max="100" step="5" value="${soundVol()}" aria-label="Громкость звуков интерфейса"></label>
@@ -2932,7 +2949,7 @@ function renderPerson() {
     ${rows.length ? `<div class="person-rows">${rows.map(([k, v]) => `<div><span class="small">${k}</span><b>${v}</b></div>`).join('')}</div>` : ''}
     ${!x.full ? '<p class="small" style="text-align:center">Подробности видят члены общих банд.</p>' : ''}
     ${x.me ? '<button class="btn ghost" data-act="open" data-v="profile">Редактировать мой профиль</button>'
-      : x.full ? `<div class="row"><button class="btn grow" data-act="dm-open" data-id="${x.id}">💬 Написать</button><button class="btn ghost grow" data-act="pcall-open" data-id="${x.id}">📣 Позвать</button></div>` : ''}
+      : `<div class="row">${x.canDm ? `<button class="btn grow" data-act="dm-open" data-id="${x.id}">💬 Написать</button>` : '<span class="small grow">Личку принимает не от всех</span>'}${x.full ? `<button class="btn ghost grow" data-act="pcall-open" data-id="${x.id}">📣 Позвать</button>` : ''}</div>`}
   </div>`;
 }
 
@@ -3049,6 +3066,17 @@ const actions = {
   'gang-find-go': () => run(async () => { S.gfind.q = ($('#gfind-q') || {}).value || ''; await loadGangFind(); }),
   'gang-find-area'(el) { S.gfind.q = ($('#gfind-q') || {}).value || ''; S.gfind.area = el.dataset.v; run(loadGangFind); },
   'gang-profile': (el) => run(async () => { S.gprofile = null; S.sheet = 'gang-profile'; render(); S.gprofile = await get(`/api/gangs/${el.dataset.id}/profile`); }),
+  'dm-close': (el) => run(async () => {
+    const id = Number(el.dataset.id);
+    const it = ((S.chats && S.chats.items) || []).find((x) => x.type === 'dm' && x.id === id);
+    const closedByOther = (it && it.closed) || (S.dmView && S.dm === id && S.dmView.closedByOther);
+    if (!closedByOther && !confirmInline('dm-close' + id, 'Нажми ещё раз: переписка удалится у вас обоих, а собеседник увидит, что ты закрыл личку')) return;
+    await post(`/api/dm/${id}/close`);
+    if (S.dm === id) { S.dm = null; S.dmView = null; }
+    toast(closedByOther ? 'Убрали из списка' : 'Личка закрыта');
+    await Promise.all([loadChats(), loadState()]);
+  }),
+  'dm-from': (el) => run(async () => { await post('/api/me/profile', { profile: { dmFrom: el.dataset.v } }); await loadMe(); toast('Сохранили'); }),
   'about-ok'() { store.set('aboutSeen', true); S.sheet = null; render(); },
   'league-open': () => run(async () => { S.sheet = 'league'; render(); await loadLeague(); }),
   'league-tab': (el) => run(async () => { S.leagueType = el.dataset.v; render(); await loadLeague(el.dataset.v); }),
@@ -3243,15 +3271,15 @@ const actions = {
   }),
   'crew-add-id': (el) => run(async () => {
     const r = await post('/api/crew/add', { id: Number(el.dataset.id) });
-    toast(r.accepted ? 'Теперь можно переписываться!' : 'Заявка ушла');
-    await loadCrew();
+    toast(r.accepted ? 'Теперь вы подельники!' : 'Заявка в подельники ушла');
+    await Promise.all([loadCrew(), S.dm ? loadDm() : null]);
   }),
-  'crew-accept': (el) => run(async () => { await post(`/api/crew/${el.dataset.id}/accept`); toast('Теперь можно переписываться!'); await Promise.all([loadCrew(), loadChats(), loadState()]); }),
+  'crew-accept': (el) => run(async () => { await post(`/api/crew/${el.dataset.id}/accept`); toast('Теперь вы подельники!'); await Promise.all([loadCrew(), loadChats(), loadState(), S.dm ? loadDm() : null]); }),
   'crew-decline': (el) => run(async () => { await post(`/api/crew/${el.dataset.id}/remove`); await Promise.all([loadCrew(), loadChats(), loadState()]); }),
   'crew-remove': (el) => run(async () => {
-    if (!confirmInline('crew-remove', 'Нажми ещё раз: переписка удалится у вас обоих')) return;
+    if (!confirmInline('crew-remove', 'Нажми ещё раз: уберём из подельников, переписка удалится у вас обоих')) return;
     await post(`/api/crew/${el.dataset.id}/remove`);
-    S.dm = null; S.dmView = null; toast('Отпустили'); await loadCrew();
+    toast('Больше не подельник'); await Promise.all([loadCrew(), loadChats(), S.dm ? loadDm() : null]);
   }),
   'crew-block': (el) => run(async () => {
     if (!confirmInline('crew-block', 'Нажми ещё раз: он больше не сможет писать и звать тебя')) return;

@@ -754,3 +754,21 @@ button.quest:disabled { cursor: default; }
 .ts-beta { background: #FFC93C; color: #3B2A00; border-radius: 999px; padding: 2px 8px; font-size: 11.5px; font-weight: 900; letter-spacing: .02em; }
 .ts-nums { white-space: nowrap; }
 .logo-beta { font-style: normal; font-size: 14px; vertical-align: super; margin-left: 6px; background: #FFC93C; color: #3B2A00; border-radius: 999px; padding: 2px 9px; font-weight: 900; letter-spacing: .02em; }
+
+/* Личка: крестик, избранные подельники, закрытая переписка */
+.dm-line { display: flex; align-items: center; gap: 4px; }
+.dm-line .chat-row { flex: 1; min-width: 0; }
+.dm-line.closed .chat-row { opacity: .7; }
+.dm-x { flex: none; width: 36px; height: 36px; border-radius: 10px; border: 0; background: transparent; color: var(--muted); font-size: 22px; line-height: 1; cursor: pointer; }
+.dm-x:hover, .dm-x:focus-visible { background: #F1F3F8; color: #B42318; }
+.fav-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px; }
+.fav-strip { display: flex; gap: 10px; overflow-x: auto; padding: 6px 2px 8px; }
+.fav { flex: none; width: 64px; display: flex; flex-direction: column; align-items: center; gap: 3px; border: 0; background: none; font: inherit; font-size: 11.5px; font-weight: 800; color: var(--ink); cursor: pointer; }
+.fav > span.ellipsis { max-width: 64px; }
+.fav .ava-ring { border-width: 3px; }
+.fav-star { color: #E0A100; }
+.star-btn { flex: none; border: 2px solid #E3E8F4; background: #fff; border-radius: 999px; padding: 6px 10px; font: inherit; font-size: 12.5px; font-weight: 900; color: var(--ink); cursor: pointer; white-space: nowrap; }
+.star-btn.on { background: #FFF3C4; border-color: #FFC93C; color: #6B4A00; }
+.star-btn.wait { color: var(--muted); cursor: default; }
+.dm-shut { background: #F1F3F8; color: #3B4866; }
+.find-bar.light { background: #F4F6FB; width: 100%; margin: 0; box-shadow: none; }

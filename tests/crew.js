@@ -60,8 +60,9 @@ async function step(name, fn) {
     assert.equal((await b.get('/api/state')).json.badges.crew, 1);
     const cb = (await b.get('/api/crew')).json;
     assert.equal(cb.incoming[0].nick, 'бодрый_енот');
-    assert.equal((await a.get(`/api/crew/${b.id}`)).status, 404);
-    assert.equal((await a.post(`/api/crew/${b.id}/messages`, { type: 'text', text: 'привет' })).status, 404);
+    // Писать можно и до принятия (по умолчанию личка открыта всем), но где он — не видно: не банда и не подельник
+    const v0 = (await a.get(`/api/crew/${b.id}`)).json;
+    assert.equal(v0.friend.where, null); assert.equal(v0.crewState, 'sent'); assert.equal(v0.cantWrite, null);
   });
 
   await step('принятие: оба видят друг друга в списке', async () => {
@@ -93,7 +94,7 @@ async function step(name, fn) {
     assert.ok(view.messages[1].canReply);
     assert.equal((await b.get('/api/state')).json.badges.crew, 0);
     // Третий подельник Анны не видит чужую переписку
-    assert.equal((await c.get(`/api/crew/${b.id}`)).status, 404);
+    assert.equal((await c.get(`/api/crew/${b.id}`)).json.messages.length, 0);
     assert.equal((await c.get(`/api/crew/${a.id}`)).json.messages.length, 0);
     assert.equal((await a.get(`/api/crew/${b.id}`)).json.messages[0].read, true);
   });
@@ -123,7 +124,8 @@ async function step(name, fn) {
 
   await step('блок: дружба и переписка удаляются, повторная заявка молча не доходит', async () => {
     await b.post(`/api/crew/${a.id}/block`);
-    assert.equal((await a.get(`/api/crew/${b.id}`)).status, 404);
+    assert.equal((await a.get(`/api/crew/${b.id}`)).json.messages.length, 0);
+    assert.equal((await b.get(`/api/crew/${a.id}`)).status, 404, 'у заблокировавшего переписки нет');
     assert.equal((await a.get('/api/crew')).json.list.some((x) => x.id === b.id), false);
     const r = await a.post('/api/crew/add', { id: b.id });
     assert.equal(r.status, 200); assert.ok(r.json.pending);
@@ -139,10 +141,49 @@ async function step(name, fn) {
   await step('отпустить подельника: переписка пропадает у обоих', async () => {
     await a.post(`/api/crew/${c.id}/messages`, { type: 'text', text: 'до связи' });
     await c.post(`/api/crew/${a.id}/remove`);
-    assert.equal((await a.get(`/api/crew/${c.id}`)).status, 404);
+    assert.equal((await a.get(`/api/crew/${c.id}`)).json.messages.length, 0);
     await c.post('/api/crew/add', { id: a.id });
     await a.post(`/api/crew/${c.id}/accept`);
     assert.equal((await a.get(`/api/crew/${c.id}`)).json.messages.length, 0);
+  });
+
+  await step('кто может писать: всем, банде, никому; подельникам — всегда', async () => {
+    const e = await new Client().login('egor@mts.ru', 'тихий_омут');
+    const f = await new Client().login('fedor@mts.ru', 'громкий_гусь');
+    assert.equal((await e.post(`/api/crew/${f.id}/messages`, { type: 'text', text: 'привет, незнакомец' })).status, 200, 'по умолчанию — всем');
+    await f.post('/api/me/profile', { profile: { dmFrom: 'none' } });
+    assert.equal((await e.post(`/api/crew/${f.id}/messages`, { type: 'text', text: 'ещё раз' })).status, 200, 'начатую переписку не обрываем');
+    const g = await new Client().login('gleb@mts.ru', 'новый_кот');
+    const r = await g.post(`/api/crew/${f.id}/messages`, { type: 'text', text: 'привет' });
+    assert.equal(r.status, 400); assert.ok(/только от подельников/.test(r.json.error));
+    assert.ok((await g.get(`/api/crew/${f.id}`)).json.cantWrite);
+    assert.equal((await g.get(`/api/users/${f.id}`)).json.canDm, false);
+    await f.post('/api/me/profile', { profile: { dmFrom: 'gang' } });
+    const gg = (await f.post('/api/gangs', { name: 'Гусятник', access: 'open', switch: true })).json;
+    await g.post(`/api/gangs/${gg.id}/apply`, { switch: true });
+    assert.equal((await g.post(`/api/crew/${f.id}/messages`, { type: 'text', text: 'я из банды' })).status, 200, 'банде — можно');
+    const h = await new Client().login('hanna@mts.ru', 'добрая_лиса');
+    assert.equal((await h.post(`/api/crew/${f.id}/messages`, { type: 'text', text: 'а мне?' })).status, 400);
+    await h.post('/api/crew/add', { id: f.id }); await f.post(`/api/crew/${h.id}/accept`);
+    assert.equal((await h.post(`/api/crew/${f.id}/messages`, { type: 'text', text: 'а теперь?' })).status, 200, 'подельнику — всегда');
+    assert.ok((await f.get('/api/chats')).json.favorites.some((x) => x.id === h.id), 'подельник — в избранных');
+  });
+
+  await step('крестик: личка удаляется у обоих, у собеседника — «закрыл личку», писать нельзя, пока закрывший не напишет', async () => {
+    const e = await new Client().login('ira@mts.ru', 'быстрый_ёрш');
+    const f = await new Client().login('kira@mts.ru', 'сонная_выдра');
+    await e.post(`/api/crew/${f.id}/messages`, { type: 'text', text: 'привет' });
+    assert.equal((await f.post(`/api/dm/${e.id}/close`)).json.closed, true);
+    assert.ok(!(await f.get('/api/chats')).json.items.some((x) => x.type === 'dm' && x.id === e.id), 'у закрывшего чата нет');
+    const row = (await e.get('/api/chats')).json.items.find((x) => x.type === 'dm' && x.id === f.id);
+    assert.ok(row && row.closed && /закрыл личку/.test(row.last.text));
+    const v = (await e.get(`/api/crew/${f.id}`)).json;
+    assert.equal(v.messages.length, 0); assert.ok(v.closedByOther);
+    assert.equal((await e.post(`/api/crew/${f.id}/messages`, { type: 'text', text: 'эй' })).status, 400);
+    await e.post(`/api/dm/${f.id}/close`);
+    assert.ok(!(await e.get('/api/chats')).json.items.some((x) => x.type === 'dm' && x.id === f.id), 'уведомление убрано');
+    assert.equal((await f.post(`/api/crew/${e.id}/messages`, { type: 'text', text: 'передумала' })).status, 200);
+    assert.equal((await e.post(`/api/crew/${f.id}/messages`, { type: 'text', text: 'ура' })).status, 200, 'закрывший написал — личка снова открыта');
   });
 
   await step('удаление аккаунта стирает подельников и переписку', async () => {

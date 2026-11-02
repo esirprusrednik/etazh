@@ -1,5 +1,8 @@
-// Подельники: личные контакты один на один, отдельно от банд.
-// Дружба взаимная (заявка → принять), переписка и зовы видны только двоим.
+// Личка и подельники.
+// Писать лично можно любому, если он сам не ограничил: в профиле «Кто может писать мне» — всем, банде или никому.
+// Подельники — избранные контакты (взаимно: заявка → принять или личная ссылка). Им можно писать всегда, кроме блока.
+// Любую переписку можно закрыть крестиком: она удаляется у обоих, у собеседника остаётся «собеседник закрыл личку»,
+// и написать он не сможет, пока закрывший не напишет сам. Переписка и зовы видны только двоим.
 // Модератор видит личное сообщение, только если получатель на него пожаловался.
 // Подключается из api.js через register(ctx), как features.js.
 const { CALLS, MEMES, MEME_EMOS } = require('./catalog');
@@ -57,6 +60,14 @@ function register(ctx) {
   );
   CREATE INDEX IF NOT EXISTS dms_pair_at ON dms(lo, hi, at);
   CREATE INDEX IF NOT EXISTS dms_unread ON dms(to_id, read_at);
+
+  -- Закрытая личка: by_id закрыл переписку с other_id. dismissed — other_id убрал уведомление из списка
+  CREATE TABLE IF NOT EXISTS dm_closed (
+    by_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    other_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    at INTEGER NOT NULL, dismissed INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (by_id, other_id)
+  );
   `);
 
   const pair = (a, b) => (a < b ? [a, b] : [b, a]);
@@ -65,6 +76,21 @@ function register(ctx) {
   // Участники общей банды могут писать друг другу лично без заявки
   const shareGang = (a, b) => !!q(`SELECT 1 FROM gang_members x JOIN gang_members y ON x.gang_id = y.gang_id JOIN gangs g ON g.id = x.gang_id
                                    WHERE x.user_id = ? AND y.user_id = ? AND g.hidden = 0`).get(a, b);
+  const dmPolicy = (row) => { try { return JSON.parse(row.profile || '{}').dmFrom || 'all'; } catch { return 'all'; } };
+  const closedBy = (by, other) => !!q('SELECT 1 FROM dm_closed WHERE by_id = ? AND other_id = ?').get(by, other);
+  const hasThread = (a, b) => !!q('SELECT 1 FROM dms WHERE lo = ? AND hi = ? AND hidden = 0 LIMIT 1').get(...pair(a, b));
+  // Может ли a написать b. Возвращает null или причину отказа — её покажем вместо поля ввода
+  function writeBlock(a, b) {
+    if (closedBy(b.id, a.id)) return 'Собеседник закрыл личку. Написать получится, когда он сам напишет.';
+    if (blocked(b.id, a.id)) return null; // о блоке не говорим: сообщение «уйдёт», но не дойдёт
+    if (areCrew(a.id, b.id)) return null;
+    const pol = dmPolicy(b);
+    if (pol === 'all') return null;
+    if (pol === 'gang' && shareGang(a.id, b.id)) return null;
+    // Начатую переписку не обрываем: ограничение — только для новых
+    if (hasThread(a.id, b.id)) return null;
+    return pol === 'gang' ? `${b.nick} принимает личку только от своей банды и подельников.` : `${b.nick} принимает личку только от подельников.`;
+  }
   const canTalk = (a, b) => areCrew(a, b) || shareGang(a, b);
   const blocked = (by, who) => !!q('SELECT 1 FROM crew_blocks WHERE user_id = ? AND blocked_id = ?').get(by, who);
   const crewCount = (uid) => q("SELECT COUNT(*) AS n FROM crew WHERE (lo = ? OR hi = ?) AND status = 'ok'").get(uid, uid).n;
@@ -88,13 +114,19 @@ function register(ctx) {
 
   function friendOr404(u, id) {
     const f = userRow(Number(id));
-    if (!f || !canTalk(u.id, f.id)) throw new HttpError(404, 'Писать можно членам твоих банд.');
+    if (!f || f.id === u.id) throw new HttpError(404, 'Пользователь не найден.');
     return f;
   }
+  // Кто не в банде и не подельник, видит в шапке переписки только ник и аватар — где он, не видно
+  const headerOf = (u, f) => (canTalk(u.id, f.id) ? memberStatus(f) : { id: f.id, nick: f.nick, look: publicLook(f), where: null });
 
   // Переписку удаляем у обоих, кроме сообщений с открытой жалобой: их ещё должен увидеть модератор
-  const dropChat = (lo, hi) => q(`DELETE FROM dms WHERE lo = ? AND hi = ?
-    AND id NOT IN (SELECT object_id FROM reports WHERE object_type = 'dm' AND status = 'open')`).run(lo, hi);
+  // Оставленные для модератора помечаем hidden = 2: собеседники их больше не видят
+  const dropChat = (lo, hi) => {
+    q(`DELETE FROM dms WHERE lo = ? AND hi = ?
+      AND id NOT IN (SELECT object_id FROM reports WHERE object_type = 'dm' AND status = 'open')`).run(lo, hi);
+    q('UPDATE dms SET hidden = 2 WHERE lo = ? AND hi = ? AND hidden = 0').run(lo, hi);
+  };
 
   function preview(m) {
     if (!m) return null;
@@ -147,28 +179,53 @@ function register(ctx) {
       });
     }
     const people = myPeople(u.id);
-    // Переписки: со всеми, с кем уже есть сообщения, и со всеми подельниками
+    // Переписки: со всеми, с кем есть сообщения. Подельники — отдельной полосой «избранных»
     const threads = q(`SELECT CASE WHEN lo = ? THEN hi ELSE lo END AS other, MAX(at) AS at FROM dms WHERE (lo = ? OR hi = ?) AND hidden = 0 GROUP BY other`).all(u.id, u.id, u.id);
-    const ids = new Set(threads.map((t) => t.other));
-    for (const [id, p] of people) if (p.crew) ids.add(id);
-    for (const id of ids) {
-      const p = people.get(id);
-      if (!p) continue; // писать можно только своим людям
-      const [lo, hi] = pair(u.id, id);
+    for (const t of threads) {
+      const row = userRow(t.other);
+      if (!row || blocked(u.id, row.id)) continue;
+      const p = people.get(row.id);
+      const [lo, hi] = pair(u.id, row.id);
       const last = q('SELECT * FROM dms WHERE lo = ? AND hi = ? AND hidden = 0 ORDER BY at DESC LIMIT 1').get(lo, hi);
       const un = q('SELECT COUNT(*) AS n FROM dms WHERE lo = ? AND hi = ? AND to_id = ? AND read_at IS NULL AND hidden = 0').get(lo, hi, u.id).n;
-      const st = memberStatus(p.row);
+      const st = headerOf(u, row);
       items.push({
-        type: 'dm', id, nick: st.nick, look: st.look, where: st.where, office: st.office, until: st.until, crew: p.crew,
+        type: 'dm', id: row.id, nick: st.nick, look: st.look, where: st.where, office: st.office, until: st.until, crew: !!(p && p.crew),
         unread: un, lastAt: last ? last.at : 0, lastTime: last ? U.msk(last.at).hhmm : null,
         last: last ? { mine: last.from_id === u.id, text: preview(last) } : null
       });
     }
+    // Кто закрыл со мной личку — показываем строкой «собеседник закрыл личку», пока я её не уберу
+    for (const c of q('SELECT * FROM dm_closed WHERE other_id = ? AND dismissed = 0').all(u.id)) {
+      const row = userRow(c.by_id);
+      if (!row || items.some((x) => x.type === 'dm' && x.id === row.id)) continue;
+      items.push({ type: 'dm', id: row.id, nick: row.nick, look: publicLook(row), where: null, closed: true, crew: areCrew(u.id, row.id), unread: 0, lastAt: c.at, lastTime: U.msk(c.at).hhmm, last: { mine: false, text: 'Собеседник закрыл личку' } });
+    }
+    const favorites = [...people.values()].filter((p) => p.crew).map((p) => {
+      const st = memberStatus(p.row);
+      return { id: st.id, nick: st.nick, look: st.look, where: st.where, office: st.office, until: st.until };
+    }).sort((a, b) => a.nick.localeCompare(b.nick, 'ru'));
     items.sort((a, b) => (b.unread || 0) - (a.unread || 0) || b.lastAt - a.lastAt);
     const requests = q(`SELECT u.id, u.nick, u.look, u.profile, u.share_office FROM crew c JOIN users u ON u.id = c.from_id
                         WHERE (c.lo = ? OR c.hi = ?) AND c.status = 'pending' AND c.from_id != ?`).all(u.id, u.id, u.id)
       .filter((r) => !blocked(u.id, r.id)).map((r) => ({ id: r.id, nick: r.nick, look: publicLook(r) }));
-    return { items, requests };
+    return { items, requests, favorites, dmFrom: dmPolicy(q('SELECT profile FROM users WHERE id = ?').get(u.id)) };
+  });
+
+  // Закрыть личку крестиком: переписка удаляется у обоих, собеседник видит, что её закрыли.
+  // Если личку уже закрыл собеседник — крестик просто убирает уведомление из списка
+  route('POST', '/api/dm/:id/close', async (req, body, query, params) => {
+    const u = requireUser(req);
+    const other = Number(params.id);
+    if (closedBy(other, u.id)) {
+      q('UPDATE dm_closed SET dismissed = 1 WHERE by_id = ? AND other_id = ?').run(other, u.id);
+      return { ok: true, dismissed: true };
+    }
+    if (!userRow(other)) throw bad('Пользователь не найден.');
+    const [lo, hi] = pair(u.id, other);
+    dropChat(lo, hi);
+    q('INSERT OR REPLACE INTO dm_closed (by_id, other_id, at, dismissed) VALUES (?, ?, ?, 0)').run(u.id, other, U.now());
+    return { ok: true, closed: true };
   });
 
   // ---------- Список, заявки, ссылка ----------
@@ -306,13 +363,18 @@ function register(ctx) {
   route('GET', '/api/crew/:id', async (req, body, query, params) => {
     const u = requireUser(req);
     const f = friendOr404(u, params.id);
+    if (blocked(u.id, f.id)) throw new HttpError(404, 'Этот человек у тебя в блоке.');
     const [lo, hi] = pair(u.id, f.id);
+    const crewLink = link(u.id, f.id);
     const msgs = q('SELECT * FROM dms WHERE lo = ? AND hi = ? AND hidden = 0 AND at > ? ORDER BY at ASC LIMIT 300')
       .all(lo, hi, U.now() - DM_TTL_DAYS * 864e5);
     q('UPDATE dms SET read_at = ? WHERE lo = ? AND hi = ? AND to_id = ? AND read_at IS NULL').run(U.now(), lo, hi, u.id);
     const today = U.msk().day;
     return {
-      friend: memberStatus(f),
+      friend: { ...headerOf(u, f), crew: !!crewLink && crewLink.status === 'ok' },
+      crewState: !crewLink ? 'none' : crewLink.status === 'ok' ? 'ok' : crewLink.from_id === u.id ? 'sent' : 'incoming',
+      closedByOther: closedBy(f.id, u.id), closedByMe: closedBy(u.id, f.id),
+      cantWrite: writeBlock(u, f),
       ttlDays: DM_TTL_DAYS,
       calls: DM_CALLS,
       messages: msgs.map((m) => {
@@ -334,8 +396,13 @@ function register(ctx) {
   route('POST', '/api/crew/:id/messages', async (req, body, query, params) => {
     const u = requireUser(req);
     const f = friendOr404(u, params.id);
+    if (blocked(u.id, f.id)) throw bad('Этот человек у тебя в блоке. Сначала разблокируй его.');
+    const why = writeBlock(u, f);
+    if (why) throw bad(why);
     if (blocked(f.id, u.id)) throw bad('Сообщение не доставлено.');
     rateLimit('dm:' + u.id, 30, 60e3);
+    // Сам закрыл личку и пишешь снова — значит, открыл её обратно
+    q('DELETE FROM dm_closed WHERE by_id = ? AND other_id = ?').run(u.id, f.id);
     const [lo, hi] = pair(u.id, f.id);
     const ins = q('INSERT INTO dms (lo, hi, from_id, to_id, type, kind, opt, text, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
     if (body.type === 'text') {
@@ -382,7 +449,7 @@ function register(ctx) {
   route('POST', '/api/dm/:id/reply', async (req, body, query, params) => {
     const u = requireUser(req);
     const m = q("SELECT * FROM dms WHERE id = ? AND type = 'call' AND hidden = 0").get(Number(params.id));
-    if (!m || m.to_id !== u.id || !areCrew(m.from_id, u.id)) throw bad('Зов не найден.');
+    if (!m || m.to_id !== u.id || closedBy(m.from_id, u.id) || blocked(m.from_id, u.id)) throw bad('Зов не найден.');
     if (m.reply) throw bad(U.g(u.look, 'Ты уже ответил.', 'Ты уже ответила.'));
     const def = CALLS[m.kind];
     if (!def || !def.replies.includes(body.label)) throw bad('Неизвестный ответ.');
@@ -399,7 +466,7 @@ function register(ctx) {
     q("DELETE FROM crew WHERE status = 'pending' AND at < ?").run(t - PENDING_TTL_DAYS * 864e5);
   }
 
-  return { unread, cleanup, codeOf };
+  return { unread, cleanup, codeOf, canDm: (u, t) => !blocked(u.id, t.id) && !writeBlock(u, t) };
 }
 
 module.exports = { register, DM_TTL_DAYS };

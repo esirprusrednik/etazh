@@ -95,7 +95,7 @@ const DEFAULT_LOOK = { preset: 'm', face: 'oval', eyes: '#22252D', mouth: 'smile
 // plan — где обычно работаю по дням недели: { Пн: 'office' | 'home' }
 // today — ручной статус на сегодня: { kind: 'home' | 'vacation', day: 'YYYY-MM-DD' }
 // vacations — график отпусков: [{ from: 'YYYY-MM-DD', to: 'YYYY-MM-DD' }]
-const DEFAULT_PROFILE = { coffee: false, mood: 'coffee', home: null, days: [], plan: {}, today: null, vacations: [], about: '', tags: [], bday: '', showBday: true, firstName: '', lastName: '', nameVis: 'gang', vacationLook: null, findable: true };
+const DEFAULT_PROFILE = { coffee: false, mood: 'coffee', home: null, days: [], plan: {}, today: null, vacations: [], about: '', tags: [], bday: '', showBday: true, firstName: '', lastName: '', nameVis: 'gang', vacationLook: null, findable: true, dmFrom: 'all' };
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const addDays = (day, n) => new Date(Date.parse(day + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
 // День плана недели для рабочего дня; null — выходной или праздник по производственному календарю
@@ -599,6 +599,7 @@ function createApi(db) {
       if (p.nameVis !== undefined) { if (!['all', 'gang', 'hidden'].includes(p.nameVis)) throw bad('Неизвестная видимость.'); prof.nameVis = p.nameVis; }
       if (p.coffee !== undefined) prof.coffee = !!p.coffee;
       if (p.findable !== undefined) prof.findable = !!p.findable;
+      if (['all', 'gang', 'none'].includes(p.dmFrom)) prof.dmFrom = p.dmFrom;
     }
     const share = body.shareOffice === undefined ? u.share_office : body.shareOffice ? 1 : 0;
     const quiet = body.quiet === undefined ? u.quiet : body.quiet ? 1 : 0;
@@ -1055,7 +1056,7 @@ function createApi(db) {
     const close = me || sharedGangs.length > 0 || crewMate;
     const prof = readProfile(t.profile);
     const look = { ...DEFAULT_LOOK, ...JSON.parse(t.look || '{}') };
-    const card = { id: t.id, nick: t.nick, me, look, status: statusName(look.status), full: close || coffeeMate };
+    const card = { id: t.id, nick: t.nick, me, look, status: statusName(look.status), full: close || coffeeMate, canDm: !me && crew ? crew.canDm(u, t) : false };
     if (!card.full) return card;
     const st = memberStatus(t);
     return {
@@ -1340,7 +1341,7 @@ function createApi(db) {
                        FROM reports WHERE status = 'open' GROUP BY object_type, object_id ORDER BY last DESC LIMIT 100`).all();
     const preview = (r) => {
       if (r.object_type === 'gang') { const g = q('SELECT name, motto, hidden FROM gangs WHERE id = ?').get(r.object_id); return g ? { text: `${g.name}${g.motto ? ' — «' + g.motto + '»' : ''}`, hidden: !!g.hidden } : null; }
-      if (r.object_type === 'dm') { const m = q('SELECT text, kind, opt, hidden FROM dms WHERE id = ?').get(r.object_id); return m ? { text: `[личное] ${m.text || `${m.kind} ${m.opt || ''}`}`, hidden: !!m.hidden } : null; }
+      if (r.object_type === 'dm') { const m = q('SELECT text, kind, opt, hidden FROM dms WHERE id = ?').get(r.object_id); return m ? { text: `[личное] ${m.text || `${m.kind} ${m.opt || ''}`}`, hidden: m.hidden === 1 } : null; }
       if (r.object_type === 'message') { const m = q('SELECT text, opt, kind, hidden FROM messages WHERE id = ?').get(r.object_id); return m ? { text: m.text || `${m.kind} ${m.opt || ''}`, hidden: !!m.hidden } : null; }
       const s = q('SELECT type, zone, comment, hidden FROM signals WHERE id = ?').get(r.object_id);
       return s ? { text: `${s.type} ${s.zone || ''} ${s.comment || ''}`, hidden: !!s.hidden } : null;
