@@ -46,6 +46,7 @@ const SHOP = [
   { id: 'p_laptop', kind: 'part', slot: 'prop', value: 'laptop', name: 'Ноутбук в наклейках', price: 40 },
   { id: 'p_mug_best', kind: 'part', slot: 'prop', value: 'mug_best', name: 'Кружка «Лучший сотрудник»', price: 60 },
   { id: 'p_tie_gold', kind: 'part', slot: 'neck', value: 'tie_gold', name: 'Золотой галстук начальника', price: 50 },
+  { id: 'p_snake', kind: 'part', slot: 'neck', value: 'snake', name: 'Змея на шее', price: 80 },
   { id: 'g_gold', kind: 'gang', name: 'Позолоченное знамя', price: 100 },
   { id: 'g_motto', kind: 'gang', name: 'Девиз банды', price: 40 }
 ];
@@ -84,7 +85,7 @@ const MEMES = [
   { id: 'thanks', caption: 'Спасибо, что ты есть в банде', bg: ['#FF6FA8', '#9D174D'] }
 ];
 const MEME_EMOS = {
-  joy: { label: 'Радость', mouth: 'grin', eyeShape: 'happy' },
+  joy: { label: 'Радость', mouth: 'grin', eyeShape: 'normal' },
   tired: { label: 'Устал', mouth: 'neutral', eyeShape: 'tired' },
   shock: { label: 'Шок', mouth: 'wow', eyeShape: 'wide' },
   sly: { label: 'Хитрость', mouth: 'smirk', eyeShape: 'sly' },

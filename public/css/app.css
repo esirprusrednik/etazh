@@ -655,3 +655,13 @@ button.quest:disabled { cursor: default; }
 .bl-opt.dim { opacity: .45; }
 @media (prefers-reduced-motion: reduce) { .bl-time.hot { animation: none; } }
 .swatch.same { background: repeating-linear-gradient(45deg, #fff 0 4px, #EEF1F7 4px 8px); color: var(--ink); font-weight: 900; font-size: 16px; display: grid; place-items: center; }
+
+/* Заставка с приветствием */
+.splash { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; text-align: center; cursor: pointer; }
+.splash .logo { font-size: 52px; animation: sp-in .5s ease both; }
+.splash-ava { animation: sp-pop .6s .15s cubic-bezier(.2,1.4,.4,1) both; }
+.splash-hi { font-size: 24px; font-weight: 900; line-height: 1.25; margin: 6px 0 0; max-width: 340px; animation: sp-in .5s .35s ease both; }
+.splash-day { font-size: 14px; color: #AEB8D6; font-weight: 700; margin: 0; animation: sp-in .5s .5s ease both; }
+@keyframes sp-in { from { opacity: 0; transform: translateY(10px); } }
+@keyframes sp-pop { from { opacity: 0; transform: scale(.6); } }
+@media (prefers-reduced-motion: reduce) { .splash *, .splash { animation: none !important; } }

@@ -64,7 +64,7 @@ const FACE_P = {
 };
 function faceGeo(type, sex) {
   const p = { ...(FACE_P[type] || FACE_P.oval) };
-  if (sex === 'f') { p.W -= 0.5; p.C = p.W + 0.8; p.J = Math.max(9, p.J - 2.2); p.K = Math.max(3, p.K - 1.8); p.bot -= 1; p.yj = 56.5; }
+  if (sex === 'f') { p.C = p.W + 0.3; p.J = Math.max(10.5, p.J - 1.2); p.K = Math.max(4, p.K - 0.6); p.bot -= 0.6; p.yj = 57.4; }
   else { p.C = p.W; p.J = Math.min(p.W - 0.6, p.J + 2.2); p.K += 3; p.bot += 0.5; p.yj = 57; }
   const { W, C, J, K, top, bot, yj } = p, y1 = 41;
   const head = `M${50 - W} ${y1} C${50 - W} ${top + 5} ${50 - W * 0.6} ${top} 50 ${top} C${50 + W * 0.6} ${top} ${50 + W} ${top + 5} ${50 + W} ${y1}`;
@@ -76,67 +76,107 @@ function faceGeo(type, sex) {
       + ` L${50 - J} ${yj} C${50 - J - 0.4} ${yj - 6} ${50 - W - 0.2} ${y1 + 8} ${50 - W} ${y1} Z`;
   return { ...p, d };
 }
-const FRINGE = 'M30 46 Q28 21 50 21 Q72 21 70 46 Q66 31 50 32 Q36 32 30 46 Z';
-const HAIR_BACK = {
-  long: (h) => `<path d="M28 48 Q26 20 50 19 Q74 20 72 48 L76 86 Q50 94 24 86 Z" fill="${h}"/>`,
-  tail: (h) => `<ellipse cx="73" cy="50" rx="7" ry="16" fill="${h}"/>`,
-  bob: (h) => `<path d="M27 50 Q25 20 50 19.5 Q75 20 73 50 L74 64 Q68 67 63 62 L37 62 Q32 67 26 64 Z" fill="${h}"/>`,
-  afro: (h) => `<g fill="${h}"><circle cx="50" cy="36" r="24"/>${[[28, 30], [33, 18], [44, 11], [56, 11], [67, 18], [72, 30], [74, 43], [26, 43]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="10"/>`).join('')}</g>`,
-  bun: (h) => `<circle cx="50" cy="16" r="8.5" fill="${h}"/>`
-};
-const HAIR_FRONT = {
-  short: (h) => `<path d="${FRINGE}" fill="${h}"/>`,
-  long: (h) => `<path d="${FRINGE}" fill="${h}"/>`,
-  tail: (h) => `<path d="${FRINGE}" fill="${h}"/>`,
-  bun: (h) => `<path d="M30 44 Q29 22 50 22 Q71 22 70 44 Q64 29 50 29 Q36 29 30 44 Z" fill="${h}"/>`,
-  curly: (h) => `<circle cx="33" cy="38" r="8" fill="${h}"/><circle cx="40" cy="29" r="8" fill="${h}"/><circle cx="50" cy="25" r="8.5" fill="${h}"/><circle cx="60" cy="29" r="8" fill="${h}"/><circle cx="67" cy="38" r="8" fill="${h}"/>`,
-  bob: (h) => `<path d="M29 46 Q28 21 50 21 Q72 21 71 46 L67 37 Q50 41 33 37 Z" fill="${h}"/>`,
-  side: (h) => `<path d="M30 47 Q26 20 53 20 Q74 21 70 44 Q61 28 43 34 Q35 37 30 47 Z" fill="${h}"/>`,
-  mohawk: (h) => `<path d="M44.5 33 Q43 13 50 6 Q57 13 55.5 33 Z" fill="${h}"/>`,
-  afro: (h) => `<path d="M29 42 Q29 22 50 22 Q71 22 71 42 Q63 31 50 32 Q37 31 29 42 Z" fill="${h}"/>`,
-  bald: () => '<path d="M41 29 Q47 26 52 27" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="2.4" stroke-linecap="round"/>'
-};
 // Затемнить или осветлить цвет #RRGGBB (k < 0 — темнее)
 function shade(hex, k) {
   const n = parseInt(String(hex).slice(1), 16);
   const f = (c) => Math.max(0, Math.min(255, Math.round(k < 0 ? c * (1 + k) : c + (255 - c) * k)));
   return '#' + [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => f(c).toString(16).padStart(2, '0')).join('');
 }
-// Рот: ink — цвет губ (тёмный по умолчанию, помада — цветная), w — толщина
+// Причёски. Каждая — задняя часть (за головой и плечами) и передняя (чёлка, пряди у лица).
+// Рисуются под лицо шириной 19.5 и масштабируются по ширине выбранного лица.
+// Пряди у лица (locks) закрывают уши и обрамляют лицо — так женские причёски не выглядят «шлемом».
+const hd = (h) => shade(h, -0.22), hl = (h) => shade(h, 0.28);
+const locks = (h, y = 62, w = 4) => `<path d="M31.5 36 Q26.6 47 28.6 ${y} Q30.4 ${y + 1.6} ${28.6 + w} ${y - 1.4} Q30.6 49 34.4 38 Z M68.5 36 Q73.4 47 71.4 ${y} Q69.6 ${y + 1.6} ${71.4 - w} ${y - 1.4} Q69.4 49 65.6 38 Z" fill="${h}"/>`
+  + `<path d="M30.8 42 Q29.4 50 30.2 ${y - 3} M69.2 42 Q70.6 50 69.8 ${y - 3}" fill="none" stroke="${hd(h)}" stroke-width=".8" stroke-linecap="round" opacity=".7"/>`;
+const strands = (h, d) => `<path d="${d}" fill="none" stroke="${hd(h)}" stroke-width=".9" stroke-linecap="round" opacity=".75"/>`;
+const shineOn = (h, d) => `<path d="${d}" fill="none" stroke="${hl(h)}" stroke-width="1.8" stroke-linecap="round" opacity=".55"/>`;
+const CROWN = 'M30.5 42 Q29.6 22 50 20.5 Q70.4 22 69.5 42';
+const HAIR_BACK = {
+  long: (h) => `<path d="M27.4 46 Q25.4 19.6 50 18.6 Q74.6 19.6 72.6 46 L75.4 88 Q50 95 24.6 88 Z" fill="${h}"/>${strands(h, 'M30 60 L28.6 84 M70 60 L71.4 84')}`,
+  waves: (h) => `<path d="M27 46 Q24.6 19.4 50 18.4 Q75.4 19.4 73 46 Q77.4 56 73.2 64 Q78 72 74.4 82 L76 92 Q50 99 24 92 L25.6 82 Q22 72 26.8 64 Q22.6 56 27 46 Z" fill="${h}"/>${strands(h, 'M27 64 Q30 70 27 78 M73 64 Q70 70 73 78')}`,
+  bangs: (h) => `<path d="M27.4 46 Q25.4 19.6 50 18.6 Q74.6 19.6 72.6 46 L75 86 Q50 93 25 86 Z" fill="${h}"/>`,
+  lob: (h) => `<path d="M27.4 46 Q25.4 19.6 50 18.6 Q74.6 19.6 72.6 46 L74.6 70 Q68 74.6 62.6 70.4 L37.4 70.4 Q32 74.6 25.4 70 Z" fill="${h}"/>`,
+  bob: (h) => `<path d="M27 48 Q25 20 50 19.5 Q75 20 73 48 L74 63 Q68 66.4 63 62 L37 62 Q32 66.4 26 63 Z" fill="${h}"/>`,
+  tail: (h) => `<path d="M66 30 Q80 30 78 46 Q77 58 72 66 Q74 54 71 44 Q69 36 64 34 Z" fill="${h}"/><rect x="64.6" y="29.6" width="4" height="4.4" rx="1.4" fill="#E5484D" transform="rotate(20 66.6 31.8)"/>`,
+  ponytail: (h) => `<path d="M58 17.6 Q74 10 81 22 Q86 34 79 50 Q81 36 75 28 Q70 22 60 22 Z" fill="${h}"/>${strands(h, 'M70 18 Q78 24 79 36')}<ellipse cx="60" cy="18.8" rx="2.6" ry="2" fill="#7C4DFF"/>`,
+  braid: (h) => `<g fill="${h}" stroke="${hd(h)}" stroke-width=".7">${[[67, 50], [68.4, 56], [69.4, 62], [70, 68], [70.4, 74], [70.6, 80]].map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="4" ry="3.6"/>`).join('')}</g><path d="M68.6 84 L72.6 84 L71.4 89 L69.6 89 Z" fill="${h}"/><rect x="68.4" y="82.6" width="4.6" height="2" rx="1" fill="#FF6FA8"/>`,
+  buns: (h) => `<circle cx="34.6" cy="19" r="7.4" fill="${h}"/><circle cx="65.4" cy="19" r="7.4" fill="${h}"/>${strands(h, 'M30 17 Q34 13 38 16 M62 16 Q66 13 70 17')}`,
+  bun: (h) => `<circle cx="50" cy="15.4" r="8.4" fill="${h}"/>${strands(h, 'M44 14 Q50 9 56 14')}`,
+  manbun: (h) => `<circle cx="50" cy="16.6" r="6" fill="${h}"/>${strands(h, 'M46 15.6 Q50 12 54 15.6')}`,
+  afro: (h) => `<g fill="${h}"><circle cx="50" cy="36" r="24"/>${[[28, 30], [33, 18], [44, 11], [56, 11], [67, 18], [72, 30], [74, 43], [26, 43]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="10"/>`).join('')}</g>`
+};
+const HAIR_FRONT = {
+  short: (h) => `<path d="M30.4 44 Q28.6 23.6 41 20.8 Q50 18.4 59 20.8 Q71.4 23.6 69.6 44 Q68.6 35 64 32 Q57 28.6 50 30.4 Q42.6 28.6 36.4 32 Q31.6 35.4 30.4 44 Z" fill="${h}"/>${strands(h, 'M42 22 Q45 26 44 30 M52 20.4 Q55 24 56 29')}${shineOn(h, 'M38 25 Q44 21.6 51 22')}`,
+  undercut: (h) => `<path d="M30.4 44 Q29.6 33 33 31 L34.6 40.4 Z M69.6 44 Q70.4 33 67 31 L65.4 40.4 Z" fill="${h}" opacity=".45"/><path d="M32.6 33.6 Q31.4 17.6 50 15.6 Q67 15.4 69.6 26.6 Q70.6 31.6 66.6 33.4 Q61 25.6 51 27.6 Q41 28.6 32.6 33.6 Z" fill="${h}"/>${strands(h, 'M40 20 Q50 18 60 21 M38 25 Q50 22 63 25')}${shineOn(h, 'M42 19.6 Q50 17.6 57 18.6')}`,
+  quiff: (h) => `<path d="M30.4 45 Q29.4 34 33 31 L35 41 Z M69.6 45 Q70.6 34 67 31 L65 41 Z" fill="${h}" opacity=".55"/><path d="M32 35.6 Q29.6 22 39.6 16.6 Q47.6 8.6 60 12.6 Q70.6 16.6 69 30 Q66 25.6 60 25.6 Q52 22.6 46 26.6 Q38 27.6 32 35.6 Z" fill="${h}"/>${strands(h, 'M42 15 Q52 10 62 14 M38 22 Q50 15 64 19')}${shineOn(h, 'M44 13.6 Q52 10.6 58 12.6')}`,
+  buzz: (h) => `<path d="M30.6 41 Q30 22.4 50 21.6 Q70 22.4 69.4 41 Q66.4 30.4 50 29.2 Q33.6 30.4 30.6 41 Z" fill="${h}" opacity=".62"/>`,
+  slick: (h) => `<path d="M30.2 42 Q29 21.6 50 19.6 Q71 21.6 69.8 42 Q68 30 62 27 Q55.4 24.6 50 25.6 Q44.6 24.6 38 27 Q32 30 30.2 42 Z" fill="${h}"/>${strands(h, 'M36 28 Q42 22 52 21.4 M40 30 Q48 25 60 24.4 M60 22 Q66 24 68 30')}${shineOn(h, 'M40 23.4 Q48 20.4 57 21.4')}`,
+  crop: (h) => `<path d="M30.4 42 Q29.4 21.6 50 20.4 Q70.6 21.6 69.6 42 Q68.4 36.4 66.4 35.2 L64 35 L61 36.6 L58 35 L55 36.6 L52 35 L49 36.6 L46 35 L43 36.6 L40 35 L37 36.6 L34 35.2 Q31.6 36.4 30.4 42 Z" fill="${h}"/>${strands(h, 'M40 24 L41 34 M48 23 L48.6 34 M56 23.4 L56 34 M62 25 L61 34')}`,
+  manbun: (h) => `<path d="M30.4 42 Q29.6 22 50 20.6 Q70.4 22 69.6 42 Q67 30.4 50 28.6 Q33 30.4 30.4 42 Z" fill="${h}"/>${strands(h, 'M36 30 Q44 23 50 21.6 M64 30 Q56 23 50 21.6')}`,
+  side: (h) => `<path d="M30 47 Q26 20 53 20 Q74 21 70 44 Q61 28 43 34 Q35 37 30 47 Z" fill="${h}"/>${strands(h, 'M44 22 Q56 22 64 30')}${shineOn(h, 'M38 26 Q46 21.6 55 22')}`,
+  mohawk: (h) => `<path d="M30.6 42 Q30 23 50 22 Q70 23 69.4 42 Q66 31 50 30 Q34 31 30.6 42 Z" fill="${h}" opacity=".35"/><path d="M44.5 33 Q43 13 50 6 Q57 13 55.5 33 Z" fill="${h}"/>`,
+  // Женские: пробор и пряди, обрамляющие лицо
+  long: (h) => `<path d="M30.2 46 Q28 21.6 50 20 Q72 21.6 69.8 46 Q67.4 32 56.6 29 Q52.4 28 50 31.4 Q47.6 28 43.4 29 Q32.6 32 30.2 46 Z" fill="${h}"/>${locks(h, 64)}${shineOn(h, 'M37 27 Q42 23 48 22.6')}`,
+  waves: (h) => `<path d="M30.6 49 Q27.6 21.6 52 19.8 Q73 20.6 70 46 Q66.4 31 56 29.6 Q46 29.6 40 33.6 Q34 38 32.8 48 Z" fill="${h}"/><path d="M30.2 41 Q25.8 52 30.6 60 Q27.6 68 32.6 75 L35.6 73 Q32.6 66 35 58.6 Q31.6 51 34 41 Z M69.8 41 Q74.2 52 69.4 60 Q72.4 68 67.4 75 L64.4 73 Q67.4 66 65 58.6 Q68.4 51 66 41 Z" fill="${h}"/>${shineOn(h, 'M40 26 Q48 21.6 58 23')}`,
+  bangs: (h) => `<path d="M30.2 46 Q28.4 21 50 19.8 Q71.6 21 69.8 46 L68 41.6 Q59 43.8 50 43 Q41 43.8 32 41.6 Z" fill="${h}"/>${strands(h, 'M38 34 L37 41 M44 33 L43.6 42.4 M50 33 L50 42.6 M56 33 L56.4 42.4 M62 34 L63 41')}${locks(h, 60, 3.6)}`,
+  lob: (h) => `<path d="M30.2 46 Q28 21.6 50 20 Q72 21.6 69.8 46 Q67.4 32 56.6 29 Q52.4 28 50 31.4 Q47.6 28 43.4 29 Q32.6 32 30.2 46 Z" fill="${h}"/>${locks(h, 66, 4.6)}`,
+  bob: (h) => `<path d="M29 46 Q28 21 50 21 Q72 21 71 46 L67.4 37 Q61 35.4 57 30.6 Q50 37.4 33 37 Z" fill="${h}"/>${locks(h, 60, 4)}${shineOn(h, 'M36 27 Q42 23 49 22.6')}`,
+  pixie: (h) => `<path d="M30 46 Q27 21.6 50 19.4 Q73 21 71 44 Q68 33 60 32 Q52 33 44 37.6 Q38 41 33.4 42 Q31 44 30 46 Z" fill="${h}"/><path d="M30.4 44 Q29 50 31.6 54 L33.4 45 Z M69.6 44 Q71 50 68.4 54 L66.6 45 Z" fill="${h}"/>${strands(h, 'M44 22 Q58 22 66 32 M40 30 Q50 26 58 30')}${shineOn(h, 'M40 24 Q48 20.6 56 21.6')}`,
+  ponytail: (h) => `<path d="M30.6 42 Q30 22 50 20.6 Q70 22 69.4 42 Q66 30.6 50 29 Q34 30.6 30.6 42 Z" fill="${h}"/>${strands(h, 'M36 32 Q44 24 56 22 M42 31 Q50 25 62 25')}${shineOn(h, 'M40 25 Q47 21.6 55 22')}`,
+  braid: (h) => `<path d="M30.2 46 Q28 21.6 50 20 Q72 21.6 69.8 46 Q66 32 54 29.6 Q42 30.4 34 36 Q31 40 30.2 46 Z" fill="${h}"/><path d="M68.5 36 Q72 42 68 50 L65 48 Q68 42 65.6 38 Z" fill="${h}"/>${strands(h, 'M40 24 Q54 22 64 30')}`,
+  buns: (h) => `<path d="M30.4 44 Q28.6 21.6 50 20.6 Q71.4 21.6 69.6 44 Q67 31 55 29.4 Q51.6 29.4 50 32 Q48.4 29.4 45 29.4 Q33 31 30.4 44 Z" fill="${h}"/>${locks(h, 52, 2.6)}`,
+  tail: (h) => `<path d="M30.4 44 Q28.6 23.6 41 20.8 Q50 18.4 59 20.8 Q71.4 23.6 69.6 44 Q67 32 55 29.6 Q43 30 30.4 44 Z" fill="${h}"/>${strands(h, 'M40 24 Q52 21.4 62 27')}`,
+  bun: (h) => `<path d="M30.4 43 Q29 22.4 50 21.4 Q71 22.4 69.6 43 Q66.4 30 50 28.6 Q33.6 30 30.4 43 Z" fill="${h}"/>${strands(h, 'M36 31 Q44 24 50 22.6 M64 31 Q56 24 50 22.6')}`,
+  curly: (h) => `<g fill="${h}"><circle cx="33" cy="38" r="8"/><circle cx="40" cy="29" r="8"/><circle cx="50" cy="25" r="8.5"/><circle cx="60" cy="29" r="8"/><circle cx="67" cy="38" r="8"/></g><g fill="none" stroke="${hd(h)}" stroke-width=".9" opacity=".7"><circle cx="40" cy="29" r="3.4"/><circle cx="60" cy="29" r="3.4"/><circle cx="50" cy="24" r="3.6"/></g>`,
+  afro: (h) => `<path d="M29 42 Q29 22 50 22 Q71 22 71 42 Q63 31 50 32 Q37 31 29 42 Z" fill="${h}"/>`,
+  bald: () => '<path d="M41 29 Q47 26 52 27" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="2.4" stroke-linecap="round"/>'
+};
+// Порядок в конструкторе: сначала то, что носят «М» или «Ж», но доступны все
+const HAIR_ORDER = {
+  m: ['short', 'undercut', 'quiff', 'crop', 'slick', 'buzz', 'side', 'curly', 'manbun', 'mohawk', 'afro', 'bald', 'tail', 'long', 'bob', 'pixie'],
+  f: ['long', 'waves', 'bangs', 'lob', 'bob', 'pixie', 'ponytail', 'braid', 'buns', 'bun', 'tail', 'curly', 'afro', 'side', 'short', 'buzz']
+};
+// Какие причёски прячутся под шапкой целиком (макушка), а какие торчат из-под неё прядями
+const HAIR_TALL = ['bun', 'afro', 'manbun', 'buns', 'ponytail', 'quiff', 'mohawk'];
+const HAIR_LONG = ['long', 'waves', 'bangs', 'lob', 'bob', 'braid', 'curly', 'afro'];
+// Рот — нарисованные губы, без «смайликовых» линий. lip — цвет губ, line — линия смыкания
+const lipsPath = (yl, yr, mid, low, top = 0.9) => `M44 ${yl} Q46.6 ${mid - top - 0.6} 48.6 ${mid - top} Q50 ${mid - top + 0.5} 51.4 ${mid - top} Q53.4 ${mid - top - 0.6} 56 ${yr} Q53.6 ${low} 50 ${low} Q46.4 ${low} 44 ${yl} Z`;
 const MOUTHS = {
-  smile: (ink, w) => `<path d="M44.5 56 Q50 61.5 55.5 56" fill="none" stroke="${ink}" stroke-width="${w}" stroke-linecap="round"/>`,
-  grin: (ink) => `<path d="M43.8 55.3 Q50 64 56.2 55.3 Z" fill="#5A1F24" stroke="${ink}" stroke-width="1.4" stroke-linejoin="round"/><path d="M45 55.6 L55 55.6 L54.3 57.4 L45.7 57.4 Z" fill="#fff"/><path d="M47 60 Q50 61.6 53 60 Q50 59 47 60 Z" fill="#E86B7A"/>`,
-  smirk: (ink, w) => `<path d="M45 57.6 Q51 59.4 56 54.6" fill="none" stroke="${ink}" stroke-width="${w}" stroke-linecap="round"/>`,
-  neutral: (ink, w) => `<path d="M45.5 57 L54.5 57" stroke="${ink}" stroke-width="${w}" stroke-linecap="round"/>`,
-  sad: (ink, w) => `<path d="M45 59.4 Q50 54.8 55 59.4" fill="none" stroke="${ink}" stroke-width="${w}" stroke-linecap="round"/>`,
-  wow: (ink) => `<ellipse cx="50" cy="57.5" rx="3" ry="3.6" fill="#5A1F24" stroke="${ink}" stroke-width="1.2"/>`
+  smile: (lip, line) => `<path d="${lipsPath(55.4, 55.4, 56.4, 60.4)}" fill="${lip}"/><path d="M44 55.4 Q50 59 56 55.4" fill="none" stroke="${line}" stroke-width="1.1" stroke-linecap="round"/><path d="M47.6 58.8 Q50 59.6 52.4 58.8" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width=".8" stroke-linecap="round"/>`,
+  grin: (lip) => `<path d="M43.6 55 Q50 54.4 56.4 55 Q55.2 63.4 50 63.6 Q44.8 63.4 43.6 55 Z" fill="#6A2430" stroke="${lip}" stroke-width="1.6" stroke-linejoin="round"/><path d="M44.8 55.6 Q50 55.2 55.2 55.6 L54.6 57.6 Q50 58 45.4 57.6 Z" fill="#fff"/><path d="M47 61.2 Q50 59.6 53 61.2 Q50 62.6 47 61.2 Z" fill="#E86B7A"/>`,
+  smirk: (lip, line) => `<path d="${lipsPath(57.4, 54.6, 56.6, 59.8)}" fill="${lip}"/><path d="M44 57.4 Q50 58.4 56 54.6" fill="none" stroke="${line}" stroke-width="1.1" stroke-linecap="round"/>`,
+  neutral: (lip, line) => `<path d="${lipsPath(57, 57, 57, 59.6, 1)}" fill="${lip}"/><path d="M44.2 57 Q50 57.6 55.8 57" fill="none" stroke="${line}" stroke-width="1" stroke-linecap="round"/>`,
+  sad: (lip, line) => `<path d="${lipsPath(59.2, 59.2, 57.2, 60, 1.1)}" fill="${lip}"/><path d="M44 59.2 Q50 56.4 56 59.2" fill="none" stroke="${line}" stroke-width="1.1" stroke-linecap="round"/>`,
+  wow: (lip) => `<ellipse cx="50" cy="58" rx="3.2" ry="3.8" fill="#6A2430" stroke="${lip}" stroke-width="1.5"/>`
 };
-// Как рот двигает усы и бороду: lL/lR — подъём уголков усов (у улыбки вверх, у грусти вниз), low — где кончается нижняя губа
+// Как рот двигает усы и бороду: lL/lR — подъём уголков усов, low — где кончается нижняя губа
 const MOUTH_GEO = {
-  smile: { lL: 2.2, lR: 2.2, low: 60.6 }, grin: { lL: 2.8, lR: 2.8, low: 63.6 }, smirk: { lL: 0.3, lR: 2.6, low: 60.2 },
-  neutral: { lL: 0, lR: 0, low: 58.8 }, sad: { lL: -2.2, lR: -2.2, low: 60.6 }, wow: { lL: -0.4, lR: -0.4, low: 62.6 }
+  smile: { lL: 1.8, lR: 1.8, low: 60.6 }, grin: { lL: 2.6, lR: 2.6, low: 63.8 }, smirk: { lL: 0, lR: 2.4, low: 60 },
+  neutral: { lL: 0, lR: 0, low: 59.8 }, sad: { lL: -2.2, lR: -2.2, low: 60.2 }, wow: { lL: -0.4, lR: -0.4, low: 62.4 }
 };
-// Усы лежат над губой и повторяют её: уголки поднимаются при улыбке и опускаются при грусти
 function mustachePath(m) {
-  const yl = 55.4 - m.lL, yr = 55.4 - m.lR;
+  const yl = 55.6 - m.lL, yr = 55.6 - m.lR;
   return `M41.6 ${yl} Q45.5 51.4 50 53.3 Q54.5 51.4 58.4 ${yr} Q55.2 ${yr + 1.6} 52.4 55.3 Q51 54.9 50 55.6 Q49 54.9 47.6 55.3 Q44.8 ${yl + 1.6} 41.6 ${yl} Z`;
 }
-// Борода огибает рот: вырез под губой следует за уголками и нижней губой
-function beardPath(m) {
+// Борода строится по форме выбранного лица: по линии челюсти и подбородка, с вырезом под рот
+function beardPath(m, g) {
+  const { W, J, K, bot, yj } = g;
   const cl = 60.4 - m.lL * 0.7, cr = 60.4 - m.lR * 0.7, low = m.low + 0.9;
-  return `M30.5 49 Q31.5 69.5 50 69.5 Q68.5 69.5 69.5 49 Q67 ${cr - 1} 58.6 ${cr} Q55.4 ${low - 0.6} 50 ${low} Q44.6 ${low - 0.6} 41.4 ${cl} Q33 ${cl - 1} 30.5 49 Z`;
+  return `M${50 - W - 0.4} 47 C${50 - W - 0.2} ${yj - 3} ${50 - J - 1.6} ${yj} ${50 - J - 1} ${yj + 1.4} L${50 - K - 2.2} ${bot + 2.2} Q50 ${bot + 4.6} ${50 + K + 2.2} ${bot + 2.2}`
+    + ` L${50 + J + 1} ${yj + 1.4} C${50 + J + 1.6} ${yj} ${50 + W + 0.2} ${yj - 3} ${50 + W + 0.4} 47`
+    + ` Q${50 + W - 3} ${cr - 1} 58.6 ${cr} Q55.4 ${low - 0.6} 50 ${low} Q44.6 ${low - 0.6} 41.4 ${cl} Q${50 - W + 3} ${cl - 1} ${50 - W - 0.4} 47 Z`;
 }
-function goateePath(m) {
+function goateePath(m, g) {
   const low = m.low + 0.9;
-  return `M44.6 ${low - 0.4} Q50 ${low + 0.6} 55.4 ${low - 0.4} Q56 67 50 68.6 Q44 67 44.6 ${low - 0.4} Z`;
+  return `M44.6 ${low - 0.4} Q50 ${low + 0.6} 55.4 ${low - 0.4} Q56 ${g.bot + 1} 50 ${g.bot + 2.6} Q44 ${g.bot + 1} 44.6 ${low - 0.4} Z`;
 }
 // Борода (под ртом) и усы (поверх рта) — отдельно, чтобы рот их не перекрывал
 const BEARDS = {
   none: () => ({ under: '', over: '' }),
-  stubble: (b, m, g) => ({ under: `<path d="${beardPath(g)}" fill="${b}" opacity=".22"/>`, over: `<path d="${mustachePath(g)}" fill="${m}" opacity=".32"/>` }),
-  beard: (b, m, g) => ({ under: `<path d="${beardPath(g)}" fill="${b}"/><path d="M38 64 Q50 70 62 64" fill="none" stroke="#fff" stroke-opacity=".12" stroke-width="1.6" stroke-linecap="round"/>`, over: `<path d="${mustachePath(g)}" fill="${m}"/>` }),
-  mustache: (b, m, g) => ({ under: '', over: `<path d="${mustachePath(g)}" fill="${m}"/><path d="M45 53.6 Q47.6 52.6 49.4 54" fill="none" stroke="#fff" stroke-opacity=".18" stroke-width=".9" stroke-linecap="round"/>` }),
-  goatee: (b, m, g) => ({ under: `<path d="${goateePath(g)}" fill="${b}"/>`, over: `<path d="${mustachePath(g)}" fill="${m}"/>` })
+  stubble: (b, m, mg, g) => ({ under: `<path d="${beardPath(mg, g)}" fill="${b}" opacity=".22"/>`, over: `<path d="${mustachePath(mg)}" fill="${m}" opacity=".32"/>` }),
+  beard: (b, m, mg, g) => ({ under: `<path d="${beardPath(mg, g)}" fill="${b}"/><path d="M${50 - g.K - 4} ${g.bot - 1} Q50 ${g.bot + 3} ${50 + g.K + 4} ${g.bot - 1}" fill="none" stroke="#fff" stroke-opacity=".12" stroke-width="1.6" stroke-linecap="round"/>`, over: `<path d="${mustachePath(mg)}" fill="${m}"/>` }),
+  mustache: (b, m, mg) => ({ under: '', over: `<path d="${mustachePath(mg)}" fill="${m}"/><path d="M45 53.6 Q47.6 52.6 49.4 54" fill="none" stroke="#fff" stroke-opacity=".18" stroke-width=".9" stroke-linecap="round"/>` }),
+  goatee: (b, m, mg, g) => ({ under: `<path d="${goateePath(mg, g)}" fill="${b}"/>`, over: `<path d="${mustachePath(mg)}" fill="${m}"/>` })
 };
 
 // ---- Слои одежды, шеи, головы, глаз и предметов. Каждый — отдельная функция: новые детали добавляются без переделки ----
@@ -176,6 +216,7 @@ function neckLayer(n) {
   if (n === 'tie_gold') return tie('#F4C430', '#C99A0E') + '<circle cx="50" cy="86" r="1.6" fill="#fff" opacity=".8"/>';
   if (n === 'tie_crooked') return `<g transform="rotate(24 50 74)">${tie('#2563C9', 'rgba(255,255,255,.3)')}</g>`;
   if (n === 'bow') return '<path d="M50 75.5 L42.5 71.5 L42.5 79.5 Z M50 75.5 L57.5 71.5 L57.5 79.5 Z" fill="#1A1A2E"/><circle cx="50" cy="75.5" r="2" fill="#2E2E48"/>';
+  if (n === 'snake') return snakeLayer();
   if (n === 'badge') return '<path d="M44 72 L57 86 M56 72 L59 86" stroke="#E5484D" stroke-width="1.6"/><rect x="53.5" y="85" width="13" height="16" rx="2" fill="#fff" stroke="#C9CED9" stroke-width=".8"/><rect x="53.5" y="85" width="13" height="4" rx="1.5" fill="#E5484D"/><circle cx="58" cy="94" r="2.4" fill="#C9CED9"/><path d="M61.5 92.5 h3 M61.5 95.5 h3" stroke="#C9CED9" stroke-width="1.2"/>';
   return '';
 }
@@ -200,7 +241,6 @@ function eyesLayer(shape, eyes, skin) {
     <circle cx="${43.4 + dx}" cy="48.3" r="${ir}" fill="${eyes}"/><circle cx="${57.4 + dx}" cy="48.3" r="${ir}" fill="${eyes}"/>
     <circle cx="${43.4 + dx}" cy="48.3" r="${pr}" fill="#111"/><circle cx="${57.4 + dx}" cy="48.3" r="${pr}" fill="#111"/>
     <circle cx="${44.4 + dx}" cy="47.2" r=".9" fill="#fff"/><circle cx="${58.4 + dx}" cy="47.2" r=".9" fill="#fff"/>`;
-  if (shape === 'happy') return '<path d="M39 49.5 Q43 44.5 47 49.5 M53 49.5 Q57 44.5 61 49.5" fill="none" stroke="#22252D" stroke-width="2.3" stroke-linecap="round"/>';
   if (shape === 'wide') return base(4.7, 4.8, 2.5, 1, 0);
   const lid = (y) => `<path d="M38.4 ${y} Q43 ${y - 1.2} 47.6 ${y} L47.6 43.5 L38.4 43.5 Z M52.4 ${y} Q57 ${y - 1.2} 61.6 ${y} L61.6 43.5 L52.4 43.5 Z" fill="${skin}"/>
     <path d="M38.6 ${y} Q43 ${y - 1.2} 47.4 ${y} M52.6 ${y} Q57 ${y - 1.2} 61.4 ${y}" fill="none" stroke="#22252D" stroke-width="1.5" stroke-linecap="round"/>`;
@@ -305,52 +345,79 @@ function noseLayer(n, skin, sex) {
   const body = shapes[n] || shapes.button;
   return sex === 'f' ? `<g transform="translate(50 51) scale(.9) translate(-50 -51)">${body}</g>` : body;
 }
-// Очки: девять оправ и восемь цветов. Оправа двухслойная (кант темнее), линзы с бликом.
-// u — уникальный номер аватара: у градиентов в SVG должны быть разные id
+// Очки: пять оправ, тонкая оправа своего цвета и стёкла своего цвета (по умолчанию прозрачные).
+// Дужки идут к ушам — очки «садятся» на лицо любой ширины. u — уникальный номер аватара для id градиентов
 const GLASS_COLORS = {
-  black: { f: '#262A36', e: '#0B0D12', hi: '#6C7389' },
-  tortoise: { grad: ['#4A2A16', '#A7652E', '#6B3B1C', '#C88A45'], e: '#3A1E0E', hi: '#E7B27A' },
-  gold: { f: '#D6AA3E', e: '#8E6B1C', hi: '#FFF1B8' },
-  silver: { f: '#C9CED8', e: '#7E8594', hi: '#FFFFFF' },
-  red: { f: '#C8323C', e: '#7A1820', hi: '#FF8A92' },
-  navy: { f: '#2E4F93', e: '#15284F', hi: '#86A5E8' },
-  pink: { f: '#F08BB4', e: '#B04C7A', hi: '#FFD3E5' },
-  clear: { f: 'rgba(235,240,248,.75)', e: 'rgba(80,92,115,.55)', hi: '#FFFFFF' }
+  black: { f: '#262A36', hi: '#7A8196' }, tortoise: { grad: ['#4A2A16', '#A7652E', '#6B3B1C', '#C88A45'], hi: '#E7B27A' },
+  gold: { f: '#C9A03A', hi: '#FFF1B8' }, silver: { f: '#AEB4C0', hi: '#FFFFFF' }, red: { f: '#C8323C', hi: '#FF8A92' },
+  navy: { f: '#2E4F93', hi: '#86A5E8' }, pink: { f: '#E77BA6', hi: '#FFD3E5' }
 };
+const LENS_COLORS = { clear: ['#FFFFFF', 0.16, '#DDE8F7', 0.08], grey: ['#3B3F4A', 0.62, '#5A606E', 0.45], brown: ['#5A3A1E', 0.58, '#8A5A2E', 0.38],
+  blue: ['#2A62C9', 0.5, '#5E9BEA', 0.32], green: ['#1F7A4A', 0.5, '#4FB07D', 0.32], pink: ['#E0508F', 0.42, '#FF9EC6', 0.28], yellow: ['#E0A500', 0.42, '#FFD86B', 0.3] };
 const GLASS_SHAPES = {
-  classic: { w: 1.9, L: 'M37 44.8 Q37 43 39 43 L47.6 43 Q49.4 43 49.4 44.8 L49.4 51 Q49.4 53 47.4 53 L39 53 Q37 53 37 51 Z' },
-  round: { w: 1.7, L: 'M43 41.9 A6.1 6.1 0 1 1 42.99 41.9 Z' },
-  square: { w: 2.8, L: 'M35.8 43.4 Q35.8 42.4 36.8 42.4 L48.6 42.4 Q49.6 42.4 49.6 43.4 L49.6 52 Q49.6 53.4 48.4 53.4 L37 53.4 Q35.8 53.4 35.8 52 Z' },
-  aviator: { w: 1.1, L: 'M36.4 44.4 Q43 41.8 49.2 43.8 Q49.8 52.2 43.6 53.8 Q36.6 53.4 36.4 44.4 Z', tint: ['#7A6A5A', '#2F3542'] },
-  browline: { w: 0.9, L: 'M36.4 46 Q36.6 53.6 43 53.6 Q49.4 53.6 49.6 46', top: 'M35.8 43.4 Q43 41.2 50 43.2 L49.8 46.6 Q43 45 36 46.8 Z' },
-  sport: { w: 1.3, wrap: 'M34.4 45 Q50 40.4 65.6 45 L64.6 50.4 Q57.4 54.8 50 51.2 Q42.6 54.8 35.4 50.4 Z', tint: ['#3A7BD5', '#7C4DFF'] },
-  cat: { w: 2.1, L: 'M36.2 46.2 Q40 42 49.2 43.8 Q49.4 51.4 43.2 52.8 Q37.4 52.4 36.2 46.2 Z', wing: true },
-  thin: { w: 0.9, L: 'M43 43.2 A6.3 4.8 0 1 1 42.99 43.2 Z' },
-  rimless: { w: 0, L: 'M37.2 45.6 Q37.2 43.8 39.4 43.8 L47 43.8 Q49.2 43.8 49.2 45.6 L49.2 50.4 Q49.2 52.4 47 52.4 L39.4 52.4 Q37.2 52.4 37.2 50.4 Z' }
+  classic: 'M37 44.8 Q37 43 39 43 L47.6 43 Q49.4 43 49.4 44.8 L49.4 51 Q49.4 53 47.4 53 L39 53 Q37 53 37 51 Z',
+  round: 'M43 41.9 A6.1 6.1 0 1 1 42.99 41.9 Z',
+  square: 'M36.4 43.6 L49.4 43.6 L49.4 52.6 L36.4 52.6 Z',
+  aviator: 'M36.4 44.4 Q43 41.8 49.2 43.8 Q49.8 52.2 43.6 53.8 Q36.6 53.4 36.4 44.4 Z',
+  cat: 'M36.2 46.2 Q40 42 49.2 43.8 Q49.4 51.4 43.2 52.8 Q37.4 52.4 36.2 46.2 Z'
 };
 const mirrorX = (d) => `<g transform="translate(100 0) scale(-1 1)">${d}</g>`;
-function glassesLayer(style, color, u) {
-  const sp = GLASS_SHAPES[style] || GLASS_SHAPES.classic;
+function glassesLayer(style, color, lensColor, u, W) {
+  const shape = GLASS_SHAPES[style] || GLASS_SHAPES.classic;
   const c = GLASS_COLORS[color] || GLASS_COLORS.black;
+  const ln = LENS_COLORS[lensColor] || LENS_COLORS.clear;
   const gid = `gf${u}`, lid = `gl${u}`;
-  const defs = `<defs>${c.grad ? `<linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="1">${c.grad.map((g, i) => `<stop offset="${i / (c.grad.length - 1)}" stop-color="${g}"/>`).join('')}</linearGradient>` : ''}
-    <linearGradient id="${lid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sp.tint ? sp.tint[0] : '#FFFFFF'}" stop-opacity="${sp.tint ? 0.75 : 0.28}"/><stop offset="1" stop-color="${sp.tint ? sp.tint[1] : '#DDE8F7'}" stop-opacity="${sp.tint ? 0.85 : 0.12}"/></linearGradient></defs>`;
+  const defs = `<defs>${c.grad ? `<linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="1">${c.grad.map((g, i) => `<stop offset="${i / (c.grad.length - 1)}" stop-color="${g}"/>`).join('')}</linearGradient>` : ''}<linearGradient id="${lid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${ln[0]}" stop-opacity="${ln[1]}"/><stop offset="1" stop-color="${ln[2]}" stop-opacity="${ln[3]}"/></linearGradient></defs>`;
   const frame = c.grad ? `url(#${gid})` : c.f;
-  const shine = '<path d="M38.6 46.6 L41.8 44.2 M39.6 49.4 L44.6 45.2" stroke="#fff" stroke-opacity=".75" stroke-width=".9" stroke-linecap="round"/>';
-  const rim = (d, w) => w ? `<path d="${d}" fill="none" stroke="${c.e}" stroke-width="${w + 1.1}" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="${frame}" stroke-width="${w}" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="${c.hi}" stroke-opacity=".35" stroke-width="${Math.max(0.4, w * 0.25)}" stroke-linejoin="round" transform="translate(0 -.35)"/>` : '';
-  if (sp.wrap) {
-    return defs + `<path d="${sp.wrap}" fill="url(#${lid})"/>` + rim(sp.wrap, sp.w) + '<path d="M37.6 45.8 Q44 43.4 48 44.2" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="1.1" stroke-linecap="round"/>';
-  }
-  const lens = `<path d="${sp.L}" fill="url(#${lid})"/>`;
-  let one = lens + rim(sp.L, sp.w) + shine;
-  if (sp.top) one = lens + rim(sp.L, sp.w) + `<path d="${sp.top}" fill="${frame}" stroke="${c.e}" stroke-width=".7"/>` + shine;
-  if (style === 'rimless') one = lens + `<path d="${sp.L}" fill="none" stroke="#9AA3B5" stroke-opacity=".45" stroke-width=".5"/><circle cx="37.6" cy="45.2" r=".65" fill="${c.e}"/><circle cx="48.8" cy="45.2" r=".65" fill="${c.e}"/>` + shine;
-  if (sp.wing) one += `<path d="M36.6 46.4 Q35 44.6 34.4 42.4" fill="none" stroke="${c.e}" stroke-width="${sp.w + 1.1}" stroke-linecap="round"/><path d="M36.6 46.4 Q35 44.6 34.4 42.4" fill="none" stroke="${frame}" stroke-width="${sp.w}" stroke-linecap="round"/>`;
-  const bridgeY = style === 'browline' ? 44.4 : style === 'round' || style === 'thin' ? 47.2 : 46.4;
-  const bw = Math.max(0.9, (sp.w || 0.9) * 0.8);
-  const bridge = `<path d="M49 ${bridgeY} Q50 ${bridgeY - 1.2} 51 ${bridgeY}" fill="none" stroke="${c.e}" stroke-width="${bw + 0.8}" stroke-linecap="round"/><path d="M49 ${bridgeY} Q50 ${bridgeY - 1.2} 51 ${bridgeY}" fill="none" stroke="${frame}" stroke-width="${bw}" stroke-linecap="round"/>`;
-  return defs + one + mirrorX(one) + bridge;
+  const w = style === 'aviator' ? 0.8 : 1.15;
+  const temple = `<path d="M36.6 46 L${50 - W - 0.6} 47" stroke="${frame}" stroke-width=".9" stroke-linecap="round"/>`;
+  const one = `<path d="${shape}" fill="url(#${lid})"/><path d="${shape}" fill="none" stroke="${frame}" stroke-width="${w}" stroke-linejoin="round"/>`
+    + `<path d="M38.4 46 L40.2 44.6" stroke="#fff" stroke-opacity=".55" stroke-width=".7" stroke-linecap="round"/>`
+    + (style === 'cat' ? `<path d="M36.6 46.2 Q35.2 44.6 34.8 42.8" fill="none" stroke="${frame}" stroke-width="1.4" stroke-linecap="round"/>` : '')
+    + (style === 'aviator' ? `<path d="M37.2 44 Q43 42.2 48.6 43.6" fill="none" stroke="${frame}" stroke-width="1.1"/>` : '') + temple;
+  const by = style === 'round' ? 47.2 : 46.2;
+  return defs + one + mirrorX(one) + `<path d="M49 ${by} Q50 ${by - 1.1} 51 ${by}" fill="none" stroke="${frame}" stroke-width="${w}" stroke-linecap="round"/>`
+    + (style === 'aviator' ? `<path d="M48.6 44 L51.4 44" stroke="${frame}" stroke-width=".8"/>` : '');
 }
+// Питомец рядом — внизу слева, поверх плеча
+function petLayer(p) {
+  if (p === 'corgi') {
+    return '<g transform="translate(4 -5)"><ellipse cx="17" cy="97" rx="12" ry="8" fill="#E39A45"/><ellipse cx="17" cy="99" rx="6" ry="5.4" fill="#FFF6EA"/>'
+      + '<path d="M8.6 75 L7.4 62.6 L15.2 71.6 Z M25.4 75 L26.6 62.6 L18.8 71.6 Z" fill="#E39A45"/><path d="M9.6 73 L8.8 65.4 L13.6 71 Z M24.4 73 L25.2 65.4 L20.4 71 Z" fill="#F7B8B8"/>'
+      + '<ellipse cx="17" cy="79" rx="9" ry="8" fill="#E39A45"/><path d="M17 72 Q14 79 12.4 84 Q17 88 21.6 84 Q20 79 17 72 Z" fill="#FFF6EA"/>'
+      + '<circle cx="13.4" cy="78" r="1.3" fill="#1E1A18"/><circle cx="20.6" cy="78" r="1.3" fill="#1E1A18"/><circle cx="13.8" cy="77.6" r=".4" fill="#fff"/><circle cx="21" cy="77.6" r=".4" fill="#fff"/>'
+      + '<ellipse cx="17" cy="82" rx="1.7" ry="1.2" fill="#1E1A18"/><path d="M17 83.2 Q17 85 15.6 85.4 M17 83.2 Q17 85 18.4 85.4" fill="none" stroke="#1E1A18" stroke-width=".6" stroke-linecap="round"/><path d="M16.2 85.4 Q17 88 17.8 85.4 Z" fill="#F07A8A"/></g>';
+  }
+  if (p === 'pug') {
+    return '<g transform="translate(4 -5)"><ellipse cx="17" cy="97" rx="11.6" ry="8" fill="#D9B98C"/><ellipse cx="17" cy="80" rx="9.6" ry="8.6" fill="#D9B98C"/>'
+      + '<path d="M8 74 Q6 72.6 6.4 78 Q8.6 78.4 10 76 Z M26 74 Q28 72.6 27.6 78 Q25.4 78.4 24 76 Z" fill="#3A2E28"/>'
+      + '<ellipse cx="17" cy="83.4" rx="6.4" ry="4.8" fill="#3A2E28"/><path d="M12.6 75.6 Q17 73.8 21.4 75.6 M13.6 77.4 Q17 76 20.4 77.4" fill="none" stroke="#B8966A" stroke-width=".7"/>'
+      + '<circle cx="13" cy="79.6" r="1.9" fill="#1E1A18"/><circle cx="21" cy="79.6" r="1.9" fill="#1E1A18"/><circle cx="13.5" cy="79" r=".6" fill="#fff"/><circle cx="21.5" cy="79" r=".6" fill="#fff"/>'
+      + '<ellipse cx="17" cy="82" rx="1.6" ry="1.1" fill="#111"/><path d="M15.8 86 Q17 88.4 18.2 86 Z" fill="#F07A8A"/></g>';
+  }
+  return '';
+}
+// Змея на шее (Лавка): обвивает шею, голова на плече, язык — раздвоенный
+function snakeLayer() {
+  return '<path d="M20 92 Q30 78 44 76 Q50 75 56 76 Q70 78 80 86" fill="none" stroke="#2F7A3A" stroke-width="5.6" stroke-linecap="round"/>'
+    + '<path d="M20 92 Q30 78 44 76 Q50 75 56 76 Q70 78 80 86" fill="none" stroke="#4FB062" stroke-width="4" stroke-linecap="round"/>'
+    + '<path d="M24 87 l2 -1.6 M30 81.6 l2.2 -1 M37 78 l2.2 -.6 M46 76.2 l2.4 0 M55 76.4 l2.4 .4 M63 77.6 l2.2 .8 M70 80.4 l2 1.2" stroke="#E8D34A" stroke-width="1.2" stroke-linecap="round"/>'
+    + '<path d="M20 92 Q16 98 20 104" fill="none" stroke="#4FB062" stroke-width="3.4" stroke-linecap="round"/>'
+    + '<ellipse cx="82.6" cy="87.6" rx="5" ry="3.6" fill="#4FB062" stroke="#2F7A3A" stroke-width=".9" transform="rotate(30 82.6 87.6)"/>'
+    + '<circle cx="83.4" cy="86" r=".9" fill="#111"/><circle cx="83.7" cy="85.7" r=".3" fill="#fff"/><path d="M86.4 90.4 L89 92.2 M89 92.2 L90.4 91.6 M89 92.2 L89.6 93.6" stroke="#E5484D" stroke-width=".7" stroke-linecap="round"/>';
+}
+// Рука с кружкой (Аксессуары): рукав, кисть и пальцы обхватывают кружку
+function mugHand(gold, skin, sleeve) {
+  const c = gold ? '#F4C430' : '#fff', e = gold ? '#C99A0E' : '#C9CED9';
+  return '<g transform="translate(-5 -9)">' + `<path d="M62 118 Q62 100 68 92" fill="none" stroke="${sleeve}" stroke-width="10" stroke-linecap="round"/>`
+    + `<path d="M70 82 Q66 78 70 74 M75 82 Q71 78 75 74" fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="1.3" stroke-linecap="round"/>`
+    + `<path d="M80.5 88 Q87 88 86.5 93 Q86 97.5 80.5 97" fill="none" stroke="${e}" stroke-width="2.4"/>`
+    + `<rect x="66" y="84" width="15" height="17" rx="2.5" fill="${c}" stroke="${e}" stroke-width="1"/><ellipse cx="73.5" cy="85" rx="6.6" ry="1.7" fill="#6B3E26"/>`
+    + (gold ? '<path d="M73.5 88.5 L74.8 91.3 L77.8 91.6 L75.6 93.6 L76.2 96.6 L73.5 95.1 L70.8 96.6 L71.4 93.6 L69.2 91.6 L72.2 91.3 Z" fill="#fff"/>' : '<path d="M71 91 h6 M71 94 h4" stroke="#E5484D" stroke-width="1.2" stroke-linecap="round"/>')
+    + `<path d="M62.6 90 Q66 88 70.4 89.4 L70.6 92.6 Q66.6 92 64 93.6 Z" fill="${skin}" stroke="${shade(skin, -0.2)}" stroke-width=".6"/>`
+    + [91.6, 94.6, 97.6].map((y) => `<rect x="${y === 91.6 ? 64.8 : 64.4}" y="${y}" width="7.6" height="2.8" rx="1.4" fill="${skin}" stroke="${shade(skin, -0.2)}" stroke-width=".6"/>`).join('') + '</g>';
+}
+
 // Серьги — на мочках ушей (x — центр уха, y — низ мочки)
 function earringsLayer(e, xl, xr, y) {
   const both = (fn) => fn(xl) + fn(xr);
@@ -383,67 +450,69 @@ function avatarInner(look = {}) {
   const hair = look.hair || '#2B1D14';
   const skin = look.skin || '#E8B48A';
   const eyes = look.eyes || '#22252D';
-  const hs = look.hairStyle || 'short';
+  const hs = HAIR_FRONT[look.hairStyle] ? look.hairStyle : 'short';
   const hood = HOODIE[look.hoodie] || HOODIE.blue;
   const g = faceGeo(look.face, sex);
   const rx = g.W;
   const skinDark = shade(skin, -0.16);
   const brow = shade(hair === '#F2E6C9' || hair === '#9AA3B5' ? '#8A7A66' : hair, -0.1);
+  // Причёска, шапка и наушники садятся по ширине выбранного лица
   const kx = (rx / 19.5).toFixed(3);
+  const fit = (svg) => (svg ? `<g transform="translate(50 0) scale(${kx} 1) translate(-50 0)">${svg}</g>` : '');
   const bc = look.beardColor && look.beardColor !== 'same' ? look.beardColor : hair;
   const mc = look.mustacheColor && look.mustacheColor !== 'same' ? look.mustacheColor : hair;
-  // Борода — только у «М», макияж — только у «Ж»: вкладки в конструкторе тоже разведены
+  // Борода — только у «М», макияж — только у «Ж»
   const mg = MOUTH_GEO[look.mouth] || MOUTH_GEO.smile;
-  const beard = sex === 'm' ? (BEARDS[look.beard] || BEARDS.none)(bc, mc, mg) : { under: '', over: '' };
+  const beard = sex === 'm' ? (BEARDS[look.beard] || BEARDS.none)(bc, mc, mg, g) : { under: '', over: '' };
   const hat = look.hat && look.hat !== 'none' ? look.hat : null;
   const mk = sex === 'f' ? (MAKEUP[look.makeup] || MAKEUP.none) : MAKEUP.none;
-  const es = (EYE_SCALE[look.eyeSize] || 1) * (sex === 'f' ? 1.06 : 1);
-  const ek = EAR_SCALE[look.ears] || 1;
-  // Ж — ресницы и тонкие дугой брови; М — густые прямые брови и тень по линии челюсти
-  const lash = sex === 'f' && look.eyeShape !== 'happy' ? '<path d="M38 43.6 L40.2 42.2 M62 43.6 L59.8 42.2 M39.6 42.6 L40.9 41.2 M60.4 42.6 L59.1 41.2" stroke="#22252D" stroke-width="1.6" stroke-linecap="round"/>' : '';
-  const liner = mk.liner && look.eyeShape !== 'happy' ? '<path d="M38.8 48.4 L36.2 46.2 M61.2 48.4 L63.8 46.2" stroke="#1A1A22" stroke-width="1.5" stroke-linecap="round"/>' : '';
+  const es = (EYE_SCALE[look.eyeSize] || 1) * (sex === 'f' ? 1.08 : 1);
+  const ek = (EAR_SCALE[look.ears] || 1) * (sex === 'f' ? 0.9 : 1);
+  const shape = look.eyeShape === 'happy' ? 'normal' : look.eyeShape;
+  // Ж — верхнее веко с ресницами и тонкие брови дугой; М — густые прямые брови
+  const lash = sex === 'f' ? '<path d="M38.8 47.4 Q43 42.9 47.2 46.8 M61.2 47.4 Q57 42.9 52.8 46.8" fill="none" stroke="#1A1A22" stroke-width="1.5" stroke-linecap="round"/><path d="M38.9 47.2 Q37.6 46.6 37 45.4 M61.1 47.2 Q62.4 46.6 63 45.4" fill="none" stroke="#1A1A22" stroke-width="1.2" stroke-linecap="round"/>' : '';
+  const liner = mk.liner ? '<path d="M38.8 47.6 L36 46 M61.2 47.6 L64 46" stroke="#1A1A22" stroke-width="1.5" stroke-linecap="round"/>' : '';
   const shadow = mk.shadow ? `<ellipse cx="43" cy="45.4" rx="5.4" ry="3.2" fill="${mk.shadow}" opacity="${mk.shadowOp}"/><ellipse cx="57" cy="45.4" rx="5.4" ry="3.2" fill="${mk.shadow}" opacity="${mk.shadowOp}"/>` : '';
-  const browY = look.eyeShape === 'tired' ? 1.2 : look.eyeShape === 'wide' ? -1.4 : 0;
+  const browY = shape === 'tired' ? 1.2 : shape === 'wide' ? -1.4 : 0;
   const brows = sex === 'f'
-    ? `<path d="M38.8 ${42.4 + browY} Q42.4 ${38.6 + browY} 47.2 ${41.2 + browY} M52.8 ${41.2 + browY} Q57.6 ${38.6 + browY} 61.2 ${42.4 + browY}" fill="none" stroke="${brow}" stroke-width="1.6" stroke-linecap="round"/>`
+    ? `<path d="M38.8 ${42.2 + browY} Q42.4 ${38.8 + browY} 47.2 ${41 + browY} M52.8 ${41 + browY} Q57.6 ${38.8 + browY} 61.2 ${42.2 + browY}" fill="none" stroke="${brow}" stroke-width="1.6" stroke-linecap="round"/>`
     : `<path d="M38.2 ${42 + browY} Q43 ${40.4 + browY} 47.6 ${41.4 + browY} M52.4 ${41.4 + browY} Q57 ${40.4 + browY} 61.8 ${42 + browY}" fill="none" stroke="${brow}" stroke-width="2.9" stroke-linecap="round"/>`;
   const jaw = sex === 'm' ? `<path d="M${50 - g.J + 1.4} ${g.yj - 1} L${50 - g.K - 0.6} ${g.bot - 2.2} M${50 + g.J - 1.4} ${g.yj - 1} L${50 + g.K + 0.6} ${g.bot - 2.2}" stroke="${skinDark}" stroke-width="1.4" stroke-opacity=".35" stroke-linecap="round"/>` : '';
-  const cheeks = sex === 'f' ? `<ellipse cx="37.6" cy="51.4" rx="3.4" ry="1.6" fill="#fff" opacity=".18"/><ellipse cx="62.4" cy="51.4" rx="3.4" ry="1.6" fill="#fff" opacity=".18"/>` : '';
-  const blushOp = mk.blush || (sex === 'f' ? 0.28 : 0.18);
-  const lipInk = mk.lip || (sex === 'f' ? '#9C4352' : '#2A1A1A');
-  const lipW = mk.lipW || (sex === 'f' ? 2.6 : 2.4);
+  const blushOp = mk.blush || (sex === 'f' ? 0.26 : 0.14);
+  const lip = mk.lip || (sex === 'f' ? '#C9707C' : shade(skin, -0.28));
+  const line = sex === 'f' ? shade(lip, -0.4) : shade(skin, -0.55);
   const freckles = look.freckles ? [[39.5, 52.5], [42, 54], [38.8, 55], [60.5, 52.5], [58, 54], [61.2, 55]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r=".85" fill="${shade(skin, -0.38)}"/>`).join('') : '';
-  const shine = !hat || hat === 'headset' ? (['short', 'long', 'tail', 'bob', 'side', 'afro', 'curly', 'bun'].includes(hs) ? '<path d="M39 29 Q45 25 53 25.5" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width="2.6" stroke-linecap="round"/>' : '') : '';
-  // Под шапкой видны только длинные пряди и хвост; ирокез, пучок и афро-макушка прячутся
-  const hairBack = HAIR_BACK[hs] && !(hat && hat !== 'headset' && (hs === 'bun' || hs === 'afro')) ? HAIR_BACK[hs](hair) : '';
-  const hairFront = hat && hat !== 'headset' ? (['long', 'bob', 'curly', 'afro'].includes(hs) ? `<path d="M29 44 Q29 36 33 34 L33 47 Z M71 44 Q71 36 67 34 L67 47 Z" fill="${hair}"/>` : '') : (HAIR_FRONT[hs] || HAIR_FRONT.short)(hair);
+  const capped = hat && hat !== 'headset';
+  // Под шапкой высокие причёски (пучки, ирокез, кок) прячутся, длинные торчат прядями
+  const hairBack = HAIR_BACK[hs] && !(capped && HAIR_TALL.includes(hs) && hs !== 'ponytail') ? HAIR_BACK[hs](hair) : '';
+  const hairFront = capped ? (HAIR_LONG.includes(hs) || sex === 'f' ? locks(hair, HAIR_LONG.includes(hs) ? 62 : 52, 3.4) : '') : HAIR_FRONT[hs](hair);
   const exL = 50 - rx - 0.5, exR = 50 + rx + 0.5;
   const ears = `<ellipse cx="${exL}" cy="49" rx="${3.6 * ek}" ry="${5 * ek}" fill="${skin}"/><ellipse cx="${exR}" cy="49" rx="${3.6 * ek}" ry="${5 * ek}" fill="${skin}"/>
     <ellipse cx="${exL + 0.2}" cy="49.3" rx="${1.6 * ek}" ry="${2.8 * ek}" fill="${skinDark}"/><ellipse cx="${exR - 0.2}" cy="49.3" rx="${1.6 * ek}" ry="${2.8 * ek}" fill="${skinDark}"/>`;
-  return `${bgLayer(look.bg, skin, u)}${hairBack}
+  const mug = look.prop === 'mug' || look.prop === 'mug_best';
+  return `${bgLayer(look.bg, skin, u)}${fit(hairBack)}
     ${outfitLayer(look.outfit, hood, skin, sex)}
     ${neckLayer(look.neck)}
     ${ears}
     <path d="${g.d}" fill="${skin}"/>
     ${jaw}
-    ${earringsLayer(look.earrings, exL, exR, 49 + 5 * ek - 0.8)}
-    <circle cx="38" cy="55" r="3.3" fill="#FF7A8A" opacity="${blushOp}"/><circle cx="62" cy="55" r="3.3" fill="#FF7A8A" opacity="${blushOp}"/>
-    ${cheeks}
+    <ellipse cx="38" cy="54.6" rx="3.6" ry="2.6" fill="#FF7A8A" opacity="${blushOp}"/><ellipse cx="62" cy="54.6" rx="3.6" ry="2.6" fill="#FF7A8A" opacity="${blushOp}"/>
     ${freckles}
-    <g transform="translate(50 48) scale(${es.toFixed(3)}) translate(-50 -48)">${shadow}${eyesLayer(look.eyeShape, eyes, skin)}${lash}${liner}</g>
+    <g transform="translate(50 48) scale(${es.toFixed(3)}) translate(-50 -48)">${shadow}${eyesLayer(shape, eyes, skin)}${lash}${liner}</g>
     ${brows}
     ${noseLayer(look.nose, skin, sex)}
-    ${beard.under ? `<g transform="translate(50 0) scale(${kx} 1) translate(-50 0)">${beard.under}</g>` : ''}
-    ${(MOUTHS[look.mouth] || MOUTHS.smile)(lipInk, lipW)}
+    ${beard.under}
+    ${(MOUTHS[look.mouth] || MOUTHS.smile)(lip, line)}
     ${beard.over}
-    ${hairFront}
-    ${shine}
-    ${hat && hat !== 'headset' ? hatLayer(hat, hood) : ''}
-    ${look.glasses ? glassesLayer(look.glassesStyle, look.glassesColor, u) : ''}
-    ${hat === 'headset' ? hatLayer('headset', hood) : ''}
-    ${look.phones && hat !== 'headset' ? '<path d="M29 47 Q27 15 50 15 Q73 15 71 47" fill="none" stroke="#2B2B3A" stroke-width="6" stroke-linecap="round"/><path d="M33 26 Q40 18 50 17.5" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/><rect x="23" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="67" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="25" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/><rect x="72" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/>' : ''}
-    ${look.crown ? `<g ${hat && hat !== 'headset' ? 'transform="translate(0 -6)"' : ''}><path d="M33 19 L37 5 L44 13 L50 3 L56 13 L63 5 L67 19 Z" fill="#FFC93C" stroke="#D99A0B" stroke-width="2" stroke-linejoin="round"/><circle cx="50" cy="13" r="2" fill="#E5484D"/></g>` : ''}
-    ${propLayer(look.prop)}`;
+    ${fit(hairFront)}
+    ${earringsLayer(look.earrings, exL, exR, 49 + 5 * ek - 0.8)}
+    ${capped ? fit(hatLayer(hat, hood)) : ''}
+    ${look.glasses ? glassesLayer(look.glassesStyle, look.glassesColor, look.lensColor, u, rx) : ''}
+    ${hat === 'headset' ? fit(hatLayer('headset', hood)) : ''}
+    ${look.phones && hat !== 'headset' ? fit('<path d="M29 47 Q27 15 50 15 Q73 15 71 47" fill="none" stroke="#2B2B3A" stroke-width="6" stroke-linecap="round"/><path d="M33 26 Q40 18 50 17.5" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/><rect x="23" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="67" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="25" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/><rect x="72" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/>') : ''}
+    ${look.crown ? `<g ${capped ? 'transform="translate(0 -6)"' : ''}><path d="M33 19 L37 5 L44 13 L50 3 L56 13 L63 5 L67 19 Z" fill="#FFC93C" stroke="#D99A0B" stroke-width="2" stroke-linejoin="round"/><circle cx="50" cy="13" r="2" fill="#E5484D"/></g>` : ''}
+    ${mug ? mugHand(look.prop === 'mug_best', skin, look.outfit === 'suit' ? shade(hood, -0.45) : look.outfit === 'shirt' ? shade(hood, 0.8) : look.outfit === 'dev' ? '#262B36' : hood) : propLayer(look.prop)}
+    ${petLayer(look.pet)}`;
 }
 
 function avatar(look = {}, size = 42, zoom = false) {
@@ -2157,25 +2226,29 @@ function renderCompletion(inProfile) {
 
 // Профиль собран из раскрывающихся секций: в заголовке — краткая сводка и карандаш, внутри — редактирование
 const PENCIL = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>';
-const HAIR_NAMES = { short: 'Короткие', long: 'Длинные', tail: 'Хвост', curly: 'Кудри', bob: 'Каре', bun: 'Пучок', side: 'Набок', mohawk: 'Ирокез', afro: 'Афро', bald: 'Без волос' };
+const HAIR_NAMES = { short: 'Короткие', long: 'Длинные', tail: 'Хвост', curly: 'Кудри', bob: 'Каре', bun: 'Пучок', side: 'Набок', mohawk: 'Ирокез', afro: 'Афро', bald: 'Без волос',
+  undercut: 'Андеркат', quiff: 'Кок', crop: 'Кроп', slick: 'Зачёс назад', buzz: 'Ёжик', manbun: 'Мужской пучок', waves: 'Локоны', bangs: 'С чёлкой', lob: 'Удлинённое каре', pixie: 'Пикси', ponytail: 'Высокий хвост', braid: 'Коса', buns: 'Два пучка' };
 const FACE_NAMES = { oval: 'Овал', round: 'Круглое', square: 'Квадрат', long: 'Вытянутое', heart: 'Сердечко' };
 const OUTFIT_NAMES = { hoodie: 'Худи', tee: 'Футболка', dev: 'Футболка разработчика', shirt: 'Рубашка', suit: 'Костюм' };
-const NECK_NAMES = { none: 'Ничего', tie: 'Галстук', tie_crooked: 'Галстук набок', bow: 'Бабочка', badge: 'Пропуск', tie_gold: 'Золотой галстук' };
+const NECK_NAMES = { none: 'Ничего', tie: 'Галстук', tie_crooked: 'Галстук набок', bow: 'Бабочка', badge: 'Пропуск', tie_gold: 'Золотой галстук', snake: 'Змея' };
+const PET_NAMES = { none: 'Без питомца', corgi: 'Корги', pug: 'Мопс' };
+const LENS_NAMES = { clear: 'Прозрачные', grey: 'Серые', brown: 'Коричневые', blue: 'Голубые', green: 'Зелёные', pink: 'Розовые', yellow: 'Жёлтые' };
+const LENS_SWATCH = { clear: 'repeating-linear-gradient(45deg,#fff 0 4px,#E3E8F2 4px 8px)', grey: '#555B68', brown: '#7A5232', blue: '#4A86E0', green: '#3A9A68', pink: '#F08BB4', yellow: '#F2C230' };
 const HAT_NAMES = { none: 'Без шапки', beanie: 'Шапка', cap: 'Кепка', headset: 'Гарнитура' };
-const EYE_NAMES = { normal: 'Обычные', tired: 'После совещания', sly: 'Хитрые', wide: 'Удивлённые', happy: 'Довольные' };
+const EYE_NAMES = { normal: 'Обычные', tired: 'После совещания', sly: 'Хитрые', wide: 'Удивлённые' };
 const PROP_NAMES = { none: 'Ничего', mug: 'Кружка', papers: 'Квартальный отчёт', sign: 'Табличка', laptop: 'Ноутбук', mug_best: 'Лучший сотрудник' };
 const AVA_CATS = [['face', 'Лицо'], ['hair', 'Волосы'], ['eyes', 'Глаза'], ['mouth', 'Рот'], ['beard', 'Борода'], ['makeup', 'Макияж'], ['outfit', 'Одежда'], ['acc', 'Аксессуары'], ['bg', 'Фон'], ['meme', 'Мемы']];
-const DEF_LOOK = { glassesColor: 'black', eyeSize: 'm', nose: 'button', ears: 'normal', makeup: 'none', earrings: 'none', glassesStyle: 'classic', beardColor: 'same', mustacheColor: 'same' };
-const GLASS_COLOR_NAMES = { black: 'Чёрная', tortoise: 'Черепаховая', gold: 'Золото', silver: 'Серебро', red: 'Красная', navy: 'Синяя', pink: 'Розовая', clear: 'Прозрачная' };
+const DEF_LOOK = { glassesColor: 'black', lensColor: 'clear', pet: 'none', eyeSize: 'm', nose: 'button', ears: 'normal', makeup: 'none', earrings: 'none', glassesStyle: 'classic', beardColor: 'same', mustacheColor: 'same' };
+const GLASS_COLOR_NAMES = { black: 'Чёрная', tortoise: 'Черепаховая', gold: 'Золото', silver: 'Серебро', red: 'Красная', navy: 'Синяя', pink: 'Розовая' };
 const GLASS_SWATCH = { black: '#262A36', tortoise: 'linear-gradient(135deg,#4A2A16,#A7652E 45%,#6B3B1C 70%,#C88A45)', gold: 'linear-gradient(135deg,#FFF1B8,#D6AA3E 50%,#8E6B1C)', silver: 'linear-gradient(135deg,#fff,#C9CED8 50%,#7E8594)', red: '#C8323C', navy: '#2E4F93', pink: '#F08BB4', clear: 'repeating-linear-gradient(45deg,#fff 0 4px,#E3E8F2 4px 8px)' };
 const NOSE_NAMES = { button: 'Кнопка', straight: 'Прямой', wide: 'Широкий', long: 'Длинный', snub: 'Курносый', roman: 'С горбинкой' };
 const EARS_NAMES = { small: 'Маленькие', normal: 'Обычные', big: 'Большие' };
 const EYESIZE_NAMES = { s: 'Маленькие', m: 'Обычные', l: 'Большие' };
 const MAKEUP_NAMES = { none: 'Без макияжа', light: 'Нюд', lips: 'Красная помада', smoky: 'Смоки', evening: 'Вечерний', bright: 'Яркий' };
 const EARRING_NAMES = { none: 'Без серёг', studs: 'Гвоздики', pearls: 'Жемчуг', hoops: 'Кольца', drops: 'Подвески', cross: 'Крестики' };
-const GLASSES_NAMES = { none: 'Без очков', classic: 'Классика', round: 'Круглые', square: 'Квадратные', aviator: 'Авиаторы', browline: 'Браулайн', sport: 'Спорт', cat: 'Кошачий глаз', thin: 'Тонкая оправа', rimless: 'Без оправы' };
+const GLASSES_NAMES = { none: 'Без очков', classic: 'Классика', round: 'Круглые', square: 'Квадратные', aviator: 'Авиаторы', cat: 'Кошачий глаз' };
 // Порядок оправ: сначала то, что чаще выбирают «М» или «Ж», но доступны все
-const GLASSES_ORDER = { m: ['classic', 'square', 'aviator', 'browline', 'round', 'sport', 'rimless', 'thin', 'cat'], f: ['cat', 'thin', 'round', 'rimless', 'classic', 'aviator', 'square', 'browline', 'sport'] };
+const GLASSES_ORDER = { m: ['classic', 'square', 'round', 'aviator', 'cat'], f: ['cat', 'round', 'classic', 'aviator', 'square'] };
 const BG_NAMES = { auto: 'Под кожу', sky: 'Небо', mint: 'Мята', peach: 'Персик', lilac: 'Лаванда', sun: 'Солнце', slate: 'Графит', office: 'Офис', meeting: 'Переговорка', home: 'Дом', street: 'Улица', cafe: 'Кафе' };
 // Мемные пресеты меняют одежду, аксессуары и выражение лица, а лицо, кожу и причёску оставляют твоими
 const AVA_PRESETS = [
@@ -2184,7 +2257,7 @@ const AVA_PRESETS = [
   { id: 'excel', name: 'Гений Excel', look: { outfit: 'shirt', hoodie: 'green', neck: 'tie', hat: 'none', prop: 'papers', mouth: 'grin', eyeShape: 'wide', glasses: true } },
   { id: 'nothing', name: 'Я ничего не трогал', look: { outfit: 'dev', neck: 'none', hat: 'none', prop: 'none', mouth: 'wow', eyeShape: 'wide' } },
   { id: 'report', name: 'Снова квартальный отчёт', look: { outfit: 'shirt', hoodie: 'blue', neck: 'tie_crooked', hat: 'none', prop: 'papers', mouth: 'neutral', eyeShape: 'tired' } },
-  { id: 'control', name: 'Всё под контролем', look: { outfit: 'suit', hoodie: 'red', neck: 'tie', hat: 'headset', prop: 'mug', mouth: 'smile', eyeShape: 'happy' } }
+  { id: 'control', name: 'Всё под контролем', look: { outfit: 'suit', hoodie: 'red', neck: 'tie', hat: 'headset', prop: 'mug', mouth: 'smile', eyeShape: 'normal' } }
 ];
 // Платная ли деталь и куплена ли она
 const partOf = (slot, value) => (S.cat.parts || []).find((x) => x.slot === slot && x.value === value);
@@ -2206,7 +2279,8 @@ function randomLook() {
   r.glasses = Math.random() < 0.3; r.freckles = Math.random() < 0.2; r.phones = r.hat === 'none' && Math.random() < 0.12;
   const f = r.preset === 'f';
   r.nose = pick(L.nose); r.ears = Math.random() < 0.7 ? 'normal' : pick(L.ears); r.eyeSize = Math.random() < 0.6 ? 'm' : pick(L.eyeSize);
-  r.glassesStyle = pick(GLASSES_ORDER[f ? 'f' : 'm'].slice(0, 5)); r.glassesColor = pick(L.glassesColor);
+  r.glassesStyle = pick(GLASSES_ORDER[f ? 'f' : 'm']); r.glassesColor = pick(L.glassesColor); r.lensColor = Math.random() < 0.75 ? 'clear' : pick(L.lensColor);
+  r.hairStyle = pick(HAIR_ORDER[f ? 'f' : 'm'].slice(0, 10)); r.pet = Math.random() < 0.12 ? pick(['corgi', 'pug']) : 'none';
   r.makeup = f && Math.random() < 0.65 ? pick(L.makeup.filter((v) => v !== 'none')) : 'none';
   r.earrings = Math.random() < (f ? 0.55 : 0.08) ? pick(L.earrings.filter((v) => v !== 'none')) : 'none';
   if (f) r.beard = 'none'; else r.makeup = 'none';
@@ -2268,7 +2342,7 @@ function renderAvatarEditor() {
   const sw = (key, vals) => `<div class="row" style="flex-wrap:wrap;gap:8px">${vals.map((v) => `<button class="swatch ${d[key] === v ? 'on' : ''}" style="background:${HOODIE[v] || v}" data-act="ava-set" data-k="${key}" data-v="${v}" aria-label="${key} ${v}"></button>`).join('')}</div>`;
   const tiles = (key, vals, names, zoom = false) => `<div class="ava-tiles">${vals.map((v) => {
     const lock = partLocked(key, v);
-    return `<button class="ava-tile ${(d[key] || DEF_LOOK[key]) === v ? 'on' : ''} ${lock ? 'paid' : ''}" data-act="ava-set" data-k="${key}" data-v="${v}">${avatar({ ...d, [key]: v, frame: null, crown: false }, 60, zoom)}<span>${names[v] || v}</span>${lock ? `<em>${lock.price} ${BEAN}</em>` : ''}</button>`;
+    return `<button class="ava-tile ${(d[key] || DEF_LOOK[key]) === v ? 'on' : ''} ${lock ? 'paid' : ''}" data-act="ava-set" data-k="${key}" data-v="${v}">${avatar({ ...d, [key]: v, frame: null, crown: false, ...(zoom ? { pet: 'none', prop: 'none' } : {}) }, 60, zoom)}<span>${names[v] || v}</span>${lock ? `<em>${lock.price} ${BEAN}</em>` : ''}</button>`;
   }).join('')}</div>`;
   const tog = (k, label) => `<button class="chip ${d[k] ? 'on' : ''}" data-act="ava-toggle" data-k="${k}">${label}</button>`;
   const sex = d.preset === 'f' ? 'f' : 'm';
@@ -2277,7 +2351,7 @@ function renderAvatarEditor() {
   // Очки: «без очков» + оправы; выбор оправы сам включает очки
   const glassesTiles = `<div class="ava-tiles">${['none', ...GLASSES_ORDER[sex]].map((v) => {
     const on = v === 'none' ? !d.glasses : d.glasses && (d.glassesStyle || 'classic') === v;
-    return `<button class="ava-tile ${on ? 'on' : ''}" data-act="ava-glasses" data-v="${v}">${avatar({ ...d, glasses: v !== 'none', glassesStyle: v === 'none' ? d.glassesStyle : v, frame: null, crown: false }, 60, true)}<span>${GLASSES_NAMES[v]}</span></button>`;
+    return `<button class="ava-tile ${on ? 'on' : ''}" data-act="ava-glasses" data-v="${v}">${avatar({ ...d, glasses: v !== 'none', glassesStyle: v === 'none' ? d.glassesStyle : v, frame: null, crown: false, pet: 'none', prop: 'none' }, 60, true)}<span>${GLASSES_NAMES[v]}</span></button>`;
   }).join('')}</div>`;
   const body = {
     face: `<div class="chips">${['m', 'f'].map((v) => `<button class="chip ${d.preset === v ? 'on' : ''}" data-act="ava-set" data-k="preset" data-v="${v}">${v === 'm' ? 'М' : 'Ж'}</button>`).join('')}${tog('freckles', 'Веснушки')}</div>
@@ -2286,7 +2360,7 @@ function renderAvatarEditor() {
       <div class="field">Нос${tiles('nose', L.nose, NOSE_NAMES, true)}</div>
       <div class="field">Уши${chipsOf('ears', L.ears, EARS_NAMES)}</div>
       <div class="field">Тон кожи${sw('skin', L.skin)}</div>`,
-    hair: `<div class="field">Причёска${tiles('hairStyle', L.hairStyle, HAIR_NAMES)}</div><div class="field">Цвет волос${sw('hair', L.hair)}</div>
+    hair: `<div class="field">Причёска${tiles('hairStyle', HAIR_ORDER[sex].concat(L.hairStyle.filter((v) => !HAIR_ORDER[sex].includes(v))), HAIR_NAMES)}</div><div class="field">Цвет волос${sw('hair', L.hair)}</div>
       <p class="small" style="margin:0">Цвет бороды и усов настраивается отдельно — во вкладке «Борода».</p>`,
     eyes: `<div class="field">Взгляд${tiles('eyeShape', L.eyeShape, EYE_NAMES, true)}</div><div class="field">Размер глаз${chipsOf('eyeSize', L.eyeSize, EYESIZE_NAMES)}</div><div class="field">Цвет глаз${sw('eyes', L.eyes)}</div>`,
     mouth: `<div class="field">Выражение${tiles('mouth', L.mouth, MOUTH_NAMES, true)}</div>`,
@@ -2295,9 +2369,12 @@ function renderAvatarEditor() {
       <p class="small" style="margin:0">«=» — как волосы. Седая борода при тёмных волосах, рыжие усы — пожалуйста.</p>`,
     makeup: `<div class="field">Макияж${tiles('makeup', L.makeup, MAKEUP_NAMES, true)}</div><div class="field">Серьги${tiles('earrings', L.earrings, EARRING_NAMES, true)}</div>`,
     outfit: `<div class="field">Одежда${tiles('outfit', L.outfit, OUTFIT_NAMES)}</div><div class="field">Цвет${sw('hoodie', L.hoodie)}</div>`,
-    acc: `<div class="field">Очки${glassesTiles}</div>${d.glasses ? `<div class="field">Цвет оправы<div class="row" style="flex-wrap:wrap;gap:8px">${L.glassesColor.map((v) => `<button class="swatch gc ${(d.glassesColor || 'black') === v ? 'on' : ''}" style="background:${GLASS_SWATCH[v]}" data-act="ava-set" data-k="glassesColor" data-v="${v}" aria-label="${GLASS_COLOR_NAMES[v]}" title="${GLASS_COLOR_NAMES[v]}"></button>`).join('')}</div></div>` : ''}<div class="field">Серьги${tiles('earrings', L.earrings, EARRING_NAMES, true)}</div><div class="field">На шее${tiles('neck', L.neck, NECK_NAMES)}</div><div class="field">На голове${tiles('hat', L.hat, HAT_NAMES)}</div><div class="chips">${tog('phones', 'Наушники')}</div>`,
+    acc: `<div class="field">Очки${glassesTiles}</div>${d.glasses ? `<div class="field">Цвет оправы<div class="row" style="flex-wrap:wrap;gap:8px">${L.glassesColor.map((v) => `<button class="swatch gc ${(d.glassesColor || 'black') === v ? 'on' : ''}" style="background:${GLASS_SWATCH[v]}" data-act="ava-set" data-k="glassesColor" data-v="${v}" aria-label="${GLASS_COLOR_NAMES[v]}" title="${GLASS_COLOR_NAMES[v]}"></button>`).join('')}</div></div>
+      <div class="field">Цвет стёкол<div class="row" style="flex-wrap:wrap;gap:8px">${L.lensColor.map((v) => `<button class="swatch gc ${(d.lensColor || 'clear') === v ? 'on' : ''}" style="background:${LENS_SWATCH[v]}" data-act="ava-set" data-k="lensColor" data-v="${v}" aria-label="${LENS_NAMES[v]}" title="${LENS_NAMES[v]}"></button>`).join('')}</div></div>` : ''}<div class="field">Серьги${tiles('earrings', L.earrings, EARRING_NAMES, true)}</div><div class="field">На шее${tiles('neck', L.neck, NECK_NAMES)}</div><div class="field">На голове${tiles('hat', L.hat, HAT_NAMES)}</div><div class="chips">${tog('phones', 'Наушники')}</div>
+      <div class="field">В руке${tiles('prop', ['none', 'mug', 'mug_best'], { none: 'Ничего', mug: 'Кружка', mug_best: 'Лучший сотрудник' })}</div>
+      <div class="field">Питомец рядом${tiles('pet', L.pet, PET_NAMES)}</div>`,
     bg: `<div class="field">Фон${tiles('bg', L.bg, BG_NAMES)}</div><p class="small" style="margin:0">«Под кожу» сам подбирает цвет, на котором лицо не сливается с фоном.</p>`,
-    meme: `<div class="field">В руках${tiles('prop', L.prop, PROP_NAMES)}</div><p class="small" style="margin:0">Детали с ценой можно примерить бесплатно, а сохранить — после покупки в Лавке. Корона и рамки — тоже в Лавке.</p>`
+    meme: `<div class="field">В руках${tiles('prop', ['none', 'papers', 'sign', 'laptop'], PROP_NAMES)}</div><p class="small" style="margin:0">Детали с ценой можно примерить бесплатно, а сохранить — после покупки в Лавке. Корона и рамки — тоже в Лавке.</p>`
   }[cat];
   const locked = draftLocked();
   return `<div class="ava-ed">
@@ -2857,6 +2934,7 @@ const actions = {
       } finally { S.blitzBusy = false; }
     });
   },
+  'splash-skip'() { if (S.splashDone) S.splashDone(); },
   close() { S.sheet = null; S.error = ''; render(); },
   'close-bg'(el, e) { if (e.target === el) actions.close(); },
   'shop-gang'(el) { S.shopGang = Number(el.dataset.v); render(); },
@@ -3227,9 +3305,74 @@ window.addEventListener('hashchange', async () => {
   render();
 });
 
+// ----- Приветствие при входе: по времени суток, где ты сегодня, дню недели и дню рождения -----
+// Повторный вход в той же ситуации — другая фраза из набора, а не та же самая
+const GREET = {
+  bday: ['С днём рождения, {a}! 🎂 Банда уже в курсе', 'Именинник на этаже! С днём рождения, {a} 🎉', 'Сегодня твой день, {a}. Торт сам себя не съест 🎂', 'Ещё один уровень пройден, {a}! С днём рождения'],
+  vacation: ['Ты же в отпуске, {a}! Что ты тут забыл{s}? 🌴', 'Отпуск, {a}! Закрывай приложение и иди на пляж', 'Работа подождёт, {a}. Отдыхай 🌴'],
+  sick: ['Выздоравливай, {a}! Чай с лимоном — приказ', 'Лежи и лечись, {a}. Банда держит оборону', 'Поправляйся, {a}! Без тебя тут скучно'],
+  night: ['Не спится, {a}? 🦉', 'Ночная смена, {a}? Офисы спят, а ты нет', 'Совы одобряют, {a}. Но утром будет тяжело'],
+  weekend: ['Выходной же, {a}! Отдыхай', 'Суббота-воскресенье, {a}. Этаж подождёт', 'В выходной на работу? {A}, ты легенда'],
+  mon_morning: ['Понедельник, {a}. Держись!', 'Утречка, {a}! Понедельник — это ненадолго', 'Новая неделя, {a}. Погнали ☕'],
+  fri_evening: ['Пятница, {a}! Ещё чуть-чуть', 'Пятничный вечер, {a}. Ты справил{s}ся 🎉', 'Почти выходные, {a}! Держись'],
+  office_morning: ['Утречка, {a}! Ты уже на этаже ☕', 'Доброе утро, {a}! Офис рад тебя видеть', 'Ранняя птичка, {a}! Кофе ждёт'],
+  office_day: ['Хорошего дня, {a}!', 'Как там на этаже, {a}? Обед скоро', 'Держим темп, {a}!'],
+  office_evening: ['Крепись, {a}! Скоро домой', 'Вечереет, {a}. Не засиживайся', 'Финишная прямая, {a}!'],
+  home_morning: ['Утречка, {a}! Работаем из пижамы? ☕', 'Доброе утро, {a}! Кот уже на рабочем месте', 'Утро дома, {a}. Сначала кофе'],
+  home_day: ['Хорошего дня, {a}! Домашний офис на связи', 'Как там дома, {a}? Не забудь пообедать', 'Работаем из дома, {a}. Банда на связи'],
+  home_evening: ['Крепись, {a}! До дивана рукой подать', 'Вечер дома, {a}. Закрывай ноутбук', 'Ещё чуть-чуть, {a}, и отдыхать'],
+  none_morning: ['Утречка, {a}! Где сегодня работаем?', 'Доброе утро, {a}! Отметься — банда ждёт', 'Привет, {a}! Офис или дом?'],
+  none_day: ['Хорошего дня, {a}!', 'Привет, {a}! Ты где сегодня?', 'О, {a}! Банда тебя потеряла'],
+  none_evening: ['Крепись, {a}! Вечер близко', 'Добрый вечер, {a}!', 'Вечереет, {a}. Как прошёл день?']
+};
+const GREET_ADDR = { m: ['бандит', 'шеф', 'дружище', 'босс', 'чемпион'], f: ['бандитка', 'моя дорогая', 'звезда', 'королева', 'шефиня'] };
+function greeting() {
+  const me = S.me, st = S.state || {};
+  const sex = me.look && me.look.preset === 'f' ? 'f' : 'm';
+  const now = new Date(), h = now.getHours(), dow = now.getDay();
+  const part = h < 5 || h >= 23 ? 'night' : h < 12 ? 'morning' : h < 17 ? 'day' : 'evening';
+  const p = (st.presence && st.presence.where) || 'none';
+  const dd = String(now.getDate()).padStart(2, '0') + '.' + String(now.getMonth() + 1).padStart(2, '0');
+  let key;
+  if (me.profile && me.profile.bday === dd) key = 'bday';
+  else if (p === 'vacation') key = 'vacation';
+  else if (p === 'sick') key = 'sick';
+  else if (part === 'night') key = 'night';
+  else if (p === 'weekend') key = 'weekend';
+  else if (dow === 1 && part === 'morning' && p !== 'office') key = 'mon_morning';
+  else if (dow === 5 && part === 'evening') key = 'fri_evening';
+  else key = `${st.checkin ? 'office' : p === 'home' ? 'home' : 'none'}_${part}`;
+  const list = GREET[key] || GREET.none_day;
+  let last = {};
+  try { last = store.get('greet', {}) || {}; } catch {}
+  const i = last.key === key ? (last.i + 1) % list.length : Math.floor(Math.random() * list.length);
+  const ai = last.key === key ? ((last.ai || 0) + 1) % GREET_ADDR[sex].length : Math.floor(Math.random() * GREET_ADDR[sex].length);
+  try { store.set('greet', { key, i, ai }); } catch {}
+  // Иногда вместо «бандит» — ник: так приветствие звучит лично
+  const addr = Math.random() < 0.3 ? me.nick : GREET_ADDR[sex][ai];
+  const text = list[i].replace('{a}', addr).replace('{A}', addr[0].toUpperCase() + addr.slice(1)).replace(/\{s\}/g, sex === 'f' ? 'а' : '');
+  const day = now.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
+  return { text, day };
+}
+// Заставка: логотип, аватар и приветствие. Минимум ~1,6 с, тап — пропустить
+async function splash() {
+  const t0 = Date.now();
+  try { await loadState(); } catch {}
+  const g = greeting();
+  root.innerHTML = `<div class="splash" data-act="splash-skip"><div class="logo">Этаж<span>.</span></div>
+    <div class="splash-ava">${avatar(S.me.look, 96)}</div>
+    <p class="splash-hi">${esc(g.text)}</p><p class="splash-day">${esc(g.day)}</p></div>`;
+  await new Promise((res) => { S.splashDone = res; setTimeout(res, Math.max(1600, 2200 - (Date.now() - t0))); });
+  S.splashDone = null;
+}
+
 async function boot() {
   await loadMe();
   const hash = location.hash;
+  // Приветствие — при обычном входе; по ссылке из пуша или приглашения сразу к делу
+  let greeted = false;
+  try { greeted = !!sessionStorage.getItem('etazh:greeted'); sessionStorage.setItem('etazh:greeted', '1'); } catch {}
+  if (S.me && S.me.nick && !hash && !greeted) await splash();
   applyHash(hash);
   const openFeedback = hash === '#feedback';
   const join = /^#join=([A-Z0-9]{6})$/i.exec(hash);
