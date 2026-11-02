@@ -103,11 +103,25 @@ const ACH = [
 const ACH_CATS = [['first', 'Первые шаги'], ['grow', 'Ступени'], ['daily', 'Каждый день'], ['social', 'Душа компании'], ['stealth', 'Скрытность']];
 const ACH_REWARD = { common: 5, rare: 15, legendary: 40 };
 
+// Задания дня. Каждый день — «Отметься» (в рабочие дни) плюс три случайных из пула, которые тебе сейчас доступны.
+// Набор фиксируется на день при первом показе, чтобы задания не менялись под руками.
+// go — куда ведёт плитка задания в приложении.
 const QUESTS = [
-  { id: 'checkin', name: 'Отметься в офисе' },
-  { id: 'reply', name: 'Ответь на зов банды' },
-  { id: 'thanks', name: 'Скажи кому-нибудь спасибо' }
+  { id: 'where', name: 'Отметься: в офисе или «из дома»', go: 'near' },
+  { id: 'join', name: 'Вступи в банду или сколоти свою', go: 'chats' },
+  { id: 'chat', name: 'Напиши в чат банды', go: 'gang', need: 'gang' },
+  { id: 'call', name: 'Позови своих на кофе или обед', go: 'gang', need: 'gang' },
+  // «Ответь на зов» убран из пула: если тебя никто не позвал, задание не выполнить — нечестно
+  { id: 'reply', name: 'Ответь на зов', go: 'chats' },
+  { id: 'thanks', name: 'Скажи кому-нибудь спасибо', go: 'gang', need: 'gang2' },
+  { id: 'dm', name: 'Напиши кому-нибудь в личку', go: 'dm', need: 'gang2' },
+  { id: 'meme', name: 'Отправь мем-открытку', go: 'dm', need: 'gang2' },
+  { id: 'vote', name: 'Проголосуй в опросе или запусти свой', go: 'gang', need: 'gang' },
+  { id: 'guess', name: 'Сыграй в «Кто из наших?»', go: 'games', need: 'gang4' },
+  { id: 'quiz', name: 'Ответь на квиз недели', go: 'games', need: 'quiz' },
+  { id: 'sea', name: 'Сделай ход в морском бою или вызови кого-нибудь', go: 'games', need: 'gang2' }
 ];
+const QUEST_POOL_PICK = 3;
 const QUEST_REWARD = 3;
 const QUEST_ALL_BONUS = 5;
 const THANKS_PER_DAY = 3;
@@ -148,6 +162,7 @@ function migrate(db) {
   CREATE TABLE IF NOT EXISTS counters (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, key TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, key));
   -- Только набор офисов, где человек бывал, без дат
   CREATE TABLE IF NOT EXISTS user_offices (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, office_id TEXT NOT NULL, PRIMARY KEY (user_id, office_id));
+  CREATE TABLE IF NOT EXISTS quest_days (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, day TEXT NOT NULL, list TEXT NOT NULL, PRIMARY KEY (user_id, day));
   CREATE TABLE IF NOT EXISTS quests_done (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, day TEXT NOT NULL, quest TEXT NOT NULL, PRIMARY KEY (user_id, day, quest));
 
   CREATE TABLE IF NOT EXISTS coffee_pairs (
@@ -281,12 +296,37 @@ function register(ctx) {
     return true;
   }
 
+  // Набор заданий на сегодня: создаётся один раз, дальше берётся из базы
+  function questsFor(uid) {
+    const d = today();
+    const row = q('SELECT list FROM quest_days WHERE user_id = ? AND day = ?').get(uid, d);
+    if (row) return JSON.parse(row.list);
+    const gangs = myGangs(uid);
+    const sizes = gangs.map((g) => q('SELECT COUNT(*) AS n FROM gang_members WHERE gang_id = ?').get(g.id).n);
+    const has = {
+      gang: gangs.length > 0, gang2: sizes.some((n) => n >= 2), gang4: sizes.some((n) => n >= 4),
+      quiz: !!q('SELECT 1 FROM quizzes z WHERE z.closes_at > ? AND NOT EXISTS (SELECT 1 FROM quiz_answers a WHERE a.quiz_id = z.id AND a.user_id = ?)').get(U.now(), uid)
+    };
+    const list = [];
+    if (weekdayName(d)) list.push('where');
+    if (!has.gang) list.push('join');
+    // Детерминированное «случайное» перемешивание по человеку и дню
+    let seed = [...(uid + ':' + d)].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 17);
+    const rnd = () => ((seed = (seed * 1103515245 + 12345) >>> 0) / 2 ** 32);
+    const pool = QUESTS.filter((x) => x.need && has[x.need]).map((x) => [rnd(), x.id]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
+    for (const id of pool) { if (list.length >= QUEST_POOL_PICK + 1) break; list.push(id); }
+    q('INSERT OR IGNORE INTO quest_days (user_id, day, list) VALUES (?, ?, ?)').run(uid, d, JSON.stringify(list));
+    return list;
+  }
+
   function completeQuest(uid, quest) {
+    const list = questsFor(uid);
+    if (!list.includes(quest)) return;
     const r = q('INSERT OR IGNORE INTO quests_done (user_id, day, quest) VALUES (?, ?, ?)').run(uid, today(), quest);
     if (!r.changes) return;
     addBeans(uid, 'quest', QUEST_REWARD);
-    const n = q('SELECT COUNT(*) AS n FROM quests_done WHERE user_id = ? AND day = ?').get(uid, today()).n;
-    if (n === QUESTS.length) { addBeans(uid, 'quest_all', QUEST_ALL_BONUS); bump(uid, 'quest_all'); }
+    const done = new Set(q('SELECT quest FROM quests_done WHERE user_id = ? AND day = ?').all(uid, today()).map((x) => x.quest));
+    if (list.every((id) => done.has(id))) { addBeans(uid, 'quest_all', QUEST_ALL_BONUS); bump(uid, 'quest_all'); }
   }
 
   function onEvent(type, uid, data = {}) {
@@ -300,20 +340,24 @@ function register(ctx) {
       }
       if (type === 'checkin') {
         if (U.msk().hour < 9) bump(uid, 'early');
-        bump(uid, 'checkins'); stat('checkins'); completeQuest(uid, 'checkin');
+        bump(uid, 'checkins'); stat('checkins'); completeQuest(uid, 'where');
         q('INSERT OR IGNORE INTO user_offices (user_id, office_id) VALUES (?, ?)').run(uid, data.office);
       }
       if (type === 'canteen') { bump(uid, 'canteen'); stat('canteen'); }
       if (type === 'reply') { bump(uid, 'replies'); stat('replies'); completeQuest(uid, 'reply'); }
-      if (type === 'call') { stat('calls'); bump(uid, 'calls'); }
-      if (type === 'text') { stat('messages'); bump(uid, 'msgs'); }
-      if (type === 'dm') { bump(uid, data.call ? 'calls' : 'dms'); if (seenPair(uid, 'dm', data.to)) bump(uid, 'dm_people'); }
-      if (type === 'meme') { bump(uid, 'memes'); if (seenPair(uid, 'dm', data.to)) bump(uid, 'dm_people'); }
-      if (type === 'dm_reply') bump(uid, 'replies');
+      if (type === 'call') { stat('calls'); bump(uid, 'calls'); completeQuest(uid, 'call'); }
+      if (type === 'text') { stat('messages'); bump(uid, 'msgs'); completeQuest(uid, 'chat'); }
+      if (type === 'dm') { bump(uid, data.call ? 'calls' : 'dms'); if (seenPair(uid, 'dm', data.to)) bump(uid, 'dm_people'); completeQuest(uid, data.call ? 'call' : 'dm'); }
+      if (type === 'meme') { bump(uid, 'memes'); if (seenPair(uid, 'dm', data.to)) bump(uid, 'dm_people'); completeQuest(uid, 'meme'); }
+      if (type === 'dm_reply') { bump(uid, 'replies'); completeQuest(uid, 'reply'); }
+      if (type === 'home') completeQuest(uid, 'where');
+      if (type === 'gang_join') completeQuest(uid, 'join');
+      if (type === 'guess_any') completeQuest(uid, 'guess');
+      if (type === 'sea_shot') completeQuest(uid, 'sea');
       if (type === 'signal_sent') bump(uid, 'signals_sent');
-      if (type === 'poll') bump(uid, 'polls');
-      if (type === 'poll_vote') bump(uid, 'poll_votes');
-      if (type === 'battle_start') bump(uid, 'battles');
+      if (type === 'poll') { bump(uid, 'polls'); completeQuest(uid, 'vote'); }
+      if (type === 'poll_vote') { bump(uid, 'poll_votes'); completeQuest(uid, 'vote'); }
+      if (type === 'battle_start') { bump(uid, 'battles'); completeQuest(uid, 'sea'); }
       if (type === 'recruit') bump(uid, 'recruits');
       if (type === 'checkout' && data.since && U.now() - data.since < 3600e3) flag(uid, 'st_ghost');
       if (type === 'profile') {
@@ -329,7 +373,7 @@ function register(ctx) {
       if (type === 'signal') stat('signals');
       if (type === 'guess_ok') { bump(uid, 'guess_ok'); stat('guess_ok'); }
       if (type === 'quiz_ok') bump(uid, 'quiz_ok');
-      if (type === 'quiz_any') { bump(uid, 'quiz_any'); stat('quiz_answers'); }
+      if (type === 'quiz_any') { bump(uid, 'quiz_any'); stat('quiz_answers'); completeQuest(uid, 'quiz'); }
       // Морской бой: в зачёт идут только победы потоплением всего флота — сдача соперника не считается
       if (type === 'sea_win') {
         bump(uid, 'sea_wins'); stat('sea_wins');
@@ -617,7 +661,7 @@ function register(ctx) {
       }
     }
     return {
-      quests: { items: QUESTS.map((x) => ({ ...x, done: done.has(x.id) })), reward: QUEST_REWARD, bonus: QUEST_ALL_BONUS },
+      quests: { items: questsFor(u.id).map((id) => QUESTS.find((x) => x.id === id)).filter(Boolean).map((x) => ({ id: x.id, name: x.name, go: x.go, done: done.has(x.id) })), reward: QUEST_REWARD, bonus: QUEST_ALL_BONUS },
       achievements: (() => {
         const c = countersOf(u.id, userRow(u.id));
         return ACH.map((a) => {
@@ -762,6 +806,7 @@ function register(ctx) {
     q('DELETE FROM lunches WHERE day < ?').run(d);
     q('DELETE FROM coffee_pairs WHERE week < ?').run(addDays(d, -56));
     q('DELETE FROM quests_done WHERE day < ?').run(addDays(d, -7));
+    q('DELETE FROM quest_days WHERE day < ?').run(addDays(d, -7));
     q('DELETE FROM gifts WHERE day < ?').run(addDays(d, -400));
     tick();
   }

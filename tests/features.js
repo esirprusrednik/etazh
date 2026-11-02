@@ -62,7 +62,17 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     const f = (await a.get('/api/features')).json;
     assert.ok(f.achievements.find((x) => x.id === 'first_checkin').got);
     assert.ok(f.achievements.find((x) => x.id === 'gang').got);
-    assert.ok(f.quests.items.find((x) => x.id === 'checkin').done);
+    assert.ok(f.quests.items.find((x) => x.id === 'where').done, 'отметка закрывает «Отметься»');
+    assert.equal(f.quests.items.length, 4, 'в рабочий день: «Отметься» и три из пула');
+    assert.deepEqual((await a.get('/api/features')).json.quests.items.map((x) => x.id), f.quests.items.map((x) => x.id), 'набор на день не меняется');
+  });
+
+  await step('задания дня: «из дома» тоже засчитывает отметку, без банды — «вступи в банду»', async () => {
+    await c.post('/api/me/profile', { profile: { today: { kind: 'home' } } });
+    assert.ok((await c.get('/api/features')).json.quests.items.find((x) => x.id === 'where').done);
+    const lone = await new Client().login('lone@mts.ru', 'одинокий_волк');
+    const ids = (await lone.get('/api/features')).json.quests.items.map((x) => x.id);
+    assert.deepEqual(ids, ['where', 'join']);
   });
 
   await step('спасибо: лимит 3 в день, себе нельзя, чужой банде нельзя, получатель +1', async () => {
@@ -80,7 +90,8 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.equal(ex.thanks.length, 3);
     assert.ok(ex.thanks.some((t) => t.toMe && t.text === 'За помощь с отчётом'));
     const fa = (await a.get('/api/features')).json;
-    assert.ok(fa.quests.items.find((x) => x.id === 'thanks').done);
+    const qt = fa.quests.items.find((x) => x.id === 'thanks');
+    assert.ok(!qt || qt.done, 'если спасибо в заданиях — засчитано');
     assert.ok(fa.achievements.find((x) => x.id === 'thanks_give').got);
   });
 

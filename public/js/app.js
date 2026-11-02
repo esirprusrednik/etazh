@@ -1359,7 +1359,8 @@ function renderQuests() {
   const done = f.quests.items.filter((x) => x.done).length;
   return `<section class="card quests">
     <div class="row" style="justify-content:space-between"><span class="card-title">Задания дня</span><span class="small">${done}/${f.quests.items.length} · +${f.quests.reward} за каждое, +${f.quests.bonus} за все</span></div>
-    <div class="quest-row">${f.quests.items.map((x) => `<div class="quest ${x.done ? 'done' : ''}"><span class="qmark" aria-hidden="true">${x.done ? '✓' : ''}</span><span>${esc(x.name)}</span></div>`).join('')}</div>
+    <div class="quest-row n${f.quests.items.length}">${f.quests.items.map((x) => `<button class="quest ${x.done ? 'done' : ''}" data-act="quest-go" data-v="${esc(x.go || '')}" ${x.done ? 'disabled' : ''}><span class="qmark" aria-hidden="true">${x.done ? '✓' : ''}</span><span>${esc(x.name)}</span></button>`).join('')}</div>
+    <p class="small" style="margin:8px 0 0">Каждый день набор новый. Нажми на задание — откроется место, где его выполнить.</p>
   </section>`;
 }
 
@@ -2474,6 +2475,19 @@ const actions = {
     const r = await post(`/api/polls/${el.dataset.id}/close`);
     S.polls = (S.polls || []).map((p) => (p.id === r.poll.id ? r.poll : p));
   }),
+  // Плитка задания дня ведёт туда, где его можно выполнить
+  'quest-go'(el) {
+    const go = el.dataset.v;
+    S.sheet = null;
+    const firstGang = S.activeGang || (S.me.gangs[0] || {}).id;
+    if (go === 'near') { S.tab = 'near'; tabSound('near'); }
+    else if (go === 'games') { S.tab = 'games'; tabSound('games'); }
+    else if (go === 'gang' && firstGang) { S.tab = 'chats'; S.chatGang = true; S.dm = null; S.activeGang = firstGang; store.set('activeGang', firstGang); }
+    else if (go === 'dm') { S.tab = 'chats'; S.dm = null; S.chatGang = false; return actions.open({ dataset: { v: 'dm-pick' } }); }
+    else S.tab = 'chats';
+    window.scrollTo(0, 0);
+    run(() => refresh());
+  },
   close() { S.sheet = null; S.error = ''; render(); },
   'close-bg'(el, e) { if (e.target === el) actions.close(); },
   'shop-gang'(el) { S.shopGang = Number(el.dataset.v); render(); },

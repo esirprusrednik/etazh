@@ -264,6 +264,7 @@ function register(ctx) {
     const s = side(g, u.id), o = other(s);
     if (g.status !== 'play') throw bad(g.status === 'done' ? 'Партия закончена.' : 'Ещё расставляем флот.');
     if (g.turn !== u.id) throw bad('Сейчас ход соперника.');
+    if (onEvent) onEvent('sea_shot', u.id);
     const x = Number(body.x), y = Number(body.y);
     if (!Number.isInteger(x) || !Number.isInteger(y)) throw bad('Куда стреляем?');
     const ships = JSON.parse(g[o + '_ships']);

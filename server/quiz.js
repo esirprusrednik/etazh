@@ -101,6 +101,7 @@ function register(ctx) {
     q('UPDATE guess_q SET pick = ?, correct = ? WHERE id = ?').run(pick, correct, row.id);
     let beans = 0;
     if (correct) { beans = addBeans(u.id, 'guess') || 0; if (onEvent) onEvent('guess_ok', u.id); }
+    if (onEvent) onEvent('guess_any', u.id);
     return { question: guessView(q('SELECT * FROM guess_q WHERE id = ?').get(row.id), u.id), beans };
   });
 

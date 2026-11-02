@@ -553,6 +553,7 @@ function createApi(db) {
     const share = body.shareOffice === undefined ? u.share_office : body.shareOffice ? 1 : 0;
     const quiet = body.quiet === undefined ? u.quiet : body.quiet ? 1 : 0;
     q('UPDATE users SET look = ?, profile = ?, share_office = ?, quiet = ? WHERE id = ?').run(JSON.stringify(look), JSON.stringify(prof), share, quiet, u.id);
+    if (features && body.profile && body.profile.today && body.profile.today.kind === 'home') features.onEvent('home', u.id);
     if (features) features.onEvent('profile', u.id, { look: body.look !== undefined && Object.keys(body.look || {}).length > 0, slack: !!(body.profile && body.profile.today && body.profile.today.kind === 'slack') });
     return { ok: true };
   });

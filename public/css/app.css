@@ -605,3 +605,10 @@ body { font-weight: 500; }
 /* Звук и вибрация в профиле */
 .snd-set { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 14px; background: #F4F6FB; }
 #snd-vol { width: 100%; accent-color: #3A86FF; min-height: 28px; padding: 0; border: 0; background: transparent; }
+
+/* Задания дня: плитки-кнопки, 2×2 при четырёх */
+.quest-row.n4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.quest-row.n2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+button.quest { border: 0; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+button.quest:not(.done):active { transform: scale(.97); }
+button.quest:disabled { cursor: default; }
