@@ -1330,7 +1330,7 @@ function renderChats() {
   const favStrip = `<div class="fav-head"><span class="small"><b>★ Подельники</b> — избранные контакты: им можно писать всегда</span><button class="linkbtn" data-act="open" data-v="crew">${favs.length ? 'все' : '＋ добавить'}</button></div>
     ${favs.length ? `<div class="fav-strip">${favs.map((f) => { const [, col] = whereText(f); return `<button class="fav" data-act="dm-open" data-id="${f.id}"><span class="ava-ring" style="border-color:${col}">${avatar(f.look, 40)}</span><span class="ellipsis">${esc(f.nick)}</span></button>`; }).join('')}</div>` : ''}`;
   const dmList = dms.length ? dms.map(row).join('')
-    : '<p class="sub chats-empty">Пока тихо. Написать лично можно любому, кто не закрыл личку: найди по нику или открой карточку человека.</p>';
+    : '<p class="sub chats-empty">Голуби скучают. Напиши кому-нибудь — лично можно любому, кто не закрыл личку: найди по нику или открой карточку человека.</p>';
   return `${pageHead('Чаты', 'Моя банда и личка')}
     ${findBar()}
     ${(S.invites || []).length ? `<section class="card"><h3>Тебя зовут в банду</h3>${S.invites.map((i) => `<div class="person2">${gangBadge(i.gang, 38)}
@@ -1339,7 +1339,7 @@ function renderChats() {
     ${reqs}
     <button class="invite-app" data-act="crew-share"><span class="grow"><b>Позвать коллегу в Этаж</b><span class="small">Личная ссылка: придёт — сразу будете на связи. +15 зёрен за каждого новичка</span></span><span aria-hidden="true">mail</span></button>
     ${renderMyGang(gangs, seenG)}
-    <section class="card chats">${head('Личка', dmUnread ? `${dmUnread} ${plural(dmUnread, 'новое', 'новых', 'новых')}` : '', 'dm-pick', 'Написать', true)}${favStrip}<p class="small chats-hint">Один на один · видите только вы двое · × закрывает переписку у обоих</p>${dmList}</section>`;
+    <section class="card chats">${head('Личка <span class="pigeon-sub">голубиная почта</span>', dmUnread ? `${dmUnread} ${plural(dmUnread, 'новое', 'новых', 'новых')}` : '', 'dm-pick', 'Написать', true)}${favStrip}<p class="small chats-hint">Один на один · видите только вы двое · × закрывает переписку у обоих</p>${dmList}</section>`;
 }
 
 // ===== Вкладка «Офис»: столовая, обед компанией, сигналы и лента =====
@@ -2354,6 +2354,26 @@ function renderCrew() {
   </section>`;
 }
 
+// ----- Голубиная почта: конверт с крыльями улетает из поля ввода -----
+// Только на первое сообщение человеку за день, на голосовые и мемы — чтобы не надоедало
+function pigeon(to, force) {
+  const day = (S.state && S.state.today) || new Date().toISOString().slice(0, 10);
+  const key = `pigeon:${to}:${day}`;
+  if (!force && store.get(key)) return;
+  store.set(key, 1);
+  sfx('flap');
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const from = document.querySelector('#dm-text') || document.querySelector('.sheet') || document.body;
+  const r = from.getBoundingClientRect();
+  const el = document.createElement('div');
+  el.className = 'pigeon';
+  el.style.left = Math.round(r.left + r.width * 0.6) + 'px';
+  el.style.top = Math.round(r.top) + 'px';
+  el.innerHTML = '<svg viewBox="0 0 48 32" width="68" height="45" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path class="pw pw-l" d="M14 12C10 4 4 2 1 3c2 4 6 8 13 11"/><path class="pw pw-r" d="M34 12c4-8 10-10 13-9-2 4-6 8-13 11"/><rect x="12" y="10" width="24" height="17" rx="2.5" fill="var(--card)"/><path d="M12.8 11.2 24 20l11.2-8.8"/></svg>';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1200);
+}
+
 // ----- Голосовые: до 30 секунд, живут час -----
 const VOICE_MAX = 30;
 const REC = { on: false, where: null, t0: 0, rec: null, chunks: [], stream: null, timer: null, mime: '', cancel: false };
@@ -3173,6 +3193,7 @@ const SOUNDS = {
   hit: (c) => { boom(c, 0, 0.35, 0.35); noise(c, { dur: 0.06, vol: 0.12, f: 2500 }); },
   sunk: (c) => { boom(c, 0, 0.5, 0.8); tone(c, { f: 400, f2: 90, type: 'sawtooth', at: 0.1, dur: 0.6, vol: 0.035 }); },
   lose: (c) => [[392, 0], [370, 0.32], [349, 0.64], [330, 0.96]].forEach(([f, at], i) => tone(c, { f, f2: i === 3 ? 290 : null, type: 'sawtooth', at, dur: i === 3 ? 0.8 : 0.3, vol: 0.04 })),
+  flap: (c) => { [0, 0.13, 0.26].forEach((at, i) => noise(c, { at, dur: 0.09, vol: 0.13 - i * 0.03, f: 1400 - i * 150, f2: 500, q: 0.9 })); tone(c, { f: 520, f2: 880, type: 'sine', at: 0.3, dur: 0.16, vol: 0.025 }); },
   swish: (c) => { noise(c, { dur: 0.22, vol: 0.12, f: 800, f2: 4200, q: 1.2 }); tone(c, { f: 300, f2: 900, type: 'sine', dur: 0.18, vol: 0.03 }); },
   dice: (c) => { for (let i = 0; i < 7; i++) noise(c, { at: i * 0.075 + Math.random() * 0.03, dur: 0.03, vol: 0.16 - i * 0.015, f: 1800 + Math.random() * 1600, q: 4 }); tone(c, { f: 180, f2: 120, type: 'sine', at: 0.55, dur: 0.12, vol: 0.06 }); },
   scribble: (c) => { noise(c, { dur: 0.09, vol: 0.09, f: 3000, q: 1.5 }); noise(c, { at: 0.1, dur: 0.09, vol: 0.08, f: 3600, q: 1.5 }); },
@@ -3961,7 +3982,7 @@ const actions = {
       if ((Date.now() - REC.t0) < 700) throw new Error('Слишком коротко — держи запись хотя бы секунду');
       const audio = await blobB64(blob);
       const body = { type: 'voice', audio, mime: blob.type, dur };
-      if (where === 'dm') { await post(`/api/crew/${dm}/messages`, body); await loadDm(); } else { await post(`/api/gangs/${gang}/messages`, body); await loadGang(); markSeen('chat'); }
+      if (where === 'dm') { await post(`/api/crew/${dm}/messages`, body); pigeon(dm, true); await loadDm(); } else { await post(`/api/gangs/${gang}/messages`, body); await loadGang(); markSeen('chat'); }
       sfx('send');
     });
     rec.start(250);
@@ -4086,6 +4107,7 @@ const actions = {
     if (!text.trim()) return;
     el.value = '';
     try { await post(`/api/crew/${S.dm}/messages`, { type: 'text', text }); } catch (e) { el.value = text; throw e; }
+    pigeon(S.dm);
     await loadDm();
   }),
   'dm-call-open'(el) {
@@ -4284,7 +4306,7 @@ const actions = {
   'meme-send': () => run(async () => {
     const to = S.meme.to;
     await post(`/api/crew/${to}/messages`, { type: 'meme', kind: S.meme.scene, opt: S.meme.emo });
-    S.sheet = null; toast('Мем отправлен');
+    pigeon(to, true); S.sheet = null; toast('Голубь унёс мем');
     if (S.tab === 'chats' && S.dm === to) await loadDm();
   }),
   'meme-share': () => run(async () => {
