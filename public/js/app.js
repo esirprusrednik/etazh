@@ -2263,7 +2263,7 @@ function sfx(name, arg) {
 const tabSound = (tab) => sfx('tab', tab);
 
 // Какой звук у какого нажатия. Свои звуки у вкладок, выстрелов, сдачи и Лавки — их играют сами действия
-const FEEL_SELF = new Set(['tab', 'blitz-pick', 'bshoot', 'bresign', 'sound-toggle', 'vibro-toggle', 'sound-test']);
+const FEEL_SELF = new Set(['tab', 'blitz-pick', 'bshoot', 'bresign', 'sound-toggle', 'vibro-toggle', 'sound-test', 'splash-skip']);
 const FEEL = {
   open: 'open', 'open-sec': 'open', person: 'open', 'find-open': 'open', 'poll-new': 'open', 'ava-open': 'open', 'ava-open-vac': 'open', 'meme-open': 'open', 'pcall-open': 'open',
   'call-open': 'open', 'dm-call-open': 'open', 'battle-new': 'open', 'crew-share': 'open',
@@ -3038,7 +3038,7 @@ const actions = {
       } finally { S.blitzBusy = false; }
     });
   },
-  'splash-skip'() { if (S.splashDone) S.splashDone(); },
+  'splash-skip'() { if (S.splashDone) { sfx('confirm'); S.splashDone(); } },
   close() { S.sheet = null; S.error = ''; render(); },
   'close-bg'(el, e) { if (e.target === el) actions.close(); },
   'shop-gang'(el) { S.shopGang = Number(el.dataset.v); render(); },
@@ -3430,6 +3430,14 @@ const GREET = {
   none_day: ['Хорошего дня, {a}!', 'Привет, {a}! Ты где сегодня?', 'О, {a}! Банда тебя потеряла'],
   none_evening: ['Крепись, {a}! Вечер близко', 'Добрый вечер, {a}!', 'Вечереет, {a}. Как прошёл день?']
 };
+// Кнопка «дальше» — под настроение ситуации
+const GREET_GO = {
+  bday: ['Где мой торт? 🎂', 'Принимаю поздравления', 'Погнали праздновать'], vacation: ['Я только глянуть', 'Одним глазком', 'Ладно, на минутку'],
+  sick: ['Ладно, лягу', 'Только проверю чат', 'Я тихонько'], night: ['Ещё пять минут', 'Совы не спят', 'Я быстро'],
+  weekend: ['Я на минутку', 'Только посмотреть', 'Отдыхаю, честно'], mon_morning: ['Держусь!', 'За дело!', 'Кофе — и погнали'],
+  fri_evening: ['Скорее бы выходные', 'Ещё чуть-чуть', 'Погнали!'], morning: ['За дело!', 'Погнали!', 'Кофе — и в бой', 'Поехали!'],
+  day: ['За дело!', 'Погнали!', 'Работаем', 'Вперёд!'], evening: ['Добиваем день', 'Ещё немного', 'Погнали!']
+};
 const GREET_ADDR = { m: ['бандит', 'шеф', 'дружище', 'босс', 'чемпион'], f: ['бандитка', 'моя дорогая', 'звезда', 'королева', 'шефиня'] };
 function greeting() {
   const me = S.me, st = S.state || {};
@@ -3457,17 +3465,19 @@ function greeting() {
   const addr = Math.random() < 0.3 ? me.nick : GREET_ADDR[sex][ai];
   const text = list[i].replace('{a}', addr).replace('{A}', addr[0].toUpperCase() + addr.slice(1)).replace(/\{s\}/g, sex === 'f' ? 'а' : '');
   const day = now.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
-  return { text, day };
+  const gk = GREET_GO[key] || GREET_GO[part] || GREET_GO.day;
+  return { text, day, go: gk[i % gk.length] };
 }
-// Заставка: логотип, аватар и приветствие. 4 секунды, тап — пропустить
+// Заставка: логотип, аватар и приветствие. До 10 секунд (полоска показывает, сколько осталось), кнопка — дальше сразу
+const SPLASH_MS = 10000;
 async function splash() {
   try { await loadState(); } catch {}
   const g = greeting();
-  root.innerHTML = `<div class="splash" data-act="splash-skip"><div class="logo">Этаж<span>.</span></div>
+  root.innerHTML = `<div class="splash"><div class="logo">Этаж<span>.</span></div>
     <div class="splash-ava">${avatar(S.me.look, 96)}</div>
-    <p class="splash-hi">${esc(g.text)}</p><p class="splash-day">${esc(g.day)}</p><p class="splash-tap">нажми, чтобы продолжить</p></div>`;
-  // Фраза видна целиком 4 секунды (отсчёт — с момента показа, а не с загрузки); тап — пропустить
-  await new Promise((res) => { S.splashDone = res; setTimeout(res, 4000); });
+    <p class="splash-hi">${esc(g.text)}</p><p class="splash-day">${esc(g.day)}</p>
+    <button class="btn splash-go" data-act="splash-skip">${esc(g.go)} →</button><div class="splash-bar"><i style="animation-duration:${SPLASH_MS}ms"></i></div></div>`;
+  await new Promise((res) => { S.splashDone = res; setTimeout(res, SPLASH_MS); });
   S.splashDone = null;
 }
 

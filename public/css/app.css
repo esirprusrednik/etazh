@@ -671,3 +671,8 @@ button.quest:disabled { cursor: default; }
 .preset.legend { background: linear-gradient(160deg, #FFF6D6, #FFE08A); box-shadow: 0 0 0 2px #F4C430 inset; }
 .preset em { font-style: normal; font-size: 11px; font-weight: 900; color: #8A5A00; display: inline-flex; align-items: center; gap: 2px; }
 .preset em svg { width: 11px; height: 11px; }
+.splash-go { margin-top: 14px; min-width: 220px; animation: sp-in .5s .8s ease both; }
+.splash-bar { width: 160px; height: 4px; border-radius: 2px; background: rgba(255,255,255,.12); overflow: hidden; margin-top: 10px; }
+.splash-bar i { display: block; height: 100%; background: var(--gold); transform-origin: left; animation: sp-bar linear both; }
+@keyframes sp-bar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+.splash-tap { display: none; }
