@@ -175,6 +175,7 @@ function createApi(db) {
   let gangwar = null;
   let duels = null;
   let tourney = null;
+  let treasury = null;
   const MAX_MEMBERS = 30;      // больше 30 — уже не банда, а отдел
   const gangLimit = (g) => Math.min(g.max_members || MAX_MEMBERS, MAX_MEMBERS);
   let crew = null;
@@ -493,7 +494,7 @@ function createApi(db) {
       vapidKey: config.vapid.publicKey || null, build: BUILD,
       domains: config.allowedDomains,
       catalog: {
-        gangAreas: GANG_AREAS, gangInterests: GANG_INTERESTS, gangEmoji: GANG_EMOJI,
+        gangAreas: GANG_AREAS, gangItems: require('./treasury').ITEMS.map(({ id, slot, name }) => ({ id, slot, name })), gangInterests: GANG_INTERESTS, gangEmoji: GANG_EMOJI,
         moods: MOODS, moodsF: { ...MOODS, ...MOODS_F }, idleJokesF: IDLE_JOKES_F,
         calls: Object.fromEntries(Object.entries(CALLS).map(([k, v]) => [k, { label: v.label, opts: v.opts, needsText: !!v.needsText, textLabel: v.textLabel || (v.needsText ? 'Уточни' : null), textHint: v.textHint || '' }])),
         signals: Object.fromEntries(Object.entries(SIGNALS).map(([k, v]) => [k, v.label])),
@@ -817,7 +818,7 @@ function createApi(db) {
     return {
       id: g.id, name: g.name, color: g.color, emoji: g.emoji || null, about: g.about || '', area: g.area || null, interests: JSON.parse(g.interests || '[]'),
       access: g.access || 'invite', count, max: gangLimit(g), full: count >= gangLimit(g), owner,
-      ...U.crestPub(g), wars: gangwar ? gangwar.record(g.id) : null, cups: tourney ? tourney.cups(g.id) : 0, trophies: league ? league.trophies(g.id) : null, legend: g.legend_month && league ? legendLabel(g.legend_month) : null, motto: g.motto || '', gold: !!g.gold,
+      ...U.crestPub(g), glory: treasury ? treasury.balance(g.id) : 0, wars: gangwar ? gangwar.record(g.id) : null, cups: tourney ? tourney.cups(g.id) : 0, trophies: league ? league.trophies(g.id) : null, legend: g.legend_month && league ? legendLabel(g.legend_month) : null, motto: g.motto || '', gold: !!g.gold,
       officeName: g.office_id ? (officeById(g.office_id) || {}).name || null : null,
       inOffice: gangOffice(g.id), msgsWeek: q('SELECT COUNT(*) AS n FROM messages WHERE gang_id = ? AND at > ?').get(g.id, U.now() - 7 * 864e5).n,
       since: g.created_at, faces, member: uid ? isMember(g.id, uid) : false, requested: !!(req && req.status === 'pending')
@@ -1011,7 +1012,7 @@ function createApi(db) {
 
   route('GET', '/api/invites', async (req) => {
     const u = requireUser(req);
-    const rows = q(`SELECT i.id, i.at, g.id AS gid, g.name, g.color, g.crest, g.area, g.interests, f.nick AS from_nick FROM gang_invites i JOIN gangs g ON g.id = i.gang_id
+    const rows = q(`SELECT i.id, i.at, g.id AS gid, g.name, g.color, g.crest, g.area, g.interests, g.style, f.nick AS from_nick FROM gang_invites i JOIN gangs g ON g.id = i.gang_id
                     LEFT JOIN users f ON f.id = i.from_id WHERE i.to_id = ? AND i.status = 'pending' AND g.hidden = 0 ORDER BY i.at DESC`).all(u.id);
     return { items: rows.map((r) => ({ id: r.id, gang: { id: r.gid, name: r.name, color: r.color, ...U.crestPub(r), members: memberCount(r.gid) }, from: r.from_nick || 'кто-то' })) };
   });
@@ -1101,7 +1102,7 @@ function createApi(db) {
         code: (g.who_invites || 'all') === 'all' || g.owner_id === u.id ? g.code : null, link: (g.who_invites || 'all') === 'all' || g.owner_id === u.id ? `${config.baseUrl}/g/${g.code}` : null, isOwner: g.owner_id === u.id,
         depositPending: !!g.deposit && members.length < 3, count: members.length,
         about: g.about || '', ...U.crestPub(g), emoji: g.emoji || null, access: g.access || 'invite',
-        max: gangLimit(g), maxSet: g.max_members || 0, league: league ? league.weekPlace(g.id) : null, trophies: league ? league.trophies(g.id) : null, legend: g.legend_month && league ? legendLabel(g.legend_month) : null, whoInvites: g.who_invites || 'all', office: g.office_id || null, canInvite: (g.who_invites || 'all') === 'all' || g.owner_id === u.id
+        max: gangLimit(g), maxSet: g.max_members || 0, glory: treasury ? treasury.balance(g.id) : 0, league: league ? league.weekPlace(g.id) : null, trophies: league ? league.trophies(g.id) : null, legend: g.legend_month && league ? legendLabel(g.legend_month) : null, whoInvites: g.who_invites || 'all', office: g.office_id || null, canInvite: (g.who_invites || 'all') === 'all' || g.owner_id === u.id
       },
       requests: g.owner_id === u.id ? q(`SELECT r.user_id AS id, r.at, x.nick, x.look, x.profile, x.share_office FROM gang_requests r JOIN users x ON x.id = r.user_id WHERE r.gang_id = ? AND r.status = 'pending' ORDER BY r.at`).all(g.id).map((r) => ({ id: r.id, nick: r.nick, look: publicLook(r) })) : [],
       members: statuses.map((s) => ({ ...s, officeName: s.office ? officeName[s.office] : null })),
@@ -1406,7 +1407,7 @@ function createApi(db) {
     addBeans,
     pollsUnvoted: (uid, gid) => (polls ? polls.unvoted(uid, gid) : 0),
     // Важное о банде для карточки «Моя банда»: кто в офисе, место в Лиге, ближайшее событие, голосование за герб
-    gangSummary: (gid, uid) => ({ inOffice: gangOffice(gid), league: league ? league.weekPlace(gid) : null, next: gevents ? gevents.next(gid) : null, crestVote: crestvote ? crestvote.pending(gid, uid) : null, wars: gangwar ? gangwar.summary(gid, uid) : null }),
+    gangSummary: (gid, uid) => ({ inOffice: gangOffice(gid), league: league ? league.weekPlace(gid) : null, next: gevents ? gevents.next(gid) : null, glory: treasury ? treasury.balance(gid) : 0, crestVote: crestvote ? crestvote.pending(gid, uid) : null, wars: gangwar ? gangwar.summary(gid, uid) : null }),
     db, q, route, requireUser, bad, U, config, notify, fireAndForget, rateLimit, memberStatus, HttpError, publicLook,
     onEvent: (t, uid, d) => features && features.onEvent(t, uid, d)
   });
@@ -1415,6 +1416,7 @@ function createApi(db) {
   blitz = require('./blitz').register({ db, q, route, requireUser, bad, U, addBeans, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   polls = require('./polls').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, rateLimit, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   gevents = require('./gevents').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, rateLimit, readProfile, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
+  treasury = require('./treasury').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError });
   crestvote = require('./crestvote').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, crestClean });
   duels = require('./duels').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, addBeans, spendBeans, publicLook, canDm: (u, t) => (crew ? crew.canDm(u, t) : false), onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   gangwar = require('./gangwar').register({ db, q, route, requireUser, requireAdmin, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, spendBeans, battle, publicLook });

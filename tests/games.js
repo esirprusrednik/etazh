@@ -246,6 +246,37 @@ async function step(name, fn) {
     assert.ok(cats.includes('duels'));
   });
 
+  await step('казна: слава за победы банды, недорогое покупает владелец, дорогое — голосованием, зёрна не тратятся', async () => {
+    const ta = (await A1.get(`/api/gangs/${ga.id}/treasury`)).json, tb = (await B1.get(`/api/gangs/${gb.id}/treasury`)).json;
+    const rich = ta.balance >= tb.balance ? { t: ta, g: ga, own: A1, mem: A3, mem2: A2 } : { t: tb, g: gb, own: B1, mem: B3, mem2: B2 };
+    assert.ok(rich.t.balance >= 10, 'победа в битве или Кубке дала славу: ' + rich.t.balance);
+    assert.ok(rich.t.history.length > 0);
+    const beans0 = (await rich.own.get('/api/me')).json.user.beans;
+    assert.equal((await rich.mem.post(`/api/gangs/${rich.g.id}/treasury/buy`, { item: 'st_blitz' })).status, 400, 'недорогое — только владелец');
+    const after = (await rich.own.post(`/api/gangs/${rich.g.id}/treasury/buy`, { item: 'st_blitz' })).json;
+    assert.equal(after.balance, rich.t.balance - 30);
+    assert.equal(after.style.status, 'st_blitz');
+    assert.equal((await rich.own.get('/api/me')).json.user.beans, beans0, 'личные зёрна не тронуты');
+    assert.equal((await rich.own.get(`/api/gangs/${rich.g.id}/profile`)).json.style.status, 'st_blitz', 'видно в профиле банды');
+    // дорогое: голосование. Баланса может не хватить — тогда сервер честно скажет
+    const pricey = after.items.find((x) => x.needVote && x.price <= after.balance);
+    if (pricey) {
+      const v = (await rich.mem.post(`/api/gangs/${rich.g.id}/treasury/buy`, { item: pricey.id })).json;
+      assert.ok(v.vote && v.vote.za === 1);
+      const done = (await rich.mem2.post(`/api/gangs/${rich.g.id}/treasury/vote`, { vote: 1 })).json;
+      assert.equal(done.vote, null, 'больше половины — решено');
+      assert.ok(done.items.find((x) => x.id === pricey.id).owned);
+    } else {
+      const r = await rich.mem.post(`/api/gangs/${rich.g.id}/treasury/buy`, { item: 'aura_fire' });
+      assert.equal(r.status, 400); assert.ok(/Не хватает славы/.test(r.json.error));
+    }
+    // снять и надеть
+    let e = (await rich.own.post(`/api/gangs/${rich.g.id}/treasury/equip`, { slot: 'status' })).json;
+    assert.equal(e.style.status, undefined);
+    e = (await rich.own.post(`/api/gangs/${rich.g.id}/treasury/equip`, { item: 'st_blitz' })).json;
+    assert.equal(e.style.status, 'st_blitz');
+  });
+
   console.log(`\nВсё прошло: ${passed} проверок`);
 })()
   .catch((e) => { console.error('\nПровал:', e.message, '\n--- лог ---\n' + log.slice(-2000)); process.exitCode = 1; })

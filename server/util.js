@@ -105,7 +105,9 @@ function crestPub(row) {
   let crest = null, interests = [];
   try { crest = row.crest ? JSON.parse(row.crest) : null; } catch {}
   try { interests = JSON.parse(row.interests || '[]'); } catch {}
-  return { crest, area: row.area || null, interests };
+  let style = {};
+  try { style = row.style ? JSON.parse(row.style) : {}; } catch {}
+  return { crest, area: row.area || null, interests, style };
 }
 
 module.exports = {

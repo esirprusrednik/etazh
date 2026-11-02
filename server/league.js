@@ -98,7 +98,7 @@ function register(ctx) {
     }
     const sums = new Map(q('SELECT gang_id, SUM(points) AS s FROM league_points WHERE day BETWEEN ? AND ? GROUP BY gang_id').all(p.from, p.to).map((r) => [r.gang_id, r.s]));
     const rosters = new Map(q('SELECT gang_id, COUNT(*) AS n FROM league_roster WHERE period = ? GROUP BY gang_id').all(p.key).map((r) => [r.gang_id, r.n]));
-    const gangs = q('SELECT id, name, color, emoji, access, crest, area, interests FROM gangs WHERE hidden = 0').all().filter((g) => rosters.has(g.id) || sums.has(g.id));
+    const gangs = q('SELECT id, name, color, emoji, access, crest, area, interests, style FROM gangs WHERE hidden = 0').all().filter((g) => rosters.has(g.id) || sums.has(g.id));
     const rows = gangs.map((g) => {
       const total = sums.get(g.id) || 0;
       const roster = rosters.get(g.id) || 0;
@@ -143,7 +143,7 @@ function register(ctx) {
   setInterval(() => { try { tick(); } catch (e) { console.error('league', e); } }, 10 * 60e3).unref();
 
   function lastWinners(p) {
-    return q('SELECT r.place, r.score, r.name, g.color, g.emoji, g.id, g.crest, g.area, g.interests FROM league_results r LEFT JOIN gangs g ON g.id = r.gang_id WHERE r.period = ? ORDER BY r.place').all(p.key)
+    return q('SELECT r.place, r.score, r.name, g.color, g.emoji, g.id, g.crest, g.area, g.interests, g.style FROM league_results r LEFT JOIN gangs g ON g.id = r.gang_id WHERE r.period = ? ORDER BY r.place').all(p.key)
       .map((r) => ({ place: r.place, score: r.score, name: r.name, color: r.color || '#9AA3B5', emoji: r.emoji || null, id: r.id || null, ...U.crestPub(r) }));
   }
 
@@ -158,7 +158,7 @@ function register(ctx) {
     const prevDay = type === 'W' ? addDays(p.from, -7) : addDays(p.from, -1);
     const prev = period(type, prevDay);
     const daysLeft = Math.round((Date.parse(p.to + 'T00:00:00Z') - Date.parse(today() + 'T00:00:00Z')) / 864e5) + 1;
-    const pub = (r) => ({ id: r.id, name: r.name, color: r.color, emoji: r.emoji, crest: r.crest, area: r.area, interests: r.interests, open: r.open, score: r.score, total: r.total, members: r.members, together: r.together, place: r.place || null, me: r.id === gid });
+    const pub = (r) => ({ id: r.id, name: r.name, color: r.color, emoji: r.emoji, crest: r.crest, area: r.area, interests: r.interests, style: r.style, open: r.open, score: r.score, total: r.total, members: r.members, together: r.together, place: r.place || null, me: r.id === gid });
     return {
       period: { type, key: p.key, label: p.label, from: p.from, to: p.to, daysLeft },
       top: ranked.slice(0, 10).map(pub),

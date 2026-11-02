@@ -964,3 +964,45 @@ button.quest:disabled { cursor: default; }
 .earn { display: flex; flex-direction: column; gap: 8px; }
 .earn-g { display: flex; flex-direction: column; gap: 3px; background: #F4F6FB; border-radius: 14px; padding: 10px 12px; font-size: 13.5px; color: #3B4866; }
 .earn-g b:first-child { color: var(--ink); font-size: 14.5px; margin-bottom: 2px; }
+
+/* 🏛 Казна: плашки, статусы, сияние, фоны, темы чата */
+.gname { display: inline; }
+.gname.pl { display: inline-block; padding: 1px 10px; border-radius: 10px; line-height: 1.25; }
+.gname.plate_neon { background: #13131C; color: #7CFFEA; text-shadow: 0 0 6px #22D3EE, 0 0 14px #22D3EE; box-shadow: inset 0 0 0 2px #FF2FD0, 0 0 10px rgba(255,47,208,.5); }
+.gname.plate_gold { background: linear-gradient(135deg, #FFE37A, #F2B705 45%, #C99A0E); color: #3B2A00; box-shadow: inset 0 -2px 0 rgba(0,0,0,.15), 0 2px 6px rgba(201,154,14,.45); }
+.gname.plate_ice { background: linear-gradient(135deg, #E6F7FF, #A5E1FF); color: #0E4F73; box-shadow: inset 0 0 0 2px #fff; }
+.gname.plate_pixel { background: #1E2433; color: #7CFF6B; font-family: ui-monospace, Menlo, monospace; letter-spacing: .03em; box-shadow: 3px 3px 0 #7CFF6B; border-radius: 2px; }
+.gname.plate_fire { background: linear-gradient(90deg, #FF3D00, #FF9100, #FFD600, #FF3D00); background-size: 300% 100%; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.4); animation: fireFlow 3s linear infinite; }
+@keyframes fireFlow { to { background-position: 300% 0; } }
+.gstatus { display: block; width: fit-content; margin-top: 2px; font-size: 11.5px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; padding: 1px 8px; border-radius: 999px; background: #1E2433; color: #FFD84D; }
+.aura.aura_gold svg { filter: drop-shadow(0 0 6px rgba(255,201,60,.95)); }
+.aura.aura_neon svg { filter: drop-shadow(0 0 5px #22D3EE) drop-shadow(0 0 10px #FF2FD0); }
+.aura.aura_fire svg { animation: auraFire 1.4s ease-in-out infinite alternate; }
+@keyframes auraFire { from { filter: drop-shadow(0 0 4px #FF6A00) drop-shadow(0 -2px 6px #FFD600); } to { filter: drop-shadow(0 0 10px #FF3D00) drop-shadow(0 -6px 12px #FF9100); } }
+.g-banner { height: 64px; margin: -16px -16px 10px; border-radius: 22px 22px 0 0; }
+.g-banner.mini { display: block; width: 56px; height: 34px; margin: 0; border-radius: 8px; }
+.g-banner.bg_sunset { background: linear-gradient(180deg, #FF7E5F, #FEB47B 60%, #FFD9A0); }
+.g-banner.bg_city { background: linear-gradient(180deg, #0B1026 0%, #1E2A5A 70%), #0B1026; background-image: linear-gradient(transparent 55%, #0B1026 55%), repeating-linear-gradient(90deg, #1E2A5A 0 14px, #2B3A75 14px 22px, #16204A 22px 30px), linear-gradient(180deg, #0B1026, #3A2E6B); }
+.g-banner.bg_space { background: radial-gradient(circle at 20% 30%, #fff 1px, transparent 2px), radial-gradient(circle at 70% 60%, #fff 1px, transparent 2px), radial-gradient(circle at 45% 20%, #FFD84D 1.5px, transparent 2.5px), radial-gradient(circle at 85% 25%, #fff 1px, transparent 2px), radial-gradient(ellipse at 60% 120%, #7B3FE4, transparent 60%), linear-gradient(180deg, #05070C, #1B1440); }
+.g-banner.bg_matrix { background: repeating-linear-gradient(90deg, transparent 0 10px, rgba(124,255,107,.25) 10px 11px), repeating-linear-gradient(180deg, rgba(124,255,107,.5) 0 2px, transparent 2px 7px), #05140A; }
+.chat-prev { display: inline-block; padding: 6px 10px; border-radius: 12px; font-size: 12px; }
+.chat-prev i { font-style: normal; font-weight: 700; }
+.chat-prev.chat_sea, .chat-theme.chat_sea .chat { background: linear-gradient(180deg, #E0F4FF, #BFE6FB); }
+.chat-prev.chat_forest, .chat-theme.chat_forest .chat { background: linear-gradient(180deg, #E8F7E4, #C9EBC0); }
+.chat-prev.chat_night, .chat-theme.chat_night .chat { background: linear-gradient(180deg, #1B2240, #2E1F4D); color: #fff; }
+.chat-theme .chat { border-radius: 16px; padding: 8px; }
+.chat-theme.chat_night .chat .small { color: rgba(255,255,255,.7); }
+.tr-strip { display: block; width: 100%; text-align: left; border: 0; border-radius: 12px; padding: 8px 12px; margin: 6px 0 0; background: linear-gradient(135deg, #EDE7FF, #D9CCFF); font: inherit; font-size: 13px; color: var(--ink); cursor: pointer; }
+.tr-head { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 18px; background: linear-gradient(135deg, #2E1F4D, #4B2295); color: #fff; }
+.tr-head .small { color: rgba(255,255,255,.75); display: block; }
+.tr-coin { font-size: 40px; }
+.tr-bal { font-size: 34px; font-weight: 900; line-height: 1; color: #FFD84D; }
+.tr-vote { display: flex; flex-direction: column; gap: 6px; background: #FFF6DA; border-radius: 14px; padding: 10px 12px; }
+.tr-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #EEF1F7; }
+.tr-item.on .tr-prev { outline: 2px solid #2FA84F; outline-offset: 2px; border-radius: 8px; }
+.tr-item b { display: block; font-size: 14px; }
+.tr-prev { width: 120px; flex: none; display: flex; align-items: center; justify-content: flex-start; font-weight: 900; font-size: 14px; overflow: hidden; }
+.tr-hist { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.tr-hist div { display: flex; justify-content: space-between; gap: 8px; }
+.tr-hist .plus { color: #1F7A3A; } .tr-hist .minus { color: #B4232B; }
+@media (prefers-reduced-motion: reduce) { .gname.plate_fire, .aura.aura_fire svg { animation: none; } }

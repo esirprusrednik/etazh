@@ -1224,9 +1224,9 @@ function renderMyGang(gangs, seenG) {
       x.polls ? `<span class="mg-flag">📊 ${x.polls} ${plural(x.polls, 'опрос', 'опроса', 'опросов')} без тебя</span>` : ''
     ].join('');
     return `<button class="my-gang" data-act="gang-open" data-id="${x.id}">
-      <span class="mg-crest">${crestSvg(crestOf(x), { size: 64, full: true })}</span>
+      <span class="mg-crest ${auraCls(x)}">${crestSvg(crestOf(x), { size: 64, full: true })}</span>
       <span class="grow" style="min-width:0;display:flex;flex-direction:column;gap:3px">
-        <span class="mg-name">${esc(x.name)}</span>
+        <span class="mg-name">${gangName(x)}</span>
         ${x.motto ? `<span class="small" style="font-style:italic">«${esc(x.motto)}»</span>` : ''}
         ${facts.map((f) => `<span class="small">${f}</span>`).join('')}
         ${flags ? `<span class="mg-flags">${flags}</span>` : ''}
@@ -1625,6 +1625,54 @@ function warHeroPick(members, sel, act) {
     <span class="small">${p.rotation ? 'бился в прошлый раз — ротация' : p.wars ? `героем ${p.wars} ${plural(p.wars, 'раз', 'раза', 'раз')} · побед ${p.wins}` : 'ещё не был героем'}</span></span></button>`).join('')}</div>`;
 }
 
+// ===== Казна банды: слава и оформление =====
+const gst = (g) => (g && g.style) || {};
+const gItemName = (id) => ((S.cat.gangItems || []).find((x) => x.id === id) || {}).name || '';
+// Название банды с купленной плашкой и статусом
+function gangName(g, cls = '') {
+  const st = gst(g);
+  return `<span class="gname ${st.plate ? 'pl ' + st.plate : ''} ${cls}">${esc(g.name)}</span>${st.status ? `<span class="gstatus">${esc(gItemName(st.status))}</span>` : ''}`;
+}
+const auraCls = (g) => (gst(g).aura ? 'aura ' + gst(g).aura : '');
+async function loadTreasury() { try { S.tr = await get(`/api/gangs/${S.activeGang}/treasury`); } catch { S.tr = null; } }
+function trPreview(it, g) {
+  const fake = { ...g, style: { ...gst(g), [it.slot]: it.id } };
+  if (it.slot === 'plate') return `<span class="gname pl ${it.id}">${esc(g.name)}</span>`;
+  if (it.slot === 'status') return `<span class="gstatus">${esc(it.name)}</span>`;
+  if (it.slot === 'aura') return `<span class="g-crest ${auraCls(fake)}">${crestSvg(crestOf(g), { size: 34 })}</span>`;
+  if (it.slot === 'cardbg') return `<span class="g-banner mini ${it.id}"></span>`;
+  return `<span class="chat-prev ${it.id}"><i>Привет, банда!</i></span>`;
+}
+function renderTreasury() {
+  const t = S.tr;
+  const g = S.gang && S.gang.gang;
+  if (!t || !g) return '<p class="sub">Загружаем…</p>';
+  const G = t.glory;
+  const v = t.vote;
+  const vote = v ? `<div class="tr-vote"><b>🗳 Голосуем: «${esc(v.item.name)}» за ${v.item.price} славы</b>
+      <span class="small">Предложил(а) ${esc(v.author)} · за — ${v.za}, против — ${v.protiv} из ${v.members}. Досрочно решит ${v.needEarly}, иначе через ${Math.max(0, Math.round((v.endsAt - Date.now()) / 3600e3))} ч при кворуме ${v.quorum}. Голос тайный.</span>
+      <div class="row"><button class="btn small grow ${v.my === 1 ? 'green' : ''}" data-act="tr-vote" data-v="1">👍 За${v.my === 1 ? ' ✓' : ''}</button><button class="btn small ghost grow" data-act="tr-vote" data-v="-1">👎 Против${v.my === -1 ? ' ✓' : ''}</button></div></div>` : '';
+  const action = (it) => {
+    if (it.owned) return t.isOwner ? `<button class="btn small ${it.equipped ? 'green' : 'ghost'}" data-act="tr-equip" data-v="${it.id}" data-slot="${it.slot}" data-on="${it.equipped ? '0' : '1'}">${it.equipped ? 'Надето' : 'Надеть'}</button>` : `<span class="small">${it.equipped ? 'надето' : 'есть'}</span>`;
+    const short = t.balance < it.price;
+    if (it.needVote) return `<button class="btn small ${short ? 'ghost' : ''}" data-act="tr-buy" data-v="${it.id}" ${short || v ? 'disabled' : ''}>🗳 ${it.price}</button>`;
+    return t.isOwner ? `<button class="btn small" data-act="tr-buy" data-v="${it.id}" ${short ? 'disabled' : ''}>🏛 ${it.price}</button>` : `<span class="small">🏛 ${it.price}</span>`;
+  };
+  return `<div class="tr-head"><span class="tr-coin" aria-hidden="true">🏛</span><div><b class="tr-bal">${t.balance}</b><span class="small">славы в казне банды «${esc(g.name)}»</span></div></div>
+    <p class="small" style="margin:0">Слава — общая валюта банды, за общие победы. Личные зёрна сюда не идут и отсюда не берутся.</p>
+    ${hint('tr-earn', 'Как копится слава и кто тратит', `<ul class="ol">
+      <li>Победа в битве банд — +${G.warWin}, ничья — +${G.warDraw}.</li>
+      <li>Лига недели: 1–3 место — +${G.weekly.join(' / +')}. Лига месяца — +${G.monthly.join(' / +')}.</li>
+      <li>Кубок месяца: чемпион — +${G.tourWin}, финалист — +${G.tourFinal}.</li>
+      <li>Каждый день, когда банда «в сборе» (отметились 70%, не меньше трёх), — +${G.together}.</li>
+      <li><b>Тратить:</b> до ${t.voteFrom} славы — владелец, покупка видна в чате. От ${t.voteFrom} — любой член банды выносит на тайное голосование: досрочно решает больше половины, иначе через 48 часов при кворуме в треть банды.</li>
+      <li>За славу — только внешний вид. Очки Лиги, победы и лимиты не покупаются.</li></ul>`)}
+    ${vote}
+    ${Object.entries(t.slots).map(([slot, title]) => `<h3 style="margin:8px 0 0">${title}</h3>
+      ${t.items.filter((it) => it.slot === slot).map((it) => `<div class="tr-item ${it.equipped ? 'on' : ''}"><span class="tr-prev">${trPreview(it, g)}</span><span class="grow"><b>${esc(it.name)}</b><span class="small">${it.needVote ? 'голосованием банды' : 'покупает владелец'}</span></span>${action(it)}</div>`).join('')}`).join('')}
+    ${t.history.length ? `<h3 style="margin:8px 0 0">История</h3><div class="tr-hist">${t.history.map((h) => `<div><span>${esc(h.item ? `${h.reason}: ${h.item}` : h.reason)}</span><b class="${h.amount > 0 ? 'plus' : 'minus'}">${h.amount > 0 ? '+' : ''}${h.amount}</b></div>`).join('')}</div>` : ''}`;
+}
+
 // ===== Турнир банд =====
 async function loadTour() { try { S.tour = await get('/api/tourney'); } catch { S.tour = null; } }
 const TOUR_RULES = (r) => `<ol class="ol">
@@ -1878,7 +1926,7 @@ function renderPollNew() {
 // ----- Банды: создание, поиск, профиль, настройки -----
 const ACCESS_NAMES = { open: ['Открытая', 'вступить может любой'], request: ['По заявке', 'вступление подтверждает владелец'], invite: ['Закрытая', 'только по ссылке или приглашению, в поиске не видна'] };
 // Значок банды — её герб (собранный владельцем или автоматический)
-const gangBadge = (g, size = 40) => `<span class="g-crest" style="width:${size}px">${crestSvg(crestOf(g), { size })}</span>`;
+const gangBadge = (g, size = 40) => `<span class="g-crest ${g && g.style && g.style.aura ? 'aura ' + g.style.aura : ''}" style="width:${size}px">${crestSvg(crestOf(g), { size })}</span>`;
 function areaSelect(id, cur) {
   return `<select id="${id}"><option value="">Не выбрано</option>${S.cat.gangAreas.map((a) => `<option ${cur === a ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>`;
 }
@@ -1954,7 +2002,7 @@ function gangCardHtml(c) {
     : c.requested ? `<button class="btn small ghost" data-act="gang-apply-cancel" data-id="${c.id}">Заявка отправлена ✕</button>`
     : `<button class="btn small" data-act="gang-apply" data-id="${c.id}">Подать заявку</button>`;
   return `<div class="g-card"><button class="g-main" data-act="gang-profile" data-id="${c.id}">${gangBadge(c)}<span class="grow" style="min-width:0">
-      <span class="g-name">${esc(c.name)}</span>
+      <span class="g-name">${gangName(c)}</span>
       <span class="small">${c.area ? esc(c.area) + ' · ' : ''}${c.count}${c.max ? '/' + c.max : ''} ${plural(c.count, 'человек', 'человека', 'человек')}${c.inOffice ? ` · ${c.inOffice} в офисе` : ''}</span>
       ${c.legend ? `<span class="g-legend small">👑 ${esc(c.legend)}</span>` : ''}
       ${c.why ? `<span class="g-why">${esc(c.why)}</span>` : ''}
@@ -1973,7 +2021,7 @@ function renderGangProfile() {
   if (!c) return '<p class="sub">Загружаем…</p>';
   const [accT, accD] = ACCESS_NAMES[c.access] || ACCESS_NAMES.invite;
   const days = Math.max(1, Math.round((Date.now() - c.since) / 864e5));
-  return `<div class="g-hero" style="--gc:${esc(c.color)}"><span class="g-crest">${crestSvg(crestOf(c), { size: 92, full: true, motto: c.motto || c.name })}</span><div><div class="g-title">${esc(c.name)}${c.gold ? ' 👑' : ''}</div>
+  return `<div class="g-hero" style="--gc:${esc(c.color)}"><span class="g-crest ${auraCls(c)}">${crestSvg(crestOf(c), { size: 92, full: true, motto: c.motto || c.name })}</span><div><div class="g-title">${gangName(c)}${c.gold ? ' 👑' : ''}</div>
       <div class="small">${c.area ? esc(c.area) : 'Направление не указано'}</div></div></div>
     ${c.legend ? `<div class="g-legend">👑 ${esc(c.legend)}</div>` : ''}
     ${trophyLine(c.trophies) ? `<p class="small" style="margin:0">Трофеи Лиги: ${trophyLine(c.trophies)}</p>` : ''}
@@ -2104,9 +2152,11 @@ function renderGang() {
   const msgs = v.messages.map(renderMsg).join('') || '<p class="sub">Сообщения и зовы живут 24 часа. Начни первым.</p>';
   return `${multi}${chips}
   <section class="card" style="${g.gold ? 'border:3px solid #FFC93C' : ''}">
-    <div class="row"><button class="crest-btn" data-act="crest-open" data-ctx="vote" aria-label="Предложить новый герб банды">${crestSvg(crestOf(g), { size: 58, full: true })}<i aria-hidden="true">✎</i></button><div class="grow" style="min-width:0"><h2 style="margin:0">${esc(g.name)}</h2><span class="small">${g.area ? esc(g.area) + ' · ' : ''}${v.gang.count}${g.max ? '/' + g.max : ''} ${plural(v.gang.count, 'участник', 'участника', 'участников')} · ${(ACCESS_NAMES[g.access] || ACCESS_NAMES.invite)[0].toLowerCase()}</span></div>
+    ${gst(g).cardbg ? `<div class="g-banner ${gst(g).cardbg}" aria-hidden="true"></div>` : ''}
+    <div class="row"><button class="crest-btn ${auraCls(g)}" data-act="crest-open" data-ctx="vote" aria-label="Предложить новый герб банды">${crestSvg(crestOf(g), { size: 58, full: true })}<i aria-hidden="true">✎</i></button><div class="grow" style="min-width:0"><h2 style="margin:0">${gangName(g)}</h2><span class="small">${g.area ? esc(g.area) + ' · ' : ''}${v.gang.count}${g.max ? '/' + g.max : ''} ${plural(v.gang.count, 'участник', 'участника', 'участников')} · ${(ACCESS_NAMES[g.access] || ACCESS_NAMES.invite)[0].toLowerCase()}</span></div>
       ${g.isOwner ? '<button class="icon-btn" data-act="gang-settings" aria-label="Настройки банды">⚙️</button>' : `<button class="icon-btn" data-act="gang-profile" data-id="${g.id}" aria-label="Профиль банды">ℹ️</button>`}</div>
     ${g.legend ? `<div class="g-legend">👑 ${esc(g.legend)}</div>` : ''}
+    <button class="tr-strip" data-act="treasury-open">🏛 Казна: <b>${g.glory || 0}</b> славы <span class="small">— оформление банды за общие победы</span></button>
     ${g.league ? `<button class="lg-strip" data-act="league-open">🏆 Лига недели: <b>${g.league.place ? `${MEDAL[g.league.place - 1] || ''} ${g.league.place} место из ${g.league.of}` : g.league.eligible ? 'пока без очков' : 'нужно 3 человека'}</b> · счёт ${g.league.score}${trophyLine(g.trophies) ? ` · ${trophyLine(g.trophies)}` : ''}</button>` : ''}
     ${g.league ? leagueRules() : ''}
     ${g.motto ? `<p class="sub" style="font-style:italic">«${esc(g.motto)}»</p>` : ''}
@@ -2120,7 +2170,7 @@ function renderGang() {
   ${renderCrestVote()}
   ${renderGEvents()}
   ${renderPolls()}
-  <section class="card">
+  <section class="card ${gst(g).chat ? 'chat-theme ' + gst(g).chat : ''}">
     <h3>Чат</h3>
     <div class="chat" id="chat">${msgs}</div>
     <div class="row"><label class="field grow" style="gap:0"><span class="hidden">Сообщение</span><input id="chat-text" maxlength="300" placeholder="Написать банде" aria-label="Сообщение банде"></label>
@@ -2652,6 +2702,7 @@ function renderSheet() {
     case 'gev-new': return sheetWrap('Новое событие', renderGEventNew());
     case 'war-new': return sheetWrap('⚔️ Вызов на битву', renderWarNew());
     case 'war-accept': return sheetWrap('⚔️ Принять вызов', renderWarAccept());
+    case 'treasury': return sheetWrap('🏛 Казна банды', renderTreasury());
     case 'war-hero': return sheetWrap('🦸 Герой банды', renderWarHero());
     case 'tourney': return sheetWrap(S.tour ? `🏆 ${S.tour.title}` : '🏆 Турнир', renderTourney());
     case 'dm-pick': return sheetWrap('Написать в личку', `<p class="sub" style="margin:0">Написать можно любому — если он сам не ограничил личку. Подельникам и своей банде — проще всего.</p>
@@ -3013,7 +3064,7 @@ function sfx(name, arg) {
 const tabSound = (tab) => sfx('tab', tab);
 
 // Какой звук у какого нажатия. Свои звуки у вкладок, выстрелов, сдачи и Лавки — их играют сами действия
-const FEEL_SELF = new Set(['duel-go', 'war-bet', 'war-cheer', 'war-volunteer', 'tourney-reg', 'duel-rps', 'duel-roll', 'duel-cell', 'duel-new', 'war-start', 'war-send', 'war-accept', 'tab', 'blitz-pick', 'bshoot', 'bresign', 'sound-toggle', 'vibro-toggle', 'sound-test', 'splash-skip']);
+const FEEL_SELF = new Set(['tr-buy', 'tr-vote', 'tr-equip', 'duel-go', 'war-bet', 'war-cheer', 'war-volunteer', 'tourney-reg', 'duel-rps', 'duel-roll', 'duel-cell', 'duel-new', 'war-start', 'war-send', 'war-accept', 'tab', 'blitz-pick', 'bshoot', 'bresign', 'sound-toggle', 'vibro-toggle', 'sound-test', 'splash-skip']);
 const FEEL = {
   open: 'open', 'open-sec': 'open', person: 'open', 'find-open': 'open', 'poll-new': 'open', 'gev-new': 'open', 'ava-open': 'open', 'ava-open-vac': 'open', 'meme-open': 'open', 'pcall-open': 'open',
   'call-open': 'open', 'dm-call-open': 'open', 'battle-new': 'open', 'crew-share': 'open',
@@ -3585,6 +3636,18 @@ const actions = {
   'war-volunteer': (el) => run(async () => { await post(`/api/gangs/${S.activeGang}/volunteer`, { on: el.dataset.v === '1' }); sfx(el.dataset.v === '1' ? 'confirm' : 'off'); toast(el.dataset.v === '1' ? 'Владелец увидит тебя первым' : 'Убрали из добровольцев'); await loadWars(); }),
   'war-bet': (el) => run(async () => { if (!confirmInline('war-bet' + el.dataset.id + el.dataset.v, `Нажми ещё раз: ставка ${el.dataset.v} ${plural(Number(el.dataset.v), 'зерно', 'зерна', 'зёрен')} за свою банду`)) return; await post(`/api/wars/${el.dataset.id}/bet`, { amount: Number(el.dataset.v) }); sfx('coin'); await Promise.all([loadWars(), loadMe()]); }),
   'war-cheer': (el) => run(async () => { await post(`/api/wars/${el.dataset.id}/cheer`); sfx('fanfare'); if (navigator.vibrate && vibroOn()) navigator.vibrate([30, 30, 60]); await loadWars(); }),
+  'treasury-open': () => run(async () => { S.sheet = 'treasury'; render(); await loadTreasury(); }),
+  'tr-buy': (el) => run(async () => {
+    const it = S.tr.items.find((x) => x.id === el.dataset.v);
+    if (!confirmInline('tr-buy' + it.id, it.needVote ? `Нажми ещё раз: вынесем «${it.name}» на голосование банды` : `Нажми ещё раз: потратим ${it.price} славы на «${it.name}»`)) return;
+    S.tr = await post(`/api/gangs/${S.activeGang}/treasury/buy`, { item: it.id }); sfx(it.needVote ? 'vote' : 'coin');
+    toast(it.needVote ? (S.tr.vote ? 'Голосование началось — банда получит пуш' : 'Решено сразу') : 'Куплено и надето'); await loadGang();
+  }),
+  'tr-vote': (el) => run(async () => { S.tr = await post(`/api/gangs/${S.activeGang}/treasury/vote`, { vote: Number(el.dataset.v) }); sfx('vote'); if (!S.tr.vote) { toast('Голосование решено'); await loadGang(); } }),
+  'tr-equip': (el) => run(async () => {
+    S.tr = await post(`/api/gangs/${S.activeGang}/treasury/equip`, el.dataset.on === '1' ? { item: el.dataset.v } : { slot: el.dataset.slot });
+    sfx(el.dataset.on === '1' ? 'on' : 'off'); await loadGang();
+  }),
   'tourney-open': () => run(async () => { S.sheet = 'tourney'; render(); await loadTour(); }),
   'tourney-reg': (el) => run(async () => { S.tour = await post('/api/tourney/register', { off: el.dataset.v === 'off' }); sfx('fanfare'); }),
   'war-acc-hero'(el) { S.warAccept.hero = Number(el.dataset.v); sfx('pick'); render(); },
