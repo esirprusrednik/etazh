@@ -677,13 +677,22 @@ const ICONS = {
   search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4',
   swap: 'M7 7h11l-3-3M17 17H6l3 3',
   food: 'M12 7c-4-2-8 1-7 6 1 4 3 8 7 7 4 1 6-3 7-7 1-5-3-8-7-6zM12 7c0-2 1-4 3-4',
-  alert: 'M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z'
+  alert: 'M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z',
+  room: 'M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20a6.5 6.5 0 0 1 13 0M17 11a2.5 2.5 0 1 0 0-5M17 14.5a5 5 0 0 1 4.5 5',
+  home: 'M4 11l8-7 8 7v9H4zM10 20v-5h4v5',
+  call: 'M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z',
+  online: 'M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M2 9a14 14 0 0 1 20 0M12 19.5h.01',
+  wait: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2',
+  mic: 'M9 3h6v11H9zM5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21',
+  sun: 'M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4',
+  moon: 'M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z'
 };
 const ico = (name, size = 20) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICONS[name]}"/></svg>`;
 const OFFICE_BG = { smol: '#E5484D', mark: '#3A86FF', vor: '#F4A72C' };
 const CALL_STYLE = {
   coffee: '#8B5A2B', lunch: '#1F7A3A', room: '#2563C9', home: '#6D3FD6', call: '#F97316', where: '#0E7490', online: '#BE185D', wait: '#4B5563'
 };
+const themePref = () => store.get('theme', 'auto');
 const plural = (n, a, b, c) => { const m10 = n % 10, m100 = n % 100; return m10 === 1 && m100 !== 11 ? a : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? b : c; };
 
 // ---------- Платформа ----------
@@ -926,7 +935,7 @@ function renderLogin() {
   }
   return `<div class="onb">
     <div class="logo">Этаж<span>.</span><em class="logo-beta">β-тест</em></div>
-    <p class="sub" style="color:#C9D1EA">Неофициальное приложение для своих: кто из твоей банды в офисе, есть ли очередь в столовой, позвать на кофе одной кнопкой.</p>
+    <p class="sub" >Неофициальное приложение для своих: кто из твоей банды в офисе, есть ли очередь в столовой, позвать на кофе одной кнопкой.</p>
     <details class="about-login"><summary>Что такое Этаж? За 30 секунд</summary>${aboutHtml({ cta: false })}</details>
     <div class="card">
       <h2>Вход по рабочей почте</h2>
@@ -1113,7 +1122,7 @@ function renderStatusBlock() {
         <div style="display:flex;flex-direction:column;gap:2px"><span class="eyebrow">Ты в офисе</span><span class="office-name">${esc(st.checkin.name)}</span></div>
         <button class="icon-btn" data-act="open" data-v="office" aria-label="Сменить офис">${ico('swap', 16)}</button>
       </div>
-      <span class="small">с ${st.checkin.since || ''} · твоих здесь <b style="color:#1F7A3A">${here}</b> · до 19:00</span>
+      <span class="small">с ${st.checkin.since || ''} · твоих здесь <b style="color:var(--tint-g-fg)">${here}</b> · до 19:00</span>
       <button class="btn small ghost" style="align-self:flex-start" data-act="checkout">${meG('Ушёл домой', 'Ушла домой')}</button>
     </div>
   </section>`;
@@ -1357,7 +1366,7 @@ function renderOffice() {
         </div>
         <button class="icon-btn" data-act="open" data-v="office" aria-label="Сменить офис">${ico('swap', 16)}</button>
       </div>
-      <span class="small">с ${since} · из банды здесь <b style="color:#1F7A3A">${here}</b> · до 19:00</span>
+      <span class="small">с ${since} · из банды здесь <b style="color:var(--tint-g-fg)">${here}</b> · до 19:00</span>
       <button class="btn small ghost" style="align-self:flex-start" data-act="checkout">${meG('Ушёл домой', 'Ушла домой')}</button>
     </div>
   </section>
@@ -1378,8 +1387,8 @@ function renderQuickCalls() {
   const gang = S.activeGang || S.me.gangs[0].id;
   const items = [['coffee', 'На кофе', '#8B5A2B', '#5E3B1A'], ['lunch', 'На обед', '#1F7A3A', '#155C2B'], ['where', 'Ты где?', '#0E7490', '#0A5468']];
   return `<section class="qcalls" aria-label="Быстрые зовы банде">
-    ${items.map(([k, label, bg, shade]) => `<button class="qcall" style="background:${bg};border-bottom-color:${shade}" data-act="call-open" data-kind="${k}" data-gang="${gang}">${ico(k, 22)}${label}</button>`).join('')}
-    <button class="qcall" style="background:#4B5563;border-bottom-color:#2F3640" data-act="gang-open" data-id="${gang}">${ico('more', 22)}Ещё</button>
+    ${items.map(([k, label, bg, shade]) => `<button class="qcall" style="--c:${bg}" data-act="call-open" data-kind="${k}" data-gang="${gang}">${ico(k, 22)}${label}</button>`).join('')}
+    <button class="qcall" style="--c:#6B7594" data-act="gang-open" data-id="${gang}">${ico('more', 22)}Ещё</button>
   </section>`;
 }
 
@@ -1480,7 +1489,7 @@ function renderToday() {
   const p = st.presence;
   const next = renderVacSoon();
   if (p.where === 'vacation') {
-    return `<section class="card" style="background:#FFF4E0">
+    return `<section class="card" style="background:var(--tint-y)">
       <h2>🌴 Ты в отпуске${p.until === st.today ? ' сегодня' : ` до ${ddmm(p.until)}`}</h2>
       ${st.vacNow ? `<p class="vac-back">Выходить <b>${st.vacNow.backDow.toLowerCase()} ${ddmm(st.vacNow.back)}</b>${st.vacNow.restDays > 1 ? ` · ещё ${st.vacNow.restDays} ${plural(st.vacNow.restDays, 'день', 'дня', 'дней')} отдыха` : ' · последний день, лови момент'}</p>` : ''}
       <p class="sub">Банда видит статус «в отпуске», зовы не присылают пуши — прочитаешь в чате, когда вернёшься.</p>
@@ -1488,14 +1497,14 @@ function renderToday() {
     </section>`;
   }
   if (p.where === 'sick') {
-    return `<section class="card" style="background:#FDECEA">
+    return `<section class="card" style="background:var(--tint-r)">
       <h2>🤒 Болеешь${p.until !== st.today ? ` до ${ddmm(p.until)}` : ' сегодня'}</h2>
       <p class="sub">Выздоравливай! Банда видит «болеет», зовы не присылают пуши. Причину и подробности никто не видит.</p>
       <button class="btn ghost" data-act="today" data-v="">Выздоровел</button>
     </section>`;
   }
   if (p.where === 'slack') {
-    return `<section class="card" style="background:#F3E8FF">
+    return `<section class="card" style="background:var(--tint-v)">
       <h2>😏 Сегодня отлыниваешь</h2>
       <p class="sub">Честность — лучшая политика. Банда видит «отлынивает (${meG('сам признался', 'сама призналась')})».</p>
       <button class="btn ghost" data-act="today" data-v="">Ладно, работаю</button>
@@ -2197,7 +2206,7 @@ function renderGang() {
     ${g.interests && g.interests.length ? `<div class="g-tags">${g.interests.map((t) => `<i>${esc(t)}</i>`).join('')}</div>` : ''}
     ${(v.requests || []).length ? `<div class="g-req"><b>Хотят в банду · ${v.requests.length}</b>${v.requests.map((r) => `<div class="person2">${tap(r.id, avatar(r.look, 30))}<span class="grow ellipsis" style="font-weight:800">${esc(r.nick)}</span><button class="btn small" data-act="greq" data-id="${r.id}" data-v="accept">Принять</button><button class="btn small ghost" data-act="greq" data-id="${r.id}" data-v="decline" aria-label="Отклонить">✕</button></div>`).join('')}</div>` : ''}
     ${g.depositPending ? '<div class="note warn">Залог 50 зёрен вернётся, когда в банде будет 3 человека.</div>' : ''}
-    <div class="calls">${Object.entries(S.cat.calls).map(([k, c]) => `<button class="call" style="background:${CALL_STYLE[k]}" data-act="call-open" data-kind="${k}" data-gang="${g.id}">${esc(c.label)}</button>`).join('')}</div>
+    <div class="calls">${Object.entries(S.cat.calls).map(([k, c]) => `<button class="call" style="--c:${CALL_STYLE[k]}" data-act="call-open" data-kind="${k}" data-gang="${g.id}">${ico(k, 20)}<span>${esc(c.label)}</span></button>`).join('')}</div>
   </section>
   ${renderWars()}
   ${renderCrestVote()}
@@ -2597,8 +2606,8 @@ function renderBirthdays() {
   if (!f || !f.birthdaysToday.length) return '';
   return f.birthdaysToday.map((b) => `<section class="bday">
     ${tap(b.id, `<span class="ava-wrap">${avatar(b.look, 34)}</span>`)}
-    <div class="grow"><div style="font-weight:900">Сегодня день рождения у ${esc(b.nick)}</div><div class="small" style="color:#5B3B00">Поздравь в банде или подари зёрна</div></div>
-    ${b.gifted ? '<span class="small" style="color:#5B3B00;font-weight:700">Поздравил ✓</span>' : `<button class="btn small" data-act="gift" data-id="${b.id}">+${f.giftBeans} ${BEAN}</button>`}
+    <div class="grow"><div style="font-weight:900">Сегодня день рождения у ${esc(b.nick)}</div><div class="small" >Поздравь в банде или подари зёрна</div></div>
+    ${b.gifted ? '<span class="small" style="font-weight:700">Поздравил ✓</span>' : `<button class="btn small" data-act="gift" data-id="${b.id}">+${f.giftBeans} ${BEAN}</button>`}
   </section>`).join('');
 }
 
@@ -2769,7 +2778,7 @@ function renderSheet() {
       ${S.crew && S.crew.outgoing.length ? `<div class="crew-out"><span class="small">Ждём ответа:</span> ${S.crew.outgoing.map((p) => `<span class="rep">${esc(p.nick)} <button class="linkbtn" data-act="crew-decline" data-id="${p.id}" aria-label="Отменить заявку">✕</button></span>`).join(' ')}</div>` : ''}
       ${S.crew && S.crew.blocked.length ? `<details><summary class="small" style="cursor:pointer;min-height:32px">Заблокированные (${S.crew.blocked.length})</summary>${S.crew.blocked.map((p) => `<div class="row" style="justify-content:space-between"><span>${esc(p.nick)}</span><button class="linkbtn" data-act="crew-unblock" data-id="${p.id}">Разблокировать</button></div>`).join('')}</details>` : ''}`);
     case 'pcall': return sheetWrap('Позвать ' + (((S.people || []).find((p) => p.id === S.pcallTo) || (S.person && S.person.id === S.pcallTo ? S.person : null) || {}).nick || ''), `<p class="sub">Лично, придёт пуш. Тихие часы 19:00–09:00 уважаем.</p>
-      <div class="calls">${['coffee', 'lunch', 'room', 'call', 'where', 'online', 'wait'].map((k) => `<button class="call" style="background:${CALL_STYLE[k]}" data-act="pcall" data-id="${S.pcallTo}" data-kind="${k}">${esc(S.cat.calls[k].label)}</button>`).join('')}</div>
+      <div class="calls">${['coffee', 'lunch', 'room', 'call', 'where', 'online', 'wait'].map((k) => `<button class="call" style="--c:${CALL_STYLE[k]}" data-act="pcall" data-id="${S.pcallTo}" data-kind="${k}">${ico(k, 20)}<span>${esc(S.cat.calls[k].label)}</span></button>`).join('')}</div>
       <button class="btn ghost" data-act="dm-open" data-id="${S.pcallTo}">💬 Написать сообщение</button>`);
     case 'find': return sheetWrap('Найти своих', renderFind());
     case 'feedback': return sheetWrap('Идеи и ошибки', renderFeedback());
@@ -3478,6 +3487,7 @@ function renderProfile() {
     <label class="check"><input type="checkbox" data-act="findable-toggle" ${p.findable !== false ? 'checked' : ''}> <span>Меня можно найти по нику и рабочей почте — и позвать в банду</span></label>
     <div class="field">Кто может писать мне в личку<div class="chips">${[['all', 'Все'], ['gang', 'Моя банда'], ['none', 'Никто']].map(([k, t]) => `<button class="chip ${(p.dmFrom || 'all') === k ? 'on' : ''}" data-act="dm-from" data-v="${k}">${t}</button>`).join('')}</div>
       <span class="small" style="font-weight:600">Подельники (избранные) могут писать всегда. Уже начатые переписки ограничение не обрывает — их закрывают крестиком.</span></div>
+    <div class="field">Оформление<div class="seg">${[['auto', 'Как в телефоне'], ['light', ico('sun', 16) + ' Светлое'], ['dark', ico('moon', 16) + ' Тёмное']].map(([k, t]) => `<button class="seg-b ${themePref() === k ? 'on' : ''}" data-act="theme-set" data-v="${k}">${t}</button>`).join('')}</div></div>
     <div class="snd-set">
       <label class="field" style="gap:4px"><span>Громкость звуков: <b id="vol-n">${soundVol() ? soundVol() + '%' : 'выкл'}</b></span>
         <input type="range" id="snd-vol" min="0" max="100" step="5" value="${soundVol()}" aria-label="Громкость звуков интерфейса"></label>
@@ -3498,7 +3508,7 @@ function renderProfile() {
     <div class="prof-hero">${progressRing(me.completion.pct, avatar(look, 72))}<div class="grow">
       <div class="nick" style="color:var(--ink)">${esc(me.nick)}</div>
       ${name ? `<div class="small" style="font-weight:700">${esc(name)}</div>` : ''}
-      ${me.status ? `<div class="status" style="color:#B7791F">${esc(me.status)}</div>` : ''}
+      ${me.status ? `<div class="status" style="color:var(--tint-y-fg)">${esc(me.status)}</div>` : ''}
       <div class="small">${me.beans} ${plural(me.beans, 'зерно', 'зерна', 'зёрен')}</div></div></div>
     ${renderCompletion(true)}
     ${section('look', 'Внешность', `${OUTFIT_NAMES[look.outfit] || 'Худи'} · ${(HAIR_NAMES[look.hairStyle] || '').toLowerCase()}${look.prop && look.prop !== 'none' ? ' · ' + (PROP_NAMES[look.prop] || '').toLowerCase() : ''}`, lookBody)}
@@ -3514,7 +3524,7 @@ function renderProfile() {
     <div class="row" style="justify-content:space-between">
       <button class="linkbtn" data-act="logout">Выйти</button>
       <a class="linkbtn" href="/privacy.html" target="_blank" rel="noopener">Политика</a>
-      <button class="linkbtn" style="color:#B42318" data-act="delete-account">Удалить аккаунт</button>
+      <button class="linkbtn" style="color:var(--tint-r-fg)" data-act="delete-account">Удалить аккаунт</button>
     </div>`;
 }
 
@@ -3534,7 +3544,7 @@ function renderPerson() {
     <div class="person-ava">${avatar(x.look, 180)}</div>
     <div class="nick" style="color:var(--ink);text-align:center">${esc(x.nick)}${x.me ? ' (ты)' : ''}</div>
     ${x.name ? `<div class="sub" style="text-align:center;margin:0;font-weight:700">${esc(x.name)}</div>` : ''}
-    ${x.status ? `<div class="status" style="color:#B7791F;text-align:center">${esc(x.status)}</div>` : ''}
+    ${x.status ? `<div class="status" style="color:var(--tint-y-fg);text-align:center">${esc(x.status)}</div>` : ''}
     ${x.about ? `<p class="person-about">«${esc(x.about)}»</p>` : ''}
     ${x.tags && x.tags.length ? `<div class="chips" style="justify-content:center">${x.tags.map((t) => `<span class="chip on" style="cursor:default">${esc(t)}</span>`).join('')}</div>` : ''}
     ${rows.length ? `<div class="person-rows">${rows.map(([k, v]) => `<div><span class="small">${k}</span><b>${v}</b></div>`).join('')}</div>` : ''}
@@ -4370,6 +4380,7 @@ const actions = {
   'coach-skip'() { S.coach = 0; store.set('coachDone', 2); store.set('ia2', 1); if (S.tab !== 'near') { S.tab = 'near'; run(() => refresh()); } render(); },
   'findable-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { findable: el.checked } }); await loadMe(); toast(el.checked ? 'Тебя можно найти' : 'Тебя больше не найти поиском'); }),
   'vibro-toggle'(el) { store.set('vibro', el.checked); if (el.checked) sfx('confirm'); },
+  'theme-set'(el) { store.set('theme', el.dataset.v); if (window.etazhTheme) window.etazhTheme.apply(); render(); },
   'sound-test'() { const demo = ['tap', 'open', 'on', 'send', 'vote', 'confirm', 'coin']; demo.forEach((n, i) => setTimeout(() => sfx(n), i * 320)); },
   'open-sec'(el) {
     const v = el.dataset.v;

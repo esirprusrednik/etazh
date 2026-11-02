@@ -20,6 +20,11 @@ public/js/admin.js
 public/js/app.js
 public/js/building.js
 public/js/crest.js
+public/js/theme.js
+public/fonts/onest.woff
+public/fonts/unbounded.woff
+public/fonts/OFL-Onest.txt
+public/fonts/OFL-Unbounded.txt
 public/manifest.webmanifest
 public/privacy.html
 public/rules.html
