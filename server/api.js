@@ -318,6 +318,27 @@ function createApi(db) {
     q('UPDATE offices SET lunch_w = ? WHERE id = ?').run(Math.round(w * 10) / 10, officeId);
   }
 
+  // Обезличенная статистика для плашки сверху: только счётчики, без ников и банд. Кэш на минуту
+  let statsCache = null;
+  function appStats() {
+    if (statsCache && statsCache.until > U.now()) return statsCache.v;
+    const day = U.msk().day;
+    const tn = Number(day.replace(/-/g, ''));
+    const weekAgo = Number(new Date(Date.parse(day + 'T00:00:00Z') - 6 * 864e5).toISOString().slice(0, 10).replace(/-/g, ''));
+    const v = {
+      users: q('SELECT COUNT(*) AS n FROM users WHERE nick IS NOT NULL').get().n,
+      gangs: q('SELECT COUNT(*) AS n FROM gangs WHERE hidden = 0').get().n,
+      inGangs: q('SELECT COUNT(DISTINCT m.user_id) AS n FROM gang_members m JOIN gangs g ON g.id = m.gang_id WHERE g.hidden = 0').get().n,
+      today: q("SELECT COUNT(*) AS n FROM counters WHERE key = 'last_active' AND n >= ?").get(tn).n,
+      week: q("SELECT COUNT(*) AS n FROM counters WHERE key = 'last_active' AND n >= ?").get(weekAgo).n,
+      inOffice: q('SELECT COUNT(DISTINCT user_id) AS n FROM checkins WHERE day = ? AND left_at IS NULL').get(day).n,
+      newWeek: q('SELECT COUNT(*) AS n FROM users WHERE nick IS NOT NULL AND created_at > ?').get(U.now() - 7 * 864e5).n,
+      msgsToday: q('SELECT COUNT(*) AS n FROM messages WHERE at > ?').get(Date.parse(day + 'T00:00:00Z') - config.tzOffsetHours * 3600e3).n
+    };
+    statsCache = { v, until: U.now() + 60e3 };
+    return v;
+  }
+
   // ---------- Банды ----------
   const myGangs = (userId) => q(`SELECT g.* FROM gangs g JOIN gang_members m ON m.gang_id = g.id
                                  WHERE m.user_id = ? AND g.hidden = 0 ORDER BY m.joined_at`).all(userId);
@@ -629,6 +650,7 @@ function createApi(db) {
       canteen: office ? canteenEstimate(office) : null,
       inCanteen: !!canteenOpen,
       gangNow: { hasGang: gangs.length > 0, rows: rows.slice(0, 6), more: Math.max(0, rows.length - 6) },
+      stats: appStats(),
       badges: { chat: newChat, feed: newFeed, crew: crew ? crew.unread(u.id) : 0, invites: q("SELECT COUNT(*) AS n FROM gang_invites WHERE to_id = ? AND status = 'pending'").get(u.id).n, feedback: feedback ? feedback.unseen(u.id) : 0, gangRequests: q("SELECT COUNT(*) AS n FROM gang_requests r JOIN gangs g ON g.id = r.gang_id WHERE g.owner_id = ? AND r.status = 'pending'").get(u.id).n, polls: polls ? polls.unvoted(u.id) : 0 }
     };
   });

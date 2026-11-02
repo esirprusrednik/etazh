@@ -368,6 +368,12 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.equal((await L[1].post('/api/shop/buy', { item: 'p_laurel' })).status, 400, 'венок не купить');
   });
 
+  await step('статистика: только счётчики, без ников и названий', async () => {
+    const st = (await a.get('/api/state')).json.stats;
+    assert.ok(st.users >= 4 && st.gangs >= 1 && st.inGangs >= 1 && st.today >= 1);
+    assert.ok(Object.values(st).every((v) => typeof v === 'number'), 'одни числа');
+  });
+
   console.log(`\nВсё прошло: ${passed} проверок`);
 })()
   .catch((e) => { console.error('\nПровал:', e.message, '\n--- лог ---\n' + log.slice(-2000)); process.exitCode = 1; })

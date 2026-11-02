@@ -746,3 +746,11 @@ button.quest:disabled { cursor: default; }
 .about-login summary::-webkit-details-marker { display: none; }
 .about-login summary::after { content: '›'; font-size: 24px; transition: transform .2s; }
 .about-login[open] summary::after { transform: rotate(90deg); }
+
+/* Плашка сверху: дата, бета, статистика */
+.top-strip { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; background: rgba(255,255,255,.08); color: #DDE3F5; border-radius: 12px; padding: 7px 12px; font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; margin: 2px 16px 6px; width: calc(100% - 32px); box-sizing: border-box; text-align: left; }
+.top-strip .ts-date { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.top-strip .ts-date::first-letter { text-transform: uppercase; }
+.ts-beta { background: #FFC93C; color: #3B2A00; border-radius: 999px; padding: 2px 8px; font-size: 11.5px; font-weight: 900; letter-spacing: .02em; }
+.ts-nums { white-space: nowrap; }
+.logo-beta { font-style: normal; font-size: 14px; vertical-align: super; margin-left: 6px; background: #FFC93C; color: #3B2A00; border-radius: 999px; padding: 2px 9px; font-weight: 900; letter-spacing: .02em; }

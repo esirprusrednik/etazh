@@ -868,7 +868,7 @@ function renderLogin() {
     </div>`;
   }
   return `<div class="onb">
-    <div class="logo">Этаж<span>.</span></div>
+    <div class="logo">Этаж<span>.</span><em class="logo-beta">β-тест</em></div>
     <p class="sub" style="color:#C9D1EA">Неофициальное приложение для своих: кто из твоей банды в офисе, есть ли очередь в столовой, позвать на кофе одной кнопкой.</p>
     <details class="about-login"><summary>Что такое Этаж? За 30 секунд</summary>${aboutHtml({ cta: false })}</details>
     <div class="card">
@@ -907,6 +907,39 @@ function renderNick() {
   </div>`;
 }
 
+// Плашка сверху: сегодняшняя дата, «бета-тест» и обезличенные цифры. Нажатие — подробности
+const WD_FULL = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
+const MON_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+function todayLabel(short = false) {
+  const d = new Date(Date.now() + 3 * 3600e3); // по Москве
+  return `${short ? ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'][d.getUTCDay()] : WD_FULL[d.getUTCDay()]}, ${d.getUTCDate()} ${MON_GEN[d.getUTCMonth()]}`;
+}
+function renderTopStrip() {
+  const st = S.state && S.state.stats;
+  return `<button class="top-strip" data-act="open" data-v="stats" aria-label="Статистика Этажа">
+    <span class="ts-date">${todayLabel(true)}</span><span class="ts-beta">β-тест</span>
+    ${st ? `<span class="ts-nums">${st.gangs} ${plural(st.gangs, 'банда', 'банды', 'банд')} · ${st.users} ${plural(st.users, 'бандит', 'бандита', 'бандитов')}</span>` : ''}</button>`;
+}
+function renderStats() {
+  const st = S.state && S.state.stats;
+  if (!st) return '<p class="sub">Загружаем…</p>';
+  const tile = (n, label) => `<div><b>${n}</b><span>${label}</span></div>`;
+  return `<div class="note warn" style="margin:0"><b>Идёт бета-тест.</b> Что-то может сломаться, а что-то — поменяться. Нашёл баг или есть идея — напиши, за принятую идею +10 зёрен.</div>
+    <p class="small" style="margin:0">Сегодня ${todayLabel()}. Цифры общие на весь Этаж, без ников и названий — кто именно, не видно.</p>
+    <div class="g-stats" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      ${tile(st.users, plural(st.users, 'бандит в Этаже', 'бандита в Этаже', 'бандитов в Этаже'))}
+      ${tile(st.gangs, plural(st.gangs, 'банда', 'банды', 'банд'))}
+      ${tile(st.inGangs, 'уже в банде')}
+      ${tile(st.users - st.inGangs, 'пока одиночки')}
+      ${tile(st.today, 'заходили сегодня')}
+      ${tile(st.week, 'за последние 7 дней')}
+      ${tile(st.inOffice, 'отметились в офисе сегодня')}
+      ${tile(st.newWeek, 'новичков за неделю')}
+    </div>
+    <p class="small" style="margin:0">${st.msgsToday} ${plural(st.msgsToday, 'сообщение', 'сообщения', 'сообщений')} в бандах сегодня. Чем больше своих — тем полезнее Этаж: позови коллегу, это +15 зёрен.</p>
+    <div class="row"><button class="btn grow" data-act="crew-share">📨 Позвать коллегу</button><button class="btn ghost grow" data-act="open" data-v="feedback">💡 Идея или баг</button></div>`;
+}
+
 function renderApp() {
   const me = S.me;
   const b = (S.state && S.state.badges) || { chat: 0, feed: 0, crew: 0 };
@@ -926,6 +959,7 @@ function renderApp() {
       </button>
       <button class="beans3d ${S.beanFx ? 'gain' : ''} ${S.coach === 2 ? 'coach-focus' : ''}" data-act="open" data-v="shop" aria-label="Зёрна: ${me.beans}. Открыть лавку${shopDot() ? '. Есть что купить' : ''}">${BEAN}<span class="bnum">${S.beanFx ? S.beanFx.from : me.beans}</span><span class="bcart"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11h10.2L20 8H6.3"/><circle cx="9.5" cy="19.5" r="1.4"/><circle cx="16.5" cy="19.5" r="1.4"/></svg></span>${shopDot() ? '<span class="bdot" aria-hidden="true"></span>' : ''}${S.beanFx ? `<span class="bplus" aria-hidden="true">+${S.beanFx.to - S.beanFx.from}</span>` : ''}</button>
     </header>
+    ${renderTopStrip()}
     ${renderCoach()}
     ${S.newBuild ? '<button class="upd-bar" data-act="reload">✨ Вышло обновление — нажми, чтобы обновить</button>' : ''}
     <main>
@@ -2148,6 +2182,7 @@ function renderSheet() {
     case 'gang-find': return sheetWrap('Найти банду', renderGangFind());
     case 'gang-profile': return sheetWrap('Банда', renderGangProfile());
     case 'gang-settings': return sheetWrap('Настройки банды', renderGangSettings());
+    case 'stats': return sheetWrap('Этаж сегодня', renderStats());
     case 'about': store.set('aboutSeen', true); return sheetWrap('Об Этаже', aboutHtml());
     case 'gang-switch': return sheetWrap('Перейти в другую банду?', renderGangSwitch());
     case 'league': return sheetWrap('Лига банд', renderLeague());
