@@ -57,6 +57,12 @@ const SHOP = [
   { id: 'p_cyber', kind: 'part', slot: 'outfit', value: 'cyber', name: 'Неоновая куртка', price: 150, legend: true },
   { id: 'p_visor', kind: 'part', slot: 'mask', value: 'visor', name: 'Кибервизор', price: 90, legend: true },
   { id: 'p_anime_hair', kind: 'part', slot: 'hairStyle', value: 'anime', name: 'Аниме-причёска', price: 100, legend: true },
+  // Эксклюзив: легендарные образы
+  { id: 'p_knight', kind: 'part', slot: 'hat', value: 'knight', name: 'Рыцарский шлем', price: 140, legend: true },
+  { id: 'p_royal', kind: 'part', slot: 'hat', value: 'royal', name: 'Корона', price: 200, legend: true },
+  { id: 'p_armor', kind: 'part', slot: 'outfit', value: 'armor', name: 'Доспехи', price: 160, legend: true },
+  { id: 'p_fedora', kind: 'part', slot: 'hat', value: 'fedora', name: 'Шляпа', price: 70, legend: true },
+  { id: 'p_scuba', kind: 'part', slot: 'mask', value: 'scuba', name: 'Маска аквалангиста', price: 90, legend: true },
   // Трофеи Лиги банд: не продаются, только за призовое место
   { id: 'p_trophy', kind: 'part', slot: 'prop', value: 'trophy', name: 'Кубок Лиги', price: 0, award: true, how: '1 место в Лиге недели' },
   { id: 'p_laurel', kind: 'part', slot: 'hat', value: 'laurel', name: 'Лавровый венок', price: 0, award: true, how: 'топ-3 в Лиге месяца' },
@@ -78,7 +84,8 @@ const EARN = {
   sea_win: { amount: 5, perDay: 1 }, // победа в морском бое: зёрна только за первую победу в день
   guess: { amount: 1, perDay: 3 },   // «Угадай коллегу»: верный ответ
   quiz: { amount: 3, perDay: 3 },    // квиз недели: верный ответ
-  food_rate: { amount: 1, perDay: 1 } // оценка обеда
+  food_rate: { amount: 1, perDay: 1 }, // оценка обеда
+  duel_win: { amount: 2, perDay: 3 }  // победа в личной дуэли
 };
 
 const GANG_DEPOSIT = 50;

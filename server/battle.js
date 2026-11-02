@@ -323,7 +323,17 @@ function register(ctx) {
     q("DELETE FROM battles WHERE status != 'done' AND updated_at < ?").run(t - IDLE_TTL_DAYS * 864e5);
   }
 
-  return { cleanup };
+  // Партия по вызову битвы банд: без проверки «свои ли», всегда быстрая
+  function createFor(a, b, note) {
+    const t = U.now();
+    const r = q('INSERT INTO battles (a, b, status, a_ships, b_ships, created_at, updated_at, mode, clock_a, clock_b) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(a, b, 'setup', JSON.stringify(randomFleet()), JSON.stringify(randomFleet()), t, t, 'fast', FAST_MS, FAST_MS);
+    const id = Number(r.lastInsertRowid);
+    ping(a, id, note); ping(b, id, note);
+    return id;
+  }
+  const stateOf = (id) => q('SELECT id, status, winner, a, b FROM battles WHERE id = ?').get(id) || null;
+  return { cleanup, createFor, stateOf };
 }
 
 module.exports = { register, randomFleet, fire, sunkShips, FLEET, N };

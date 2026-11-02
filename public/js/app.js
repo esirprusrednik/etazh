@@ -248,6 +248,19 @@ function outfitLayer(o, hood, skin, sex) {
       ${[[38, 80], [40.6, 84.6], [61.4, 80], [59, 84.6], [31, 76.6], [69, 76.6]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r=".9" fill="#D5DAE5"/>`).join('')}
       <path d="M${f ? 22 : 15} 82 Q30 77 36 77" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width="2" stroke-linecap="round"/><rect x="60" y="92" width="9" height="1.4" rx=".7" fill="#C9CED9"/>`;
   }
+  if (o === 'armor') {
+    // Доспехи (легендарные): стальная кираса с наплечниками, заклёпки и блик
+    const st = '#B9C3D1', dk = '#6B7689', lt = '#E8EDF4';
+    return `<path d="${body}" fill="${st}"/>${neck}
+      <path d="M${f ? 26 : 22} 104 Q${f ? 28 : 25} 82 50 79 Q${f ? 72 : 75} 82 ${f ? 74 : 78} 104 Z" fill="#C9D2DE" stroke="${dk}" stroke-width="1"/>
+      <path d="M50 80 V104" stroke="${dk}" stroke-width="1"/><path d="M36 92 Q50 96 64 92" fill="none" stroke="${dk}" stroke-width=".9"/>
+      <path d="M${f ? 15 : 8} 92 Q${f ? 14 : 7} 74 ${f ? 34 : 30} 72 Q${f ? 38 : 35} 80 ${f ? 30 : 26} 90 Z" fill="${st}" stroke="${dk}" stroke-width="1"/>
+      <path d="M${f ? 85 : 92} 92 Q${f ? 86 : 93} 74 ${f ? 66 : 70} 72 Q${f ? 62 : 65} 80 ${f ? 70 : 74} 90 Z" fill="${st}" stroke="${dk}" stroke-width="1"/>
+      <path d="M${f ? 17 : 11} 84 Q${f ? 24 : 18} 79 ${f ? 32 : 28} 79 M${f ? 83 : 89} 84 Q${f ? 76 : 82} 79 ${f ? 68 : 72} 79" fill="none" stroke="${dk}" stroke-width=".8"/>
+      <path d="M39 72 Q50 76 61 72 L60 76 Q50 80 40 76 Z" fill="${dk}"/>
+      ${[[40, 86], [60, 86], [44, 99], [56, 99]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.1" fill="${lt}" stroke="${dk}" stroke-width=".5"/>`).join('')}
+      <path d="M${f ? 32 : 29} 88 Q${f ? 34 : 31} 82 42 81" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="1.6" stroke-linecap="round"/>`;
+  }
   if (o === 'cyber') {
     // Киберпанк (легендарная): тёмная куртка с неоновыми швами и светящимся воротником
     return `<path d="${body}" fill="#13131C"/>${neck}<path d="M38 75 Q38 66 44 64 L56 64 Q62 66 62 75 Q50 78 38 75 Z" fill="#1E1E2C" stroke="#FF2FD0" stroke-width="1"/>
@@ -288,6 +301,27 @@ function hatLayer(h, hood) {
     // Капюшон поверх головы — передний край вокруг лица (задняя часть рисуется за головой отдельно)
     return `<path d="M27.4 54 Q24.6 20 50 17.4 Q75.4 20 72.6 54 Q72 30 50 26.6 Q28 30 27.4 54 Z" fill="${hood}"/><path d="M28.6 52 Q27 28 50 25 Q73 28 71.4 52" fill="none" stroke="${shade(hood, -0.3)}" stroke-width="1.6"/>`;
   }
+  if (h === 'knight') {
+    // Рыцарский шлем: стальной купол с забралом-щелью и красным плюмажем
+    return `<path d="M50 14 Q60 2 71 6 Q62 8 58 15" fill="#D7263D"/><path d="M50 14 Q56 5 64 6" fill="none" stroke="#8E1424" stroke-width="1"/>
+      <path d="M26.5 58 Q24.5 15 50 13.5 Q75.5 15 73.5 58 Q73 66 64 67 H36 Q27 66 26.5 58 Z" fill="#B9C3D1" stroke="#6B7689" stroke-width="1.2"/>
+      <path d="M50 14 V40" stroke="#6B7689" stroke-width="1.2"/><path d="M29 44 H71 V50 H29 Z" fill="#1E2433"/><path d="M31 46.5 H69" stroke="#3A4256" stroke-width=".8"/>
+      ${[0, 1, 2, 3, 4].map((i) => `<path d="M${40 + i * 5} 54 V62" stroke="#6B7689" stroke-width="1.4" stroke-linecap="round"/>`).join('')}
+      <path d="M33 24 Q38 17 46 16" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="2" stroke-linecap="round"/>`;
+  }
+  if (h === 'fedora') {
+    const c = shade(hood, -0.35);
+    return `<path d="M33 30 Q33 15 50 15 Q67 15 67 30 L68 36 H32 Z" fill="${c}"/><path d="M42 16 Q50 22 58 16" fill="none" stroke="${shade(c, -0.3)}" stroke-width="1.6"/>
+      <path d="M32 31.5 H68 V36 H32 Z" fill="${shade(c, -0.45)}"/><ellipse cx="50" cy="37" rx="27" ry="4.6" fill="${c}"/><ellipse cx="50" cy="36" rx="20" ry="2" fill="${shade(c, -0.25)}" opacity=".6"/>`;
+  }
+  if (h === 'royal') {
+    // Королевская корона: высокая, с бархатом и камнями
+    return `<path d="M31 32 Q50 24 69 32 L66 20 Q50 12 34 20 Z" fill="#B3122E"/>
+      <path d="M30 36 L28 14 L37 22 L43 9 L50 19 L57 9 L63 22 L72 14 L70 36 Z" fill="#F2B705" stroke="#A87C00" stroke-width="1.4" stroke-linejoin="round"/>
+      <path d="M29.5 31 Q50 27 70.5 31 L70 36 Q50 32 30 36 Z" fill="#E0A800"/>
+      <circle cx="43" cy="9" r="2" fill="#fff"/><circle cx="57" cy="9" r="2" fill="#fff"/><circle cx="28" cy="14" r="1.7" fill="#fff"/><circle cx="72" cy="14" r="1.7" fill="#fff"/>
+      <circle cx="50" cy="31.5" r="2.4" fill="#D7263D"/><circle cx="40" cy="32.5" r="1.7" fill="#2563C9"/><circle cx="60" cy="32.5" r="1.7" fill="#1F8A4C"/>`;
+  }
   if (h === 'laurel') {
     // Лавровый венок: две ветви листьев по кругу головы, сходятся надо лбом
     const leaf = (x, y, a, c) => `<ellipse cx="${x}" cy="${y}" rx="4.6" ry="2" transform="rotate(${a} ${x} ${y})" fill="${c}"/>`;
@@ -313,6 +347,14 @@ function maskLayer(m, g, c) {
       + `<path d="${d}" fill="${col}" stroke="${e}" stroke-width=".7"/>`
       + (m === 'medical' ? `<path d="M${50 - W + 4} 55 Q50 53 ${50 + W - 4} 55 M${50 - W + 4.4} 58.6 Q50 56.6 ${50 + W - 4.4} 58.6 M${50 - W + 4.8} 62.2 Q50 60.2 ${50 + W - 4.8} 62.2" fill="none" stroke="${e}" stroke-width=".8"/>`
         : `<g stroke="${e}" stroke-width=".45">${[0, 1, 2, 3, 4, 5, 6, 7].map((i) => `<path d="M${36 + i * 4} 49 L${30 + i * 4} ${bot - 2} M${30 + i * 4} 49 L${36 + i * 4} ${bot - 2}"/>`).join('')}</g>`);
+  }
+  if (m === 'scuba') {
+    // Маска аквалангиста: стекло на глаза и нос, ремешок и трубка сбоку
+    const top = 40, b2 = 57;
+    return `<path d="M${50 - W - 2.4} ${top + 3} Q50 ${top - 2} ${50 + W + 2.4} ${top + 3}" fill="none" stroke="#1E2433" stroke-width="2.6"/>`
+      + `<path d="M${50 - W + 1} ${top + 1} Q50 ${top - 1.6} ${50 + W - 1} ${top + 1} L${50 + W - 1.6} ${b2 - 6} Q${50 + 6} ${b2 - 5} 50 ${b2} Q${50 - 6} ${b2 - 5} ${50 - W + 1.6} ${b2 - 6} Z" fill="#7FD6F5" fill-opacity=".38" stroke="#F97316" stroke-width="2.4" stroke-linejoin="round"/>`
+      + `<path d="M${50 - W + 4} ${top + 3} Q${50 - W + 6} ${top + 1.4} ${50 - W + 10} ${top + 1.6}" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="1.4" stroke-linecap="round"/>`
+      + `<path d="M${50 + W + 2.6} ${top + 16} V${top - 8} Q${50 + W + 2.6} ${top - 12} ${50 + W + 6} ${top - 12}" fill="none" stroke="#F2B705" stroke-width="3" stroke-linecap="round"/><path d="M${50 + W + 2.6} ${top + 16} Q${50 + W + 2} ${b2 + 4} ${50 + 4} ${b2 + 3}" fill="none" stroke="#1E2433" stroke-width="2.2" stroke-linecap="round"/>`;
   }
   if (m === 'visor') {
     return `<path d="M${50 - W - 1.4} 44.4 Q50 41.6 ${50 + W + 1.4} 44.4 L${50 + W + 0.6} 51.4 Q50 53.4 ${50 - W - 0.6} 51.4 Z" fill="#0E1224" stroke="#22D3EE" stroke-width="1"/>`
@@ -581,7 +623,7 @@ function avatarInner(look = {}) {
   const lip = mk.lip || (sex === 'f' ? '#C9707C' : shade(skin, -0.28));
   const line = sex === 'f' ? shade(lip, -0.4) : shade(skin, -0.55);
   const freckles = look.freckles ? [[39.5, 52.5], [42, 54], [38.8, 55], [60.5, 52.5], [58, 54], [61.2, 55]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r=".85" fill="${shade(skin, -0.38)}"/>`).join('') : '';
-  const capped = hat && hat !== 'headset' && hat !== 'laurel';
+  const capped = hat && !['headset', 'laurel', 'royal'].includes(hat);
   const hatC = look.hatColor && look.hatColor !== 'same' && HOODIE[look.hatColor] ? HOODIE[look.hatColor] : hood;
   const hooded = hat === 'hood';
   // Под шапкой высокие причёски (пучки, ирокез, кок) прячутся, длинные торчат прядями
@@ -610,7 +652,7 @@ function avatarInner(look = {}) {
     ${earringsLayer(look.earrings, exL, exR, 49 + 5 * ek - 0.8)}
     ${capped ? fit(hatLayer(hat, hatC)) : ''}
     ${look.glasses ? glassesLayer(look.glassesStyle, look.glassesColor, look.lensColor, u, rx) : ''}
-    ${hat === 'headset' || hat === 'laurel' ? fit(hatLayer(hat, hood)) : ''}
+    ${hat === 'headset' || hat === 'laurel' || hat === 'royal' ? fit(hatLayer(hat, hood)) : ''}
     ${look.phones && hat !== 'headset' ? fit('<path d="M29 47 Q27 15 50 15 Q73 15 71 47" fill="none" stroke="#2B2B3A" stroke-width="6" stroke-linecap="round"/><path d="M33 26 Q40 18 50 17.5" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/><rect x="23" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="67" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="25" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/><rect x="72" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/>') : ''}
     ${look.crown ? `<g ${capped ? 'transform="translate(0 -6)"' : ''}><path d="M33 19 L37 5 L44 13 L50 3 L56 13 L63 5 L67 19 Z" fill="#FFC93C" stroke="#D99A0B" stroke-width="2" stroke-linejoin="round"/><circle cx="50" cy="13" r="2" fill="#E5484D"/></g>` : ''}
     ${mug ? mugHand(look.prop === 'mug_best', skin, look.outfit === 'suit' ? shade(hood, -0.45) : look.outfit === 'shirt' ? shade(hood, 0.8) : look.outfit === 'dev' ? '#262B36' : hood) : propLayer(look.prop)}
@@ -676,7 +718,7 @@ async function loadState() {
 async function loadGang() {
   if (!S.activeGang) { S.gang = null; return; }
   try { S.gang = await get(`/api/gangs/${S.activeGang}`); } catch { S.gang = null; S.activeGang = null; }
-  await Promise.all([loadPolls(), loadGEvents(), loadCV()]);
+  await Promise.all([loadPolls(), loadGEvents(), loadCV(), loadWars()]);
 }
 function gevSync() {
   const d = S.gevDraft; if (!d) return;
@@ -739,7 +781,8 @@ async function loadBattle() {
 }
 async function loadDm() {
   if (!S.dm) { S.dmView = null; return; }
-  try { S.dmView = await get(`/api/crew/${S.dm}`); } catch { S.dm = null; S.dmView = null; }
+  try { S.dmView = await get(`/api/crew/${S.dm}`); } catch { S.dm = null; S.dmView = null; return; }
+  await loadDuels(S.dm);
 }
 // Бейдж вкладки после прочтения: заявки + непрочитанное в остальных переписках
 function recountCrewBadge() {
@@ -798,7 +841,7 @@ async function refresh({ all = false } = {}) {
   if (all || t === 'chats' || t === 'games') jobs.push(loadCrew());
   if (all || (t === 'chats' && S.chatGang) || t === 'games') jobs.push(loadGang(), loadGangExtra());
   if (all || t === 'office') jobs.push(loadEvents());
-  if (all || t === 'games') jobs.push(loadQuiz(), loadBlitz(), loadLeague('W').catch(() => {}));
+  if (all || t === 'games') jobs.push(loadQuiz(), loadBlitz(), loadLeague('W').catch(() => {}), loadDuels());
   if (t === 'chats' && S.battle) jobs.push(loadBattle());
   if (t === 'chats' && S.dm) jobs.push(loadDm());
   await Promise.all(jobs);
@@ -985,7 +1028,7 @@ function renderApp() {
       ${S.tab === 'near' ? renderNear() : S.tab === 'chats' ? renderChats() : S.tab === 'office' ? renderOfficeTab() : renderGames()}
     </main>
     <nav class="tabs"><div class="in">
-      ${tabBtn('near', 'Рядом', 0)}${tabBtn('chats', 'Чаты', (b.chat || 0) + (b.crew || 0) + (b.invites || 0) + (b.polls || 0) + (b.gangRequests || 0))}${tabBtn('office', 'Офис', 0)}${tabBtn('games', 'Игры', (S.quiz || []).filter((z) => !z.answered).length + (S.battles || []).filter((x) => x.myTurn && x.status !== 'done').length)}
+      ${tabBtn('near', 'Рядом', 0)}${tabBtn('chats', 'Чаты', (b.chat || 0) + (b.crew || 0) + (b.invites || 0) + (b.polls || 0) + (b.gangRequests || 0))}${tabBtn('office', 'Офис', 0)}${tabBtn('games', 'Игры', (b.duels || 0) + (S.quiz || []).filter((z) => !z.answered).length + (S.battles || []).filter((x) => x.myTurn && x.status !== 'done').length)}
     </div></nav>
   </div>
   ${S.sheet ? renderSheet() : ''}`;
@@ -1176,6 +1219,8 @@ function renderMyGang(gangs, seenG) {
     ].filter(Boolean);
     const flags = [
       x.crestVote && !x.crestVote.voted ? '<span class="mg-flag">🛡 голосуем за герб</span>' : '',
+      x.wars && x.wars.incoming ? '<span class="mg-flag hot">⚔️ вас вызывают на битву</span>' : '',
+      x.wars && x.wars.myTurn ? '<span class="mg-flag hot">⚔️ твой выход в битве</span>' : x.wars && x.wars.active ? `<span class="mg-flag">⚔️ битв идёт: ${x.wars.active}</span>` : '',
       x.polls ? `<span class="mg-flag">📊 ${x.polls} ${plural(x.polls, 'опрос', 'опроса', 'опросов')} без тебя</span>` : ''
     ].join('');
     return `<button class="my-gang" data-act="gang-open" data-id="${x.id}">
@@ -1264,6 +1309,7 @@ function renderGames() {
   </section>`;
   return `${pageHead('Игры', 'Задания, квизы и бои со своими. За всё дают зёрна, их тратят в Лавке')}
     ${renderLeagueCard()}
+    ${renderDuelsCard()}
     ${renderQuests()}
     ${renderBlitzCard()}
     ${renderQuiz()}
@@ -1549,6 +1595,135 @@ function renderGEvents() {
     ${sug}
     ${v.past.length ? `<details><summary class="small" style="cursor:pointer;min-height:32px">Недавно прошли (${v.past.length})</summary>${v.past.map(renderGEvent).join('')}</details>` : ''}
   </section>`;
+}
+// ===== Битвы банд =====
+const fmtLeft = (ms) => { if (ms <= 0) return 'время вышло'; const h = Math.floor(ms / 3600e3); return h >= 24 ? `${Math.floor(h / 24)} дн ${h % 24} ч` : `${h} ч ${Math.floor((ms % 3600e3) / 60e3)} мин`; };
+async function loadWars() {
+  if (!S.activeGang) { S.wars = null; return; }
+  try { S.wars = await get(`/api/gangs/${S.activeGang}/wars`); } catch { S.wars = null; }
+}
+function warSide(sd, label) {
+  return `<div class="war-side ${sd.mine ? 'mine' : ''}">${crestSvg(crestOf(sd), { size: 46 })}<b class="ellipsis">${esc(sd.name)}</b>
+    <span class="small">${label}: ${sd.hero ? esc(sd.hero.nick) : '—'}</span>
+    ${sd.run && (sd.run.done || sd.run.playing) ? `<span class="war-run">${sd.run.done ? (sd.run.score !== null ? `✅ ${sd.run.score} верных · ${sd.run.secs} с` : '✅ прошёл') : '⏳ проходит'}</span>` : ''}</div>`;
+}
+function renderWar(w) {
+  const kind = w.kind === 'blitz' ? `${w.topic.emoji} Блиц «${esc(w.topic.title)}»` : '⚓ Быстрый морской бой';
+  const status = w.status === 'pending' ? 'ждёт ответа' : w.status === 'active' ? `идёт · осталось ${fmtLeft(w.endsAt - Date.now())}` : w.winner === 'us' ? '🏆 Победа!' : w.winner === 'them' ? 'Поражение' : 'Ничья';
+  const acts = [];
+  if (w.canAccept) acts.push(`<button class="btn small" data-act="war-accept-open" data-id="${w.id}">⚔️ Принять вызов</button><button class="btn small ghost" data-act="war-decline" data-id="${w.id}">Отказаться</button>`);
+  if (w.canCancel) acts.push(`<button class="btn small ghost" data-act="war-decline" data-id="${w.id}">Отозвать вызов</button>`);
+  if (w.canPlay) acts.push(`<button class="btn small war-go" data-act="war-play" data-id="${w.id}">▶ Пройти блиц за банду — 3 минуты</button>`);
+  if (w.status === 'active' && w.kind === 'sea' && w.amHero && w.battleId) acts.push(`<button class="btn small war-go" data-act="battle-go" data-id="${w.battleId}" data-opp="${w.opp}">⚓ К бою</button>`);
+  return `<div class="war ${w.status} ${w.winner || ''}">
+    <div class="war-head"><span class="war-kind">${kind}</span><span class="small">${status}</span></div>
+    <div class="war-vs">${warSide(w.from, 'вызвали, герой')}<span class="war-x">VS</span>${warSide(w.to, 'приняли, герой')}</div>
+    ${w.status === 'done' && w.result && w.result.note ? `<p class="small" style="margin:0;text-align:center">${esc(w.result.note)}</p>` : ''}
+    ${w.waitReason ? `<p class="small" style="margin:0">${esc(w.waitReason)}</p>` : ''}
+    ${acts.length ? `<div class="row" style="flex-wrap:wrap;gap:6px">${acts.join('')}</div>` : ''}
+  </div>`;
+}
+function renderWars() {
+  const v = S.wars;
+  if (!v) return '';
+  const rec = v.record;
+  return `<section class="card wars">
+    <div class="chats-head"><h3>⚔️ Битвы банд</h3><span class="small">${rec.w + rec.l + rec.d ? `побед ${rec.w} · поражений ${rec.l}${rec.d ? ` · ничьих ${rec.d}` : ''}` : 'ещё не воевали'}</span></div>
+    ${v.items.length ? v.items.map(renderWar).join('') : '<p class="small" style="margin:4px 0 0">Вызови другую банду: блиц на 3 минуты по теме или быстрый морской бой. От каждой банды — один герой, на всё — рабочая неделя.</p>'}
+    ${v.isOwner ? `<button class="btn war-call" data-act="war-new">⚔️ Бросить вызов</button>` : '<p class="small" style="margin:0">Вызов бросает и принимает владелец банды. Хочешь быть героем — скажи ему.</p>'}
+  </section>`;
+}
+function renderWarNew() {
+  const d = S.warDraft;
+  const m = S.warMeta;
+  if (!m) return '<p class="sub">Загружаем…</p>';
+  const rival = m.rivals.find((r) => r.id === d.to);
+  return `<div class="field">Кого вызываем<div class="war-rivals">${m.rivals.length ? m.rivals.map((r) => `<button class="war-rival ${d.to === r.id ? 'on' : ''}" data-act="war-set" data-k="to" data-v="${r.id}" ${r.busy ? 'disabled' : ''}>${crestSvg(crestOf(r), { size: 34 })}<span class="ellipsis">${esc(r.name)}</span><span class="small">${r.busy ? 'занята' : r.count + ' чел.'}</span></button>`).join('') : '<p class="small">Других банд пока нет — позови коллег сколотить свою.</p>'}</div></div>
+    <div class="field">Чем бьёмся<div class="war-kinds">
+      <button class="war-kindbtn ${d.kind === 'blitz' ? 'on' : ''}" data-act="war-set" data-k="kind" data-v="blitz"><span>🧠</span><b>Блиц</b><span class="small">3 минуты вопросов по теме. Первым проходит их герой, потом наш</span></button>
+      <button class="war-kindbtn ${d.kind === 'sea' ? 'on' : ''}" data-act="war-set" data-k="kind" data-v="sea"><span>⚓</span><b>Морской бой</b><span class="small">Быстрая партия героев: по 1,5 минуты на часах</span></button></div></div>
+    ${d.kind === 'blitz' ? `<div class="field">Тема${!rival ? ' <span class="small">(сначала выбери соперника)</span>' : ''}<div class="war-topics">${m.topics.map((t) => `<button class="war-topic ${d.topic === t.id ? 'on' : ''}" data-act="war-set" data-k="topic" data-v="${t.id}" ${!t.free ? 'disabled' : ''}><span class="war-temo">${t.emoji}</span><span class="grow"><b>${esc(t.title)}</b><span class="small">${!t.free ? (t.usedByMe ? 'ваша банда уже билась по ней' : 'соперник уже бился по ней') : esc(t.desc)}</span></span></button>`).join('')}</div>
+      <p class="small" style="margin:0">По каждой теме банда бьётся один раз. Новая тема открывается каждую неделю.</p></div>` : ''}
+    <div class="field">Наш герой<div class="chips">${m.members.map((p) => `<button class="chip ${d.hero === p.id ? 'on' : ''}" data-act="war-set" data-k="hero" data-v="${p.id}">${esc(p.nick)}</button>`).join('')}</div></div>
+    <button class="btn" data-act="war-send" ${d.to && d.hero && (d.kind === 'sea' || d.topic) ? '' : 'disabled'}>⚔️ Бросить вызов</button>
+    <p class="small" style="margin:0">Срок — рабочая неделя с момента, как соперник примет вызов. Не успел — техническое поражение. Победителям: герою +20 зёрен, всей банде по +5 и очки в Лигу.</p>`;
+}
+function renderWarAccept() {
+  const d = S.warAccept;
+  const m = S.warMeta;
+  if (!m || !d) return '<p class="sub">Загружаем…</p>';
+  return `<p class="sub" style="margin:0">Кто будет защищать честь банды? ${d.kind === 'blitz' ? 'В блице наш герой проходит первым.' : 'Герои сыграют быструю партию морского боя.'}</p>
+    <div class="chips">${m.members.map((p) => `<button class="chip ${d.hero === p.id ? 'on' : ''}" data-act="war-acc-hero" data-v="${p.id}">${esc(p.nick)}</button>`).join('')}</div>
+    <button class="btn" data-act="war-accept" ${d.hero ? '' : 'disabled'}>⚔️ Принять бой</button>`;
+}
+
+// ===== Личные дуэли =====
+const RPS_EMO = { rock: '✊', scissors: '✌️', paper: '✋' };
+const RPS_NAME = { rock: 'Камень', scissors: 'Ножницы', paper: 'Бумага' };
+const PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+const dieFace = (n, cls = '') => `<span class="die ${cls}" aria-label="${n}">${Array.from({ length: 9 }, (_, i) => `<i class="${PIPS[n] && PIPS[n].includes(i) ? 'on' : ''}"></i>`).join('')}</span>`;
+async function loadDuels(withId) {
+  try { const r = await get(`/api/duels${withId ? '?with=' + withId : ''}`); if (withId) S.duelsWith = r.items; else S.duels = r.items; } catch {}
+}
+function duelHead(d) {
+  const res = d.result === 'win' ? '<span class="duel-res win">🏆 Победа</span>' : d.result === 'lose' ? `<span class="duel-res lose">${d.resigned ? 'Сдался' : 'Поражение'}</span>` : d.result === 'draw' ? '<span class="duel-res">Ничья</span>' : '';
+  const score = d.score ? `<span class="duel-score">${d.score.me} : ${d.score.opp}</span>` : '';
+  return `<div class="duel-head"><b>${{ rps: '✊ КНБ', dice: '🎲 Кости', ttt: '❌ Крестики-нолики' }[d.game]}</b>${score}${res}${d.status === 'play' ? `<button class="linkbtn small" data-act="duel-resign" data-id="${d.id}">сдаться</button>` : ''}</div>`;
+}
+function renderDuel(d) {
+  const fresh = S.duelAnim && S.duelAnim.id === d.id && S.duelAnim.seq === d.seq;
+  if (d.game === 'ttt') {
+    const cell = (c, i) => {
+      const win = d.line && d.line.includes(i);
+      const mark = c ? (c === 'me' ? d.mark : d.mark === 'x' ? 'o' : 'x') : null;
+      const svg = mark === 'x' ? '<svg viewBox="0 0 40 40"><path class="draw" d="M9 9 L31 31 M31 9 L9 31"/></svg>' : mark === 'o' ? '<svg viewBox="0 0 40 40"><circle class="draw" cx="20" cy="20" r="12"/></svg>' : '';
+      return `<button class="ttt-cell ${mark ? 'm-' + mark : ''} ${win ? 'win' : ''}" data-act="duel-cell" data-id="${d.id}" data-v="${i}" ${c || !d.myTurn ? 'disabled' : ''} aria-label="Клетка ${i + 1}">${svg}</button>`;
+    };
+    return `<div class="duel ttt">${duelHead(d)}<div class="ttt-grid">${d.board.map(cell).join('')}</div>
+      <p class="small duel-hint">${d.status === 'play' ? (d.myTurn ? `Твой ход — ты ${d.mark === 'x' ? 'крестики' : 'нолики'}` : 'Ход соперника…') : ''}</p></div>`;
+  }
+  const cur = d.rounds[d.rounds.length - 1];
+  const done = d.rounds.filter((r) => r.win);
+  const last = done[done.length - 1];
+  if (d.game === 'rps') {
+    const reveal = last ? `<div class="rps-reveal ${fresh ? 'anim' : ''}"><span class="rps-hand me">${RPS_EMO[last.me]}</span><span class="rps-vs ${last.win}">${last.win === 'me' ? 'бьёт' : last.win === 'opp' ? 'проигрывает' : '='}</span><span class="rps-hand opp">${RPS_EMO[last.opp]}</span></div>` : '';
+    return `<div class="duel rps">${duelHead(d)}${reveal}
+      ${d.status === 'play' ? (d.myTurn ? `<div class="rps-pick">${Object.keys(RPS_EMO).map((m) => `<button class="rps-btn" data-act="duel-rps" data-id="${d.id}" data-v="${m}"><span>${RPS_EMO[m]}</span><b>${RPS_NAME[m]}</b></button>`).join('')}</div>`
+        : `<p class="small duel-hint">${cur.me ? `Ты выбрал(а) ${RPS_EMO[cur.me]} — ждём соперника${cur.opp === 'hidden' ? '' : '…'}` : ''}</p>`) : ''}
+      <p class="small duel-hint">До ${d.winTo} побед. Ход соперника скрыт, пока не сходишь сам.</p></div>`;
+  }
+  // Кости
+  const showMine = cur.me || (last && last.me);
+  const rolling = S.duelRolling === d.id;
+  const pair = (v, who) => (v && v !== 'hidden' ? v.map((n) => dieFace(n, fresh && who === 'me' ? 'land' : '')).join('') : rolling && who === 'me' ? dieFace(1, 'spin') + dieFace(6, 'spin') : `${dieFace(0, 'blank')}${dieFace(0, 'blank')}`);
+  const shown = d.status === 'play' && cur.me ? { me: cur.me, opp: cur.opp } : last ? { me: last.me, opp: last.opp, win: last.win } : { me: null, opp: null };
+  return `<div class="duel dice">${duelHead(d)}
+    <div class="dice-row"><div class="dice-side"><span class="small">ты</span><div class="dice-pair">${pair(shown.me, 'me')}</div>${Array.isArray(shown.me) ? `<b>${shown.me[0] + shown.me[1]}</b>` : ''}</div>
+      <span class="dice-vs ${shown.win || ''}">${shown.win === 'me' ? '›' : shown.win === 'opp' ? '‹' : 'vs'}</span>
+      <div class="dice-side"><span class="small">${esc(d.opp.nick)}</span><div class="dice-pair">${pair(shown.opp, 'opp')}</div>${Array.isArray(shown.opp) ? `<b>${shown.opp[0] + shown.opp[1]}</b>` : ''}</div></div>
+    ${d.status === 'play' ? (d.myTurn ? `<button class="btn dice-roll" data-act="duel-roll" data-id="${d.id}">🎲 Бросить кости</button>` : `<p class="small duel-hint">${showMine ? 'Ждём бросок соперника…' : ''}</p>`) : ''}
+    <p class="small duel-hint">У кого сумма больше — тот взял раунд. До ${d.winTo} побед.</p></div>`;
+}
+function renderDuelsBox(f) {
+  const items = S.duelsWith || [];
+  return `<section class="card duels">
+    <div class="chats-head"><h3>🎮 Дуэль</h3><span class="small">победа +2 зерна</span></div>
+    <div class="duel-new">${[['rps', '✊', 'КНБ'], ['dice', '🎲', 'Кости'], ['ttt', '❌⭕', 'Крестики']].map(([g, e, t]) => `<button class="duel-start" data-act="duel-new" data-to="${f.id}" data-v="${g}"><span>${e}</span><b>${t}</b></button>`).join('')}</div>
+    ${items.map(renderDuel).join('')}
+  </section>`;
+}
+function renderDuelsCard() {
+  const items = (S.duels || []).filter((d) => d.status === 'play');
+  if (!items.length) return '';
+  return `<section class="card"><div class="chats-head"><h3>🎮 Дуэли</h3><span class="small">${items.filter((d) => d.myTurn).length} ждут тебя</span></div>
+    ${items.map((d) => `<button class="chat-row" data-act="dm-open" data-id="${d.opp.id}">${avatar(d.opp.look, 32)}<span class="grow"><span class="chat-title">${esc(d.opp.nick)}</span><span class="where">${{ rps: '✊ Камень, ножницы, бумага', dice: '🎲 Кости', ttt: '❌ Крестики-нолики' }[d.game]}${d.score ? ` · ${d.score.me}:${d.score.opp}` : ''}</span></span>${d.myTurn ? '<span class="crew-badge">!</span>' : ''}</button>`).join('')}</section>`;
+}
+
+function duelOutcomeSfx(d) {
+  if (d.result === 'win') sfx('fanfare');
+  else if (d.result === 'lose') sfx('lose');
+  else if (d.rounds) { const done = d.rounds.filter((r) => r.win); const last = done[done.length - 1]; if (last && d.rounds[d.rounds.length - 1].me === null) sfx(last.win === 'me' ? 'coin' : last.win === 'opp' ? 'error' : 'tick'); }
+  if (navigator.vibrate && vibroOn() && d.result) navigator.vibrate(d.result === 'win' ? [30, 40, 30, 40, 80] : [120]);
 }
 // ----- Голосование за герб -----
 function renderCrestVote() {
@@ -1849,6 +2024,7 @@ function renderGang() {
     ${g.depositPending ? '<div class="note warn">Залог 50 зёрен вернётся, когда в банде будет 3 человека.</div>' : ''}
     <div class="calls">${Object.entries(S.cat.calls).map(([k, c]) => `<button class="call" style="background:${CALL_STYLE[k]}" data-act="call-open" data-kind="${k}" data-gang="${g.id}">${esc(c.label)}</button>`).join('')}</div>
   </section>
+  ${renderWars()}
   ${renderCrestVote()}
   ${renderGEvents()}
   ${renderPolls()}
@@ -1960,6 +2136,7 @@ function renderDm() {
     ${shut ? '' : `<div class="chips">${v.calls.map((k) => `<button class="chip" data-act="dm-call-open" data-kind="${k}">${esc(S.cat.calls[k].label)}</button>`).join('')}<button class="chip meme-chip" data-act="meme-open" data-to="${f.id}">🖼 Мем</button></div>`}
   </section>
   ${f.crew && !shut ? renderBattleInvite(f) : ''}
+  ${shut ? '' : renderDuelsBox(f)}
   ${shut && !v.messages.length ? '' : `<section class="card">
     <div class="chat" id="dm-chat">${msgs}</div>
     ${shut ? '' : `<div class="row"><label class="field grow" style="gap:0"><span class="hidden">Сообщение</span><input id="dm-text" maxlength="500" placeholder="Написать ${esc(f.nick)}" aria-label="Личное сообщение"></label>
@@ -2380,6 +2557,8 @@ function renderSheet() {
     case 'blitz': return sheetWrap(S.blitz && S.blitz.set ? `${S.blitz.set.emoji} ${S.blitz.set.title}` : 'Блиц', renderBlitzPlay());
     case 'poll-new': return sheetWrap('Новый опрос', renderPollNew());
     case 'gev-new': return sheetWrap('Новое событие', renderGEventNew());
+    case 'war-new': return sheetWrap('⚔️ Вызов на битву', renderWarNew());
+    case 'war-accept': return sheetWrap('⚔️ Принять вызов', renderWarAccept());
     case 'dm-pick': return sheetWrap('Написать в личку', `<p class="sub" style="margin:0">Написать можно любому — если он сам не ограничил личку. Подельникам и своей банде — проще всего.</p>
       <button class="find-bar light" data-act="find-open">${ico('search', 18)}<span>Найти человека по нику или почте</span></button>
       ${(S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${p.crew ? '<span class="fav-star">★</span> ' : ''}${esc(p.nick)}</span><span class="where">${esc(p.gangs.map((g) => g.name).join(', ') || (p.crew ? 'подельник' : whereText(p)[0]))}</span></span><span aria-hidden="true">›</span></button>`).join('')}`);
@@ -2519,6 +2698,16 @@ function renderBlitzCard() {
 function renderBlitzPlay() {
   const b = S.blitz;
   if (!b || !b.set) return '<p class="sub">Загружаем…</p>';
+  if (S.blitzWar && b.state === 'new') {
+    return `<div class="war-intro"><span class="war-big">⚔️</span><p class="sub">Ты защищаешь честь банды. ${b.set.count} вопросов по теме «${esc(b.set.title)}», 3 минуты. Отвечай быстро: при равенстве верных побеждает тот, кто быстрее.</p>
+      <button class="btn wide" data-act="war-start">Начать — таймер пойдёт сразу</button><p class="small" style="margin:0">Одна попытка. Закроешь окно — время всё равно идёт.</p></div>`;
+  }
+  if (S.blitzWar && b.state === 'done') {
+    const w = b.warView;
+    const res = w && w.status === 'done' ? (w.winner === 'us' ? '🏆 Банда победила!' : w.winner === 'them' ? 'Соперник оказался сильнее' : 'Ничья') : 'Итог будет, когда пройдёт соперник — придёт пуш';
+    return `<div class="bl-result big"><b>${b.score || 0}</b><span>верных из ${b.answered} · за ${mmss((b.secs || 0) * 1000)}</span></div>
+      <p class="sub" style="text-align:center">${res}</p><button class="btn wide" data-act="war-play-close">Готово</button>`;
+  }
   if (b.state !== 'play' || !b.question) {
     return `<div class="bl-result big"><b>${b.score || 0}</b><span>верных${b.answered != null ? ` из ${b.answered}` : ''}${b.beans ? ` · +${b.beans} зёрен` : ''}</span></div>
       ${b.board && b.board.place ? `<p class="sub" style="text-align:center">Твоё место — ${b.board.place} из ${b.board.players}</p>` : ''}
@@ -2551,7 +2740,7 @@ function blitzTick() {
     if (S.sheet === 'blitz' && sec <= 10 && sec > 0 && S.blitzLastTick !== sec) { S.blitzLastTick = sec; sfx('tick'); }
     if (left <= 0) {
       clearInterval(blitzTimer);
-      setTimeout(() => run(async () => { await loadBlitz(); sfx('confirm'); toast('Время вышло!'); loadMe().catch(() => {}); }), 400);
+      setTimeout(() => run(async () => { if (S.blitzWar) { S.blitz = await post(`/api/wars/${S.blitzWar}/timeout`); await loadWars(); } else await loadBlitz(); sfx('confirm'); toast('Время вышло!'); loadMe().catch(() => {}); }), 400);
     }
   }, 250);
 }
@@ -2694,6 +2883,9 @@ const SOUNDS = {
   hit: (c) => { boom(c, 0, 0.35, 0.35); noise(c, { dur: 0.06, vol: 0.12, f: 2500 }); },
   sunk: (c) => { boom(c, 0, 0.5, 0.8); tone(c, { f: 400, f2: 90, type: 'sawtooth', at: 0.1, dur: 0.6, vol: 0.035 }); },
   lose: (c) => [[392, 0], [370, 0.32], [349, 0.64], [330, 0.96]].forEach(([f, at], i) => tone(c, { f, f2: i === 3 ? 290 : null, type: 'sawtooth', at, dur: i === 3 ? 0.8 : 0.3, vol: 0.04 })),
+  swish: (c) => { noise(c, { dur: 0.22, vol: 0.12, f: 800, f2: 4200, q: 1.2 }); tone(c, { f: 300, f2: 900, type: 'sine', dur: 0.18, vol: 0.03 }); },
+  dice: (c) => { for (let i = 0; i < 7; i++) noise(c, { at: i * 0.075 + Math.random() * 0.03, dur: 0.03, vol: 0.16 - i * 0.015, f: 1800 + Math.random() * 1600, q: 4 }); tone(c, { f: 180, f2: 120, type: 'sine', at: 0.55, dur: 0.12, vol: 0.06 }); },
+  scribble: (c) => { noise(c, { dur: 0.09, vol: 0.09, f: 3000, q: 1.5 }); noise(c, { at: 0.1, dur: 0.09, vol: 0.08, f: 3600, q: 1.5 }); },
   chicken: (c) => {
     // «ко-ко-ко… кудах!»: короткие писклявые вскрики с резким подъёмом тона
     [0, 0.17, 0.34].forEach((at) => tone(c, { f: 620, f2: 1250, type: 'square', at, dur: 0.11, vol: 0.05 }));
@@ -2721,7 +2913,7 @@ function sfx(name, arg) {
 const tabSound = (tab) => sfx('tab', tab);
 
 // Какой звук у какого нажатия. Свои звуки у вкладок, выстрелов, сдачи и Лавки — их играют сами действия
-const FEEL_SELF = new Set(['tab', 'blitz-pick', 'bshoot', 'bresign', 'sound-toggle', 'vibro-toggle', 'sound-test', 'splash-skip']);
+const FEEL_SELF = new Set(['duel-rps', 'duel-roll', 'duel-cell', 'duel-new', 'war-start', 'war-send', 'war-accept', 'tab', 'blitz-pick', 'bshoot', 'bresign', 'sound-toggle', 'vibro-toggle', 'sound-test', 'splash-skip']);
 const FEEL = {
   open: 'open', 'open-sec': 'open', person: 'open', 'find-open': 'open', 'poll-new': 'open', 'gev-new': 'open', 'ava-open': 'open', 'ava-open-vac': 'open', 'meme-open': 'open', 'pcall-open': 'open',
   'call-open': 'open', 'dm-call-open': 'open', 'battle-new': 'open', 'crew-share': 'open',
@@ -2769,14 +2961,14 @@ const PENCIL = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stro
 const HAIR_NAMES = { short: 'Короткие', long: 'Длинные', tail: 'Хвост', curly: 'Кудри', bob: 'Каре', bun: 'Пучок', side: 'Набок', mohawk: 'Ирокез', afro: 'Афро', bald: 'Без волос',
   undercut: 'Андеркат', quiff: 'Кок', crop: 'Кроп', slick: 'Зачёс назад', buzz: 'Ёжик', manbun: 'Мужской пучок', waves: 'Локоны', bangs: 'С чёлкой', lob: 'Удлинённое каре', pixie: 'Пикси', ponytail: 'Высокий хвост', braid: 'Коса', buns: 'Два пучка', anime: 'Аниме' };
 const FACE_NAMES = { oval: 'Овал', round: 'Круглое', square: 'Квадрат', long: 'Вытянутое', heart: 'Сердечко' };
-const OUTFIT_NAMES = { hoodie: 'Худи', tee: 'Футболка', dev: 'Футболка разработчика', shirt: 'Рубашка', suit: 'Костюм', jacket: 'Бомбер', puffer: 'Пуховик', dress: 'Платье', cami: 'Топ на бретельках', biker: 'Косуха', cyber: 'Неон' };
-const MASK_NAMES = { none: 'Без маски', medical: 'Медицинская', gauze: 'Марлевая', visor: 'Кибервизор' };
+const OUTFIT_NAMES = { hoodie: 'Худи', tee: 'Футболка', dev: 'Футболка разработчика', shirt: 'Рубашка', suit: 'Костюм', jacket: 'Бомбер', puffer: 'Пуховик', dress: 'Платье', cami: 'Топ на бретельках', biker: 'Косуха', cyber: 'Неон', armor: 'Доспехи' };
+const MASK_NAMES = { none: 'Без маски', medical: 'Медицинская', gauze: 'Марлевая', visor: 'Кибервизор', scuba: 'Аквалангист' };
 const COLOR_NAMES = { same: 'Как одежда', red: 'Красный', blue: 'Синий', green: 'Зелёный', violet: 'Фиолетовый', navy: 'Тёмно-синий', black: 'Чёрный', white: 'Белый', beige: 'Бежевый', yellow: 'Жёлтый', pink: 'Розовый', orange: 'Оранжевый', khaki: 'Хаки', burgundy: 'Бордовый', grey: 'Серый' };
 const NECK_NAMES = { none: 'Ничего', tie: 'Галстук', tie_crooked: 'Галстук набок', bow: 'Бабочка', badge: 'Пропуск', beads: 'Бусы', chain: 'Цепочка', tie_gold: 'Золотой галстук', chain_gold: 'Золотая цепь', snake: 'Змея' };
 const PET_NAMES = { none: 'Без питомца', corgi: 'Корги', pug: 'Мопс' };
 const LENS_NAMES = { clear: 'Прозрачные', grey: 'Серые', brown: 'Коричневые', blue: 'Голубые', green: 'Зелёные', pink: 'Розовые', yellow: 'Жёлтые' };
 const LENS_SWATCH = { clear: 'repeating-linear-gradient(45deg,#fff 0 4px,#E3E8F2 4px 8px)', grey: '#555B68', brown: '#7A5232', blue: '#4A86E0', green: '#3A9A68', pink: '#F08BB4', yellow: '#F2C230' };
-const HAT_NAMES = { none: 'Без шапки', beanie: 'Шапка', cap: 'Кепка', hood: 'Капюшон', headset: 'Гарнитура', laurel: 'Лавровый венок' };
+const HAT_NAMES = { none: 'Без шапки', beanie: 'Шапка', cap: 'Кепка', hood: 'Капюшон', headset: 'Гарнитура', laurel: 'Лавровый венок', knight: 'Рыцарский шлем', royal: 'Корона', fedora: 'Шляпа' };
 const EYE_NAMES = { normal: 'Обычные', tired: 'После совещания', sly: 'Хитрые', wide: 'Удивлённые', anime: 'Аниме' };
 const PROP_NAMES = { none: 'Ничего', mug: 'Кружка', papers: 'Квартальный отчёт', sign: 'Табличка', laptop: 'Ноутбук', mug_best: 'Лучший сотрудник', trophy: 'Кубок Лиги' };
 const AVA_CATS = [['face', 'Лицо'], ['hair', 'Волосы'], ['eyes', 'Глаза'], ['mouth', 'Рот'], ['beard', 'Борода'], ['makeup', 'Макияж'], ['outfit', 'Одежда'], ['acc', 'Аксессуары'], ['bg', 'Фон'], ['meme', 'Мемы']];
@@ -2804,6 +2996,9 @@ const AVA_PRESETS = [
   { id: 'biker', legend: true, name: 'Байкер', look: { outfit: 'biker', neck: 'chain_gold', hat: 'none', mask: 'none', glasses: true, glassesStyle: 'aviator', glassesColor: 'gold', lensColor: 'grey', hairStyle: 'slick', mouth: 'smirk', eyeShape: 'sly', prop: 'none', bg: 'street' } },
   { id: 'cyber', legend: true, name: 'Киберпанк', look: { outfit: 'cyber', mask: 'visor', neck: 'none', hat: 'none', glasses: false, hairStyle: 'mohawk', hair: '#FF6FA8', mouth: 'neutral', prop: 'none', bg: 'slate' } },
   { id: 'anime', legend: true, name: 'Аниме-герой', look: { hairStyle: 'anime', eyeShape: 'anime', outfit: 'jacket', hoodie: 'orange', hat: 'none', mask: 'none', glasses: false, mouth: 'grin', prop: 'none', bg: 'sun' } },
+  { id: 'knight', legend: true, name: 'Рыцарь банды', look: { outfit: 'armor', hat: 'knight', mask: 'none', glasses: false, prop: 'none', neck: 'none', mouth: 'neutral', bg: 'slate' } },
+  { id: 'king', legend: true, name: 'Король этажа', look: { outfit: 'suit', hoodie: 'burgundy', hat: 'royal', mask: 'none', neck: 'chain_gold', prop: 'none', mouth: 'smirk', bg: 'sun' } },
+  { id: 'diver', legend: true, name: 'Ныряю в задачи', look: { outfit: 'tee', hoodie: 'blue', hat: 'none', mask: 'scuba', glasses: false, prop: 'none', neck: 'none', mouth: 'smile', bg: 'sky' } },
   { id: 'winter', legend: false, name: 'Зима близко', look: { outfit: 'puffer', hoodie: 'navy', hat: 'beanie', hatColor: 'red', mask: 'none', neck: 'none', prop: 'mug', mouth: 'smile', bg: 'street' } }
 ];
 // Платная ли деталь и куплена ли она
@@ -3258,6 +3453,61 @@ const actions = {
     S.crestEd = { ctx, gid, base, crest: crestOf(base), mottoText: (ctx !== 'new' && S.gang && S.gang.gang.motto) || src.name || 'Банда', tab: 'shape' };
     S.sheet = 'crest'; render();
   },
+  'war-new': () => run(async () => {
+    S.warDraft = { to: null, kind: 'blitz', topic: null, hero: S.me.id }; S.warMeta = null; S.sheet = 'war-new'; render();
+    S.warMeta = await get(`/api/gangwar/rivals?gang=${S.activeGang}`);
+  }),
+  'war-set': (el) => run(async () => {
+    const k = el.dataset.k; const v = ['to', 'hero'].includes(k) ? Number(el.dataset.v) : el.dataset.v;
+    S.warDraft[k] = v; sfx('pick');
+    if (k === 'to') { S.warDraft.topic = null; S.warMeta = await get(`/api/gangwar/rivals?gang=${S.activeGang}&vs=${v}`); }
+  }),
+  'war-send': () => run(async () => {
+    const d = S.warDraft;
+    await post(`/api/gangs/${S.activeGang}/wars`, { to: d.to, kind: d.kind, topic: d.topic, hero: d.hero });
+    S.sheet = null; sfx('fanfare'); toast('Вызов брошен! Ждём ответа соперника'); await Promise.all([loadWars(), loadGang()]);
+  }),
+  'war-accept-open': (el) => run(async () => {
+    const w = S.wars.items.find((x) => x.id === Number(el.dataset.id));
+    S.warAccept = { id: w.id, kind: w.kind, hero: null }; S.warMeta = null; S.sheet = 'war-accept'; render();
+    S.warMeta = await get(`/api/gangwar/rivals?gang=${S.activeGang}`);
+  }),
+  'war-acc-hero'(el) { S.warAccept.hero = Number(el.dataset.v); sfx('pick'); render(); },
+  'war-accept': () => run(async () => {
+    await post(`/api/wars/${S.warAccept.id}/accept`, { hero: S.warAccept.hero });
+    S.sheet = null; sfx('fanfare'); toast('Бой принят! У героев — рабочая неделя'); await Promise.all([loadWars(), loadGang()]);
+  }),
+  'war-decline': (el) => run(async () => {
+    if (!confirmInline('war-decline' + el.dataset.id, 'Нажми ещё раз для подтверждения')) return;
+    await post(`/api/wars/${el.dataset.id}/decline`); await loadWars();
+  }),
+  'war-play': (el) => run(async () => {
+    S.blitzWar = Number(el.dataset.id); S.blitzFb = null; S.blitzLastTick = null;
+    S.blitz = await get(`/api/wars/${S.blitzWar}/play`); S.sheet = 'blitz'; blitzTick();
+  }),
+  'war-start': () => run(async () => { S.blitz = await post(`/api/wars/${S.blitzWar}/start`); S.blitzFb = null; S.blitzLastTick = null; sfx('fanfare'); blitzTick(); }),
+  'war-play-close': () => run(async () => { S.sheet = null; S.blitzWar = null; await Promise.all([loadBlitz(), loadWars()]); }),
+  'duel-new': (el) => run(async () => {
+    const r = await post('/api/duels', { to: Number(el.dataset.to), game: el.dataset.v });
+    sfx(r.existing ? 'open' : 'fanfare'); toast(r.existing ? 'Эта дуэль уже идёт' : 'Вызов брошен!'); await loadDuels(S.dm);
+  }),
+  'duel-rps': (el) => run(async () => {
+    sfx('swish'); const d = await post(`/api/duels/${el.dataset.id}/move`, { move: el.dataset.v });
+    S.duelAnim = { id: d.id, seq: d.seq }; duelOutcomeSfx(d); await loadDuels(S.dm);
+  }),
+  'duel-roll': (el) => run(async () => {
+    const id = Number(el.dataset.id); S.duelRolling = id; sfx('dice'); render();
+    const [d] = await Promise.all([post(`/api/duels/${id}/move`, {}), new Promise((r) => setTimeout(r, 750))]);
+    S.duelRolling = null; S.duelAnim = { id: d.id, seq: d.seq }; duelOutcomeSfx(d); await loadDuels(S.dm);
+  }),
+  'duel-cell': (el) => run(async () => {
+    sfx('scribble'); const d = await post(`/api/duels/${el.dataset.id}/move`, { cell: Number(el.dataset.v) });
+    duelOutcomeSfx(d); await loadDuels(S.dm);
+  }),
+  'duel-resign': (el) => run(async () => {
+    if (!confirmInline('duel-resign' + el.dataset.id, 'Нажми ещё раз — засчитаем поражение')) return;
+    await post(`/api/duels/${el.dataset.id}/resign`); sfx('lose'); await loadDuels(S.dm);
+  }),
   'cv-vote': (el) => run(async () => {
     const r = await post(`/api/crest-vote/${el.dataset.id}/vote`, { vote: Number(el.dataset.v) });
     S.cv = r; if (r.status === 'accepted') { toast('Большинство за — у банды новый герб!'); await Promise.all([loadMe(), loadGang()]); }
@@ -3590,17 +3840,18 @@ const actions = {
     run(() => refresh());
   },
   'blitz-start': () => run(async () => {
+    S.blitzWar = null;
     S.blitz = await post('/api/blitz/start'); S.blitzFb = null; S.blitzLastTick = null;
     S.sheet = 'blitz'; blitzTick();
   }),
-  'blitz-open': () => run(async () => { await loadBlitz(); S.blitzFb = null; S.sheet = 'blitz'; blitzTick(); }),
+  'blitz-open': () => run(async () => { S.blitzWar = null; await loadBlitz(); S.blitzFb = null; S.sheet = 'blitz'; blitzTick(); }),
   'blitz-pick': (el) => {
     if (S.blitzBusy) return;
     S.blitzBusy = true;
     const n = Number(el.dataset.n), pick = Number(el.dataset.v);
     run(async () => {
       try {
-        const r = await post('/api/blitz/answer', { n, pick });
+        const r = await post(S.blitzWar ? `/api/wars/${S.blitzWar}/answer` : '/api/blitz/answer', { n, pick });
         if (r.result) {
           S.blitzFb = { n, pick, right: r.result.right };
           sfx(r.result.correct ? 'on' : 'error');
@@ -3610,7 +3861,7 @@ const actions = {
         const left = S.blitzEnd ? S.blitzEnd - Date.now() : r.leftMs;
         S.blitz = r; if (r.state === 'play') S.blitz.leftMs = left;
         S.blitzFb = null;
-        if (r.state === 'done') { clearInterval(blitzTimer); sfx(r.score >= 10 ? 'fanfare' : 'confirm'); loadMe().catch(() => {}); loadFeatures().catch(() => {}); }
+        if (r.state === 'done') { clearInterval(blitzTimer); sfx(r.score >= 10 ? 'fanfare' : 'confirm'); loadMe().catch(() => {}); if (S.blitzWar) loadWars().catch(() => {}); else loadFeatures().catch(() => {}); }
       } finally { S.blitzBusy = false; }
     });
   },
@@ -3972,13 +4223,17 @@ setInterval(async () => {
 }, 900);
 setInterval(async () => {
   if (document.hidden || !S.me || !S.me.nick || S.tab !== 'chats' || !S.dm || S.battle || S.sheet) return;
-  const before = S.dmView ? S.dmView.messages.map((m) => m.id + ':' + (m.reply || '') + (m.read ? 'r' : '')).join() : '';
+  const sig = () => (S.dmView ? S.dmView.messages.map((m) => m.id + ':' + (m.reply || '') + (m.read ? 'r' : '')).join() : '') + '|' + (S.duelsWith || []).map((d) => d.id + ':' + d.seq).join();
+  const before = sig();
   try {
     await loadDm();
-    const after = S.dmView ? S.dmView.messages.map((m) => m.id + ':' + (m.reply || '') + (m.read ? 'r' : '')).join() : '';
+    const after = sig();
+    const nd = (S.duelsWith || []).find((d) => S.duelSeqSeen && S.duelSeqSeen[d.id] !== undefined && S.duelSeqSeen[d.id] !== d.seq);
+    S.duelSeqSeen = Object.fromEntries((S.duelsWith || []).map((d) => [d.id, d.seq]));
+    if (nd) { S.duelAnim = { id: nd.id, seq: nd.seq }; if (nd.game === 'dice') sfx('dice'); else if (nd.game === 'rps') sfx('swish'); else sfx('scribble'); duelOutcomeSfx(nd); }
     if (after !== before) render();
   } catch {}
-}, 6000);
+}, 3500);
 document.addEventListener('visibilitychange', async () => {
   if (!document.hidden && reloadIfStale()) return;
   if (!document.hidden && S.me && S.me.nick && !typing()) { try { await refresh(); render(); } catch {} }

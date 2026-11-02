@@ -42,10 +42,10 @@ const LOOK = {
   hoodie: ['red', 'blue', 'green', 'violet', 'navy', 'black', 'white', 'beige', 'yellow', 'pink', 'orange', 'khaki', 'burgundy', 'grey'],
   hatColor: ['same', 'red', 'blue', 'green', 'violet', 'navy', 'black', 'white', 'beige', 'yellow', 'pink', 'orange', 'khaki', 'burgundy', 'grey'],
   eyeShape: ['normal', 'tired', 'sly', 'wide', 'anime'],
-  outfit: ['hoodie', 'tee', 'dev', 'shirt', 'suit', 'jacket', 'puffer', 'dress', 'cami', 'biker', 'cyber'],
+  outfit: ['hoodie', 'tee', 'dev', 'shirt', 'suit', 'jacket', 'puffer', 'dress', 'cami', 'biker', 'cyber', 'armor'],
   neck: ['none', 'tie', 'tie_crooked', 'bow', 'badge', 'beads', 'chain', 'tie_gold', 'chain_gold', 'snake'],
-  hat: ['none', 'beanie', 'cap', 'hood', 'headset', 'laurel'],
-  mask: ['none', 'medical', 'gauze', 'visor'],
+  hat: ['none', 'beanie', 'cap', 'hood', 'headset', 'laurel', 'knight', 'royal', 'fedora'],
+  mask: ['none', 'medical', 'gauze', 'visor', 'scuba'],
   prop: ['none', 'mug', 'papers', 'sign', 'laptop', 'mug_best', 'trophy'],
   bg: ['auto', 'sky', 'mint', 'peach', 'lilac', 'sun', 'slate', 'office', 'meeting', 'home', 'street', 'cafe'],
   // Черты лица: размер глаз, нос, уши
@@ -172,6 +172,8 @@ function createApi(db) {
   let league = null;
   let gevents = null;
   let crestvote = null;
+  let gangwar = null;
+  let duels = null;
   const MAX_MEMBERS = 30;      // больше 30 — уже не банда, а отдел
   const gangLimit = (g) => Math.min(g.max_members || MAX_MEMBERS, MAX_MEMBERS);
   let crew = null;
@@ -654,7 +656,7 @@ function createApi(db) {
       inCanteen: !!canteenOpen,
       gangNow: { hasGang: gangs.length > 0, rows: rows.slice(0, 6), more: Math.max(0, rows.length - 6) },
       stats: appStats(),
-      badges: { chat: newChat, feed: newFeed, crew: crew ? crew.unread(u.id) : 0, invites: q("SELECT COUNT(*) AS n FROM gang_invites WHERE to_id = ? AND status = 'pending'").get(u.id).n, feedback: feedback ? feedback.unseen(u.id) : 0, gangRequests: q("SELECT COUNT(*) AS n FROM gang_requests r JOIN gangs g ON g.id = r.gang_id WHERE g.owner_id = ? AND r.status = 'pending'").get(u.id).n, polls: polls ? polls.unvoted(u.id) : 0 }
+      badges: { chat: newChat, feed: newFeed, crew: crew ? crew.unread(u.id) : 0, invites: q("SELECT COUNT(*) AS n FROM gang_invites WHERE to_id = ? AND status = 'pending'").get(u.id).n, feedback: feedback ? feedback.unseen(u.id) : 0, gangRequests: q("SELECT COUNT(*) AS n FROM gang_requests r JOIN gangs g ON g.id = r.gang_id WHERE g.owner_id = ? AND r.status = 'pending'").get(u.id).n, polls: polls ? polls.unvoted(u.id) : 0, duels: duels ? duels.myTurns(u.id) : 0 }
     };
   });
 
@@ -814,7 +816,7 @@ function createApi(db) {
     return {
       id: g.id, name: g.name, color: g.color, emoji: g.emoji || null, about: g.about || '', area: g.area || null, interests: JSON.parse(g.interests || '[]'),
       access: g.access || 'invite', count, max: gangLimit(g), full: count >= gangLimit(g), owner,
-      ...U.crestPub(g), trophies: league ? league.trophies(g.id) : null, legend: g.legend_month && league ? legendLabel(g.legend_month) : null, motto: g.motto || '', gold: !!g.gold,
+      ...U.crestPub(g), wars: gangwar ? gangwar.record(g.id) : null, trophies: league ? league.trophies(g.id) : null, legend: g.legend_month && league ? legendLabel(g.legend_month) : null, motto: g.motto || '', gold: !!g.gold,
       officeName: g.office_id ? (officeById(g.office_id) || {}).name || null : null,
       inOffice: gangOffice(g.id), msgsWeek: q('SELECT COUNT(*) AS n FROM messages WHERE gang_id = ? AND at > ?').get(g.id, U.now() - 7 * 864e5).n,
       since: g.created_at, faces, member: uid ? isMember(g.id, uid) : false, requested: !!(req && req.status === 'pending')
@@ -1403,7 +1405,7 @@ function createApi(db) {
     addBeans,
     pollsUnvoted: (uid, gid) => (polls ? polls.unvoted(uid, gid) : 0),
     // Важное о банде для карточки «Моя банда»: кто в офисе, место в Лиге, ближайшее событие, голосование за герб
-    gangSummary: (gid, uid) => ({ inOffice: gangOffice(gid), league: league ? league.weekPlace(gid) : null, next: gevents ? gevents.next(gid) : null, crestVote: crestvote ? crestvote.pending(gid, uid) : null }),
+    gangSummary: (gid, uid) => ({ inOffice: gangOffice(gid), league: league ? league.weekPlace(gid) : null, next: gevents ? gevents.next(gid) : null, crestVote: crestvote ? crestvote.pending(gid, uid) : null, wars: gangwar ? gangwar.summary(gid, uid) : null }),
     db, q, route, requireUser, bad, U, config, notify, fireAndForget, rateLimit, memberStatus, HttpError, publicLook,
     onEvent: (t, uid, d) => features && features.onEvent(t, uid, d)
   });
@@ -1413,6 +1415,8 @@ function createApi(db) {
   polls = require('./polls').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, rateLimit, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   gevents = require('./gevents').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, rateLimit, readProfile, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   crestvote = require('./crestvote').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, crestClean });
+  duels = require('./duels').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, addBeans, publicLook, canDm: (u, t) => (crew ? crew.canDm(u, t) : false), onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
+  gangwar = require('./gangwar').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, battle, publicLook });
   league = require('./league').register({ db, q, route, requireUser, U, addBeans, notify, fireAndForget });
   feedback = require('./feedback').register({ db, q, route, requireUser, requireAdmin, bad, U, addBeans, notify, fireAndForget, HttpError, BUILD });
 
@@ -1478,6 +1482,7 @@ function createApi(db) {
     if (feedback) feedback.cleanup();
     if (polls) polls.cleanup();
     if (gevents) gevents.cleanup();
+    if (duels) duels.cleanup();
   }
 
   return { handle, verifyLogin, cleanup, HttpError };
