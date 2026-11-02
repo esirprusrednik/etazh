@@ -76,7 +76,9 @@ const DEFAULT_LOOK = { preset: 'm', face: 'oval', eyes: '#22252D', mouth: 'smile
 const DEFAULT_PROFILE = { coffee: false, mood: 'coffee', home: null, days: [], plan: {}, today: null, vacations: [], about: '', tags: [], bday: '', showBday: true, firstName: '', lastName: '', nameVis: 'gang', vacationLook: null, findable: true };
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const addDays = (day, n) => new Date(Date.parse(day + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
-const weekdayName = (day) => [null, 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', null][new Date(day + 'T00:00:00Z').getUTCDay()];
+// День плана недели для рабочего дня; null — выходной или праздник по производственному календарю
+const HOL = require('./holidays');
+const weekdayName = (day) => HOL.workdayName(day);
 
 // Имя и фамилия: scope 'gang' — смотрит кто-то из общей банды, 'all' — любой коллега
 function fullName(prof, scope) {
@@ -124,7 +126,7 @@ function presenceOf(prof, checkin, seed = 0) {
   if (vac) return { where: 'vacation', until: vac.to };
   if (manual === 'vacation') return { where: 'vacation', until: day };
   if (manual === 'sick') return { where: 'sick', until: prof.today.to || day };
-  if (!weekdayName(day)) return { where: 'weekend' };
+  if (!weekdayName(day)) return { where: 'weekend', holiday: HOL.holidayName(day) };
   if (U.isAfterCheckinCutoff()) return { where: 'night' };
   if (manual === 'home') return { where: 'home', planned: false };
   if (manual === 'slack') return { where: 'slack' };

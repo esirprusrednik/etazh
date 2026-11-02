@@ -41,6 +41,7 @@ const GIFT_BEANS = 10;
 const COFFEE_OPTS = ['Сегодня в 11:00', 'Сегодня в 15:00', 'Завтра в 11:00', 'Завтра в 15:00'];
 const COFFEE_REPLIES = ['Иду', 'Давай в другое время', 'Не смогу'];
 const LUNCH_TIMES = ['11:30', '11:45', '12:00', '12:15', '12:30', '12:45', '13:00', '13:15', '13:30', '13:45', '14:00', '14:15', '14:30'];
+const HOL = require('./holidays');
 const DAY_NAMES = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
 // Оценка обеда: «понравилось / нет» и быстрые метки. Коллеги видят только сводку, комментарий — только модератор
 const FOOD_TAGS_UP = ['Вкусно', 'Горячее', 'Большие порции', 'Хороший выбор', 'Быстро обслужили'];
@@ -211,17 +212,19 @@ function register(ctx) {
   }
 
   // ---------- Неделя банды ----------
+  // Пять ближайших будней (праздничные тоже — их видно в календаре как выходные) плюс рабочие субботы
   function weekDays() {
     const out = [];
     let d = today();
     while (out.length < 5) {
-      if (weekdayName(d)) out.push(d);
+      if (HOL.isWeekday(d) || HOL.isWorkSaturday(d)) out.push(d);
       d = addDays(d, 1);
     }
     return out;
   }
 
   function cellFor(prof, uid, day) {
+    if (HOL.holidayName(day)) return 'off';
     const vac = prof.vacations.find((v) => v.from <= day && day <= v.to);
     if (vac) return 'vacation';
     if (day === today()) {
@@ -245,10 +248,11 @@ function register(ctx) {
     const cols = days.map((d, i) => ({
       day: d,
       label: `${DAY_NAMES[new Date(d + 'T00:00:00Z').getUTCDay()]} ${ddmm(d)}`,
-      office: rows.filter((r) => r.cells[i] === 'office').length
+      office: rows.filter((r) => r.cells[i] === 'office').length,
+      holiday: HOL.holidayName(d), short: HOL.isShort(d), workSat: HOL.isWorkSaturday(d)
     }));
     let best = null;
-    cols.forEach((c) => { if (c.office >= 2 && (!best || c.office > best.office)) best = c; });
+    cols.forEach((c) => { if (!c.holiday && c.office >= 2 && (!best || c.office > best.office)) best = c; });
     return { days: cols, rows, best: best ? { label: best.label, office: best.office, total: rows.length, today: best.day === today() } : null, hidden: gangMembers(gangId).length - members.length };
   }
 

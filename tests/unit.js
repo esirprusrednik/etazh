@@ -71,6 +71,19 @@ const { b64url, fromB64url, moderationProblem, emailDomainAllowed } = require('.
   assert.ok(!emailDomainAllowed('a@mts.ru.evil.com'));
   assert.ok(!emailDomainAllowed('a@sub.mts.ru'));
   console.log('  ✓ модерация и домены');
+  {
+    const H = require('../server/holidays');
+    const dow = (d) => new Date(d + 'T00:00:00Z').getUTCDay();
+    for (const d of Object.keys(H.OFF)) assert.ok(dow(d) >= 1 && dow(d) <= 5, 'в OFF только будни: ' + d);
+    // 2026: 14 праздничных будней (с переносами), 2027: 15 — сверено с постановлениями № 1466 и № 1187
+    assert.equal(Object.keys(H.OFF).filter((d) => d.startsWith('2026')).length, 14);
+    assert.equal(Object.keys(H.OFF).filter((d) => d.startsWith('2027')).length, 15);
+    assert.equal(H.workdayName('2026-11-04'), null);
+    assert.equal(H.workdayName('2026-11-03'), 'Вт');
+    assert.equal(H.workdayName('2027-02-20'), 'Пн', 'рабочая суббота');
+    assert.ok(H.isShort('2026-11-03'));
+    console.log('  ✓ производственный календарь 2026–2027');
+  }
   // go.sh качает только файлы из files.txt — забытый файл роняет сервер после обновления (502)
   {
     const fsx = require('node:fs'); const px = require('node:path');

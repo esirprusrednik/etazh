@@ -863,7 +863,7 @@ function whereText(r) {
   if (r.where === 'sick') return [r.until && r.until !== (S.state && S.state.today) ? `болеет до ${ddmm(r.until)} — выздоравливай!` : 'болеет — выздоравливай!', '#DC2626'];
   if (r.where === 'slack') return ['отлынивает 😏 (сам признался)', '#A855F7'];
   if (r.where === 'idle') return [(S.cat.idleJokes || [])[r.joke] || 'в астрале', '#9AA3B5'];
-  if (r.where === 'weekend') return ['выходной', '#9AA3B5'];
+  if (r.where === 'weekend') return [r.holiday ? `выходной · ${r.holiday.replace(/ \(.*\)$/, '')}` : 'выходной', '#9AA3B5'];
   if (r.where === 'none') return ['ещё в пути', '#9AA3B5'];
   if (r.where === 'night') return ['офисы спят', '#9AA3B5'];
   return ['скрывает, где он', '#9AA3B5'];
@@ -1373,7 +1373,19 @@ function renderGangBirthdays() {
   </section>`;
 }
 
-const CELL = { office: ['', 'Офис'], home: ['', 'Дома'], vacation: ['', 'Отпуск'], sick: ['', 'Болеет'], unknown: ['', 'Не указано'] };
+const CELL = { off: ['', 'Выходной'], office: ['', 'Офис'], home: ['', 'Дома'], vacation: ['', 'Отпуск'], sick: ['', 'Болеет'], unknown: ['', 'Не указано'] };
+// Праздники и особые дни этой недели — словами, чтобы не гадать по цвету
+function renderWeekNotes(w) {
+  const day = (d) => `${d.label.split(' ')[0]} ${d.label.split(' ')[1].slice(0, 5)}`;
+  const notes = [];
+  for (const d of w.days) {
+    if (d.holiday) notes.push(`<b>${esc(day(d))}</b> — выходной: ${esc(d.holiday)}`);
+    else if (d.workSat) notes.push(`<b>${esc(day(d))}</b> — рабочая суббота${d.short ? ', на час короче' : ''}`);
+    else if (d.short) notes.push(`<b>${esc(day(d))}</b> — предпраздничный, на час короче`);
+  }
+  return notes.length ? `<div class="wk-notes">${notes.map((n) => `<div>${n}</div>`).join('')}</div>` : '';
+}
+
 function renderWeek() {
   const x = S.gx;
   if (!x) return '';
@@ -1381,11 +1393,12 @@ function renderWeek() {
   return `<section class="card">
     <div class="row" style="justify-content:space-between"><span class="card-title">Неделя банды</span><button class="linkbtn" data-act="open" data-v="profile">мой план</button></div>
     <div class="week" style="grid-template-columns: minmax(0, 1.6fr) repeat(${w.days.length}, minmax(0, 1fr))">
-      <span></span>${w.days.map((d) => `<span class="wk-h">${esc(d.label.split(' ')[0])}<br><b>${esc(d.label.split(' ')[1].slice(0, 5))}</b></span>`).join('')}
-      ${w.rows.map((r) => `<span class="wk-n ellipsis">${esc(r.nick)}${r.me ? ' (ты)' : ''}</span>${r.cells.map((c) => `<span class="wk-c ${c}" title="${CELL[c][1]}" aria-label="${CELL[c][1]}">${CELL[c][0]}</span>`).join('')}`).join('')}
-      <span class="wk-n small">в офисе</span>${w.days.map((d) => `<span class="wk-sum ${w.best && d.label === w.best.label ? 'best' : ''}">${d.office}</span>`).join('')}
+      <span></span>${w.days.map((d) => `<span class="wk-h ${d.holiday ? 'off' : ''}" ${d.holiday ? `title="${esc(d.holiday)}"` : d.short ? 'title="Сокращённый день, на час короче"' : ''}>${esc(d.label.split(' ')[0])}<br><b>${esc(d.label.split(' ')[1].slice(0, 5))}</b>${d.short ? '<i class="wk-short">−1ч</i>' : ''}</span>`).join('')}
+      ${w.rows.map((r) => `<span class="wk-n ellipsis">${esc(r.nick)}${r.me ? ' (ты)' : ''}</span>${r.cells.map((c, i) => `<span class="wk-c ${c}" title="${c === 'off' ? esc(w.days[i].holiday) : CELL[c][1]}" aria-label="${c === 'off' ? 'Выходной: ' + esc(w.days[i].holiday) : CELL[c][1]}">${CELL[c][0]}</span>`).join('')}`).join('')}
+      <span class="wk-n small">в офисе</span>${w.days.map((d) => `<span class="wk-sum ${w.best && d.label === w.best.label ? 'best' : ''}">${d.holiday ? '—' : d.office}</span>`).join('')}
     </div>
-    <div class="wk-legend"><span><i class="wk-c office"></i>офис</span><span><i class="wk-c home"></i>дома</span><span><i class="wk-c vacation"></i>отпуск</span><span><i class="wk-c sick"></i>болеет</span></div>
+    <div class="wk-legend"><span><i class="wk-c office"></i>офис</span><span><i class="wk-c home"></i>дома</span><span><i class="wk-c vacation"></i>отпуск</span><span><i class="wk-c sick"></i>болеет</span>${w.days.some((d) => d.holiday) ? '<span><i class="wk-c off"></i>праздник</span>' : ''}</div>
+    ${renderWeekNotes(w)}
     ${w.best ? `<div class="week-hint">${ico('where', 16)}<span>${w.best.today ? 'Сегодня' : esc(w.best.label)} в офисе будут <b>${w.best.office} из ${w.best.total}</b></span></div>` : '<p class="small" style="margin:0">Заполните план недели в профиле — тут станет видно, когда банда соберётся в офисе.</p>'}
     ${w.hidden ? `<p class="small" style="margin:0">Ещё ${w.hidden} ${plural(w.hidden, 'человек', 'человека', 'человек')} не показывают, где работают.</p>` : ''}
   </section>`;

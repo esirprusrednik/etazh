@@ -92,7 +92,9 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.equal(ex.week.rows.length, 3);
     assert.ok(ex.week.best && ex.week.best.office >= 2);
     const cells = ex.week.rows.find((r) => r.me).cells;
-    assert.ok(cells.every((x) => ['office', 'home', 'vacation', 'sick', 'unknown'].includes(x)));
+    assert.ok(cells.every((x) => ['office', 'home', 'vacation', 'sick', 'unknown', 'off'].includes(x)));
+    // Праздничный будний день — выходной у всех, в «лучший день» не попадает
+    ex.week.days.forEach((d, i) => { if (d.holiday) { assert.ok(ex.week.rows.every((r) => r.cells[i] === 'off')); assert.notEqual(ex.week.best.label, d.label); } });
   });
 
   await step('дни рождения: видно в банде, подарок только в день рождения', async () => {

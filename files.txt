@@ -35,6 +35,7 @@ server/crew.js
 server/db.js
 server/features.js
 server/feedback.js
+server/holidays.js
 server/index.js
 server/mailer.js
 server/quiz.js
