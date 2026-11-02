@@ -68,7 +68,10 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
   });
 
   await step('задания дня: «из дома» тоже засчитывает отметку, без банды — «вступи в банду»', async () => {
-    await c.post('/api/me/profile', { profile: { today: { kind: 'home' } } });
+    const r = (await c.post('/api/me/profile', { profile: { today: { kind: 'home' } } })).json;
+    assert.equal(r.beans, 5, '«из дома» — +5, как офис');
+    assert.equal((await c.post('/api/me/profile', { profile: { today: { kind: 'home' } } })).json.beans, 0, 'второй раз за день — без зёрен');
+    assert.equal((await c.post('/api/checkin', { office: 'smol' })).json.beans, 0, 'после «из дома» отметка в офисе зёрна не даёт');
     assert.ok((await c.get('/api/features')).json.quests.items.find((x) => x.id === 'where').done);
     const lone = await new Client().login('lone@mts.ru', 'одинокий_волк');
     const ids = (await lone.get('/api/features')).json.quests.items.map((x) => x.id);

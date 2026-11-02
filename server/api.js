@@ -553,9 +553,13 @@ function createApi(db) {
     const share = body.shareOffice === undefined ? u.share_office : body.shareOffice ? 1 : 0;
     const quiet = body.quiet === undefined ? u.quiet : body.quiet ? 1 : 0;
     q('UPDATE users SET look = ?, profile = ?, share_office = ?, quiet = ? WHERE id = ?').run(JSON.stringify(look), JSON.stringify(prof), share, quiet, u.id);
-    if (features && body.profile && body.profile.today && body.profile.today.kind === 'home') features.onEvent('home', u.id);
+    let homeBeans = 0;
+    if (body.profile && body.profile.today && body.profile.today.kind === 'home') {
+      if (weekdayName(U.msk().day) && !q('SELECT 1 FROM ledger WHERE user_id = ? AND day = ? AND reason = ?').get(u.id, U.msk().day, 'checkin')) homeBeans = addBeans(u.id, 'home') || 0;
+      if (features) features.onEvent('home', u.id);
+    }
     if (features) features.onEvent('profile', u.id, { look: body.look !== undefined && Object.keys(body.look || {}).length > 0, slack: !!(body.profile && body.profile.today && body.profile.today.kind === 'slack') });
-    return { ok: true };
+    return { ok: true, beans: homeBeans };
   });
 
   // Главный экран: офис, столовая, банда сейчас, счётчики новых событий
@@ -612,7 +616,11 @@ function createApi(db) {
     q('INSERT INTO checkins (user_id, office_id, day, at) VALUES (?, ?, ?, ?)').run(u.id, office.id, day, U.now());
     // Пришёл в офис — ручной статус «дома/отпуск» на сегодня больше не актуален
     if (u.profile.today) q('UPDATE users SET profile = ? WHERE id = ?').run(JSON.stringify({ ...u.profile, today: null }), u.id);
-    const got = addBeans(u.id, 'checkin');
+    // За день — одна награда: офис или «из дома». Если «из дома» уже оплачено, отметку пишем с нулём:
+    // запись в журнале нужна для серии дней в офисе
+    let got = 0;
+    if (q('SELECT 1 FROM ledger WHERE user_id = ? AND day = ? AND reason = ?').get(u.id, U.msk().day, 'home')) q('INSERT INTO ledger (user_id, amount, reason, day, at) VALUES (?, 0, ?, ?, ?)').run(u.id, 'checkin', day, U.now());
+    else got = addBeans(u.id, 'checkin');
     if (features) features.onEvent('checkin', u.id, { office: office.id });
     if (u.share_office) pushEvent(office.id, u.id, `${u.nick} в офисе`, 'office');
     return { ok: true, beans: got };

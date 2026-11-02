@@ -54,6 +54,7 @@ const SHOP = [
 const EARN = {
   welcome: { amount: Number(process.env.WELCOME_BEANS || 50), perDay: 1 },
   checkin: { amount: 5, perDay: 1 },
+  home: { amount: 5, perDay: 1 },     // «Сегодня из дома» — столько же, сколько отметка в офисе; вместе — не больше 5 в день
   canteen: { amount: 2, perDay: 2 },
   reply: { amount: 1, perDay: 10 },
   signal_confirmed: { amount: 2, perDay: 3 },

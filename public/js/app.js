@@ -566,7 +566,7 @@ function renderStatusBlock() {
         <button class="btn ghost" data-act="open" data-v="sick">🤒 Болею</button>
         <button class="btn ghost" data-act="open" data-v="vacation">🌴 В отпуске</button>
         <button class="btn ghost" data-act="today" data-v="slack">😏 Отлыниваю</button></div>`}
-      <p class="small">Отметка в офисе — до 19:00, +5 зёрен за первую за день. Твои люди увидят, где ты.</p>
+      <p class="small">Отметка в офисе — до 19:00. +5 зёрен в день — за офис или «из дома», что раньше. Твои люди увидят, где ты.</p>
     </div>`;
   }
   const here = (S.people || []).filter((r) => r.where === 'office' && r.office === st.checkin.office).length;
@@ -742,7 +742,7 @@ function renderOffice() {
   if (!st.checkin) {
     return `${renderToday()}<div class="card">
       <h2>${['home', 'vacation', 'sick', 'slack'].includes(st.presence.where) ? 'Всё-таки в офисе?' : 'Где ты сегодня?'}</h2>
-      <p class="sub">Отметься — и увидишь свой офис: кто из банды рядом и есть ли очередь в столовой. +5 зёрен за первую отметку дня.</p>
+      <p class="sub">Отметься — и увидишь свой офис: кто из банды рядом и есть ли очередь в столовой. +5 зёрен в день — за офис или «из дома».</p>
       ${S.cat.offices.map((o) => `<button class="office-btn" style="background:${OFFICE_BG[o.id] || o.color}" data-act="checkin" data-v="${o.id}">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V5l8-3 8 3v16z"/><path d="M9 21v-5h6v5M8 8h2M14 8h2M8 12h2M14 12h2"/></svg>
         <span class="grow">${esc(o.name)}</span></button>`).join('')}
@@ -917,7 +917,7 @@ function renderToday() {
   if (p.where === 'home') {
     return `<section class="card">
       <h2>🏠 Сегодня из дома${p.planned ? '?' : ''}</h2>
-      <p class="sub">${p.planned ? 'Так в твоём плане на этот день недели. Подтверди — банда увидит, что ты на связи из дома, а задание «Отметься» засчитается.' : 'Отметка стоит: банда видит «работает из дома». Приедешь — просто отметься в офисе.'}</p>
+      <p class="sub">${p.planned ? 'Так в твоём плане на этот день недели. Подтверди — банда увидит, что ты на связи из дома. +5 зёрен, как за офис, и задание «Отметься» засчитается.' : 'Отметка стоит: банда видит «работает из дома». Приедешь — просто отметься в офисе.'}</p>
       ${p.planned ? '<button class="btn" data-act="today" data-v="home">Да, сегодня из дома</button>' : '<div class="row" style="gap:8px;align-items:center"><span class="note good grow" style="margin:0">✓ Отмечено</span><button class="btn small ghost" data-act="today" data-v="">Отменить</button></div>'}${next}
     </section>`;
   }
@@ -2555,10 +2555,10 @@ const actions = {
     await post('/api/me/profile', { profile: { [el.dataset.k]: v } }); await loadMe();
   }),
   today: (el) => run(async () => {
-    await post('/api/me/profile', { profile: { today: el.dataset.v ? { kind: el.dataset.v } : null } });
+    const r = await post('/api/me/profile', { profile: { today: el.dataset.v ? { kind: el.dataset.v } : null } });
     await loadMe(); await loadState();
     if (el.dataset.v === 'slack') toast('Признание засчитано 😏');
-    if (el.dataset.v === 'home') { toast('Отмечено: сегодня из дома'); loadFeatures().then(render).catch(() => {}); }
+    if (el.dataset.v === 'home') { toast(r.beans ? `Отмечено: сегодня из дома · +${r.beans} зёрен` : 'Отмечено: сегодня из дома'); loadFeatures().then(render).catch(() => {}); }
   }),
   'plan-day': (el) => run(async () => {
     const plan = { ...S.me.profile.plan };
