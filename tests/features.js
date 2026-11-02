@@ -114,7 +114,11 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     const ex = (await a.get(`/api/gangs/${g.id}/extra`)).json;
     assert.equal(ex.birthdays[0].inDays, 0);
     const before = (await b.get('/api/me')).json.user.beans;
+    const qb = (await a.get('/api/features')).json.quests.extra.find((x) => x.id === 'bday');
+    assert.ok(qb && !qb.done, 'бонус «Поздравь именинника» появился');
     assert.equal((await a.post('/api/gift', { to: b.id })).status, 200);
+    assert.ok((await a.get('/api/features')).json.quests.extra.find((x) => x.id === 'bday').done, 'подарок закрыл бонус');
+    assert.ok(!(await b.get('/api/features')).json.quests.extra.some((x) => x.id === 'bday'), 'себя не поздравляют');
     assert.equal((await a.post('/api/gift', { to: b.id })).status, 400);
     assert.equal((await b.get('/api/me')).json.user.beans - before, 10);
     assert.equal((await a.post('/api/gift', { to: c.id })).status, 400);
@@ -199,6 +203,7 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     await a.post('/api/canteen/in');
     const r = (await a.post('/api/canteen/rate', { up: true, tags: ['Вкусно', 'Остыло', 'Горячее'], comment: 'Борщ огонь' })).json;
     assert.equal(r.beans, 1); assert.deepEqual(r.food.mine.tags, ['Вкусно', 'Горячее']);
+    assert.ok((await a.get('/api/features')).json.quests.extra.find((x) => x.id === 'food').done, 'бонус «Оцени обед» засчитан');
     const r2 = (await a.post('/api/canteen/rate', { up: false, tags: ['Остыло'] })).json;
     assert.equal(r2.beans, 0); assert.equal(r2.food.n, 1, 'повторная оценка заменяет первую');
     const fb = (await b.get('/api/features')).json.food;

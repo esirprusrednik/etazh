@@ -612,3 +612,6 @@ body { font-weight: 500; }
 button.quest { border: 0; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
 button.quest:not(.done):active { transform: scale(.97); }
 button.quest:disabled { cursor: default; }
+.quest-row.bonus { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 6px; }
+.quest.bonus:not(.done) { background: #FFF6DA; color: #7A5200; }
+.quest.bonus:not(.done) .qmark { border-color: #F4C64E; color: #D99A0B; font-size: 13px; }

@@ -122,6 +122,11 @@ const QUESTS = [
   { id: 'sea', name: 'Сделай ход в морском бою или вызови кого-нибудь', go: 'games', need: 'gang2' }
 ];
 const QUEST_POOL_PICK = 3;
+// Бонусные задания: появляются днём, когда становятся возможны, и не влияют на награду «за все»
+const BONUS_QUESTS = [
+  { id: 'food', name: 'Оцени обед в столовой', go: 'office' },
+  { id: 'bday', name: 'Поздравь именинника: подарок, спасибо или личка', go: 'near' }
+];
 const QUEST_REWARD = 3;
 const QUEST_ALL_BONUS = 5;
 const THANKS_PER_DAY = 3;
@@ -319,7 +324,25 @@ function register(ctx) {
     return list;
   }
 
+  // Именинники сегодня среди своих (кроме меня)
+  function bdayIdsToday(uid) {
+    const ids = new Set();
+    for (const g of myGangs(uid)) for (const b of gangBirthdays(g.id, uid)) if (b.inDays === 0 && b.id !== uid) ids.add(b.id);
+    return ids;
+  }
+  function bonusFor(uid) {
+    const out = [];
+    if (q('SELECT 1 FROM canteen WHERE user_id = ? AND at > ?').get(uid, dayStartTs(today()))) out.push('food');
+    if (bdayIdsToday(uid).size) out.push('bday');
+    return out;
+  }
+
   function completeQuest(uid, quest) {
+    if (BONUS_QUESTS.some((x) => x.id === quest)) {
+      if (!bonusFor(uid).includes(quest)) return;
+      if (q('INSERT OR IGNORE INTO quests_done (user_id, day, quest) VALUES (?, ?, ?)').run(uid, today(), quest).changes) addBeans(uid, 'quest', QUEST_REWARD);
+      return;
+    }
     const list = questsFor(uid);
     if (!list.includes(quest)) return;
     const r = q('INSERT OR IGNORE INTO quests_done (user_id, day, quest) VALUES (?, ?, ?)').run(uid, today(), quest);
@@ -347,6 +370,7 @@ function register(ctx) {
       if (type === 'reply') { bump(uid, 'replies'); stat('replies'); completeQuest(uid, 'reply'); }
       if (type === 'call') { stat('calls'); bump(uid, 'calls'); completeQuest(uid, 'call'); }
       if (type === 'text') { stat('messages'); bump(uid, 'msgs'); completeQuest(uid, 'chat'); }
+      if ((type === 'dm' || type === 'meme') && data.to && bdayIdsToday(uid).has(data.to)) completeQuest(uid, 'bday');
       if (type === 'dm') { bump(uid, data.call ? 'calls' : 'dms'); if (seenPair(uid, 'dm', data.to)) bump(uid, 'dm_people'); completeQuest(uid, data.call ? 'call' : 'dm'); }
       if (type === 'meme') { bump(uid, 'memes'); if (seenPair(uid, 'dm', data.to)) bump(uid, 'dm_people'); completeQuest(uid, 'meme'); }
       if (type === 'dm_reply') { bump(uid, 'replies'); completeQuest(uid, 'reply'); }
@@ -473,6 +497,7 @@ function register(ctx) {
     bump(u.id, 'thanks_given'); bump(toId, 'thanks_got'); stat('thanks');
     if (seenPair(u.id, 'thanks', toId)) bump(u.id, 'thanks_people');
     completeQuest(u.id, 'thanks');
+    if (bdayIdsToday(u.id).has(toId)) completeQuest(u.id, 'bday');
     checkAchievements(u.id); checkAchievements(toId);
     fireAndForget(notify([toId], { title: 'Тебе спасибо!', body: `${u.nick}: ${text || 'спасибо за помощь'}${got ? ' · +1 зерно' : ''}`, url: `/#gang/${gangId}`, tag: `thanks-${u.id}` }));
     return { ok: true, left: thanksLeft(u.id) };
@@ -504,7 +529,7 @@ function register(ctx) {
     if (!spendBeans(u.id, GIFT_BEANS, 'gift')) throw bad(`Нужно ${GIFT_BEANS} зёрен.`);
     q('INSERT INTO gifts (from_id, to_id, day, at) VALUES (?, ?, ?, ?)').run(u.id, toId, today(), U.now());
     addBeans(toId, 'gift_got', GIFT_BEANS);
-    stat('gifts');
+    stat('gifts'); completeQuest(u.id, 'bday');
     fireAndForget(notify([toId], { title: 'С днём рождения!', body: `${u.nick} дарит тебе ${GIFT_BEANS} зёрен`, url: '/', tag: `gift-${u.id}` }, { ignoreQuiet: true }));
     return { ok: true };
   });
@@ -661,7 +686,8 @@ function register(ctx) {
       }
     }
     return {
-      quests: { items: questsFor(u.id).map((id) => QUESTS.find((x) => x.id === id)).filter(Boolean).map((x) => ({ id: x.id, name: x.name, go: x.go, done: done.has(x.id) })), reward: QUEST_REWARD, bonus: QUEST_ALL_BONUS },
+      quests: { items: questsFor(u.id).map((id) => QUESTS.find((x) => x.id === id)).filter(Boolean).map((x) => ({ id: x.id, name: x.name, go: x.go, done: done.has(x.id) })), reward: QUEST_REWARD, bonus: QUEST_ALL_BONUS,
+        extra: bonusFor(u.id).map((id) => BONUS_QUESTS.find((x) => x.id === id)).map((x) => ({ id: x.id, name: x.name, go: x.go, done: done.has(x.id) })) },
       achievements: (() => {
         const c = countersOf(u.id, userRow(u.id));
         return ACH.map((a) => {
@@ -713,7 +739,7 @@ function register(ctx) {
        ON CONFLICT(day, office_id, user_id) DO UPDATE SET up = excluded.up, tags = excluded.tags, comment = excluded.comment, at = excluded.at`)
       .run(today(), officeId, u.id, up ? 1 : 0, JSON.stringify(tags), comment || null, U.now());
     const beans = first ? addBeans(u.id, 'food_rate') || 0 : 0;
-    if (first) { stat('food_rates'); bump(u.id, 'food'); checkAchievements(u.id); }
+    if (first) { stat('food_rates'); bump(u.id, 'food'); completeQuest(u.id, 'food'); checkAchievements(u.id); }
     return { ok: true, beans, food: foodSummary(officeId, u.id) };
   });
 

@@ -1360,6 +1360,8 @@ function renderQuests() {
   return `<section class="card quests">
     <div class="row" style="justify-content:space-between"><span class="card-title">Задания дня</span><span class="small">${done}/${f.quests.items.length} · +${f.quests.reward} за каждое, +${f.quests.bonus} за все</span></div>
     <div class="quest-row n${f.quests.items.length}">${f.quests.items.map((x) => `<button class="quest ${x.done ? 'done' : ''}" data-act="quest-go" data-v="${esc(x.go || '')}" ${x.done ? 'disabled' : ''}><span class="qmark" aria-hidden="true">${x.done ? '✓' : ''}</span><span>${esc(x.name)}</span></button>`).join('')}</div>
+    ${(f.quests.extra || []).length ? `<div class="eyebrow" style="margin-top:12px">Бонус дня · +${f.quests.reward} за каждое</div>
+    <div class="quest-row bonus">${f.quests.extra.map((x) => `<button class="quest bonus ${x.done ? 'done' : ''}" data-act="quest-go" data-v="${esc(x.go)}" ${x.done ? 'disabled' : ''}><span class="qmark" aria-hidden="true">${x.done ? '✓' : '★'}</span><span>${esc(x.name)}</span></button>`).join('')}</div>` : ''}
     <p class="small" style="margin:8px 0 0">Каждый день набор новый. Нажми на задание — откроется место, где его выполнить.</p>
   </section>`;
 }
@@ -2481,6 +2483,7 @@ const actions = {
     S.sheet = null;
     const firstGang = S.activeGang || (S.me.gangs[0] || {}).id;
     if (go === 'near') { S.tab = 'near'; tabSound('near'); }
+    else if (go === 'office') { S.tab = 'office'; tabSound('office'); }
     else if (go === 'games') { S.tab = 'games'; tabSound('games'); }
     else if (go === 'gang' && firstGang) { S.tab = 'chats'; S.chatGang = true; S.dm = null; S.activeGang = firstGang; store.set('activeGang', firstGang); }
     else if (go === 'dm') { S.tab = 'chats'; S.dm = null; S.chatGang = false; return actions.open({ dataset: { v: 'dm-pick' } }); }
