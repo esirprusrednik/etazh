@@ -297,9 +297,10 @@ function avatarInner(look = {}) {
   const kx = (rx / 19.5).toFixed(3);
   const bc = look.beardColor && look.beardColor !== 'same' ? look.beardColor : hair;
   const mc = look.mustacheColor && look.mustacheColor !== 'same' ? look.mustacheColor : hair;
-  const beard = (BEARDS[look.beard] || BEARDS.none)(bc, mc);
+  // Борода — только у «М», макияж — только у «Ж»: вкладки в конструкторе тоже разведены
+  const beard = sex === 'm' ? (BEARDS[look.beard] || BEARDS.none)(bc, mc) : '';
   const hat = look.hat && look.hat !== 'none' ? look.hat : null;
-  const mk = MAKEUP[look.makeup] || MAKEUP.none;
+  const mk = sex === 'f' ? (MAKEUP[look.makeup] || MAKEUP.none) : MAKEUP.none;
   const es = (EYE_SCALE[look.eyeSize] || 1) * (sex === 'f' ? 1.06 : 1);
   const ek = EAR_SCALE[look.ears] || 1;
   // Ж — ресницы и тонкие дугой брови; М — густые прямые брови и тень по линии челюсти
@@ -2109,6 +2110,7 @@ function randomLook() {
   r.glassesStyle = pick(GLASSES_ORDER[f ? 'f' : 'm'].slice(0, 5));
   r.makeup = f && Math.random() < 0.65 ? pick(L.makeup.filter((v) => v !== 'none')) : 'none';
   r.earrings = Math.random() < (f ? 0.55 : 0.08) ? pick(L.earrings.filter((v) => v !== 'none')) : 'none';
+  if (f) r.beard = 'none'; else r.makeup = 'none';
   if (f) r.beard = 'none'; else if (Math.random() < 0.15) r.beard = pick(free('beard').filter((v) => v !== 'none'));
   r.beardColor = Math.random() < 0.15 ? pick(L.hair) : 'same'; r.mustacheColor = Math.random() < 0.1 ? pick(L.hair) : r.beardColor;
   return r;
@@ -2163,7 +2165,7 @@ function renderMemeMaker() {
 // ----- Конструктор аватара: черновик, категории, пресеты, случайный -----
 function renderAvatarEditor() {
   const d = S.draft, L = S.cat.look;
-  const cat = S.avaCat === 'makeup' && d.preset !== 'f' ? 'face' : (S.avaCat || 'face');
+  const cat = (S.avaCat === 'makeup' && d.preset !== 'f') || (S.avaCat === 'beard' && d.preset === 'f') ? 'face' : (S.avaCat || 'face');
   const sw = (key, vals) => `<div class="row" style="flex-wrap:wrap;gap:8px">${vals.map((v) => `<button class="swatch ${d[key] === v ? 'on' : ''}" style="background:${HOODIE[v] || v}" data-act="ava-set" data-k="${key}" data-v="${v}" aria-label="${key} ${v}"></button>`).join('')}</div>`;
   const tiles = (key, vals, names, zoom = false) => `<div class="ava-tiles">${vals.map((v) => {
     const lock = partLocked(key, v);
@@ -2205,7 +2207,7 @@ function renderAvatarEditor() {
       <div class="ava-tools"><button class="tool" data-act="ava-random" aria-label="Случайный аватар">🎲</button><button class="tool" data-act="ava-reset" aria-label="Вернуть как было">↺</button></div>
     </div>
     <div class="presets">${AVA_PRESETS.map((pr) => `<button class="preset" data-act="ava-preset" data-v="${pr.id}">${avatar({ ...d, ...pr.look, frame: null, crown: false }, 52)}<span>${esc(pr.name)}</span></button>`).join('')}</div>
-    <div class="cats" role="tablist">${AVA_CATS.filter(([id]) => id !== 'makeup' || d.preset === 'f').map(([id, label]) => `<button class="cat ${cat === id ? 'on' : ''}" role="tab" aria-selected="${cat === id}" data-act="ava-cat" data-v="${id}">${label}</button>`).join('')}</div>
+    <div class="cats" role="tablist">${AVA_CATS.filter(([id]) => (id !== 'makeup' || d.preset === 'f') && (id !== 'beard' || d.preset !== 'f')).map(([id, label]) => `<button class="cat ${cat === id ? 'on' : ''}" role="tab" aria-selected="${cat === id}" data-act="ava-cat" data-v="${id}">${label}</button>`).join('')}</div>
     <div class="cat-body">${body}</div>
     <div class="ava-foot">
       ${locked ? `<button class="btn grow" data-act="ava-buy" data-v="${locked.id}" ${S.me.beans < locked.price ? 'disabled' : ''}>Купить «${esc(locked.name)}» · ${locked.price} ${BEAN}</button>`
@@ -2804,6 +2806,7 @@ const actions = {
   'ava-buy': (el) => run(async () => { await post('/api/shop/buy', { item: el.dataset.v }); const keep = S.draft; await loadMe(); S.draft = keep; toast('Куплено! Теперь можно сохранить'); }),
   'ava-save': () => run(async () => {
     const pick = Object.fromEntries(Object.keys(S.cat.look).concat(['glasses', 'phones', 'freckles']).map((k) => [k, S.draft[k]]));
+    if (pick.preset === 'f') pick.beard = 'none'; else pick.makeup = 'none';
     if (S.avaMode === 'vacation') await post('/api/me/profile', { profile: { vacationLook: pick } });
     else await post('/api/me/profile', { look: pick });
     await loadMe(); S.sheet = 'profile'; S.sec.add('look'); toast(S.avaMode === 'vacation' ? 'Образ для отпуска сохранён' : 'Аватар сохранён');

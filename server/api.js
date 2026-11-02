@@ -71,6 +71,8 @@ function applyLook(base, l, owned) {
     look[k] = l[k];
   }
   for (const k of ['glasses', 'phones', 'freckles']) if (l[k] !== undefined) look[k] = !!l[k];
+  // Борода — только у «М», макияж — только у «Ж»
+  if (look.preset === 'f') look.beard = 'none'; else look.makeup = 'none';
   return look;
 }
 const NICK_PRICE = 50;
