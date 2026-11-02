@@ -55,7 +55,10 @@ function shortCode(len = 6) {
 // --- Модерация текста ---
 // Латиница, похожая на кириллицу, и цифры-подмены приводятся к кириллице до проверки
 const LOOKALIKE = { a: 'а', b: 'в', c: 'с', e: 'е', h: 'н', k: 'к', m: 'м', o: 'о', p: 'р', t: 'т', x: 'х', y: 'у', '0': 'о', '3': 'з', '6': 'б' };
-const STOP_ROOTS = ['дурак', 'дура', 'идиот', 'тупо', 'тупиц', 'лох', 'урод', 'дебил', 'кретин', 'против', 'мраз', 'чмо', 'сук', 'бляд', 'хуй', 'хуё', 'пизд', 'ебан', 'ёбан', 'жоп', 'гнид'];
+// Мягкие корни ловим только в начале слова: иначе «барсук», «плохо» и «процедура» не проходят модерацию.
+// Жёсткий мат ловим где угодно, даже если его разбили пробелами или точками.
+const STOP_ROOTS = ['дурак', 'дура', 'идиот', 'тупо', 'тупиц', 'лох', 'урод', 'дебил', 'кретин', 'против', 'мраз', 'чмо', 'сук', 'гнид'];
+const HARD_ROOTS = ['бляд', 'хуй', 'хуе', 'пизд', 'ебан', 'жоп'];
 
 function normalizeForFilter(s) {
   return String(s || '')
@@ -63,15 +66,24 @@ function normalizeForFilter(s) {
     .replace(/ё/g, 'е')
     .split('')
     .map((ch) => LOOKALIKE[ch] || ch)
-    .join('')
-    .replace(/[^а-яa-z]/g, '');
+    .join('');
 }
 
 function moderationProblem(text, { allowAt = false } = {}) {
   const raw = String(text || '');
   if (!allowAt && raw.includes('@')) return 'Через @ никого упоминать нельзя.';
   const n = normalizeForFilter(raw);
-  if (STOP_ROOTS.some((r) => n.includes(r.replace(/ё/g, 'е')))) return 'Такой текст не пройдёт модерацию.';
+  // Слова: точки, дефисы и звёздочки внутри слова не разделяют его («Ду.р.ак»)
+  const words = n.split(/[\s,;:!?()«»"'\/\\]+/).map((w) => w.replace(/[^а-яa-z]/g, '')).filter(Boolean);
+  if (words.some((w) => STOP_ROOTS.some((r) => w.startsWith(r)))) return 'Такой текст не пройдёт модерацию.';
+  if (words.some((w) => HARD_ROOTS.some((r) => w.includes(r)))) return 'Такой текст не пройдёт модерацию.';
+  // «х у й»: слово разбили по буквам — склеиваем подряд идущие однобуквенные куски
+  const runs = [];
+  let run = '';
+  for (const w of n.split(/\s+/).map((x) => x.replace(/[^а-яa-z]/g, ''))) { if (w.length === 1) run += w; else { if (run) runs.push(run); run = ''; } }
+  if (run) runs.push(run);
+  const spaced = runs;
+  if (spaced.some((w) => w.length >= 3 && [...HARD_ROOTS, ...STOP_ROOTS].some((r) => w.includes(r)))) return 'Такой текст не пройдёт модерацию.';
   return null;
 }
 

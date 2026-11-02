@@ -722,6 +722,10 @@ async function loadGangExtra() {
   try { S.guess = await get(`/api/gangs/${S.activeGang}/guess`); } catch { S.guess = null; }
 }
 async function loadBlitz() { try { S.blitz = await get('/api/blitz'); } catch { S.blitz = null; } }
+async function loadGangFind() {
+  const f = S.gfind;
+  f.items = (await get(`/api/gangs/search?q=${encodeURIComponent(f.q || '')}&area=${encodeURIComponent(f.area || '')}`)).items;
+}
 async function loadQuiz() { try { S.quiz = (await get('/api/quiz')).items; } catch { S.quiz = []; } }
 
 async function loadFeedback() {
@@ -839,11 +843,11 @@ function renderNick() {
       <div class="chips">${o.nicks.map((n) => `<button class="chip" data-act="nick-pick" data-v="${esc(n)}">${esc(n)}</button>`).join('')}
         <button class="chip" data-act="nick-more">Ещё варианты</button></div>
       <label class="field">Никнейм<input id="nick" maxlength="21" autocomplete="off" placeholder="бодрый_енот" value="${esc(o.nick || '')}"></label>
-      <div class="field">Аватар
-        <div class="row">${['m', 'f'].map((p) => `<button class="chip ${(o.preset || 'm') === p ? 'on' : ''}" data-act="onb-preset" data-v="${p}">${avatar({ preset: p, hairStyle: p === 'f' ? 'long' : 'short' }, 28)} ${p === 'm' ? 'М' : 'Ж'}</button>`).join('')}</div>
+      <div class="field">Кто ты? <span class="small" style="font-weight:600">— от этого зависят аватар и как к тебе обращаться: «бандит» или «бандитка»</span>
+        <div class="row">${['m', 'f'].map((p) => `<button class="chip ${o.preset === p ? 'on' : ''}" data-act="onb-preset" data-v="${p}">${avatar({ preset: p, hairStyle: p === 'f' ? 'long' : 'short' }, 28)} ${p === 'm' ? 'Он' : 'Она'}</button>`).join('')}</div>
       </div>
       ${o.error ? `<div class="err">${esc(o.error)}</div>` : ''}
-      <button class="btn wide" data-act="nick-submit">Готово</button>
+      <button class="btn wide" data-act="nick-submit" ${o.preset ? '' : 'aria-disabled="true"'} style="${o.preset ? '' : 'opacity:.55'}">${o.preset ? 'Готово' : 'Выбери «Он» или «Она»'}</button>
     </div>
   </div>`;
 }
@@ -878,7 +882,7 @@ function renderApp() {
       ${S.tab === 'near' ? renderNear() : S.tab === 'chats' ? renderChats() : S.tab === 'office' ? renderOfficeTab() : renderGames()}
     </main>
     <nav class="tabs"><div class="in">
-      ${tabBtn('near', 'Рядом', 0)}${tabBtn('chats', 'Чаты', (b.chat || 0) + (b.crew || 0) + (b.invites || 0) + (b.polls || 0))}${tabBtn('office', 'Офис', 0)}${tabBtn('games', 'Игры', (S.quiz || []).filter((z) => !z.answered).length + (S.battles || []).filter((x) => x.myTurn && x.status !== 'done').length)}
+      ${tabBtn('near', 'Рядом', 0)}${tabBtn('chats', 'Чаты', (b.chat || 0) + (b.crew || 0) + (b.invites || 0) + (b.polls || 0) + (b.gangRequests || 0))}${tabBtn('office', 'Офис', 0)}${tabBtn('games', 'Игры', (S.quiz || []).filter((z) => !z.answered).length + (S.battles || []).filter((x) => x.myTurn && x.status !== 'done').length)}
     </div></nav>
   </div>
   ${S.sheet ? renderSheet() : ''}`;
@@ -1054,7 +1058,7 @@ function renderChats() {
     if (x.type === 'gang') {
       const unread = x.last && !x.last.mine && x.lastAt > (seenG[x.id] || 0);
       return `<button class="chat-row" data-act="gang-open" data-id="${x.id}">
-        <span class="chat-gang" style="background:${esc(x.color)}">${esc(x.name.slice(0, 1).toUpperCase())}</span>
+        <span class="chat-gang" style="background:${esc(x.color)}">${x.emoji ? esc(x.emoji) : esc(x.name.slice(0, 1).toUpperCase())}</span>
         <span class="grow" style="min-width:0"><span class="chat-title">${esc(x.name)} <span class="small">· ${x.members}</span></span>
           <span class="where ellipsis ${unread ? 'unread' : ''}">${x.last ? `${x.last.mine ? 'Ты' : esc(x.last.who || '')}: ${esc(x.last.text || '')}` : 'Сообщений пока нет — начни первым'}</span></span>
         <span class="crew-side">${x.lastTime ? `<span class="small">${x.lastTime}</span>` : ''}${x.polls ? `<span class="poll-badge" title="Опросы без твоего голоса">📊 ${x.polls}</span>` : unread ? '<span class="crew-badge">•</span>' : ''}</span></button>`;
@@ -1080,7 +1084,8 @@ function renderChats() {
       <div class="grow" style="min-width:0"><div style="font-weight:900">${esc(i.gang.name)}</div><div class="where">${i.gang.members} ${plural(i.gang.members, 'человек', 'человека', 'человек')} · зовёт ${esc(i.from)}</div></div>
       <button class="btn small" data-act="invite-accept" data-id="${i.id}">Вступить</button><button class="btn small ghost" data-act="invite-decline" data-id="${i.id}" aria-label="Отказаться">Нет</button></div>`).join('')}</section>` : ''}
     ${reqs}
-    <section class="card chats">${head('Банды', gangs.length, 'gang-new', 'Сколотить')}<p class="small chats-hint">Общий чат на всю банду · сообщения живут 24 часа</p>${gangList}</section>
+    <button class="invite-app" data-act="crew-share"><span class="grow"><b>Позвать коллегу в Этаж</b><span class="small">Личная ссылка: придёт — сразу будете на связи. +15 зёрен за каждого новичка</span></span><span aria-hidden="true">📨</span></button>
+    <section class="card chats"><div class="chats-head"><h3>Банды${gangs.length ? ` <span class="chats-n">${gangs.length}</span>` : ''}</h3><span class="row" style="gap:12px"><button class="linkbtn" data-act="gang-find">🔍 Найти</button><button class="linkbtn" data-act="open" data-v="gang-new">＋ Сколотить</button></span></div><p class="small chats-hint">Общий чат на всю банду · сообщения живут 24 часа</p>${gangList}</section>
     <section class="card chats">${head('Личка', dmUnread ? `${dmUnread} ${plural(dmUnread, 'новое', 'новых', 'новых')}` : '', 'dm-pick', 'Написать', true)}<p class="small chats-hint">Один на один · видите только вы двое</p>${dmList}</section>`;
 }
 
@@ -1383,6 +1388,87 @@ function renderPollNew() {
     <p class="small" style="margin:0">Банда получит пуш. Голоса видны по никам — это банда, а не выборы.</p>`;
 }
 
+// ----- Банды: создание, поиск, профиль, настройки -----
+const ACCESS_NAMES = { open: ['Открытая', 'вступить может любой'], request: ['По заявке', 'вступление подтверждает владелец'], invite: ['Закрытая', 'только по ссылке или приглашению, в поиске не видна'] };
+const gangBadge = (g) => `<span class="g-badge" style="background:${esc(g.color)}">${g.emoji ? esc(g.emoji) : esc(g.name.slice(0, 1).toUpperCase())}</span>`;
+function areaSelect(id, cur) {
+  return `<select id="${id}"><option value="">Не выбрано</option>${S.cat.gangAreas.map((a) => `<option ${cur === a ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>`;
+}
+function accessPicker(cur) {
+  return `<div class="acc-pick">${Object.entries(ACCESS_NAMES).map(([k, [t, d]]) => `<button class="acc-opt ${cur === k ? 'on' : ''}" data-act="gs-access" data-v="${k}"><b>${t}</b><span>${d}</span></button>`).join('')}</div>`;
+}
+function interestChips(sel) {
+  return `<div class="chips">${S.cat.gangInterests.map((t) => `<button class="chip ${sel.includes(t) ? 'on' : ''}" data-act="gs-int" data-v="${esc(t)}">${esc(t)}</button>`).join('')}</div>`;
+}
+function renderGangNew() {
+  const d = S.gnew || (S.gnew = { access: 'request', interests: [], emoji: null });
+  return `<p class="sub" style="margin-top:0">Банда — твои люди: команда, отдел, соседи по этажу, кофейный клуб. Общий чат, зовы, неделя офиса, опросы. Залог 50 зёрен вернётся, когда в банде будет 3 человека.</p>
+    <label class="field">Название<input id="gang-name" maxlength="30" placeholder="Например, Аналитики 5 этажа" value="${esc(d.name || '')}"></label>
+    <label class="field">Направление${areaSelect('gang-area', d.area)}</label>
+    <div class="field">Значок<div class="chips">${S.cat.gangEmoji.map((e) => `<button class="chip emo ${d.emoji === e ? 'on' : ''}" data-act="gs-emoji" data-v="${e}">${e}</button>`).join('')}</div></div>
+    <div class="field">Кто может вступить${accessPicker(d.access)}</div>
+    <div class="field">Интересы — до 6, по ним банду найдут${interestChips(d.interests)}</div>
+    <label class="field">Пара слов о банде (необязательно)<input id="gang-about" maxlength="160" placeholder="Кто мы и зачем собрались" value="${esc(d.about || '')}"></label>
+    <button class="btn violet" data-act="gang-create">Сколотить банду · залог 50</button>
+    <label class="field">Или вставь ссылку-приглашение<input id="gang-code" placeholder="https://…/g/ABC123"></label>
+    <button class="btn ghost" data-act="gang-join">Вступить по ссылке</button>`;
+}
+function saveGangForm(prefix) {
+  const d = prefix === 'new' ? S.gnew : S.gset;
+  if (!d) return;
+  const v = (id) => { const e = $(id); return e ? e.value : undefined; };
+  if (prefix === 'new') { d.name = v('#gang-name'); d.area = v('#gang-area'); d.about = v('#gang-about'); }
+  else { d.name = v('#gs-name'); d.area = v('#gs-area'); d.about = v('#gs-about'); d.maxMembers = v('#gs-max'); d.office = v('#gs-office'); }
+}
+function gangCardHtml(c) {
+  const btn = c.member ? `<button class="btn small ghost" data-act="gang-open" data-id="${c.id}">Открыть</button>`
+    : c.full ? '<span class="small">мест нет</span>'
+    : c.access === 'open' ? `<button class="btn small" data-act="gang-apply" data-id="${c.id}">Вступить</button>`
+    : c.requested ? `<button class="btn small ghost" data-act="gang-apply-cancel" data-id="${c.id}">Заявка отправлена ✕</button>`
+    : `<button class="btn small" data-act="gang-apply" data-id="${c.id}">Подать заявку</button>`;
+  return `<div class="g-card"><button class="g-main" data-act="gang-profile" data-id="${c.id}">${gangBadge(c)}<span class="grow" style="min-width:0">
+      <span class="g-name">${esc(c.name)}</span>
+      <span class="small">${c.area ? esc(c.area) + ' · ' : ''}${c.count}${c.max ? '/' + c.max : ''} ${plural(c.count, 'человек', 'человека', 'человек')}${c.inOffice ? ` · ${c.inOffice} в офисе` : ''}</span>
+      ${c.interests.length ? `<span class="g-tags">${c.interests.slice(0, 3).map((t) => `<i>${esc(t)}</i>`).join('')}</span>` : ''}</span></button>${btn}</div>`;
+}
+function renderGangFind() {
+  const f = S.gfind || (S.gfind = { q: '', area: '', items: null });
+  return `<div class="row" style="gap:8px"><label class="field grow" style="gap:0"><span class="hidden">Поиск банды</span><input id="gfind-q" placeholder="Название, интерес, направление" value="${esc(f.q)}" autocomplete="off"></label><button class="btn" data-act="gang-find-go">Найти</button></div>
+    <div class="chips scroll-x">${['', ...S.cat.gangAreas].map((a) => `<button class="chip ${f.area === a ? 'on' : ''}" data-act="gang-find-area" data-v="${esc(a)}">${a ? esc(a) : 'Все'}</button>`).join('')}</div>
+    ${f.items === null ? '<p class="small">Загружаем…</p>' : f.items.length ? f.items.map(gangCardHtml).join('') : '<p class="sub">Ничего не нашли. Закрытые банды в поиске не видны — в них зовут ссылкой. Или сколоти свою!</p>'}`;
+}
+function renderGangProfile() {
+  const c = S.gprofile;
+  if (!c) return '<p class="sub">Загружаем…</p>';
+  const [accT, accD] = ACCESS_NAMES[c.access] || ACCESS_NAMES.invite;
+  const days = Math.max(1, Math.round((Date.now() - c.since) / 864e5));
+  return `<div class="g-hero" style="--gc:${esc(c.color)}">${gangBadge(c)}<div><div class="g-title">${esc(c.name)}${c.gold ? ' 👑' : ''}</div>
+      <div class="small">${c.area ? esc(c.area) : 'Направление не указано'}</div></div></div>
+    ${c.motto ? `<p class="sub" style="font-style:italic;margin:0">«${esc(c.motto)}»</p>` : ''}
+    ${c.about ? `<p class="sub" style="margin:0">${esc(c.about)}</p>` : ''}
+    ${c.interests.length ? `<div class="g-tags big">${c.interests.map((t) => `<i>${esc(t)}</i>`).join('')}</div>` : ''}
+    <div class="g-stats"><div><b>${c.count}${c.max ? '/' + c.max : ''}</b><span>${plural(c.count, 'участник', 'участника', 'участников')}</span></div><div><b>${c.inOffice}</b><span>в офисе сегодня</span></div><div><b>${c.msgsWeek}</b><span>сообщений за неделю</span></div><div><b>${days}</b><span>${plural(days, 'день', 'дня', 'дней')} банде</span></div></div>
+    <div class="g-faces">${c.faces.map((m) => `<span title="${esc(m.nick)}">${avatar(m.look, 34)}</span>`).join('')}${c.count > c.faces.length ? `<span class="small">и ещё ${c.count - c.faces.length}</span>` : ''}</div>
+    <p class="small" style="margin:0"><b>${accT}</b> — ${accD}${c.owner ? ` · владелец ${esc(c.owner)}` : ''}${c.officeName ? ` · офис ${esc(c.officeName)}` : ''}</p>
+    ${gangCardHtml(c).replace(/^<div class="g-card"><button class="g-main"[\s\S]*?<\/button>/, '<div class="g-card solo">')}`;
+}
+function renderGangSettings() {
+  const d = S.gset;
+  if (!d) return '<p class="sub">Загружаем…</p>';
+  return `<label class="field">Название<input id="gs-name" maxlength="30" value="${esc(d.name || '')}"></label>
+    <div class="field">Значок<div class="chips">${S.cat.gangEmoji.map((e) => `<button class="chip emo ${d.emoji === e ? 'on' : ''}" data-act="gs-emoji" data-v="${e}">${e}</button>`).join('')}</div></div>
+    <div class="field">Цвет<div class="row" style="gap:8px">${S.cat.gangColors.map((c) => `<button class="swatch ${d.color === c ? 'on' : ''}" style="background:${c}" data-act="gs-color" data-v="${c}" aria-label="Цвет ${c}"></button>`).join('')}</div></div>
+    <label class="field">Направление${areaSelect('gs-area', d.area)}</label>
+    <label class="field">О банде<input id="gs-about" maxlength="160" value="${esc(d.about || '')}" placeholder="Кто мы и зачем собрались"></label>
+    <div class="field">Интересы — до 6${interestChips(d.interests)}</div>
+    <div class="field">Кто может вступить${accessPicker(d.access)}</div>
+    <div class="field">Кто зовёт новых<div class="chips"><button class="chip ${d.whoInvites !== 'owner' ? 'on' : ''}" data-act="gs-who" data-v="all">Все участники</button><button class="chip ${d.whoInvites === 'owner' ? 'on' : ''}" data-act="gs-who" data-v="owner">Только я</button></div></div>
+    <div class="row" style="gap:10px"><label class="field" style="width:130px">Лимит людей<input id="gs-max" type="number" min="0" max="200" value="${d.maxMembers || 0}"></label>
+      <label class="field grow">Офис банды<select id="gs-office"><option value="">Любой</option>${S.cat.offices.map((o) => `<option value="${esc(o.id)}" ${d.office === o.id ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select></label></div>
+    <p class="small" style="margin:0">Лимит 0 — без ограничений.</p>
+    <button class="btn" data-act="gs-save">Сохранить</button>`;
+}
+
 function renderGang() {
   const gangs = S.me.gangs;
   let chips = gangs.length ? `<div class="chips dark">${gangs.map((g) => `<button class="chip ${g.id === S.activeGang ? 'on' : ''}" data-act="gang-select" data-v="${g.id}">${esc(g.name)}</button>`).join('')}</div>` : '';
@@ -1402,13 +1488,18 @@ function renderGang() {
     const [w, color] = whereText(m);
     return `<div class="person">${tap(m.id, avatar(m.look, 34))}<div class="grow"><div style="font-weight:900" class="tapname" data-act="person" data-id="${m.id}">${esc(m.nick)}${m.me ? ' (ты)' : ''}</div>${m.name ? `<div class="realname">${esc(m.name)}</div>` : ''}
       <div class="where"><span class="dot" style="background:${color}"></span>${esc(w)}${m.mood && m.where === 'office' ? ' · ' + esc(m.mood) : ''}${m.status ? ' · ' + esc(m.status) : ''}</div></div>
-      ${m.me ? '' : `<button class="btn small ghost" data-act="dm-open" data-id="${m.id}" aria-label="Написать лично">💬</button><button class="btn small ghost" data-act="call-open" data-kind="where" data-to="${m.id}" data-gang="${g.id}">Позвать</button>`}</div>`;
+      ${m.me ? '' : `<button class="btn small ghost" data-act="dm-open" data-id="${m.id}" aria-label="Написать лично">💬</button><button class="btn small ghost" data-act="call-open" data-kind="where" data-to="${m.id}" data-gang="${g.id}">Позвать</button>${g.isOwner ? `<button class="btn small ghost" data-act="gm-menu" data-id="${m.id}" aria-label="Управление">⋯</button>` : ''}`}</div>
+      ${g.isOwner && S.gmMenu === m.id ? `<div class="row gm-menu"><button class="btn small ghost" data-act="gm-owner" data-id="${m.id}">Сделать владельцем</button><button class="btn small danger" data-act="gm-kick" data-id="${m.id}">Убрать из банды</button></div>` : ''}`;
   }).join('');
   const msgs = v.messages.map(renderMsg).join('') || '<p class="sub">Сообщения и зовы живут 24 часа. Начни первым.</p>';
   return `${chips}
   <section class="card" style="${g.gold ? 'border:3px solid #FFC93C' : ''}">
-    <div class="row"><span class="dot" style="width:14px;height:14px;background:${esc(g.color)}"></span><h2 class="grow">${esc(g.name)}</h2><span class="small">${v.gang.count} ${plural(v.gang.count, 'участник', 'участника', 'участников')}</span></div>
+    <div class="row">${gangBadge(g)}<div class="grow" style="min-width:0"><h2 style="margin:0">${esc(g.name)}</h2><span class="small">${g.area ? esc(g.area) + ' · ' : ''}${v.gang.count}${g.max ? '/' + g.max : ''} ${plural(v.gang.count, 'участник', 'участника', 'участников')} · ${(ACCESS_NAMES[g.access] || ACCESS_NAMES.invite)[0].toLowerCase()}</span></div>
+      ${g.isOwner ? '<button class="icon-btn" data-act="gang-settings" aria-label="Настройки банды">⚙️</button>' : `<button class="icon-btn" data-act="gang-profile" data-id="${g.id}" aria-label="Профиль банды">ℹ️</button>`}</div>
     ${g.motto ? `<p class="sub" style="font-style:italic">«${esc(g.motto)}»</p>` : ''}
+    ${g.about ? `<p class="sub" style="margin:0">${esc(g.about)}</p>` : ''}
+    ${g.interests && g.interests.length ? `<div class="g-tags">${g.interests.map((t) => `<i>${esc(t)}</i>`).join('')}</div>` : ''}
+    ${(v.requests || []).length ? `<div class="g-req"><b>Хотят в банду · ${v.requests.length}</b>${v.requests.map((r) => `<div class="person2">${tap(r.id, avatar(r.look, 30))}<span class="grow ellipsis" style="font-weight:800">${esc(r.nick)}</span><button class="btn small" data-act="greq" data-id="${r.id}" data-v="accept">Принять</button><button class="btn small ghost" data-act="greq" data-id="${r.id}" data-v="decline" aria-label="Отклонить">✕</button></div>`).join('')}</div>` : ''}
     ${g.depositPending ? '<div class="note warn">Залог 50 зёрен вернётся, когда в банде будет 3 человека.</div>' : ''}
     <div class="calls">${Object.entries(S.cat.calls).map(([k, c]) => `<button class="call" style="background:${CALL_STYLE[k]}" data-act="call-open" data-kind="${k}" data-gang="${g.id}">${esc(c.label)}</button>`).join('')}</div>
   </section>
@@ -1423,8 +1514,8 @@ function renderGang() {
   ${renderThanks(v)}
   ${renderGangBirthdays()}
   <section class="card"><h3>Участники</h3><p class="small" style="margin:0">Нажми на человека, чтобы написать ему лично.</p>${members}
-    <button class="btn blue" data-act="invite-share">Позвать в банду по ссылке</button>
-    <p class="small">Ссылка: ${esc(g.link)}. Отправь её в рабочий мессенджер — вступить смогут только свои — с рабочей почтой.</p>
+    ${g.link ? `<button class="btn blue" data-act="invite-share">Позвать в банду по ссылке</button>
+    <p class="small">Ссылка: ${esc(g.link)}. Отправь её в рабочий мессенджер — вступить смогут только свои — с рабочей почтой.</p>` : '<p class="small">В этой банде новых зовёт только владелец.</p>'}
     <div class="row" style="justify-content:space-between">
       <button class="linkbtn" data-act="report" data-type="gang" data-id="${g.id}">Пожаловаться на банду</button>
       <button class="linkbtn" data-act="gang-leave">Выйти из банды</button>
@@ -1909,11 +2000,10 @@ function renderSheet() {
   switch (S.sheet) {
     case 'profile': return sheetWrap('Профиль', renderProfile());
     case 'person': return sheetWrap('Досье', renderPerson());
-    case 'gang-new': return sheetWrap('Банда', `<p class="sub">Банда — твои люди: команда, соседи по этажу, кофейный клуб. Общий чат, зовы на кофе и обед, неделя офиса. Создание стоит 50 зёрен залога — они вернутся, когда в банде будет 3 человека.</p>
-      <label class="field">Название новой банды<input id="gang-name" maxlength="30" placeholder="Например, Пятничный кофе"></label>
-      <button class="btn violet" data-act="gang-create">Создать банду · залог 50</button>
-      <label class="field">Или вставь ссылку-приглашение<input id="gang-code" placeholder="https://…/g/ABC123"></label>
-      <button class="btn ghost" data-act="gang-join">Вступить</button>`);
+    case 'gang-new': return sheetWrap('Новая банда', renderGangNew());
+    case 'gang-find': return sheetWrap('Найти банду', renderGangFind());
+    case 'gang-profile': return sheetWrap('Банда', renderGangProfile());
+    case 'gang-settings': return sheetWrap('Настройки банды', renderGangSettings());
     case 'crew-new': return sheetWrap('Позвать в личку', `<p class="sub">С участниками твоих банд переписываться можно сразу. Тех, кто не в банде, зови по нику или личной ссылкой.</p>
       <div class="row"><label class="field grow" style="gap:0"><span class="hidden">Ник</span><input id="crew-nick" maxlength="21" placeholder="ник" autocapitalize="off" autocomplete="off" aria-label="Ник"></label><button class="btn" data-act="crew-add">Позвать</button></div>
       <button class="btn blue" data-act="crew-share">Отправить свою ссылку</button>
@@ -2734,6 +2824,7 @@ const actions = {
   async 'nick-submit'() {
     const nick = $('#nick').value.trim();
     S.onb.nick = nick;
+    if (!S.onb.preset) { S.onb.error = 'Выбери «Он» или «Она» — так приложение будет обращаться к тебе правильно.'; return render(); }
     try {
       await post('/api/me/nick', { nick });
       const f = S.onb.preset === 'f';
@@ -2763,8 +2854,50 @@ const actions = {
   'share-on': () => run(async () => { await post('/api/me/profile', { shareOffice: true }); S.me.shareOffice = true; await loadState(); }),
 
   'gang-select': (el) => run(async () => { S.activeGang = Number(el.dataset.v); store.set('activeGang', S.activeGang); S.thanksTo = null; await Promise.all([loadGang(), loadGangExtra()]); }),
+  'gang-find': () => run(async () => { S.gfind = S.gfind || { q: '', area: '', items: null }; S.sheet = 'gang-find'; render(); await loadGangFind(); }),
+  'gang-find-go': () => run(async () => { S.gfind.q = ($('#gfind-q') || {}).value || ''; await loadGangFind(); }),
+  'gang-find-area'(el) { S.gfind.q = ($('#gfind-q') || {}).value || ''; S.gfind.area = el.dataset.v; run(loadGangFind); },
+  'gang-profile': (el) => run(async () => { S.gprofile = null; S.sheet = 'gang-profile'; render(); S.gprofile = await get(`/api/gangs/${el.dataset.id}/profile`); }),
+  'gang-apply': (el) => run(async () => {
+    const r = await post(`/api/gangs/${el.dataset.id}/apply`);
+    if (r.member) { toast('Ты в банде!'); await loadMe(); S.sheet = null; S.activeGang = r.id; store.set('activeGang', r.id); S.tab = 'chats'; S.chatGang = true; S.dm = null; await loadGang(); return; }
+    toast('Заявка отправлена — владелец получит пуш');
+    if (S.gfind && S.gfind.items) S.gfind.items = S.gfind.items.map((c) => (c.id === Number(el.dataset.id) ? { ...c, requested: true } : c));
+    if (S.gprofile && S.gprofile.id === Number(el.dataset.id)) S.gprofile = { ...S.gprofile, requested: true };
+  }),
+  'gang-apply-cancel': (el) => run(async () => {
+    await post(`/api/gangs/${el.dataset.id}/apply/cancel`);
+    if (S.gfind && S.gfind.items) S.gfind.items = S.gfind.items.map((c) => (c.id === Number(el.dataset.id) ? { ...c, requested: false } : c));
+    if (S.gprofile && S.gprofile.id === Number(el.dataset.id)) S.gprofile = { ...S.gprofile, requested: false };
+  }),
+  'gs-emoji'(el) { const k = S.sheet === 'gang-settings' ? 'set' : 'new'; saveGangForm(k); const d = k === 'set' ? S.gset : S.gnew; d.emoji = d.emoji === el.dataset.v ? null : el.dataset.v; render(); },
+  'gs-color'(el) { saveGangForm('set'); S.gset.color = el.dataset.v; render(); },
+  'gs-access'(el) { const k = S.sheet === 'gang-settings' ? 'set' : 'new'; saveGangForm(k); (k === 'set' ? S.gset : S.gnew).access = el.dataset.v; render(); },
+  'gs-who'(el) { saveGangForm('set'); S.gset.whoInvites = el.dataset.v; render(); },
+  'gs-int'(el) {
+    const k = S.sheet === 'gang-settings' ? 'set' : 'new'; saveGangForm(k);
+    const d = k === 'set' ? S.gset : S.gnew; const t = el.dataset.v;
+    d.interests = d.interests.includes(t) ? d.interests.filter((x) => x !== t) : d.interests.length >= 6 ? d.interests : [...d.interests, t];
+    render();
+  },
+  'gang-settings': () => run(async () => {
+    const g = S.gang.gang;
+    S.gset = { name: g.name, emoji: g.emoji, color: g.color, area: g.area, about: g.about, interests: [...(g.interests || [])], access: g.access, whoInvites: g.whoInvites, maxMembers: g.max, office: g.office };
+    S.sheet = 'gang-settings';
+  }),
+  'gs-save': () => run(async () => {
+    saveGangForm('set'); const d = S.gset;
+    await post(`/api/gangs/${S.gang.gang.id}/settings`, { name: d.name, emoji: d.emoji, color: d.color, area: d.area || null, about: d.about, interests: d.interests, access: d.access, whoInvites: d.whoInvites, maxMembers: Number(d.maxMembers) || 0, office: d.office || null });
+    S.sheet = null; toast('Настройки сохранены'); await loadMe(); await loadGang();
+  }),
+  greq: (el) => run(async () => { await post(`/api/gangs/${S.gang.gang.id}/requests/${el.dataset.id}/${el.dataset.v}`); toast(el.dataset.v === 'accept' ? 'Принят в банду' : 'Заявка отклонена'); await loadGang(); await loadState(); }),
+  'gm-menu'(el) { const id = Number(el.dataset.id); S.gmMenu = S.gmMenu === id ? null : id; render(); },
+  'gm-kick': (el) => run(async () => { if (!confirmInline('gm-kick' + el.dataset.id, 'Нажми ещё раз, чтобы убрать из банды')) return; await post(`/api/gangs/${S.gang.gang.id}/kick/${el.dataset.id}`); S.gmMenu = null; toast('Убран из банды'); await loadGang(); }),
+  'gm-owner': (el) => run(async () => { if (!confirmInline('gm-owner' + el.dataset.id, 'Нажми ещё раз — банда перейдёт этому человеку')) return; await post(`/api/gangs/${S.gang.gang.id}/owner/${el.dataset.id}`); S.gmMenu = null; toast('Банда передана'); await loadGang(); }),
   'gang-create': () => run(async () => {
-    const r = await post('/api/gangs', { name: $('#gang-name').value });
+    saveGangForm('new'); const d = S.gnew || {};
+    const r = await post('/api/gangs', { name: d.name, area: d.area || null, about: d.about, interests: d.interests, emoji: d.emoji, access: d.access });
+    S.gnew = null; S.sheet = null; S.tab = 'chats'; S.chatGang = true; S.dm = null;
     S.activeGang = r.id; store.set('activeGang', r.id);
     await loadMe(); await loadGang();
     toast('Банда сколочена. Зови своих по ссылке');
@@ -2777,11 +2910,8 @@ const actions = {
   }),
   'invite-share': async () => {
     const link = S.gang.gang.link;
-    const text = `Вступай в банду «${S.gang.gang.name}» в Этаже: ${link}`;
-    try {
-      if (navigator.share) await navigator.share({ title: 'Этаж', text, url: link });
-      else { await navigator.clipboard.writeText(text); toast('Ссылка скопирована'); }
-    } catch {}
+    if (!link) return toast('В этой банде зовёт только владелец');
+    await shareLink(`Вступай в банду «${S.gang.gang.name}» в Этаже`, link);
   },
   'call-open': async (el) => {
     const gang = Number(el.dataset.gang || S.activeGang);
@@ -2937,12 +3067,10 @@ const actions = {
   }),
   'crew-unblock': (el) => run(async () => { await post(`/api/crew/${el.dataset.id}/unblock`); await loadCrew(); }),
   'crew-share': async () => {
-    const link = S.crew.link;
-    const text = `Давай будем подельниками в Этаже: ${link}`;
-    try {
-      if (navigator.share) await navigator.share({ title: 'Этаж', text, url: link });
-      else { await navigator.clipboard.writeText(text); toast('Ссылка скопирована'); }
-    } catch {}
+    if (!S.crew) await loadCrew().catch(() => {});
+    const link = S.crew && S.crew.link;
+    if (!link) return toast('Не получилось получить ссылку. Попробуй ещё раз');
+    await shareLink('Залетай в Этаж — видно, кто из своих в офисе, зовы на кофе и обед, морской бой. По этой ссылке мы сразу будем на связи', link);
   },
   report: (el) => run(async () => {
     if (!confirmInline('report-' + el.dataset.type + el.dataset.id, 'Нажми ещё раз, чтобы пожаловаться')) return;
@@ -3276,6 +3404,14 @@ function savePollDraft() {
   const o = $('#pd-open'); if (o) d.open = o.checked;
   const m = $('#pd-multi'); if (m) d.multi = m.checked;
 }
+// Поделиться ссылкой ровно один раз: в «Поделиться» текст и ссылка идут раздельно (иначе мессенджеры склеивают две копии),
+// а в буфер обмена — одной строкой
+async function shareLink(text, link) {
+  try {
+    if (navigator.share) await navigator.share({ title: 'Этаж', text, url: link });
+    else { await navigator.clipboard.writeText(`${text}: ${link}`); toast('Ссылка скопирована'); }
+  } catch {}
+}
 function saveSignalText() { if (!S.signal) S.signal = {}; const z = $('#s-zone'); const c = $('#s-comment'); if (z) S.signal.zone = z.value; if (c) S.signal.comment = c.value; }
 
 async function joinByCode(code) {
@@ -3347,7 +3483,7 @@ document.addEventListener('change', (e) => {
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.id) {
-    const map = { 'find-q': 'find-go', email: 'login-submit', code: 'code-submit', nick: 'nick-submit', 'chat-text': 'chat-send', 'thanks-text': 'thanks-send', 'lunch-place': 'lunch-create', 'dm-text': 'dm-send', 'crew-nick': 'crew-add' };
+    const map = { 'gfind-q': 'gang-find-go', 'find-q': 'find-go', email: 'login-submit', code: 'code-submit', nick: 'nick-submit', 'chat-text': 'chat-send', 'thanks-text': 'thanks-send', 'lunch-place': 'lunch-create', 'dm-text': 'dm-send', 'crew-nick': 'crew-add' };
     if (map[e.target.id]) { e.preventDefault(); actions[map[e.target.id]](); }
     else if (e.target.id && e.target.id.startsWith('poll-add-')) { e.preventDefault(); actions['poll-add']({ dataset: { id: e.target.id.slice(9) } }); }
   }

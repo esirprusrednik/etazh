@@ -11,6 +11,11 @@ function openDb(file) {
   migrate(db);
   // Тип события для фильтра ленты (старые записи определяются по тексту)
   try { db.exec('ALTER TABLE events ADD COLUMN kind TEXT'); } catch {}
+  // Профиль банды: описание, направление работы, интересы, доступ и настройки
+  for (const col of ["about TEXT", "area TEXT", "interests TEXT", "emoji TEXT", "access TEXT NOT NULL DEFAULT 'invite'", "max_members INTEGER NOT NULL DEFAULT 0", "who_invites TEXT NOT NULL DEFAULT 'all'", "office_id TEXT"]) {
+    try { db.exec(`ALTER TABLE gangs ADD COLUMN ${col}`); } catch {}
+  }
+  db.exec(`CREATE TABLE IF NOT EXISTS gang_requests (gang_id INTEGER NOT NULL REFERENCES gangs(id) ON DELETE CASCADE, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, at INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'pending', PRIMARY KEY (gang_id, user_id))`);
   // Ники раньше хранились с «@» впереди — убираем знак (разово, повторный запуск ничего не меняет)
   db.exec("UPDATE users SET nick = substr(nick, 2) WHERE nick LIKE '@%'");
   seed(db);

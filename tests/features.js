@@ -20,10 +20,11 @@ let log = '';
 server.stdout.on('data', (d) => (log += d));
 server.stderr.on('data', (d) => (log += d));
 
+let ipN = 0;
 class Client {
-  constructor() { this.cookie = ''; }
+  constructor() { this.cookie = ''; this.ip = '10.0.0.' + (++ipN); }
   async req(method, url, body) {
-    const res = await fetch(BASE + url, { method, headers: { 'Content-Type': 'application/json', Cookie: this.cookie, Origin: BASE }, body: body === undefined ? undefined : JSON.stringify(body) });
+    const res = await fetch(BASE + url, { method, headers: { 'Content-Type': 'application/json', Cookie: this.cookie, Origin: BASE, 'X-Forwarded-For': this.ip }, body: body === undefined ? undefined : JSON.stringify(body) });
     const sc = res.headers.get('set-cookie');
     if (sc) this.cookie = sc.split(';')[0];
     let json = null;
@@ -35,14 +36,14 @@ class Client {
   async login(email, nick) {
     const r = await this.post('/api/auth/request', { email, consent: true });
     await this.post('/api/auth/code', { email, code: r.json.devCode });
-    await this.post('/api/me/nick', { nick });
+    const nr = await this.post('/api/me/nick', { nick }); if (nr.status !== 200) throw new Error(nick + ': ' + JSON.stringify(nr.json));
     this.id = (await this.get('/api/me')).json.user.id;
     return this;
   }
 }
 let passed = 0;
 async function step(name, fn) {
-  try { await fn(); passed++; console.log('  ✓ ' + name); } catch (e) { console.log('  ✗ ' + name + '\n    ' + e.message); throw e; }
+  try { await fn(); passed++; console.log('  ✓ ' + name); } catch (e) { console.log('  ✗ ' + name + '\n    ' + e.stack); throw e; }
 }
 const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3600e3).toISOString().slice(0, 10);
 
@@ -261,6 +262,55 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.ok(!/ленивый_удав получил ачивку/.test(ev));
     const me = (await m.get(`/api/gangs/${gw.id}`)).json.members.find((x) => x.nick === 'ленивый_удав');
     assert.equal(me.mood, 'Готова к кофе');
+  });
+
+  await step('банды: поиск, открытая/по заявке/закрытая, настройки, лимит, кто зовёт, исключение', async () => {
+    const o = await new Client().login('owner@mts.ru', 'хитрый_лис');
+    const x = await new Client().login('ksenia@mts.ru', 'быстрая_лань');
+    const y = await new Client().login('yaroslav@mts.ru', 'седой_барсук');
+    const gg = (await o.post('/api/gangs', { name: 'Аналитики пятого', area: 'Аналитика и данные', interests: ['Настолки', 'Кофе'], about: 'SQL и пицца', access: 'request', emoji: '📊' })).json;
+    assert.ok(gg.id, 'банда создана с профилем');
+    const hr = await y.post('/api/gangs', { name: 'Тайный клуб', access: 'invite' }); const hidden = hr.json; assert.ok(hidden.id, JSON.stringify(hr.json));
+    let found = (await x.get('/api/gangs/search?q=' + encodeURIComponent('пицца'))).json.items;
+    assert.equal(found.length, 1);
+    assert.equal(found[0].area, 'Аналитика и данные');
+    assert.deepEqual(found[0].interests, ['Настолки', 'Кофе']);
+    assert.ok(!(await x.get('/api/gangs/search?q=' + encodeURIComponent('Тайный'))).json.items.length, 'закрытая не видна в поиске');
+    assert.equal((await x.get(`/api/gangs/${hidden.id}/profile`)).status, 404);
+    assert.equal((await x.post(`/api/gangs/${hidden.id}/apply`)).status, 400);
+    assert.equal((await x.get('/api/gangs/search?area=' + encodeURIComponent('Аналитика и данные'))).json.items.length, 1);
+    // По заявке
+    assert.ok((await x.post(`/api/gangs/${gg.id}/apply`)).json.requested);
+    assert.ok((await x.get(`/api/gangs/${gg.id}/profile`)).json.requested);
+    assert.equal((await o.get('/api/state')).json.badges.gangRequests, 1, 'бейдж заявок у владельца');
+    const view = (await o.get(`/api/gangs/${gg.id}`)).json;
+    assert.equal(view.requests.length, 1);
+    assert.equal((await x.get(`/api/gangs/${gg.id}`)).status, 404, 'до принятия банды не видно');
+    await o.post(`/api/gangs/${gg.id}/requests/${x.id}/accept`);
+    assert.equal((await x.get(`/api/gangs/${gg.id}`)).json.gang.count, 2);
+    // Чужой не меняет настройки
+    assert.equal((await x.post(`/api/gangs/${gg.id}/settings`, { access: 'open' })).status, 400);
+    // Только владелец зовёт: у участника ссылки нет
+    await o.post(`/api/gangs/${gg.id}/settings`, { whoInvites: 'owner', maxMembers: 3 });
+    const xv = (await x.get(`/api/gangs/${gg.id}`)).json.gang;
+    assert.equal(xv.link, null); assert.equal(xv.canInvite, false);
+    assert.equal((await x.post(`/api/gangs/${gg.id}/settings`, { maxMembers: 1 })).status, 400);
+    assert.equal((await o.post(`/api/gangs/${gg.id}/settings`, { maxMembers: 1 })).status, 400, 'лимит меньше состава нельзя');
+    // Открытая: вступление сразу, лимит
+    await o.post(`/api/gangs/${gg.id}/settings`, { access: 'open', maxMembers: 3 });
+    assert.ok((await y.post(`/api/gangs/${gg.id}/apply`)).json.member);
+    const z = await new Client().login('zoya@mts.ru', 'робкая_сова');
+    const full = (await z.get(`/api/gangs/${gg.id}/profile`)).json;
+    assert.ok(full.full);
+    assert.equal((await z.post(`/api/gangs/${gg.id}/apply`)).status, 400, 'мест нет');
+    // Исключение и передача
+    await o.post(`/api/gangs/${gg.id}/kick/${y.id}`);
+    assert.equal((await y.get(`/api/gangs/${gg.id}`)).status, 404);
+    await o.post(`/api/gangs/${gg.id}/settings`, { access: 'request' });
+    assert.equal((await y.post(`/api/gangs/${gg.id}/apply`)).status, 400, 'исключённый не возвращается заявкой');
+    await o.post(`/api/gangs/${gg.id}/owner/${x.id}`);
+    assert.ok((await x.get(`/api/gangs/${gg.id}`)).json.gang.isOwner);
+    assert.equal((await o.post(`/api/gangs/${gg.id}/settings`, { about: 'x' })).status, 400);
   });
 
   console.log(`\nВсё прошло: ${passed} проверок`);

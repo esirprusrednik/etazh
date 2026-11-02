@@ -66,6 +66,8 @@ const { b64url, fromB64url, moderationProblem, emailDomainAllowed } = require('.
   assert.ok(moderationProblem('Банда прoтив отдела')); // латинская «o»
   assert.ok(moderationProblem('Ду.р.ак'));
   assert.equal(moderationProblem('Пятничный кофе'), null);
+  for (const ok of ['хитрый барсук', 'Плохо слышно', 'процедура', 'ступор', 'Голосуем: кто за, кто нет', 'мах уехал', 'хлебать суп']) assert.equal(moderationProblem(ok), null, ok);
+  for (const no of ['ты сука', 'х у й', 'Тупой дурачок', 'кретины']) assert.ok(moderationProblem(no), no);
   assert.ok(moderationProblem('привет @коллега'));
   assert.ok(emailDomainAllowed('a@mts.ru'));
   assert.ok(!emailDomainAllowed('a@mts.ru.evil.com'));

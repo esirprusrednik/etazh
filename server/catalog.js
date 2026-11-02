@@ -102,4 +102,11 @@ const MEME_EMOS = {
   calm: { label: 'Как есть', mouth: null, eyeShape: null }
 };
 
-module.exports = { MOODS_F, MOODS, CALLS, SIGNALS, SHOP, EARN, GANG_DEPOSIT, GANG_COLORS, MEMES, MEME_EMOS };
+// Банды: направление работы (по структуре большой телеком-компании) и интересы
+const GANG_AREAS = ['Аналитика и данные', 'Бизнес-анализ', 'ИТ и разработка', 'Сеть и техника', 'Продукт и диджитал', 'Маркетинг и бренд', 'Продажи B2C', 'Продажи B2B',
+  'Клиентский сервис и КЦ', 'Розница и салоны', 'Финансы', 'Юристы', 'HR и обучение', 'Закупки', 'Безопасность', 'PR и коммуникации', 'Стратегия', 'Администрация и АХО', 'По интересам'];
+const GANG_INTERESTS = ['Кофе', 'Обеды', 'Настолки', 'Спорт', 'Бег', 'Йога', 'Футбол', 'Кино', 'Музыка', 'Книги', 'Путешествия', 'Кулинария', 'Викторины',
+  'Excel', 'SQL', 'Python', 'Data Science', 'Agile', 'Продукты', 'Английский', 'Волонтёрство', 'Мемы'];
+const GANG_EMOJI = ['☕', '🍕', '🚀', '📊', '💻', '🎯', '🎲', '🏃', '🎸', '📚', '🧠', '🔥', '🐉', '🦉', '⚡', '🌿', '📡', '💼'];
+
+module.exports = { GANG_AREAS, GANG_INTERESTS, GANG_EMOJI, MOODS_F, MOODS, CALLS, SIGNALS, SHOP, EARN, GANG_DEPOSIT, GANG_COLORS, MEMES, MEME_EMOS };

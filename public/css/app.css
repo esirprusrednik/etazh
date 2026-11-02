@@ -676,3 +676,33 @@ button.quest:disabled { cursor: default; }
 .splash-bar i { display: block; height: 100%; background: var(--gold); transform-origin: left; animation: sp-bar linear both; }
 @keyframes sp-bar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 .splash-tap { display: none; }
+
+/* Банды: значок, карточки, профиль, настройки */
+.g-badge { width: 44px; height: 44px; flex: none; border-radius: 14px; display: grid; place-items: center; color: #fff; font-weight: 900; font-size: 22px; box-shadow: inset 0 -3px 0 rgba(0,0,0,.18); }
+.g-card { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #EEF1F7; }
+.g-card.solo { border: 0; justify-content: flex-end; padding-top: 4px; }
+.g-main { flex: 1; display: flex; align-items: center; gap: 10px; background: none; border: 0; padding: 0; text-align: left; font: inherit; color: var(--ink); cursor: pointer; min-width: 0; }
+.g-name { display: block; font-weight: 900; font-size: 15px; }
+.g-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.g-tags i { font-style: normal; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: #EEF1F7; color: var(--muted); }
+.g-tags.big i { font-size: 13px; padding: 4px 10px; }
+.g-hero { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 16px; background: color-mix(in srgb, var(--gc) 14%, #fff); }
+.g-hero .g-badge { width: 56px; height: 56px; font-size: 28px; border-radius: 18px; }
+.g-title { font-size: 22px; font-weight: 900; color: var(--ink); }
+.g-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.g-stats div { background: #F4F6FB; border-radius: 12px; padding: 8px 4px; text-align: center; display: flex; flex-direction: column; }
+.g-stats b { font-size: 18px; font-weight: 900; color: var(--ink); }
+.g-stats span { font-size: 10.5px; color: var(--muted); font-weight: 700; line-height: 1.2; }
+.g-faces { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; }
+.g-req { background: #FFF6DA; border-radius: 14px; padding: 10px 12px; margin: 6px 0; display: flex; flex-direction: column; gap: 6px; }
+.gm-menu { gap: 6px; justify-content: flex-end; margin: -2px 0 6px; }
+.acc-pick { display: flex; flex-direction: column; gap: 6px; }
+.acc-opt { text-align: left; border: 2px solid #E3E8F4; background: #fff; border-radius: 12px; padding: 8px 12px; font: inherit; color: var(--ink); cursor: pointer; display: flex; flex-direction: column; }
+.acc-opt.on { border-color: #3A86FF; background: #EAF2FF; }
+.acc-opt span { font-size: 12px; color: var(--muted); font-weight: 600; }
+.chip.emo { font-size: 20px; padding: 4px 10px; min-height: 38px; }
+.chips.scroll-x { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+.chips.scroll-x .chip { flex: none; }
+.invite-app { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: linear-gradient(135deg, #FFF6DA, #FFE7A8); border: 0; border-radius: 16px; padding: 12px 14px; font: inherit; color: var(--ink); cursor: pointer; }
+.invite-app b { display: block; font-size: 15px; }
+.invite-app > span[aria-hidden] { font-size: 26px; }

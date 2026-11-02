@@ -11,7 +11,7 @@ const PENDING_TTL_DAYS = 30;    // неотвеченная заявка сго�
 const DM_CALLS = ['coffee', 'lunch', 'call', 'where', 'online', 'wait', 'room']; // «Домой — кто с ним?» в личке не нужен
 
 function register(ctx) {
-  const { db, q, route, requireUser, bad, U, config, notify, fireAndForget, rateLimit, memberStatus, HttpError, publicLook, onEvent, pollsUnvoted } = ctx;
+  const { db, q, route, requireUser, bad, U, config, notify, fireAndForget, rateLimit, memberStatus, HttpError, publicLook, onEvent, pollsUnvoted, addBeans } = ctx;
 
   db.exec(`
   -- Пара хранится упорядоченно: lo < hi. status: pending | ok
@@ -140,7 +140,7 @@ function register(ctx) {
       const last = q('SELECT m.*, u.nick FROM messages m LEFT JOIN users u ON u.id = m.user_id WHERE m.gang_id = ? AND m.hidden = 0 ORDER BY m.at DESC LIMIT 1').get(g.id);
       const n = q('SELECT COUNT(*) AS n FROM gang_members WHERE gang_id = ?').get(g.id).n;
       items.push({
-        type: 'gang', id: g.id, name: g.name, color: g.color, members: n, lastAt: last ? last.at : g.created_at || 0,
+        type: 'gang', id: g.id, name: g.name, color: g.color, emoji: g.emoji || null, members: n, lastAt: last ? last.at : g.created_at || 0,
         polls: pollsUnvoted ? pollsUnvoted(u.id, g.id) : 0,
         lastTime: last ? U.msk(last.at).hhmm : null,
         last: last ? { mine: last.user_id === u.id, who: last.nick, text: last.type === 'call' ? (CALLS[last.kind] || {}).verb || 'зов' : last.text } : null
@@ -245,8 +245,14 @@ function register(ctx) {
       if (crewCount(u.id) >= MAX_CREW || crewCount(target.id) >= MAX_CREW) throw bad(`У кого-то из вас уже ${MAX_CREW} подельников.`);
       if (l) q("UPDATE crew SET status = 'ok', at = ? WHERE lo = ? AND hi = ?").run(U.now(), l.lo, l.hi);
       else q('INSERT INTO crew (lo, hi, from_id, status, at) VALUES (?, ?, ?, ?, ?)').run(...pair(u.id, target.id), u.id, 'ok', U.now());
-      fireAndForget(notify([target.id], { title: 'Новый подельник', body: `${u.nick} ${U.g(u.look, 'пришёл', 'пришла')} по твоей ссылке`, url: `/#crew/${u.id}`, tag: `crew-${u.id}` }));
-      return { ok: true, accepted: true, id: target.id };
+      // Позвал нового человека в Этаж — +15 зёрен пригласившему (один раз за каждого новичка)
+      let bonus = 0;
+      const fresh = q('SELECT created_at FROM users WHERE id = ?').get(u.id);
+      if (addBeans && fresh && U.now() - fresh.created_at < 2 * 864e5 && !q('SELECT 1 FROM ledger WHERE user_id = ? AND reason = ?').get(target.id, 'referral:' + u.id)) {
+        bonus = addBeans(target.id, 'referral:' + u.id, 15) || 0;
+      }
+      fireAndForget(notify([target.id], { title: bonus ? `+${bonus} зёрен за приглашение` : 'Новый контакт', body: `${u.nick} ${U.g(u.look, 'пришёл', 'пришла')} по твоей ссылке${bonus ? ' — добро пожаловать в Этаж!' : ''}`, url: `/#crew/${u.id}`, tag: `crew-${u.id}` }));
+      return { ok: true, accepted: true, id: target.id, inviter: target.nick };
     }
     if (l && l.status === 'pending') return { ok: true, pending: true };
     if (crewCount(u.id) >= MAX_CREW) throw bad(`Больше ${MAX_CREW} подельников не бывает. Кого-то придётся отпустить.`);
