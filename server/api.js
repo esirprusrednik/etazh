@@ -33,7 +33,7 @@ const LOOK = {
   hairStyle: ['short', 'long', 'tail', 'curly', 'bob', 'bun', 'side', 'mohawk', 'afro', 'bald'],
   hair: ['#2B1D14', '#6B3E26', '#E0B04B', '#C2412F', '#9AA3B5', '#F2E6C9', '#7C4DFF', '#FF6FA8'],
   face: ['oval', 'round', 'square', 'long', 'heart'],
-  mouth: ['smile', 'grin', 'smirk', 'neutral', 'wow'],
+  mouth: ['smile', 'grin', 'smirk', 'neutral', 'sad', 'wow'],
   beard: ['none', 'stubble', 'beard', 'mustache', 'goatee'],
   eyes: ['#22252D', '#6B4226', '#3A7BD5', '#3C8D5A', '#8A8F9C'],
   skin: ['#FBE3CF', '#F6D3B3', '#E8B48A', '#C98E62', '#8D5A3B', '#5E3A26'],
@@ -53,11 +53,12 @@ const LOOK = {
   earrings: ['none', 'studs', 'pearls', 'hoops', 'drops', 'cross'],
   // Форма очков (сами очки включаются отдельной галочкой)
   glassesStyle: ['classic', 'round', 'square', 'aviator', 'browline', 'sport', 'cat', 'thin', 'rimless'],
+  glassesColor: ['black', 'tortoise', 'gold', 'silver', 'red', 'navy', 'pink', 'clear'],
   // Отдельный цвет бороды и усов; same — как волосы
   beardColor: ['same', '#2B1D14', '#6B3E26', '#E0B04B', '#C2412F', '#9AA3B5', '#F2E6C9', '#7C4DFF', '#FF6FA8'],
   mustacheColor: ['same', '#2B1D14', '#6B3E26', '#E0B04B', '#C2412F', '#9AA3B5', '#F2E6C9', '#7C4DFF', '#FF6FA8']
 };
-const LOOK_ENUMS = ['preset', 'face', 'eyes', 'mouth', 'beard', 'hairStyle', 'hair', 'skin', 'hoodie', 'eyeShape', 'outfit', 'neck', 'hat', 'prop', 'bg', 'eyeSize', 'nose', 'ears', 'makeup', 'earrings', 'glassesStyle', 'beardColor', 'mustacheColor'];
+const LOOK_ENUMS = ['preset', 'face', 'eyes', 'mouth', 'beard', 'hairStyle', 'hair', 'skin', 'hoodie', 'eyeShape', 'outfit', 'neck', 'hat', 'prop', 'bg', 'eyeSize', 'nose', 'ears', 'makeup', 'earrings', 'glassesStyle', 'glassesColor', 'beardColor', 'mustacheColor'];
 // Платные детали: значение слота → предмет Лавки, который нужно купить
 const PAID_PARTS = Object.fromEntries(SHOP.filter((it) => it.kind === 'part').map((it) => [`${it.slot}:${it.value}`, it.id]));
 // Собрать внешность из присланного: только допустимые значения и только купленные платные детали
@@ -84,7 +85,7 @@ const BUILD = (() => {
   return h.digest('hex').slice(0, 10);
 })();
 const DEFAULT_LOOK = { preset: 'm', face: 'oval', eyes: '#22252D', mouth: 'smile', beard: 'none', freckles: false, eyeShape: 'normal', outfit: 'hoodie', neck: 'none', hat: 'none', prop: 'none', bg: 'auto', hairStyle: 'short', hair: '#2B1D14', skin: '#E8B48A', hoodie: 'blue', glasses: false, phones: false, status: null, frame: null, crown: false,
-  eyeSize: 'm', nose: 'button', ears: 'normal', makeup: 'none', earrings: 'none', glassesStyle: 'classic', beardColor: 'same', mustacheColor: 'same' };
+  eyeSize: 'm', nose: 'button', ears: 'normal', makeup: 'none', earrings: 'none', glassesStyle: 'classic', glassesColor: 'black', beardColor: 'same', mustacheColor: 'same' };
 // plan — где обычно работаю по дням недели: { Пн: 'office' | 'home' }
 // today — ручной статус на сегодня: { kind: 'home' | 'vacation', day: 'YYYY-MM-DD' }
 // vacations — график отпусков: [{ from: 'YYYY-MM-DD', to: 'YYYY-MM-DD' }]
@@ -104,7 +105,7 @@ function fullName(prof, scope) {
 
 // Заполненность профиля. Первый шаг — ник — засчитан сразу: начатое дело люди доводят до конца охотнее.
 // Имя, фамилия и день рождения в процент не входят: личные данные — только по желанию, без давления.
-const LOOK_KEYS = ['face', 'hairStyle', 'hair', 'skin', 'eyes', 'hoodie', 'mouth', 'beard', 'glasses', 'phones', 'freckles', 'preset', 'eyeShape', 'outfit', 'neck', 'hat', 'prop', 'bg', 'eyeSize', 'nose', 'ears', 'makeup', 'earrings', 'glassesStyle', 'beardColor', 'mustacheColor'];
+const LOOK_KEYS = ['face', 'hairStyle', 'hair', 'skin', 'eyes', 'hoodie', 'mouth', 'beard', 'glasses', 'phones', 'freckles', 'preset', 'eyeShape', 'outfit', 'neck', 'hat', 'prop', 'bg', 'eyeSize', 'nose', 'ears', 'makeup', 'earrings', 'glassesStyle', 'glassesColor', 'beardColor', 'mustacheColor'];
 function profileCompletion(look, prof, hasPush) {
   const steps = [
     { id: 'nick', label: 'Выбрать ник', done: true },

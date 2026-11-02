@@ -108,17 +108,35 @@ const MOUTHS = {
   grin: (ink) => `<path d="M43.8 55.3 Q50 64 56.2 55.3 Z" fill="#5A1F24" stroke="${ink}" stroke-width="1.4" stroke-linejoin="round"/><path d="M45 55.6 L55 55.6 L54.3 57.4 L45.7 57.4 Z" fill="#fff"/><path d="M47 60 Q50 61.6 53 60 Q50 59 47 60 Z" fill="#E86B7A"/>`,
   smirk: (ink, w) => `<path d="M45 57.6 Q51 59.4 56 54.6" fill="none" stroke="${ink}" stroke-width="${w}" stroke-linecap="round"/>`,
   neutral: (ink, w) => `<path d="M45.5 57 L54.5 57" stroke="${ink}" stroke-width="${w}" stroke-linecap="round"/>`,
+  sad: (ink, w) => `<path d="M45 59.4 Q50 54.8 55 59.4" fill="none" stroke="${ink}" stroke-width="${w}" stroke-linecap="round"/>`,
   wow: (ink) => `<ellipse cx="50" cy="57.5" rx="3" ry="3.6" fill="#5A1F24" stroke="${ink}" stroke-width="1.2"/>`
 };
-const BEARD = 'M30.5 49 Q31.5 69.5 50 69.5 Q68.5 69.5 69.5 49 Q67 60 59 60.5 Q55 58.5 50 59.5 Q45 58.5 41 60.5 Q33 60 30.5 49 Z';
-const MUSTACHE = 'M42.5 55.2 Q46 52 50 53.6 Q54 52 57.5 55.2 Q54 56.4 50 55.3 Q46 56.4 42.5 55.2 Z';
-// Борода и усы красятся отдельно: b — цвет бороды, m — цвет усов
+// Как рот двигает усы и бороду: lL/lR — подъём уголков усов (у улыбки вверх, у грусти вниз), low — где кончается нижняя губа
+const MOUTH_GEO = {
+  smile: { lL: 2.2, lR: 2.2, low: 60.6 }, grin: { lL: 2.8, lR: 2.8, low: 63.6 }, smirk: { lL: 0.3, lR: 2.6, low: 60.2 },
+  neutral: { lL: 0, lR: 0, low: 58.8 }, sad: { lL: -2.2, lR: -2.2, low: 60.6 }, wow: { lL: -0.4, lR: -0.4, low: 62.6 }
+};
+// Усы лежат над губой и повторяют её: уголки поднимаются при улыбке и опускаются при грусти
+function mustachePath(m) {
+  const yl = 55.4 - m.lL, yr = 55.4 - m.lR;
+  return `M41.6 ${yl} Q45.5 51.4 50 53.3 Q54.5 51.4 58.4 ${yr} Q55.2 ${yr + 1.6} 52.4 55.3 Q51 54.9 50 55.6 Q49 54.9 47.6 55.3 Q44.8 ${yl + 1.6} 41.6 ${yl} Z`;
+}
+// Борода огибает рот: вырез под губой следует за уголками и нижней губой
+function beardPath(m) {
+  const cl = 60.4 - m.lL * 0.7, cr = 60.4 - m.lR * 0.7, low = m.low + 0.9;
+  return `M30.5 49 Q31.5 69.5 50 69.5 Q68.5 69.5 69.5 49 Q67 ${cr - 1} 58.6 ${cr} Q55.4 ${low - 0.6} 50 ${low} Q44.6 ${low - 0.6} 41.4 ${cl} Q33 ${cl - 1} 30.5 49 Z`;
+}
+function goateePath(m) {
+  const low = m.low + 0.9;
+  return `M44.6 ${low - 0.4} Q50 ${low + 0.6} 55.4 ${low - 0.4} Q56 67 50 68.6 Q44 67 44.6 ${low - 0.4} Z`;
+}
+// Борода (под ртом) и усы (поверх рта) — отдельно, чтобы рот их не перекрывал
 const BEARDS = {
-  none: () => '',
-  stubble: (b, m) => `<path d="${BEARD}" fill="${b}" opacity=".22"/><path d="${MUSTACHE}" fill="${m}" opacity=".3"/>`,
-  beard: (b, m) => `<path d="${BEARD}" fill="${b}"/><path d="${MUSTACHE}" fill="${m}"/><path d="M44 63 Q50 65.5 56 63" fill="none" stroke="#fff" stroke-opacity=".15" stroke-width="1.6" stroke-linecap="round"/>`,
-  mustache: (b, m) => `<path d="${MUSTACHE}" fill="${m}"/>`,
-  goatee: (b, m) => `<path d="M45 60.5 Q50 59.5 55 60.5 Q55.5 66.5 50 68 Q44.5 66.5 45 60.5 Z" fill="${b}"/><path d="${MUSTACHE}" fill="${m}"/>`
+  none: () => ({ under: '', over: '' }),
+  stubble: (b, m, g) => ({ under: `<path d="${beardPath(g)}" fill="${b}" opacity=".22"/>`, over: `<path d="${mustachePath(g)}" fill="${m}" opacity=".32"/>` }),
+  beard: (b, m, g) => ({ under: `<path d="${beardPath(g)}" fill="${b}"/><path d="M38 64 Q50 70 62 64" fill="none" stroke="#fff" stroke-opacity=".12" stroke-width="1.6" stroke-linecap="round"/>`, over: `<path d="${mustachePath(g)}" fill="${m}"/>` }),
+  mustache: (b, m, g) => ({ under: '', over: `<path d="${mustachePath(g)}" fill="${m}"/><path d="M45 53.6 Q47.6 52.6 49.4 54" fill="none" stroke="#fff" stroke-opacity=".18" stroke-width=".9" stroke-linecap="round"/>` }),
+  goatee: (b, m, g) => ({ under: `<path d="${goateePath(g)}" fill="${b}"/>`, over: `<path d="${mustachePath(g)}" fill="${m}"/>` })
 };
 
 // ---- Слои одежды, шеи, головы, глаз и предметов. Каждый — отдельная функция: новые детали добавляются без переделки ----
@@ -211,52 +229,127 @@ function propLayer(p) {
   return '';
 }
 
-// Фон аватара: цвет или простая сцена. Сцены приглушённые, чтобы лицо оставалось главным даже в маленьком кружке
-const BG_COLORS = { sky: '#BFD9FF', mint: '#BFECD6', peach: '#FFD9B8', lilac: '#DCCDFF', sun: '#FFE7A3', slate: '#5B6B8C' };
+// Фон аватара: мягкий градиент или сцена. Сцена — по краям и сверху, где её не закрывают голова и плечи,
+// крупными узнаваемыми формами: так «офис», «дом» или «улица» читаются даже в маленьком кружке
+const BG_GRAD = { sky: ['#DCEBFF', '#A9CBF5'], mint: ['#DDF7EA', '#A6E0C3'], peach: ['#FFEBD9', '#F7BE93'], lilac: ['#EEE5FF', '#C2ABF2'], sun: ['#FFF4C4', '#FFC94A'], slate: ['#8396BA', '#3B4866'] };
 function skinIsLight(skin) { const n = parseInt(String(skin || '#E8B48A').slice(1), 16); return (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) > 175; }
-function bgLayer(bg, skin) {
-  if (!bg || bg === 'auto') return `<rect x="-5" y="-5" width="110" height="110" fill="${skinIsLight(skin) ? '#C9DEFF' : '#FFE7B3'}"/>`;
-  if (BG_COLORS[bg]) return `<rect x="-5" y="-5" width="110" height="110" fill="${BG_COLORS[bg]}"/>`;
-  if (bg === 'office') return '<rect x="-5" y="-5" width="110" height="110" fill="#D6E2F0"/><rect x="60" y="6" width="34" height="30" rx="2" fill="#A9D2F5"/><path d="M77 6v30M60 21h34" stroke="#fff" stroke-width="2"/><rect x="-5" y="62" width="110" height="3" fill="#B8C7DA"/><rect x="6" y="48" width="9" height="12" rx="2" fill="#B0703C"/><path d="M10.5 48c-6-6-4-14 0-16 4 2 6 10 0 16z" fill="#3E9B58"/>';
-  if (bg === 'meeting') return '<rect x="-5" y="-5" width="110" height="110" fill="#E3DDF5"/><rect x="6" y="8" width="40" height="26" rx="2" fill="#fff" stroke="#B7AEDB" stroke-width="1.5"/><path d="M11 16h20M11 22h28M11 28h14" stroke="#7C6BD6" stroke-width="2" stroke-linecap="round"/><path d="M34 27l4-6 4 3 3-7" fill="none" stroke="#E5484D" stroke-width="1.6"/><circle cx="84" cy="16" r="7" fill="#fff" stroke="#B7AEDB" stroke-width="1.5"/><path d="M84 12v4l3 2" stroke="#7C6BD6" stroke-width="1.5" fill="none"/>';
-  if (bg === 'home') return '<rect x="-5" y="-5" width="110" height="110" fill="#F4DFC8"/><rect x="66" y="10" width="22" height="17" rx="1.5" fill="#fff" stroke="#C9A27A" stroke-width="2"/><path d="M69 24l6-7 4 4 3-3 4 6z" fill="#7FBF8E"/><path d="M12 6v12" stroke="#C9A27A" stroke-width="1.4"/><path d="M6 26l6-8 6 8z" fill="#FFC93C"/><rect x="-5" y="64" width="110" height="40" fill="#E6C9A8"/>';
-  if (bg === 'street') return '<rect x="-5" y="-5" width="110" height="110" fill="#BFE3FF"/><circle cx="86" cy="14" r="8" fill="#FFE38A"/><path d="M-5 70V38h14v-8h12v40M74 70V30h12v10h16v30" fill="#9DB1CC"/><path d="M2 44h4M2 52h4M14 36h4M78 36h4M78 46h4M90 46h4" stroke="#E6EEF8" stroke-width="2"/><ellipse cx="22" cy="20" rx="10" ry="4" fill="#fff" opacity=".9"/>';
-  if (bg === 'cafe') return '<rect x="-5" y="-5" width="110" height="110" fill="#E9D3B8"/><rect x="62" y="8" width="30" height="24" rx="2" fill="#3B3B3B"/><path d="M66 15h14M66 20h18M66 25h10" stroke="#F4F1DE" stroke-width="1.6" stroke-linecap="round"/><path d="M16 -5v13M30 -5v9" stroke="#8B6B4A" stroke-width="1.2"/><path d="M10 14a6 6 0 0 1 12 0z M25 10a5 5 0 0 1 10 0z" fill="#FFC93C"/>';
+function bgLayer(bg, skin, u) {
+  const R = (fill) => `<rect x="-5" y="-5" width="110" height="110" fill="${fill}"/>`;
+  const radial = (id, a, b) => `<defs><radialGradient id="${id}" cx=".5" cy=".3" r=".85"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></radialGradient></defs>${R(`url(#${id})`)}`;
+  const lin = (id, a, b) => `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs>`;
+  if (!bg || bg === 'auto') return skinIsLight(skin) ? radial(`bg${u}`, '#DCEBFF', '#9FC2F2') : radial(`bg${u}`, '#FFF1CF', '#F7C873');
+  if (BG_GRAD[bg]) return radial(`bg${u}`, ...BG_GRAD[bg]);
+  if (bg === 'office') {
+    // Окно с городом справа, растение слева, рабочий стол снизу
+    return lin(`bo${u}`, '#9FD3FF', '#E6F3FF') + R('#E4EBF3') + '<rect x="-5" y="-5" width="110" height="4" fill="#CBD6E3"/>'
+      + `<rect x="62" y="5" width="34" height="34" rx="2" fill="url(#bo${u})"/><path d="M64 39V27h5v-6h5v18M75 39V24h6v15M83 39V19h4v-4h4v24" fill="#7FA4C9"/><path d="M85 22h1.6M85 26h1.6M85 30h1.6M77 28h1.6M77 32h1.6M66 30h1.6" stroke="#FFE08A" stroke-width="1.2"/>`
+      + '<rect x="62" y="5" width="34" height="34" rx="2" fill="none" stroke="#fff" stroke-width="2.4"/><path d="M79 5v34M62 22h34" stroke="#fff" stroke-width="1.8"/><rect x="60" y="38.5" width="38" height="2.6" rx="1" fill="#C3CEDB"/>'
+      + '<path d="M9 40 Q2 30 7 20 Q12 28 11 38 Z M12 39 Q12 24 20 16 Q20 30 15 40 Z M10 41 Q6 32 1 30 Q4 38 9 42 Z" fill="#3E9B58"/><path d="M12 40 Q14 30 21 26" fill="none" stroke="#2F7A44" stroke-width="1"/>'
+      + '<path d="M5 41h14l-2 14H7z" fill="#E07A3E"/><rect x="4" y="40" width="16" height="3" rx="1" fill="#C9662F"/>'
+      + '<rect x="-5" y="66" width="110" height="40" fill="#C9A27A"/><rect x="-5" y="66" width="110" height="2.4" fill="#B08560"/>';
+  }
+  if (bg === 'meeting') {
+    // Доска с графиком и стикерами, часы, стол с кружками
+    return R('#E6E0F7') + '<rect x="3" y="6" width="40" height="28" rx="2.5" fill="#fff" stroke="#A99BDB" stroke-width="1.6"/>'
+      + '<rect x="9" y="22" width="5" height="8" fill="#7C6BD6"/><rect x="16" y="17" width="5" height="13" fill="#3A86FF"/><rect x="23" y="12" width="5" height="18" fill="#2FA84F"/><path d="M8 20 L17 15 L24 11 L31 9" fill="none" stroke="#E5484D" stroke-width="1.4"/><path d="M29 9.6l2.4-.8-.6 2.4" fill="none" stroke="#E5484D" stroke-width="1.2"/>'
+      + '<rect x="32" y="14" width="8" height="8" fill="#FFE27A" transform="rotate(6 36 18)"/><rect x="32" y="23" width="8" height="8" fill="#FF9EC0" transform="rotate(-5 36 27)"/><path d="M3 34h40" stroke="#8F82C7" stroke-width="2"/>'
+      + '<circle cx="85" cy="16" r="9" fill="#fff" stroke="#8F82C7" stroke-width="2"/><path d="M85 10.5V16l4 2.4" fill="none" stroke="#3B3170" stroke-width="1.6" stroke-linecap="round"/><circle cx="85" cy="16" r="1" fill="#3B3170"/>'
+      + '<rect x="72" y="32" width="8" height="8" fill="#9BE3C1" transform="rotate(-8 76 36)"/><rect x="83" y="34" width="8" height="8" fill="#FFE27A" transform="rotate(7 87 38)"/>'
+      + '<rect x="-5" y="64" width="110" height="40" fill="#8C6A4E"/><rect x="-5" y="64" width="110" height="2.6" fill="#A8835F"/>'
+      + '<path d="M5 58h7v7H5z" fill="#fff"/><path d="M12 59.5q3 0 3 2.5t-3 2.5" fill="none" stroke="#fff" stroke-width="1.2"/><path d="M86 58h7v7h-7z" fill="#E5484D"/><path d="M93 59.5q3 0 3 2.5t-3 2.5" fill="none" stroke="#E5484D" stroke-width="1.2"/>';
+  }
+  if (bg === 'home') {
+    // Тёплая стена, окно со шторами, картина, торшер, спинка дивана
+    return R('#F6E3CC') + '<path d="M0 -5v110M10 -5v110M20 -5v110M80 -5v110M90 -5v110" stroke="#EFD5B6" stroke-width="3"/>'
+      + `${lin(`bh${u}`, '#9ED0FF', '#D9EEFF')}<rect x="66" y="6" width="26" height="26" rx="1.5" fill="url(#bh${u})"/><circle cx="85" cy="13" r="3.4" fill="#FFE38A"/><path d="M66 27 Q74 21 80 26 Q86 22 92 27V32H66z" fill="#8BC79A"/><path d="M79 6v26M66 19h26" stroke="#fff" stroke-width="1.6"/>`
+      + '<path d="M62 3h34" stroke="#A0703F" stroke-width="2" stroke-linecap="round"/><path d="M63 4 Q66 20 63 36 L68 36 Q70 20 68 4 Z M95 4 Q92 20 95 36 L90 36 Q88 20 90 4 Z" fill="#E5484D"/>'
+      + '<rect x="6" y="8" width="20" height="15" rx="1" fill="#fff" stroke="#B9844F" stroke-width="2"/><path d="M8.5 21l5-6 3.5 4 2.5-2.5 4.5 4.5z" fill="#6BB0E8"/><circle cx="21" cy="12" r="1.8" fill="#FFC93C"/>'
+      + '<path d="M7 30h10l-3 7h-4z" fill="#FFD27A"/><path d="M12 37v28" stroke="#6B4A2F" stroke-width="1.6"/><ellipse cx="12" cy="31" rx="9" ry="5" fill="#FFE9A8" opacity=".35"/>'
+      + '<path d="M-5 58 Q-5 52 4 52 L96 52 Q105 52 105 58 L105 104 L-5 104 Z" fill="#5B7DB1"/><path d="M-5 58 Q-5 52 4 52 L96 52 Q105 52 105 58" fill="none" stroke="#4A6A9C" stroke-width="2"/>'
+      + '<rect x="2" y="56" width="16" height="14" rx="4" fill="#F4A72C" transform="rotate(-8 10 63)"/><rect x="82" y="56" width="16" height="14" rx="4" fill="#E85D75" transform="rotate(8 90 63)"/>';
+  }
+  if (bg === 'street') {
+    // Небо, дома с окнами по краям, дерево, фонарь, тротуар
+    return lin(`bs${u}`, '#7FC0FF', '#D8EEFF') + R(`url(#bs${u})`) + '<circle cx="80" cy="12" r="7" fill="#FFE07A"/><circle cx="80" cy="12" r="10.5" fill="#FFE07A" opacity=".28"/>'
+      + '<path d="M28 10 a5 5 0 0 1 9 -2 a4 4 0 0 1 7 3 a3.5 3.5 0 0 1 -1 7 h-14 a4 4 0 0 1 -1 -8z" fill="#fff" opacity=".9"/>'
+      + '<path d="M-5 66V18h18v48z" fill="#E8A87C"/><path d="M13 66V30h12v36z" fill="#C98C66"/><path d="M75 66V26h12v40z" fill="#8FA9C9"/><path d="M87 66V14h18v52z" fill="#B7C7DC"/>'
+      + [[-1, 24], [6, 24], [-1, 34], [6, 34], [-1, 44], [6, 44], [16, 36], [20, 36], [16, 46], [20, 46], [78, 32], [82, 32], [78, 42], [82, 42], [90, 20], [97, 20], [90, 30], [97, 30], [90, 40], [97, 40]].map(([x, y], i) => `<rect x="${x}" y="${y}" width="4" height="5" rx=".6" fill="${i % 3 ? '#FFF3C4' : '#6F86A8'}"/>`).join('')
+      + '<rect x="-5" y="64" width="110" height="40" fill="#A7B1BF"/><path d="M-5 66h110" stroke="#8E98A7" stroke-width="2"/>'
+      + '<rect x="21" y="44" width="3" height="22" fill="#7A5232"/><circle cx="22.5" cy="40" r="9" fill="#4FAF63"/><circle cx="17" cy="45" r="6" fill="#3E9B58"/><circle cx="28" cy="45" r="6" fill="#45A35D"/>'
+      + '<path d="M72 66V34" stroke="#3B4255" stroke-width="2"/><path d="M72 35 Q72 31 76 31" fill="none" stroke="#3B4255" stroke-width="2"/><path d="M73 31h6l-1 3h-4z" fill="#3B4255"/><ellipse cx="76" cy="35" rx="4" ry="2" fill="#FFE07A" opacity=".8"/>';
+  }
+  if (bg === 'cafe') {
+    // Меловая доска «Меню», лампы-подвесы, полка с чашками, стойка
+    return R('#EBD3B4') + '<rect x="-5" y="-5" width="110" height="24" fill="#E2C49E"/>'
+      + '<rect x="62" y="8" width="32" height="28" rx="2" fill="#2E3532" stroke="#9A6B3E" stroke-width="2.2"/><text x="78" y="17.5" text-anchor="middle" font-size="6" font-weight="900" fill="#F4F1DE" font-family="system-ui,sans-serif">МЕНЮ</text><path d="M66 22h12M66 26.5h16M66 31h10" stroke="#F4F1DE" stroke-width="1.2" stroke-linecap="round" opacity=".85"/><path d="M84 25h6v4.6a3 3 0 0 1-6 0z" fill="#F4F1DE"/><path d="M85.5 23.6q1-1.4 0-2.8M88 23.6q1-1.4 0-2.8" fill="none" stroke="#F4F1DE" stroke-width=".7"/>'
+      + '<path d="M12 -5v15M28 -5v9" stroke="#5B4636" stroke-width="1"/><path d="M5 18a7 7 0 0 1 14 0z M22 12a6 6 0 0 1 12 0z" fill="#2E3532"/><ellipse cx="12" cy="19" rx="4" ry="2" fill="#FFD66B"/><ellipse cx="28" cy="13" rx="3.4" ry="1.8" fill="#FFD66B"/><ellipse cx="12" cy="24" rx="9" ry="5" fill="#FFE9A8" opacity=".35"/>'
+      + '<rect x="0" y="40" width="22" height="2.4" rx="1" fill="#9A6B3E"/><path d="M3 34h6v6H3zM12 35h5v5h-5z" fill="#fff"/><path d="M9 35.5q2 0 2 2t-2 2M17 36q1.6 0 1.6 1.6t-1.6 1.6" fill="none" stroke="#fff" stroke-width=".9"/>'
+      + '<rect x="-5" y="64" width="110" height="40" fill="#7A5232"/><rect x="-5" y="64" width="110" height="3" fill="#A0703F"/>';
+  }
   return '';
 }
 
-// Нос: шесть форм. У «Ж» нос чуть меньше
+// Нос: шесть форм. Видимый даже в маленьком кружке: тень сбоку, кончик и ноздри
 function noseLayer(n, skin, sex) {
-  const c = shade(skin, -0.3);
-  const st = (d, w = 1.6) => `<path d="${d}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`;
-  const dots = (y = 54.3, dx = 2.2) => `<ellipse cx="${50 - dx}" cy="${y}" rx=".9" ry=".6" fill="${c}"/><ellipse cx="${50 + dx}" cy="${y}" rx=".9" ry=".6" fill="${c}"/>`;
+  const c = shade(skin, -0.42), sh = shade(skin, -0.22), hi = shade(skin, 0.35);
+  const line = (d, w = 1.9) => `<path d="${d}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  const nostrils = (y = 54.4, dx = 2.1, r = 1) => `<ellipse cx="${50 - dx}" cy="${y}" rx="${r}" ry="${r * 0.65}" fill="${c}"/><ellipse cx="${50 + dx}" cy="${y}" rx="${r}" ry="${r * 0.65}" fill="${c}"/>`;
   const shapes = {
-    button: st('M49.4 50.2 Q48 54 50.8 54.4'),
-    straight: st('M50.2 47.2 L49 53.4 Q50 55 51.8 54'),
-    wide: st('M49.3 49.5 Q48.2 52.6 48 53.4 M46.4 54 Q50 56.8 53.6 54') + dots(54.2, 2.6),
-    long: st('M50.1 46.2 Q48.6 53.8 49 55.4 Q50.6 56.6 52.2 55.4'),
-    snub: st('M49.4 51.4 Q48 54 50 54.6 Q52 54 51.2 53') + dots(54.6, 1.4),
-    roman: st('M49.4 46.8 Q52.2 50.2 50.8 53.8 Q50 55.2 48.2 54.4')
+    button: `<ellipse cx="50" cy="53" rx="3.4" ry="2.6" fill="${sh}" opacity=".55"/>` + line('M48.4 54.4 Q50 55.6 51.6 54.4') + nostrils(54, 1.9, 0.75) + `<circle cx="50.8" cy="52" r=".9" fill="${hi}" opacity=".7"/>`,
+    straight: `<path d="M50.6 46 L51.8 53.4 L48.6 53.8 Z" fill="${sh}" opacity=".45"/>` + line('M50.4 46.4 L51.6 53.2 Q50.4 55.2 48.2 54.2') + nostrils(54.6, 2, 0.7),
+    wide: `<ellipse cx="50" cy="53.6" rx="5" ry="2.6" fill="${sh}" opacity=".5"/>` + line('M46.2 53.6 Q45.8 55.6 48 55.4 M53.8 53.6 Q54.2 55.6 52 55.4 M48 55.4 Q50 56.4 52 55.4') + nostrils(54.8, 2.6, 0.95),
+    long: `<path d="M50.4 45 L52.2 55 L48.4 55.4 Z" fill="${sh}" opacity=".45"/>` + line('M50.4 45.4 Q52.4 52.4 51.8 55 Q50.4 56.8 48.2 55.6') + nostrils(55.6, 2, 0.75),
+    snub: `<ellipse cx="50" cy="52.8" rx="3" ry="2.4" fill="${sh}" opacity=".5"/>` + line('M48.2 53.8 Q50 55 51.8 53.8') + nostrils(53.6, 1.5, 0.85) + `<circle cx="50.4" cy="51.6" r="1" fill="${hi}" opacity=".7"/>`,
+    roman: `<path d="M49.8 45.6 Q53.6 49.6 52 54 L48.6 54 Z" fill="${sh}" opacity=".45"/>` + line('M49.8 46 Q53.4 49.8 51.8 53.8 Q50.6 55.6 48.2 54.6') + nostrils(54.8, 2, 0.75)
   };
   const body = shapes[n] || shapes.button;
-  return sex === 'f' ? `<g transform="translate(50 51) scale(.88) translate(-50 -51)">${body}</g>` : body;
+  return sex === 'f' ? `<g transform="translate(50 51) scale(.9) translate(-50 -51)">${body}</g>` : body;
 }
-// Очки: девять оправ. Глаза в точках (43; 48) и (57; 48)
-function glassesLayer(style) {
-  const k = '#22252D';
-  const hl = '<path d="M38.5 45 L41 44.6" stroke="#fff" stroke-opacity=".7" stroke-width="1.3" stroke-linecap="round"/>';
-  const lens = (shape) => `${shape(43, 'L')}${shape(57, 'R')}`;
-  switch (style) {
-    case 'round': return lens((x) => `<circle cx="${x}" cy="48" r="6" fill="#fff" fill-opacity=".15" stroke="${k}" stroke-width="2.1"/>`) + `<path d="M49 47 Q50 45.6 51 47" fill="none" stroke="${k}" stroke-width="1.6"/>` + hl;
-    case 'square': return lens((x) => `<rect x="${x - 7.2}" y="42.6" width="14.4" height="10.6" rx="1.4" fill="#fff" fill-opacity=".12" stroke="#111" stroke-width="3.2"/>`) + `<path d="M49.5 46.6 L50.5 46.6" stroke="#111" stroke-width="3"/>`;
-    case 'aviator': return `<path d="M36.4 44.2 Q43 41.8 49.2 44 Q49.6 52.2 43.6 53.6 Q36.8 53.2 36.4 44.2 Z M63.6 44.2 Q57 41.8 50.8 44 Q50.4 52.2 56.4 53.6 Q63.2 53.2 63.6 44.2 Z" fill="#4A5A78" fill-opacity=".45" stroke="#B8922E" stroke-width="1.3"/><path d="M48.8 44.2 L51.2 44.2 M48.6 46 Q50 45 51.4 46" fill="none" stroke="#B8922E" stroke-width="1.1"/>` + hl;
-    case 'browline': return lens((x) => `<path d="M${x - 7} 49 Q${x - 6.6} 53.6 ${x} 53.6 Q${x + 6.6} 53.6 ${x + 7} 49" fill="none" stroke="#9AA3B5" stroke-width="1"/><path d="M${x - 7.3} 43.2 Q${x} 41.6 ${x + 7.3} 43.2 L${x + 7} 46.6 Q${x} 45.4 ${x - 7} 46.6 Z" fill="#1E1E28"/>`) + `<path d="M49.6 45 L50.4 45" stroke="#1E1E28" stroke-width="2.4"/>`;
-    case 'sport': return `<path d="M34.6 45 Q50 40.6 65.4 45 L64.4 50.2 Q57.4 54.4 50 51 Q42.6 54.4 35.6 50.2 Z" fill="#2B3A55" fill-opacity=".78" stroke="#0E131C" stroke-width="1.4"/><path d="M38 45.6 Q44 43.6 48 44.4" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="1.2" stroke-linecap="round"/>`;
-    case 'cat': return `<path d="M36.4 46 Q40.6 42.6 49 44 Q49.2 51.4 43.2 52.6 Q37.6 52.2 36.4 46 Z M63.6 46 Q59.4 42.6 51 44 Q50.8 51.4 56.8 52.6 Q62.4 52.2 63.6 46 Z" fill="#fff" fill-opacity=".15" stroke="#7A2E3A" stroke-width="2"/><path d="M36.6 46 L34.6 42.6 M63.4 46 L65.4 42.6" stroke="#7A2E3A" stroke-width="2.4" stroke-linecap="round"/><path d="M49 46 L51 46" stroke="#7A2E3A" stroke-width="1.4"/>`;
-    case 'thin': return lens((x) => `<ellipse cx="${x}" cy="48" rx="6.2" ry="4.7" fill="#fff" fill-opacity=".12" stroke="#B08D57" stroke-width="1"/>`) + `<path d="M49.2 47 Q50 46 50.8 47" fill="none" stroke="#B08D57" stroke-width=".9"/>`;
-    case 'rimless': return lens((x) => `<rect x="${x - 6.4}" y="43.8" width="12.8" height="8.6" rx="3" fill="#fff" fill-opacity=".2" stroke="#9AA3B5" stroke-opacity=".55" stroke-width=".6"/><circle cx="${x - 6.2}" cy="45.2" r=".6" fill="#9AA3B5"/><circle cx="${x + 6.2}" cy="45.2" r=".6" fill="#9AA3B5"/>`) + `<path d="M49.4 46 L50.6 46" stroke="#9AA3B5" stroke-width=".9"/>` + hl;
-    default: return `<rect x="36.3" y="43" width="13.2" height="10" rx="3.5" fill="#fff" fill-opacity=".18" stroke="${k}" stroke-width="2.6"/><rect x="50.5" y="43" width="13.2" height="10" rx="3.5" fill="#fff" fill-opacity=".18" stroke="${k}" stroke-width="2.6"/><path d="M49.5 47 L50.5 47" stroke="${k}" stroke-width="2.6"/>` + hl;
+// Очки: девять оправ и восемь цветов. Оправа двухслойная (кант темнее), линзы с бликом.
+// u — уникальный номер аватара: у градиентов в SVG должны быть разные id
+const GLASS_COLORS = {
+  black: { f: '#262A36', e: '#0B0D12', hi: '#6C7389' },
+  tortoise: { grad: ['#4A2A16', '#A7652E', '#6B3B1C', '#C88A45'], e: '#3A1E0E', hi: '#E7B27A' },
+  gold: { f: '#D6AA3E', e: '#8E6B1C', hi: '#FFF1B8' },
+  silver: { f: '#C9CED8', e: '#7E8594', hi: '#FFFFFF' },
+  red: { f: '#C8323C', e: '#7A1820', hi: '#FF8A92' },
+  navy: { f: '#2E4F93', e: '#15284F', hi: '#86A5E8' },
+  pink: { f: '#F08BB4', e: '#B04C7A', hi: '#FFD3E5' },
+  clear: { f: 'rgba(235,240,248,.75)', e: 'rgba(80,92,115,.55)', hi: '#FFFFFF' }
+};
+const GLASS_SHAPES = {
+  classic: { w: 1.9, L: 'M37 44.8 Q37 43 39 43 L47.6 43 Q49.4 43 49.4 44.8 L49.4 51 Q49.4 53 47.4 53 L39 53 Q37 53 37 51 Z' },
+  round: { w: 1.7, L: 'M43 41.9 A6.1 6.1 0 1 1 42.99 41.9 Z' },
+  square: { w: 2.8, L: 'M35.8 43.4 Q35.8 42.4 36.8 42.4 L48.6 42.4 Q49.6 42.4 49.6 43.4 L49.6 52 Q49.6 53.4 48.4 53.4 L37 53.4 Q35.8 53.4 35.8 52 Z' },
+  aviator: { w: 1.1, L: 'M36.4 44.4 Q43 41.8 49.2 43.8 Q49.8 52.2 43.6 53.8 Q36.6 53.4 36.4 44.4 Z', tint: ['#7A6A5A', '#2F3542'] },
+  browline: { w: 0.9, L: 'M36.4 46 Q36.6 53.6 43 53.6 Q49.4 53.6 49.6 46', top: 'M35.8 43.4 Q43 41.2 50 43.2 L49.8 46.6 Q43 45 36 46.8 Z' },
+  sport: { w: 1.3, wrap: 'M34.4 45 Q50 40.4 65.6 45 L64.6 50.4 Q57.4 54.8 50 51.2 Q42.6 54.8 35.4 50.4 Z', tint: ['#3A7BD5', '#7C4DFF'] },
+  cat: { w: 2.1, L: 'M36.2 46.2 Q40 42 49.2 43.8 Q49.4 51.4 43.2 52.8 Q37.4 52.4 36.2 46.2 Z', wing: true },
+  thin: { w: 0.9, L: 'M43 43.2 A6.3 4.8 0 1 1 42.99 43.2 Z' },
+  rimless: { w: 0, L: 'M37.2 45.6 Q37.2 43.8 39.4 43.8 L47 43.8 Q49.2 43.8 49.2 45.6 L49.2 50.4 Q49.2 52.4 47 52.4 L39.4 52.4 Q37.2 52.4 37.2 50.4 Z' }
+};
+const mirrorX = (d) => `<g transform="translate(100 0) scale(-1 1)">${d}</g>`;
+function glassesLayer(style, color, u) {
+  const sp = GLASS_SHAPES[style] || GLASS_SHAPES.classic;
+  const c = GLASS_COLORS[color] || GLASS_COLORS.black;
+  const gid = `gf${u}`, lid = `gl${u}`;
+  const defs = `<defs>${c.grad ? `<linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="1">${c.grad.map((g, i) => `<stop offset="${i / (c.grad.length - 1)}" stop-color="${g}"/>`).join('')}</linearGradient>` : ''}
+    <linearGradient id="${lid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sp.tint ? sp.tint[0] : '#FFFFFF'}" stop-opacity="${sp.tint ? 0.75 : 0.28}"/><stop offset="1" stop-color="${sp.tint ? sp.tint[1] : '#DDE8F7'}" stop-opacity="${sp.tint ? 0.85 : 0.12}"/></linearGradient></defs>`;
+  const frame = c.grad ? `url(#${gid})` : c.f;
+  const shine = '<path d="M38.6 46.6 L41.8 44.2 M39.6 49.4 L44.6 45.2" stroke="#fff" stroke-opacity=".75" stroke-width=".9" stroke-linecap="round"/>';
+  const rim = (d, w) => w ? `<path d="${d}" fill="none" stroke="${c.e}" stroke-width="${w + 1.1}" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="${frame}" stroke-width="${w}" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="${c.hi}" stroke-opacity=".35" stroke-width="${Math.max(0.4, w * 0.25)}" stroke-linejoin="round" transform="translate(0 -.35)"/>` : '';
+  if (sp.wrap) {
+    return defs + `<path d="${sp.wrap}" fill="url(#${lid})"/>` + rim(sp.wrap, sp.w) + '<path d="M37.6 45.8 Q44 43.4 48 44.2" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="1.1" stroke-linecap="round"/>';
   }
+  const lens = `<path d="${sp.L}" fill="url(#${lid})"/>`;
+  let one = lens + rim(sp.L, sp.w) + shine;
+  if (sp.top) one = lens + rim(sp.L, sp.w) + `<path d="${sp.top}" fill="${frame}" stroke="${c.e}" stroke-width=".7"/>` + shine;
+  if (style === 'rimless') one = lens + `<path d="${sp.L}" fill="none" stroke="#9AA3B5" stroke-opacity=".45" stroke-width=".5"/><circle cx="37.6" cy="45.2" r=".65" fill="${c.e}"/><circle cx="48.8" cy="45.2" r=".65" fill="${c.e}"/>` + shine;
+  if (sp.wing) one += `<path d="M36.6 46.4 Q35 44.6 34.4 42.4" fill="none" stroke="${c.e}" stroke-width="${sp.w + 1.1}" stroke-linecap="round"/><path d="M36.6 46.4 Q35 44.6 34.4 42.4" fill="none" stroke="${frame}" stroke-width="${sp.w}" stroke-linecap="round"/>`;
+  const bridgeY = style === 'browline' ? 44.4 : style === 'round' || style === 'thin' ? 47.2 : 46.4;
+  const bw = Math.max(0.9, (sp.w || 0.9) * 0.8);
+  const bridge = `<path d="M49 ${bridgeY} Q50 ${bridgeY - 1.2} 51 ${bridgeY}" fill="none" stroke="${c.e}" stroke-width="${bw + 0.8}" stroke-linecap="round"/><path d="M49 ${bridgeY} Q50 ${bridgeY - 1.2} 51 ${bridgeY}" fill="none" stroke="${frame}" stroke-width="${bw}" stroke-linecap="round"/>`;
+  return defs + one + mirrorX(one) + bridge;
 }
 // Серьги — на мочках ушей (x — центр уха, y — низ мочки)
 function earringsLayer(e, xl, xr, y) {
@@ -283,7 +376,9 @@ const EYE_SCALE = { s: 0.84, m: 1, l: 1.17 };
 const EAR_SCALE = { small: 0.78, normal: 1, big: 1.32 };
 
 // Внутренности SVG аватара — пригодятся и для кружка, и для мем-открытки
+let avaUid = 0;
 function avatarInner(look = {}) {
+  const u = ++avaUid;
   const sex = look.preset === 'f' ? 'f' : 'm';
   const hair = look.hair || '#2B1D14';
   const skin = look.skin || '#E8B48A';
@@ -298,7 +393,8 @@ function avatarInner(look = {}) {
   const bc = look.beardColor && look.beardColor !== 'same' ? look.beardColor : hair;
   const mc = look.mustacheColor && look.mustacheColor !== 'same' ? look.mustacheColor : hair;
   // Борода — только у «М», макияж — только у «Ж»: вкладки в конструкторе тоже разведены
-  const beard = sex === 'm' ? (BEARDS[look.beard] || BEARDS.none)(bc, mc) : '';
+  const mg = MOUTH_GEO[look.mouth] || MOUTH_GEO.smile;
+  const beard = sex === 'm' ? (BEARDS[look.beard] || BEARDS.none)(bc, mc, mg) : { under: '', over: '' };
   const hat = look.hat && look.hat !== 'none' ? look.hat : null;
   const mk = sex === 'f' ? (MAKEUP[look.makeup] || MAKEUP.none) : MAKEUP.none;
   const es = (EYE_SCALE[look.eyeSize] || 1) * (sex === 'f' ? 1.06 : 1);
@@ -324,7 +420,7 @@ function avatarInner(look = {}) {
   const exL = 50 - rx - 0.5, exR = 50 + rx + 0.5;
   const ears = `<ellipse cx="${exL}" cy="49" rx="${3.6 * ek}" ry="${5 * ek}" fill="${skin}"/><ellipse cx="${exR}" cy="49" rx="${3.6 * ek}" ry="${5 * ek}" fill="${skin}"/>
     <ellipse cx="${exL + 0.2}" cy="49.3" rx="${1.6 * ek}" ry="${2.8 * ek}" fill="${skinDark}"/><ellipse cx="${exR - 0.2}" cy="49.3" rx="${1.6 * ek}" ry="${2.8 * ek}" fill="${skinDark}"/>`;
-  return `${bgLayer(look.bg, skin)}${hairBack}
+  return `${bgLayer(look.bg, skin, u)}${hairBack}
     ${outfitLayer(look.outfit, hood, skin, sex)}
     ${neckLayer(look.neck)}
     ${ears}
@@ -337,12 +433,13 @@ function avatarInner(look = {}) {
     <g transform="translate(50 48) scale(${es.toFixed(3)}) translate(-50 -48)">${shadow}${eyesLayer(look.eyeShape, eyes, skin)}${lash}${liner}</g>
     ${brows}
     ${noseLayer(look.nose, skin, sex)}
-    ${beard ? `<g transform="translate(50 0) scale(${kx} 1) translate(-50 0)">${beard}</g>` : ''}
+    ${beard.under ? `<g transform="translate(50 0) scale(${kx} 1) translate(-50 0)">${beard.under}</g>` : ''}
     ${(MOUTHS[look.mouth] || MOUTHS.smile)(lipInk, lipW)}
+    ${beard.over}
     ${hairFront}
     ${shine}
     ${hat && hat !== 'headset' ? hatLayer(hat, hood) : ''}
-    ${look.glasses ? glassesLayer(look.glassesStyle) : ''}
+    ${look.glasses ? glassesLayer(look.glassesStyle, look.glassesColor, u) : ''}
     ${hat === 'headset' ? hatLayer('headset', hood) : ''}
     ${look.phones && hat !== 'headset' ? '<path d="M29 47 Q27 15 50 15 Q73 15 71 47" fill="none" stroke="#2B2B3A" stroke-width="6" stroke-linecap="round"/><path d="M33 26 Q40 18 50 17.5" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/><rect x="23" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="67" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="25" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/><rect x="72" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/>' : ''}
     ${look.crown ? `<g ${hat && hat !== 'headset' ? 'transform="translate(0 -6)"' : ''}><path d="M33 19 L37 5 L44 13 L50 3 L56 13 L63 5 L67 19 Z" fill="#FFC93C" stroke="#D99A0B" stroke-width="2" stroke-linejoin="round"/><circle cx="50" cy="13" r="2" fill="#E5484D"/></g>` : ''}
@@ -2068,7 +2165,9 @@ const HAT_NAMES = { none: 'Без шапки', beanie: 'Шапка', cap: 'Ке�
 const EYE_NAMES = { normal: 'Обычные', tired: 'После совещания', sly: 'Хитрые', wide: 'Удивлённые', happy: 'Довольные' };
 const PROP_NAMES = { none: 'Ничего', mug: 'Кружка', papers: 'Квартальный отчёт', sign: 'Табличка', laptop: 'Ноутбук', mug_best: 'Лучший сотрудник' };
 const AVA_CATS = [['face', 'Лицо'], ['hair', 'Волосы'], ['eyes', 'Глаза'], ['mouth', 'Рот'], ['beard', 'Борода'], ['makeup', 'Макияж'], ['outfit', 'Одежда'], ['acc', 'Аксессуары'], ['bg', 'Фон'], ['meme', 'Мемы']];
-const DEF_LOOK = { eyeSize: 'm', nose: 'button', ears: 'normal', makeup: 'none', earrings: 'none', glassesStyle: 'classic', beardColor: 'same', mustacheColor: 'same' };
+const DEF_LOOK = { glassesColor: 'black', eyeSize: 'm', nose: 'button', ears: 'normal', makeup: 'none', earrings: 'none', glassesStyle: 'classic', beardColor: 'same', mustacheColor: 'same' };
+const GLASS_COLOR_NAMES = { black: 'Чёрная', tortoise: 'Черепаховая', gold: 'Золото', silver: 'Серебро', red: 'Красная', navy: 'Синяя', pink: 'Розовая', clear: 'Прозрачная' };
+const GLASS_SWATCH = { black: '#262A36', tortoise: 'linear-gradient(135deg,#4A2A16,#A7652E 45%,#6B3B1C 70%,#C88A45)', gold: 'linear-gradient(135deg,#FFF1B8,#D6AA3E 50%,#8E6B1C)', silver: 'linear-gradient(135deg,#fff,#C9CED8 50%,#7E8594)', red: '#C8323C', navy: '#2E4F93', pink: '#F08BB4', clear: 'repeating-linear-gradient(45deg,#fff 0 4px,#E3E8F2 4px 8px)' };
 const NOSE_NAMES = { button: 'Кнопка', straight: 'Прямой', wide: 'Широкий', long: 'Длинный', snub: 'Курносый', roman: 'С горбинкой' };
 const EARS_NAMES = { small: 'Маленькие', normal: 'Обычные', big: 'Большие' };
 const EYESIZE_NAMES = { s: 'Маленькие', m: 'Обычные', l: 'Большие' };
@@ -2107,7 +2206,7 @@ function randomLook() {
   r.glasses = Math.random() < 0.3; r.freckles = Math.random() < 0.2; r.phones = r.hat === 'none' && Math.random() < 0.12;
   const f = r.preset === 'f';
   r.nose = pick(L.nose); r.ears = Math.random() < 0.7 ? 'normal' : pick(L.ears); r.eyeSize = Math.random() < 0.6 ? 'm' : pick(L.eyeSize);
-  r.glassesStyle = pick(GLASSES_ORDER[f ? 'f' : 'm'].slice(0, 5));
+  r.glassesStyle = pick(GLASSES_ORDER[f ? 'f' : 'm'].slice(0, 5)); r.glassesColor = pick(L.glassesColor);
   r.makeup = f && Math.random() < 0.65 ? pick(L.makeup.filter((v) => v !== 'none')) : 'none';
   r.earrings = Math.random() < (f ? 0.55 : 0.08) ? pick(L.earrings.filter((v) => v !== 'none')) : 'none';
   if (f) r.beard = 'none'; else r.makeup = 'none';
@@ -2189,15 +2288,14 @@ function renderAvatarEditor() {
       <div class="field">Тон кожи${sw('skin', L.skin)}</div>`,
     hair: `<div class="field">Причёска${tiles('hairStyle', L.hairStyle, HAIR_NAMES)}</div><div class="field">Цвет волос${sw('hair', L.hair)}</div>
       <p class="small" style="margin:0">Цвет бороды и усов настраивается отдельно — во вкладке «Борода».</p>`,
-    eyes: `<div class="field">Взгляд${tiles('eyeShape', L.eyeShape, EYE_NAMES, true)}</div><div class="field">Размер глаз${chipsOf('eyeSize', L.eyeSize, EYESIZE_NAMES)}</div><div class="field">Цвет глаз${sw('eyes', L.eyes)}</div>
-      <div class="field">Очки${glassesTiles}</div>`,
+    eyes: `<div class="field">Взгляд${tiles('eyeShape', L.eyeShape, EYE_NAMES, true)}</div><div class="field">Размер глаз${chipsOf('eyeSize', L.eyeSize, EYESIZE_NAMES)}</div><div class="field">Цвет глаз${sw('eyes', L.eyes)}</div>`,
     mouth: `<div class="field">Выражение${tiles('mouth', L.mouth, MOUTH_NAMES, true)}</div>`,
     beard: `<div class="field">Борода и усы${tiles('beard', L.beard, BEARD_NAMES, true)}</div>
       <div class="field">Цвет бороды${hairSw('beardColor')}</div><div class="field">Цвет усов${hairSw('mustacheColor')}</div>
       <p class="small" style="margin:0">«=» — как волосы. Седая борода при тёмных волосах, рыжие усы — пожалуйста.</p>`,
     makeup: `<div class="field">Макияж${tiles('makeup', L.makeup, MAKEUP_NAMES, true)}</div><div class="field">Серьги${tiles('earrings', L.earrings, EARRING_NAMES, true)}</div>`,
     outfit: `<div class="field">Одежда${tiles('outfit', L.outfit, OUTFIT_NAMES)}</div><div class="field">Цвет${sw('hoodie', L.hoodie)}</div>`,
-    acc: `<div class="field">Очки${glassesTiles}</div><div class="field">Серьги${tiles('earrings', L.earrings, EARRING_NAMES, true)}</div><div class="field">На шее${tiles('neck', L.neck, NECK_NAMES)}</div><div class="field">На голове${tiles('hat', L.hat, HAT_NAMES)}</div><div class="chips">${tog('phones', 'Наушники')}</div>`,
+    acc: `<div class="field">Очки${glassesTiles}</div>${d.glasses ? `<div class="field">Цвет оправы<div class="row" style="flex-wrap:wrap;gap:8px">${L.glassesColor.map((v) => `<button class="swatch gc ${(d.glassesColor || 'black') === v ? 'on' : ''}" style="background:${GLASS_SWATCH[v]}" data-act="ava-set" data-k="glassesColor" data-v="${v}" aria-label="${GLASS_COLOR_NAMES[v]}" title="${GLASS_COLOR_NAMES[v]}"></button>`).join('')}</div></div>` : ''}<div class="field">Серьги${tiles('earrings', L.earrings, EARRING_NAMES, true)}</div><div class="field">На шее${tiles('neck', L.neck, NECK_NAMES)}</div><div class="field">На голове${tiles('hat', L.hat, HAT_NAMES)}</div><div class="chips">${tog('phones', 'Наушники')}</div>`,
     bg: `<div class="field">Фон${tiles('bg', L.bg, BG_NAMES)}</div><p class="small" style="margin:0">«Под кожу» сам подбирает цвет, на котором лицо не сливается с фоном.</p>`,
     meme: `<div class="field">В руках${tiles('prop', L.prop, PROP_NAMES)}</div><p class="small" style="margin:0">Детали с ценой можно примерить бесплатно, а сохранить — после покупки в Лавке. Корона и рамки — тоже в Лавке.</p>`
   }[cat];
@@ -2218,7 +2316,7 @@ function renderAvatarEditor() {
   </div>`;
 }
 
-const MOUTH_NAMES = { smile: 'Улыбка', grin: 'До ушей', smirk: 'Ухмылка', neutral: 'Серьёзный', wow: 'Удивлён' };
+const MOUTH_NAMES = { smile: 'Улыбка', grin: 'До ушей', smirk: 'Ухмылка', neutral: 'Серьёзный', sad: 'Грустный', wow: 'Удивлён' };
 const BEARD_NAMES = { none: 'Нет', stubble: 'Щетина', beard: 'Борода', mustache: 'Усы', goatee: 'Эспаньолка' };
 const VIS_NAMES = { all: 'Всем', gang: 'Членам моих банд', hidden: 'Никому' };
 function section(id, title, summary, body, opts = {}) {
