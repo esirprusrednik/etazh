@@ -1214,3 +1214,6 @@ a { color: var(--link); }
 :root[data-theme="dark"] .duel-start span { color: #B79CFF; } :root[data-theme="dark"] .duel-start:nth-child(2) span { color: #FFB066; } :root[data-theme="dark"] .duel-start:nth-child(3) span { color: #5FE0B0; }
 .duel-start b { font-weight: 700; }
 .duel-start:active { transform: translateY(1px); }
+/* На золотом фоне текст всегда тёмный — в любой теме */
+.status-chip, .banner, .ava-tile em, .ts-beta, .logo-beta { color: var(--gold-ink); }
+.status-chip { font-weight: 800; }
