@@ -335,6 +335,7 @@ function setBattleView(v) {
     const fresh = [...shotKeys(v)].filter((k) => !prev.has(k));
     if (fresh.length) { S.bFresh = new Set(fresh); S.bFreshUntil = Date.now() + 1400; }
     if (v.last && !v.last.mine && v.seq !== S.bv.seq) {
+      sfx(v.last.r === 'miss' ? 'splash' : v.last.r);
       S.bShout = { text: v.last.r === 'miss' ? `${v.opp.nick} промахнулся` : v.last.r === 'sunk' ? `${v.opp.nick} потопил твой корабль` : `${v.opp.nick} попал!`, cls: v.last.r, until: Date.now() + 1600, board: 'm' };
     }
   }
@@ -344,10 +345,12 @@ function setBattleView(v) {
     S.bEmoteSeen = oe.at;
     S.bEmote = { ...(S.bEmote || {}), opp: { e: oe.e, until: Date.now() + 3200 } };
     setTimeout(() => { if (S.battle) render(); }, 3300);
-    if (navigator.vibrate) navigator.vibrate(20);
+    sfx('vote');
   } else if (oe && S.bEmoteSeen == null) S.bEmoteSeen = oe.at;
   // Партия только что закончилась победой — канонада (один раз)
-  if (S.bv && S.bv.id === v.id && S.bv.status !== 'done' && v.status === 'done' && v.winner === 'me') sfx('fanfare');
+  if (S.bv && S.bv.id === v.id && S.bv.status !== 'done' && v.status === 'done') {
+    if (v.winner === 'me') sfx('fanfare'); else if (!S.bResigned) sfx('lose');
+  }
   S.bv = v; S.bvAt = Date.now();
 }
 async function loadBattle() {
@@ -650,7 +653,7 @@ function renderFind() {
   }).join('') : `<p class="sub">${esc(f.hint || 'Никого не нашли')}</p>`) : '<p class="small">Ник — по части, например «енот». Имя — только если человек открыл его всем. Почта — целиком, например ivanov@mts.ru: мы сравниваем отпечаток и сами адреса не храним.</p>';
   return `<div class="row"><label class="field grow" style="gap:0"><span class="hidden">Ник, имя или почта</span><input id="find-q" maxlength="80" autocapitalize="off" autocomplete="off" placeholder="Ник, имя или рабочая почта" value="${esc(f.q || '')}" aria-label="Ник, имя или рабочая почта"></label><button class="btn" data-act="find-go">Найти</button></div>
     ${res}
-    <p class="small" style="margin:0">Позвать можно только в свою банду — человек сам решит, вступать ли. Не хочешь, чтобы тебя находили, — выключи в профиле: «Приватность и уведомления».</p>`;
+    <p class="small" style="margin:0">Позвать можно только в свою банду — человек сам решит, вступать ли. Не хочешь, чтобы тебя находили, — выключи в профиле: «Приватность, звук и уведомления».</p>`;
 }
 
 // ===== Вкладка «Чаты»: банды и личные переписки одним списком =====
@@ -1661,6 +1664,7 @@ function renderQuiz() {
 
 function runBeanFx() {
   const fx = S.beanFx; fx.fresh = false;
+  sfx('coin');
   const t0 = performance.now(), dur = 700;
   const step = (t) => {
     const el = document.querySelector('.beans3d .bnum');
@@ -1706,14 +1710,19 @@ function renderCoach() {
       <span class="row" style="gap:6px">${last ? '' : '<button class="linkbtn" data-act="coach-skip">Пропустить</button>'}<button class="btn small" data-act="coach-next">${last ? 'Понятно' : 'Дальше'}</button></span></div></div>`;
 }
 
-// Звуки интерфейса. Синтезируем в браузере: без файлов, тихо. Выключаются одной галочкой в профиле
-let audioCtx = null;
-const TAB_NOTES = { office: 523, gang: 587, crew: 659, feed: 784 };
+// Звуки и вибрация интерфейса. Всё синтезируется в браузере — без файлов.
+// Громкость 0–100 (0 — тишина) и вибрация настраиваются в профиле. На iPhone браузер вибрацию не поддерживает.
+let audioCtx = null, master = null;
+const TAB_NOTES = { near: 523, chats: 659, office: 784, games: 1047 };
+const soundVol = () => { const v = Number(store.get('soundVol', store.get('sound', true) === false ? 0 : 60)); return Number.isFinite(v) ? Math.max(0, Math.min(100, v)) : 60; };
+const vibroOn = () => store.get('vibro', true) !== false;
 function actx() {
-  if (!store.get('sound', true)) return null;
+  const v = soundVol();
+  if (!v) return null;
   try {
-    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); master = audioCtx.createGain(); master.connect(audioCtx.destination); }
     if (audioCtx.state === 'suspended') audioCtx.resume();
+    master.gain.value = Math.pow(v / 60, 1.6); // 60 — привычная громкость, выше — громче
     return audioCtx;
   } catch { return null; }
 }
@@ -1722,42 +1731,104 @@ function tone(ctx, { f = 600, f2 = null, type = 'triangle', at = 0, dur = 0.12, 
   const o = ctx.createOscillator(), g = ctx.createGain();
   o.type = type; o.frequency.setValueAtTime(f, t);
   if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur * 0.8);
-  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + dur + 0.02);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(master); o.start(t); o.stop(t + dur + 0.02);
 }
-// Пушечный выстрел: короткий шум через низкочастотный фильтр
-function boom(ctx, at, vol = 0.5) {
-  const t = ctx.currentTime + at, len = 0.7;
+// Короткий шум через фильтр: щелчки, всплески, «вжух»
+function noise(ctx, { at = 0, dur = 0.08, vol = 0.08, type = 'bandpass', f = 2000, f2 = null, q = 1 }) {
+  const t = ctx.currentTime + at;
+  const buf = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate * dur)), ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2);
+  const src = ctx.createBufferSource(), fl = ctx.createBiquadFilter(), g = ctx.createGain();
+  src.buffer = buf; fl.type = type; fl.Q.value = q; fl.frequency.setValueAtTime(f, t);
+  if (f2) fl.frequency.exponentialRampToValueAtTime(f2, t + dur);
+  g.gain.setValueAtTime(vol, t);
+  src.connect(fl).connect(g).connect(master); src.start(t);
+}
+// Пушечный выстрел: шум через низкочастотный фильтр
+function boom(ctx, at, vol = 0.5, len = 0.7) {
+  const t = ctx.currentTime + at;
   const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * len), ctx.sampleRate);
   const d = buf.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.5);
   const src = ctx.createBufferSource(), lp = ctx.createBiquadFilter(), g = ctx.createGain();
   src.buffer = buf; lp.type = 'lowpass'; lp.frequency.setValueAtTime(380, t); lp.frequency.exponentialRampToValueAtTime(60, t + len);
   g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
-  src.connect(lp).connect(g).connect(ctx.destination); src.start(t);
+  src.connect(lp).connect(g).connect(master); src.start(t);
 }
+
+// Каждый звук — свой характер: по нему без взгляда понятно, что произошло
+const SOUNDS = {
+  tap: (c) => { noise(c, { dur: 0.025, vol: 0.12, f: 3200, q: 2 }); tone(c, { f: 880, f2: 660, dur: 0.05, vol: 0.035 }); },
+  tab: (c, tab) => { const f = TAB_NOTES[tab] || 600; tone(c, { f, dur: 0.18, vol: 0.06 }); tone(c, { f: f * 2, type: 'sine', dur: 0.12, vol: 0.02 }); noise(c, { dur: 0.02, vol: 0.06, f: 4000 }); },
+  on: (c) => { tone(c, { f: 740, type: 'sine', dur: 0.05, vol: 0.05 }); tone(c, { f: 1110, type: 'sine', at: 0.045, dur: 0.07, vol: 0.05 }); },
+  off: (c) => { tone(c, { f: 1110, type: 'sine', dur: 0.05, vol: 0.045 }); tone(c, { f: 740, type: 'sine', at: 0.045, dur: 0.07, vol: 0.045 }); },
+  pick: (c) => { noise(c, { dur: 0.02, vol: 0.08, f: 5000, q: 3 }); tone(c, { f: 1320, type: 'sine', dur: 0.04, vol: 0.03 }); },
+  open: (c) => { noise(c, { dur: 0.16, vol: 0.05, f: 600, f2: 2400, q: 0.8 }); tone(c, { f: 420, f2: 840, type: 'sine', dur: 0.16, vol: 0.035 }); },
+  close: (c) => { noise(c, { dur: 0.14, vol: 0.045, f: 2200, f2: 500, q: 0.8 }); tone(c, { f: 760, f2: 380, type: 'sine', dur: 0.13, vol: 0.03 }); },
+  expand: (c) => tone(c, { f: 600, f2: 900, type: 'sine', dur: 0.08, vol: 0.04 }),
+  collapse: (c) => tone(c, { f: 900, f2: 600, type: 'sine', dur: 0.08, vol: 0.035 }),
+  send: (c) => { noise(c, { dur: 0.12, vol: 0.05, f: 900, f2: 4000, q: 1 }); tone(c, { f: 500, f2: 1500, type: 'sine', dur: 0.1, vol: 0.04 }); tone(c, { f: 1760, type: 'sine', at: 0.09, dur: 0.06, vol: 0.03 }); },
+  confirm: (c) => [523, 659, 784].forEach((f, i) => tone(c, { f, at: i * 0.06, dur: 0.14, vol: 0.05 })),
+  danger: (c) => { tone(c, { f: 220, f2: 150, type: 'square', dur: 0.09, vol: 0.03 }); tone(c, { f: 180, f2: 120, type: 'square', at: 0.11, dur: 0.12, vol: 0.03 }); },
+  error: (c) => { tone(c, { f: 196, type: 'sawtooth', dur: 0.09, vol: 0.035 }); tone(c, { f: 185, type: 'sawtooth', at: 0.12, dur: 0.14, vol: 0.035 }); },
+  vote: (c) => { tone(c, { f: 500, f2: 1200, type: 'sine', dur: 0.07, vol: 0.06 }); noise(c, { at: 0.05, dur: 0.02, vol: 0.06, f: 3500 }); },
+  coin: (c) => { tone(c, { f: 1319, type: 'square', dur: 0.07, vol: 0.025 }); tone(c, { f: 1760, type: 'square', at: 0.07, dur: 0.22, vol: 0.025 }); },
+  click: (c) => { tone(c, { f: 1400, f2: 900, type: 'square', dur: 0.05, vol: 0.035 }); tone(c, { f: 2100, type: 'sine', at: 0.03, dur: 0.08, vol: 0.04 }); },
+  tick: (c) => tone(c, { f: 1800, type: 'sine', dur: 0.04, vol: 0.03 }),
+  splash: (c) => { noise(c, { dur: 0.35, vol: 0.12, type: 'highpass', f: 1200, f2: 400 }); tone(c, { f: 300, f2: 120, type: 'sine', dur: 0.2, vol: 0.04 }); },
+  hit: (c) => { boom(c, 0, 0.35, 0.35); noise(c, { dur: 0.06, vol: 0.12, f: 2500 }); },
+  sunk: (c) => { boom(c, 0, 0.5, 0.8); tone(c, { f: 400, f2: 90, type: 'sawtooth', at: 0.1, dur: 0.6, vol: 0.035 }); },
+  lose: (c) => [[392, 0], [370, 0.32], [349, 0.64], [330, 0.96]].forEach(([f, at], i) => tone(c, { f, f2: i === 3 ? 290 : null, type: 'sawtooth', at, dur: i === 3 ? 0.8 : 0.3, vol: 0.04 })),
+  chicken: (c) => {
+    // «ко-ко-ко… кудах!»: короткие писклявые вскрики с резким подъёмом тона
+    [0, 0.17, 0.34].forEach((at) => tone(c, { f: 620, f2: 1250, type: 'square', at, dur: 0.11, vol: 0.05 }));
+    tone(c, { f: 700, f2: 1700, type: 'sawtooth', at: 0.56, dur: 0.16, vol: 0.06 });
+    tone(c, { f: 1500, f2: 520, type: 'sawtooth', at: 0.72, dur: 0.38, vol: 0.05 });
+  },
+  fanfare: (c) => {
+    [0, 0.35, 0.7].forEach((at) => boom(c, at, 0.45));
+    [[523, 1.0], [659, 1.12], [784, 1.24], [1047, 1.36]].forEach(([f, at]) => tone(c, { f, type: 'sawtooth', at, dur: 0.16, vol: 0.05 }));
+    [523, 659, 784, 1047].forEach((f) => tone(c, { f, type: 'triangle', at: 1.5, dur: 0.9, vol: 0.045 }));
+  }
+};
+// Вибрация под стать звуку: короткий «тик» на нажатия, узор — на события
+const BUZZ = { tap: 8, tab: 10, on: 6, off: 6, pick: 5, open: 8, close: 6, expand: 5, collapse: 5, send: 14, confirm: [12, 40, 18], danger: [25, 50, 25], error: [35, 45, 35],
+  vote: 10, coin: [8, 30, 8], click: 8, tick: 4, splash: 15, hit: [30, 40, 60], sunk: [40, 30, 90], lose: [80, 60, 160], chicken: [30, 40, 30], fanfare: [60, 60, 60, 60, 200] };
+let lastSfx = { name: '', at: 0 };
 function sfx(name, arg) {
-  const ctx = actx();
-  if (!ctx) return;
-  try {
-    if (name === 'tab') { const f = TAB_NOTES[arg] || 600; tone(ctx, { f, f2: f * 1.5, dur: 0.12 }); }
-    if (name === 'click') { tone(ctx, { f: 1400, f2: 900, type: 'square', dur: 0.05, vol: 0.035 }); tone(ctx, { f: 2100, type: 'sine', at: 0.03, dur: 0.08, vol: 0.04 }); }
-    if (name === 'tick') tone(ctx, { f: 1800, type: 'sine', dur: 0.04, vol: 0.03 });
-    if (name === 'chicken') {
-      // «ко-ко-ко… кудах!»: короткие писклявые вскрики с резким подъёмом тона
-      [0, 0.17, 0.34].forEach((at) => tone(ctx, { f: 620, f2: 1250, type: 'square', at, dur: 0.11, vol: 0.05 }));
-      tone(ctx, { f: 700, f2: 1700, type: 'sawtooth', at: 0.56, dur: 0.16, vol: 0.06 });
-      tone(ctx, { f: 1500, f2: 520, type: 'sawtooth', at: 0.72, dur: 0.38, vol: 0.05 });
-    }
-    if (name === 'fanfare') {
-      [0, 0.35, 0.7].forEach((at) => boom(ctx, at, 0.45));
-      [[523, 1.0], [659, 1.12], [784, 1.24], [1047, 1.36]].forEach(([f, at]) => tone(ctx, { f, type: 'sawtooth', at, dur: 0.16, vol: 0.05 }));
-      [523, 659, 784, 1047].forEach((f) => tone(ctx, { f, type: 'triangle', at: 1.5, dur: 0.9, vol: 0.045 }));
-    }
-  } catch {}
-  if (navigator.vibrate) navigator.vibrate(name === 'fanfare' ? [60, 60, 60, 60, 200] : name === 'chicken' ? [30, 40, 30] : 6);
+  const now = performance.now();
+  if (lastSfx.name === name && now - lastSfx.at < 40) return; // двойной вызов на один тап — один звук
+  lastSfx = { name, at: now };
+  const c = actx();
+  if (c && SOUNDS[name]) { try { SOUNDS[name](c, arg); } catch {} }
+  if (vibroOn() && navigator.vibrate && BUZZ[name] != null) { try { navigator.vibrate(BUZZ[name]); } catch {} }
 }
 const tabSound = (tab) => sfx('tab', tab);
+
+// Какой звук у какого нажатия. Свои звуки у вкладок, выстрелов, сдачи и Лавки — их играют сами действия
+const FEEL_SELF = new Set(['tab', 'bshoot', 'bresign', 'sound-toggle', 'vibro-toggle', 'sound-test']);
+const FEEL = {
+  open: 'open', 'open-sec': 'open', person: 'open', 'find-open': 'open', 'poll-new': 'open', 'ava-open': 'open', 'ava-open-vac': 'open', 'meme-open': 'open', 'pcall-open': 'open',
+  'call-open': 'open', 'dm-call-open': 'open', 'battle-new': 'open', 'crew-share': 'open',
+  'gang-open': 'open', 'dm-open': 'open', 'battle-open': 'open',
+  close: 'close', 'close-bg': 'close', 'chats-back': 'close', 'dm-back': 'close', 'battle-back': 'close', 'onb-back': 'close', 'nick-no': 'close', 'food-cancel': 'close', 'feed-close': 'close', 'coach-skip': 'close',
+  'poll-vote': 'vote', vote: 'vote', 'quiz-pick': 'vote', 'guess-pick': 'vote', 'food-pick': 'vote', reply: 'vote', 'dm-reply': 'vote', 'coffee-reply': 'vote', bemote: 'vote',
+  buy: 'confirm', 'ava-buy': 'confirm', equip: 'confirm', 'invite-accept': 'confirm', 'crew-accept': 'confirm', 'nick-yes': 'confirm', checkin: 'confirm', 'canteen-in': 'confirm',
+  'lunch-join': 'confirm', 'gang-join': 'confirm', bready: 'confirm', 'whatsnew-ok': 'confirm', 'ava-save': 'confirm', 'ava-save-vac': 'confirm', 'prof-save': 'confirm', 'name-save': 'confirm',
+  'gang-leave': 'danger', 'invite-decline': 'danger', 'crew-decline': 'danger', 'crew-remove': 'danger', 'crew-block': 'danger', logout: 'danger', 'delete-account': 'danger',
+  'lunch-leave': 'danger', 'lunch-cancel': 'danger', 'poll-close': 'danger', checkout: 'danger', 'canteen-out': 'danger', 'vac-del': 'danger', report: 'danger'
+};
+function feelFor(act, el) {
+  if (FEEL_SELF.has(act)) return null;
+  if (act === 'sec') return S.sec.has(el.dataset.v) ? 'collapse' : 'expand';
+  if (FEEL[act]) return FEEL[act];
+  if (/(^|-)(send|create|go|add|share|submit)$|^gift$|signal-send|thanks-send|chat-send|find-invite|gang-invite/.test(act)) return 'send';
+  if (el.classList.contains('chip') || /-(pick|kind|days|set|cat|scene|emo|to|time|tag|day|opt|select|preset|type)$/.test(act)) return 'pick';
+  return 'tap';
+}
+
 
 // Кольцо заполненности профиля вокруг аватара
 function progressRing(pct, inner) {
@@ -2000,7 +2071,14 @@ function renderProfile() {
     <label class="check"><input type="checkbox" data-act="toggle" data-k="shareOffice" ${me.shareOffice ? 'checked' : ''}> <span>Показывать банде, где я: офис, дома или в отпуске</span></label>
     <label class="check"><input type="checkbox" data-act="toggle" data-k="quiet" ${me.quiet ? 'checked' : ''}> <span>Тихие часы 19:00–09:00 — не присылать зовы</span></label>
     <label class="check"><input type="checkbox" data-act="findable-toggle" ${p.findable !== false ? 'checked' : ''}> <span>Меня можно найти по нику и рабочей почте — и позвать в банду</span></label>
-    <label class="check"><input type="checkbox" data-act="sound-toggle" ${store.get('sound', true) ? 'checked' : ''}> <span>Звуки интерфейса (вкладки, Лавка, морской бой)</span></label>
+    <div class="snd-set">
+      <label class="field" style="gap:4px"><span>Громкость звуков: <b id="vol-n">${soundVol() ? soundVol() + '%' : 'выкл'}</b></span>
+        <input type="range" id="snd-vol" min="0" max="100" step="5" value="${soundVol()}" aria-label="Громкость звуков интерфейса"></label>
+      <div class="row" style="justify-content:space-between;gap:8px">
+        <label class="check" style="margin:0"><input type="checkbox" data-act="vibro-toggle" ${vibroOn() ? 'checked' : ''}> <span>Вибрация${navigator.vibrate ? '' : ' <span class="small">(этот браузер не умеет)</span>'}</span></label>
+        <button class="btn small ghost" data-act="sound-test">Послушать</button>
+      </div>
+    </div>
     <label class="check"><input type="checkbox" data-act="coffee-toggle" ${p.coffee ? 'checked' : ''}> <span>Участвовать в случайном кофе${p.home ? '' : ' (сначала укажи «Мой офис» в разделе «Работа»)'}</span></label>
     ${pushState === 'granted' && !(me.completion.steps.find((x) => x.id === 'push') || {}).done ? `<div class="note warn" style="margin:0">Браузер разрешил уведомления, но этот телефон не подключён к серверу — пуши не придут.</div><button class="btn blue" data-act="push-enable" ${S.vapidKey ? '' : 'disabled'}>Подключить уведомления</button>`
       : pushState === 'granted' ? '<div class="row"><span class="note good grow">Уведомления включены</span><button class="btn small ghost" data-act="push-test">Проверить</button></div>'
@@ -2022,7 +2100,7 @@ function renderProfile() {
     ${section('work', 'Работа', `${office || 'офис не указан'} · ${plan}`, workBody)}
     ${section('vac', 'Отпуска', p.vacations.length ? p.vacations.map((v) => `${ddmm(v.from)}–${ddmm(v.to)}`).join(', ') : 'не запланированы', vacBody)}
     ${section('about', 'О себе', [p.about && esc(p.about), p.bday && 'ДР ' + esc(p.bday)].filter(Boolean).join(' · ') || 'интересы, пара слов, день рождения', aboutBody)}
-    ${section('priv', 'Приватность и уведомления', `${me.shareOffice ? 'банда видит, где я' : 'где я — скрыто'}${me.quiet ? ' · тихие часы' : ''}`, privBody)}
+    ${section('priv', 'Приватность, звук и уведомления', `${me.shareOffice ? 'банда видит, где я' : 'где я — скрыто'}${me.quiet ? ' · тихие часы' : ''} · ${soundVol() ? 'звук ' + soundVol() + '%' : 'без звука'}`, privBody)}
     <button class="fb-entry" data-act="open" data-v="feedback"><span class="grow"><b>Есть идея или нашёл ошибку?</b><span class="small">Напиши — ответим. За принятую идею +10 зёрен</span></span>${(S.state && S.state.badges && S.state.badges.feedback) ? `<span class="fb-count">${S.state.badges.feedback}</span>` : '<span class="chev" aria-hidden="true">›</span>'}</button>
     ${me.isAdmin ? '<a class="btn violet" style="display:flex;align-items:center;justify-content:center;text-decoration:none" href="/admin.html">Модерация</a>' : ''}
     <div class="row" style="justify-content:space-between">
@@ -2099,6 +2177,7 @@ function confirmTwice(id, text) {
 async function run(fn, { rerender = true } = {}) {
   S.error = '';
   try { await fn(); } catch (e) {
+    sfx('error');
     if (S.sheet) S.error = e.message; else toast(e.message);
   }
   if (rerender) render();
@@ -2237,6 +2316,7 @@ const actions = {
   bresign: () => run(async () => {
     const playing = S.bv && S.bv.status === 'play';
     if (!confirmTwice('bresign', playing ? 'Нажми ещё раз, чтобы сдаться' : 'Нажми ещё раз, чтобы отказаться')) return;
+    S.bResigned = true;
     S.bv = await post(`/api/battle/${S.battle}/resign`); S.bvAt = Date.now();
     sfx('chicken');
   }),
@@ -2248,7 +2328,7 @@ const actions = {
         setBattleView(r.view);
         const t = { miss: 'Мимо', hit: 'Ранил! Стреляй ещё', sunk: 'Потопил! Стреляй ещё' }[r.result];
         S.bShout = { text: r.view.status === 'done' ? (r.beans ? `Победа! +${r.beans} зёрен` : 'Победа!') : t, cls: r.view.status === 'done' ? 'sunk' : r.result, until: Date.now() + 1400, board: 'o' };
-        if (navigator.vibrate) navigator.vibrate(r.result === 'miss' ? 15 : [30, 40, 60]);
+        sfx(r.view.status === 'done' ? 'sunk' : r.result === 'miss' ? 'splash' : r.result);
         if (r.view.status === 'done') { loadMe().catch(() => {}); loadFeatures().catch(() => {}); }
         setTimeout(() => { if (S.battle) render(); }, 1500);
       } finally { S.bBusy = false; }
@@ -2354,7 +2434,7 @@ const actions = {
     S.sheet = el.dataset.v; S.error = '';
     if (S.sheet === 'signal') S.signal = {};
     render();
-    if (S.sheet === 'shop') sfx('click');
+    if (S.sheet === 'shop') sfx('click'); // Лавка — своя «касса»
     if (S.sheet === 'shop') { store.set('shopSeen', [...new Set([...store.get('shopSeen', []), ...((S.me && S.me.affordable) || [])])]); await run(async () => { S.shop = await get('/api/shop'); if (S.activeGang && !S.gang) await loadGang(); }); }
     if (S.sheet === 'profile' || S.sheet === 'lunch') await run(loadFeatures);
     if (S.sheet === 'feedback') await run(loadFeedback);
@@ -2380,7 +2460,7 @@ const actions = {
   }),
   'poll-vote': (el) => run(async () => {
     const r = await post(`/api/polls/${el.dataset.id}/vote`, { option: Number(el.dataset.v) });
-    S.polls = (S.polls || []).map((p) => (p.id === r.poll.id ? r.poll : p)); sfx('click');
+    S.polls = (S.polls || []).map((p) => (p.id === r.poll.id ? r.poll : p));
     loadState().then(render).catch(() => {}); // бейдж «Чаты» пересчитает сервер
   }),
   'poll-add': (el) => run(async () => {
@@ -2564,7 +2644,8 @@ const actions = {
   },
   'coach-skip'() { S.coach = 0; store.set('coachDone', 2); store.set('ia2', 1); if (S.tab !== 'near') { S.tab = 'near'; run(() => refresh()); } render(); },
   'findable-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { findable: el.checked } }); await loadMe(); toast(el.checked ? 'Тебя можно найти' : 'Тебя больше не найти поиском'); }),
-  'sound-toggle'(el) { store.set('sound', el.checked); if (el.checked) sfx('click'); },
+  'vibro-toggle'(el) { store.set('vibro', el.checked); if (el.checked) sfx('confirm'); },
+  'sound-test'() { const demo = ['tap', 'open', 'on', 'send', 'vote', 'confirm', 'coin']; demo.forEach((n, i) => setTimeout(() => sfx(n), i * 320)); },
   'open-sec'(el) {
     const v = el.dataset.v;
     const wasOpen = S.sheet === 'profile';
@@ -2672,11 +2753,19 @@ document.addEventListener('click', (e) => {
   if (!el || el.tagName === 'INPUT') return;
   if (el.dataset.act === 'close-bg' && e.target !== el) return; // клик внутри шторки — не закрываем и не мешаем ссылкам
   const fn = actions[el.dataset.act];
-  if (fn) { e.preventDefault(); fn(el, e); }
+  if (fn) { e.preventDefault(); const snd = feelFor(el.dataset.act, el); if (snd) sfx(snd); fn(el, e); }
+});
+// Ползунок громкости: число меняется на ходу, образец звука — когда отпустил
+document.addEventListener('input', (e) => {
+  if (e.target.id !== 'snd-vol') return;
+  store.set('soundVol', Number(e.target.value)); store.set('sound', Number(e.target.value) > 0);
+  const n = $('#vol-n'); if (n) n.textContent = Number(e.target.value) ? e.target.value + '%' : 'выкл';
 });
 document.addEventListener('change', (e) => {
+  if (e.target.id === 'snd-vol') { sfx('pick'); return; }
   const el = e.target;
-  if (el.tagName === 'INPUT' && el.type === 'checkbox' && el.dataset.act && actions[el.dataset.act]) actions[el.dataset.act](el, e);
+  if (el.tagName === 'INPUT' && el.type === 'checkbox' && el.dataset.act && actions[el.dataset.act]) { if (!FEEL_SELF.has(el.dataset.act)) sfx(el.checked ? 'on' : 'off'); actions[el.dataset.act](el, e); }
+  else if (el.tagName === 'INPUT' && el.type === 'checkbox') sfx(el.checked ? 'on' : 'off');
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.id) {
