@@ -579,3 +579,23 @@ body { font-weight: 500; }
 .nick-rules { background: #F4F6FB; border-radius: 14px; padding: 10px 12px; font-size: 13px; line-height: 1.45; color: var(--muted); }
 .nick-rules p { margin: 0 0 6px; } .nick-rules p:last-child { margin: 0; }
 .nick-rules b { color: var(--ink); }
+
+/* Опросы банды */
+.poll { border-top: 1px solid #E3E8F4; padding-top: 12px; margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.chats-head + .poll { border-top: 0; margin-top: 6px; padding-top: 0; }
+.poll-q { font-weight: 900; font-size: 16px; line-height: 1.3; }
+.poll-opts { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.poll-opt { position: relative; overflow: hidden; display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 8px 12px; border-radius: 12px; border: 2px solid #E3E8F4; background: #fff; color: var(--ink); font: inherit; font-weight: 700; text-align: left; cursor: pointer; }
+.poll-opt:disabled { cursor: default; }
+.poll-opt.me { border-color: #3A86FF; }
+.poll-opt.lead { border-color: var(--green); }
+.poll-bar { position: absolute; inset: 0 auto 0 0; background: #EAF2FF; transition: width .35s ease; z-index: 0; }
+.poll-opt.lead .poll-bar { background: #E3F5E8; }
+.poll-mark, .poll-txt, .poll-pct { position: relative; z-index: 1; }
+.poll-mark { width: 20px; height: 20px; flex: none; border-radius: 50%; border: 2px solid #C9D1EA; display: grid; place-items: center; font-size: 12px; font-weight: 900; color: #fff; }
+.poll-opt.me .poll-mark { background: #3A86FF; border-color: #3A86FF; }
+.poll-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.poll-by, .poll-who { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.poll-pct { font-weight: 900; font-size: 14px; }
+.poll-add input { min-height: 40px; }
+.pd-o { min-height: 44px; border-radius: 12px; border: 2px solid var(--line); padding: 8px 12px; color: var(--ink); font-weight: 600; }

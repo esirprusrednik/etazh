@@ -211,6 +211,31 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.equal((await c.post('/api/feedback', { text: 'шестая за день' })).status, 400, 'лимит 5 в день');
   });
 
+  await step('опросы банды: создать, голос, свой вариант, один выбор, чужим не видно, автор завершает', async () => {
+    const gg = (await a.post('/api/gangs', { name: 'Голосуем' })).json;
+    await b.post('/api/gangs/join', { code: gg.code });
+    assert.equal((await a.post(`/api/gangs/${gg.id}/polls`, { question: 'Куда?', options: ['Одно'], open: false })).status, 400, 'без своих вариантов нужно два');
+    const r = await a.post(`/api/gangs/${gg.id}/polls`, { question: 'Куда идём обедать?', options: ['Столовая', 'Шаурма', 'столовая'], days: 3 });
+    assert.equal(r.status, 200);
+    const p = r.json.poll;
+    assert.equal(p.options.length, 2, 'дубль варианта отброшен');
+    assert.equal((await d.get(`/api/gangs/${gg.id}/polls`)).status, 404, 'не член банды — не видит');
+    let v = (await b.post(`/api/polls/${p.id}/vote`, { option: p.options[0].id })).json.poll;
+    assert.equal(v.total, 1); assert.ok(v.options[0].me);
+    v = (await b.post(`/api/polls/${p.id}/vote`, { option: p.options[1].id })).json.poll;
+    assert.ok(!v.options[0].me && v.options[1].me, 'одиночный выбор: голос переехал');
+    const add = (await b.post(`/api/polls/${p.id}/options`, { text: 'Суши' })).json;
+    assert.equal(add.poll.options.length, 3);
+    assert.ok(add.poll.options[2].me && !add.poll.options[1].me, 'свой вариант — свой голос');
+    assert.equal(add.poll.options[2].addedBy, 'ночной_филин');
+    assert.equal((await b.post(`/api/polls/${p.id}/close`)).status, 400, 'завершает только автор');
+    const closed = (await a.post(`/api/polls/${p.id}/close`)).json.poll;
+    assert.ok(closed.closed && closed.options[2].lead);
+    assert.equal((await b.post(`/api/polls/${p.id}/vote`, { option: p.options[0].id })).status, 400, 'после завершения не голосуют');
+    const msgs = (await b.get(`/api/gangs/${gg.id}`)).json.messages;
+    assert.ok(msgs.some((m) => /Опрос: «Куда идём обедать\?»/.test(m.text)), 'отметка в чате');
+  });
+
   console.log(`\nВсё прошло: ${passed} проверок`);
 })()
   .catch((e) => { console.error('\nПровал:', e.message, '\n--- лог ---\n' + log.slice(-2000)); process.exitCode = 1; })

@@ -150,6 +150,7 @@ function createApi(db) {
   let battle = null;
   let quiz = null;
   let feedback = null;
+  let polls = null;
   const q = (sql) => db.prepare(sql);
   const adminHashes = new Set(config.adminEmails.map((e) => U.hashEmail(e)));
 
@@ -1136,6 +1137,7 @@ function createApi(db) {
   });
   quiz = require('./quiz').register({ db, q, route, requireUser, requireAdmin, bad, U, addBeans, isMember, gangMembers, readProfile, HttpError, DEFAULT_LOOK, publicLook, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   battle = require('./battle').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, publicLook, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
+  polls = require('./polls').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, rateLimit, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   feedback = require('./feedback').register({ db, q, route, requireUser, requireAdmin, bad, U, addBeans, notify, fireAndForget, HttpError, BUILD });
 
   // ---------- Обработчик ----------
@@ -1198,6 +1200,7 @@ function createApi(db) {
     if (battle) battle.cleanup();
     if (quiz) quiz.cleanup();
     if (feedback) feedback.cleanup();
+    if (polls) polls.cleanup();
   }
 
   return { handle, verifyLogin, cleanup, HttpError };

@@ -309,6 +309,11 @@ async function loadState() {
 async function loadGang() {
   if (!S.activeGang) { S.gang = null; return; }
   try { S.gang = await get(`/api/gangs/${S.activeGang}`); } catch { S.gang = null; S.activeGang = null; }
+  await loadPolls();
+}
+async function loadPolls() {
+  if (!S.activeGang) { S.polls = null; return; }
+  try { S.polls = (await get(`/api/gangs/${S.activeGang}/polls`)).items; } catch { S.polls = []; }
 }
 async function loadEvents() { S.events = await get('/api/events'); }
 async function loadFeatures() {
@@ -949,6 +954,47 @@ function renderGangNow() {
 }
 
 // ----- Банда -----
+// ----- Опросы банды -----
+const pollLeft = (ts) => {
+  const h = Math.max(0, Math.round((ts - Date.now()) / 3600e3));
+  return h < 1 ? 'меньше часа' : h < 24 ? `${h} ${plural(h, 'час', 'часа', 'часов')}` : `${Math.round(h / 24)} ${plural(Math.round(h / 24), 'день', 'дня', 'дней')}`;
+};
+function renderPoll(p) {
+  const who = (v) => v.length ? `<span class="poll-who">${esc(v.slice(0, 3).join(', '))}${v.length > 3 ? ` +${v.length - 3}` : ''}</span>` : '';
+  return `<div class="poll ${p.closed ? 'closed' : ''}">
+    <div class="poll-q">${esc(p.question)}</div>
+    <div class="small">${esc(p.author)} · ${p.closed ? 'опрос завершён' : `ещё ${pollLeft(p.closesAt)}`} · ${p.total} ${plural(p.total, 'голос', 'голоса', 'голосов')}${p.multi ? ' · можно несколько' : ''}</div>
+    <div class="poll-opts">${p.options.map((o) => `<button class="poll-opt ${o.me ? 'me' : ''} ${o.lead ? 'lead' : ''}" data-act="poll-vote" data-id="${p.id}" data-v="${o.id}" ${p.closed ? 'disabled' : ''} aria-pressed="${o.me}">
+      <span class="poll-bar" style="width:${p.voted || p.closed ? o.pct : 0}%"></span>
+      <span class="poll-mark" aria-hidden="true">${o.me ? '✓' : ''}</span>
+      <span class="poll-txt"><span>${esc(o.text)}${o.lead ? ' 🏆' : ''}</span>${o.addedBy ? `<span class="poll-by">вариант от ${esc(o.addedBy)}</span>` : ''}${p.voted || p.closed ? who(o.voters) : ''}</span>
+      ${p.voted || p.closed ? `<span class="poll-pct">${o.pct}%</span>` : ''}</button>`).join('')}</div>
+    ${p.canAdd ? `<div class="row poll-add"><label class="field grow" style="gap:0"><span class="hidden">Свой вариант</span><input id="poll-add-${p.id}" maxlength="40" placeholder="Свой вариант"></label><button class="btn small ghost" data-act="poll-add" data-id="${p.id}">Добавить</button></div>` : ''}
+    ${p.mine && !p.closed ? `<button class="linkbtn" data-act="poll-close" data-id="${p.id}">Завершить опрос</button>` : ''}
+  </div>`;
+}
+function renderPolls() {
+  const items = S.polls || [];
+  return `<section class="card">
+    <div class="chats-head"><h3>Опросы${items.filter((p) => !p.closed).length ? ` <span class="chats-n">${items.filter((p) => !p.closed).length}</span>` : ''}</h3><button class="linkbtn" data-act="poll-new">＋ Опрос</button></div>
+    ${items.length ? items.map(renderPoll).join('') : '<p class="small" style="margin:4px 0 0">Куда идём обедать, когда собираемся, какую пиццу брать — спроси банду. Можно разрешить всем дописывать свои варианты.</p>'}
+  </section>`;
+}
+function renderPollNew() {
+  const d = S.pollDraft;
+  return `<label class="field">Вопрос<input id="pd-q" maxlength="120" placeholder="Куда идём в пятницу?" value="${esc(d.q)}"></label>
+    <div class="field">Варианты
+      ${d.options.map((o, i) => `<input class="pd-o" data-i="${i}" maxlength="40" placeholder="Вариант ${i + 1}" value="${esc(o)}">`).join('')}
+      ${d.options.length < 10 ? '<button class="linkbtn" style="align-self:flex-start" data-act="pd-more">＋ ещё вариант</button>' : ''}
+    </div>
+    <label class="check"><input type="checkbox" id="pd-open" ${d.open ? 'checked' : ''}> <span>Участники могут добавить свой вариант</span></label>
+    <label class="check"><input type="checkbox" id="pd-multi" ${d.multi ? 'checked' : ''}> <span>Можно выбрать несколько</span></label>
+    <div class="field">Сколько идёт опрос
+      <div class="chips">${[[1, 'сутки'], [3, '3 дня'], [7, 'неделю']].map(([v, t]) => `<button class="chip ${d.days === v ? 'on' : ''}" data-act="pd-days" data-v="${v}">${t}</button>`).join('')}</div></div>
+    <button class="btn" data-act="poll-create">Запустить опрос</button>
+    <p class="small" style="margin:0">Банда получит пуш. Голоса видны по никам — это банда, а не выборы.</p>`;
+}
+
 function renderGang() {
   const gangs = S.me.gangs;
   let chips = gangs.length ? `<div class="chips dark">${gangs.map((g) => `<button class="chip ${g.id === S.activeGang ? 'on' : ''}" data-act="gang-select" data-v="${g.id}">${esc(g.name)}</button>`).join('')}</div>` : '';
@@ -978,6 +1024,7 @@ function renderGang() {
     ${g.depositPending ? '<div class="note warn">Залог 50 зёрен вернётся, когда в банде будет 3 человека.</div>' : ''}
     <div class="calls">${Object.entries(S.cat.calls).map(([k, c]) => `<button class="call" style="background:${CALL_STYLE[k]}" data-act="call-open" data-kind="${k}" data-gang="${g.id}">${esc(c.label)}</button>`).join('')}</div>
   </section>
+  ${renderPolls()}
   <section class="card">
     <h3>Чат</h3>
     <div class="chat" id="chat">${msgs}</div>
@@ -1487,6 +1534,7 @@ function renderSheet() {
       <button class="btn ghost" data-act="dm-open" data-id="${S.pcallTo}">💬 Написать сообщение</button>`);
     case 'find': return sheetWrap('Найти своих', renderFind());
     case 'feedback': return sheetWrap('Идеи и ошибки', renderFeedback());
+    case 'poll-new': return sheetWrap('Новый опрос', renderPollNew());
     case 'dm-pick': return sheetWrap('Написать в личку', (S.people || []).length ? '<p class="sub">Лично можно писать любому члену твоих банд.</p>' + (S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${esc(p.nick)}</span><span class="where">${esc(p.gangs.map((g) => g.name).join(', ') || whereText(p)[0])}</span></span><span aria-hidden="true">›</span></button>`).join('') : '<p class="sub">Пока некому писать. Сколоти банду и позови в неё своих.</p>');
     case 'battle-pick': return sheetWrap('С кем сыграть?', (S.people || []).length ? (S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${esc(p.nick)}</span><span class="where">${esc(whereText(p)[0])}</span></span><span aria-hidden="true">›</span></button>`).join('') + '<p class="small">Откроется переписка — там выбери «Без спешки» или «Быстрая».</p>' : '<p class="sub">Сначала сколоти банду и позови в неё своих.</p>');
     case 'whatsnew': return sheetWrap('Что поменялось', `<div class="wn">
@@ -2320,6 +2368,30 @@ const actions = {
     S.fb = { kind: (S.fb || {}).kind || 'idea', text: '' }; S.fbItems = r.items;
     toast('Спасибо! Ответим здесь и пушем');
   }),
+  'poll-new'() { S.pollDraft = { q: '', options: ['', ''], open: true, multi: false, days: 1 }; S.sheet = 'poll-new'; S.error = ''; render(); },
+  'pd-more'() { savePollDraft(); S.pollDraft.options.push(''); render(); const l = [...document.querySelectorAll('.pd-o')].pop(); if (l) l.focus(); },
+  'pd-days'(el) { savePollDraft(); S.pollDraft.days = Number(el.dataset.v); render(); },
+  'poll-create': () => run(async () => {
+    savePollDraft();
+    const d = S.pollDraft;
+    await post(`/api/gangs/${S.activeGang}/polls`, { question: d.q, options: d.options.filter((o) => o.trim()), open: d.open, multi: d.multi, days: d.days });
+    S.sheet = null; S.pollDraft = null; toast('Опрос запущен'); await loadGang();
+  }),
+  'poll-vote': (el) => run(async () => {
+    const r = await post(`/api/polls/${el.dataset.id}/vote`, { option: Number(el.dataset.v) });
+    S.polls = (S.polls || []).map((p) => (p.id === r.poll.id ? r.poll : p)); sfx('click');
+  }),
+  'poll-add': (el) => run(async () => {
+    const inp = $('#poll-add-' + el.dataset.id);
+    if (!inp || !inp.value.trim()) throw new Error('Напиши вариант');
+    const r = await post(`/api/polls/${el.dataset.id}/options`, { text: inp.value });
+    S.polls = (S.polls || []).map((p) => (p.id === r.poll.id ? r.poll : p));
+    toast(r.existed ? 'Такой вариант уже есть — голос за него' : 'Вариант добавлен, твой голос за него');
+  }),
+  'poll-close': (el) => run(async () => {
+    const r = await post(`/api/polls/${el.dataset.id}/close`);
+    S.polls = (S.polls || []).map((p) => (p.id === r.poll.id ? r.poll : p));
+  }),
   close() { S.sheet = null; S.error = ''; render(); },
   'close-bg'(el, e) { if (e.target === el) actions.close(); },
   'shop-gang'(el) { S.shopGang = Number(el.dataset.v); render(); },
@@ -2542,6 +2614,13 @@ function confirmInline(key, text = 'Нажми ещё раз для подтве
   return false;
 }
 function saveComposeText() { const el = $('#c-text'); if (el && S.compose) S.compose.text = el.value; }
+function savePollDraft() {
+  const d = S.pollDraft; if (!d) return;
+  const qn = $('#pd-q'); if (qn) d.q = qn.value;
+  document.querySelectorAll('.pd-o').forEach((x) => { d.options[Number(x.dataset.i)] = x.value; });
+  const o = $('#pd-open'); if (o) d.open = o.checked;
+  const m = $('#pd-multi'); if (m) d.multi = m.checked;
+}
 function saveSignalText() { if (!S.signal) S.signal = {}; const z = $('#s-zone'); const c = $('#s-comment'); if (z) S.signal.zone = z.value; if (c) S.signal.comment = c.value; }
 
 async function joinByCode(code) {
@@ -2601,6 +2680,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.id) {
     const map = { 'find-q': 'find-go', email: 'login-submit', code: 'code-submit', nick: 'nick-submit', 'chat-text': 'chat-send', 'thanks-text': 'thanks-send', 'lunch-place': 'lunch-create', 'dm-text': 'dm-send', 'crew-nick': 'crew-add' };
     if (map[e.target.id]) { e.preventDefault(); actions[map[e.target.id]](); }
+    else if (e.target.id && e.target.id.startsWith('poll-add-')) { e.preventDefault(); actions['poll-add']({ dataset: { id: e.target.id.slice(9) } }); }
   }
   if (e.key === 'Escape' && S.sheet) actions.close();
 });

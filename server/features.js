@@ -22,6 +22,7 @@ const ACH = [
   A('first', 'first_signal', 'common', 'Сигнальщик', 'Отправить сигнал офиса', 'signals_sent', 1),
   A('first', 'first_look', 'common', 'Стилист', 'Собрать свой аватар в конструкторе', 'looks', 1),
   A('first', 'first_battle', 'common', 'Свистать всех наверх', 'Вызвать кого-то на морской бой', 'battles', 1),
+  A('first', 'first_poll', 'common', 'Демократия', 'Запустить опрос в банде', 'polls', 1),
   A('first', 'quiz_first', 'common', 'Первый квиз', 'Ответить на квиз недели', 'quiz_any', 1),
   A('first', 'profile_full', 'rare', 'Открытая книга', 'Заполнить профиль на 100%', 'profile', 100),
 
@@ -55,6 +56,9 @@ const ACH = [
   A('grow', 'signals20', 'legendary', 'Всевидящее око', '20 подтверждённых сигналов', 'signals', 20, { series: 'signals' }),
   A('grow', 'two_offices', 'rare', 'Путешественник', 'Побывать в двух офисах', 'offices', 2, { series: 'offices' }),
   A('grow', 'all_offices', 'legendary', 'Все этажи', 'Побывать во всех трёх офисах', 'offices', 3, { series: 'offices' }),
+  A('grow', 'votes5', 'common', 'Избиратель', 'Проголосовать в 5 опросах банды', 'poll_votes', 5, { series: 'votes' }),
+  A('grow', 'votes25', 'rare', 'Избиратель II', 'Проголосовать 25 раз', 'poll_votes', 25, { series: 'votes' }),
+  A('grow', 'votes100', 'legendary', 'Голос народа', 'Проголосовать 100 раз', 'poll_votes', 100, { series: 'votes' }),
   A('grow', 'sea_clean', 'rare', 'Ни царапины', 'Победить, не потеряв ни одного корабля', 'sea_clean', 1),
 
   // ---- Каждый день ----
@@ -227,7 +231,7 @@ function register(ctx) {
 
   const COUNTER_KEYS = ['checkins', 'replies', 'thanks_given', 'thanks_got', 'canteen', 'signals', 'coffee', 'guess_ok', 'quiz_ok', 'quiz_any',
     'sea_wins', 'sea_clean', 'sea_rivals', 'msgs', 'calls', 'dms', 'memes', 'lunches', 'food', 'looks', 'battles', 'signals_sent',
-    'day_streak', 'active_days', 'quest_all', 'early', 'dm_people', 'thanks_people', 'recruits', 'big_lunch',
+    'day_streak', 'active_days', 'quest_all', 'polls', 'poll_votes', 'early', 'dm_people', 'thanks_people', 'recruits', 'big_lunch',
     'st_hide', 'st_unfindable', 'st_incognito', 'st_night', 'st_ghost', 'st_slack'];
   function countersOf(uid, u) {
     const c = Object.fromEntries(COUNTER_KEYS.map((k) => [k, 0]));
@@ -307,6 +311,8 @@ function register(ctx) {
       if (type === 'meme') { bump(uid, 'memes'); if (seenPair(uid, 'dm', data.to)) bump(uid, 'dm_people'); }
       if (type === 'dm_reply') bump(uid, 'replies');
       if (type === 'signal_sent') bump(uid, 'signals_sent');
+      if (type === 'poll') bump(uid, 'polls');
+      if (type === 'poll_vote') bump(uid, 'poll_votes');
       if (type === 'battle_start') bump(uid, 'battles');
       if (type === 'recruit') bump(uid, 'recruits');
       if (type === 'checkout' && data.since && U.now() - data.since < 3600e3) flag(uid, 'st_ghost');
