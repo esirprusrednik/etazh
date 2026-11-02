@@ -1230,3 +1230,9 @@ a { color: var(--link); }
 @keyframes pigeon-flap { from { transform: scaleY(1); } to { transform: scaleY(-.5); } }
 @media (prefers-reduced-motion: reduce) { .pigeon { display: none; } }
 .vac-prog b { color: #3B2400; font-weight: 800; }
+
+/* Камень, ножницы, бумага: кулак и ножницы напротив */
+.duel-new { align-items: stretch; }
+.duel-start b { font-size: 12.5px; line-height: 1.2; text-align: center; padding: 0 4px; }
+.duel-start span { height: 30px; align-items: center; }
+.rps-duo { width: 64px; height: 30px; display: block; }

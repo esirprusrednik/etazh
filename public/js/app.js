@@ -724,8 +724,9 @@ const ICONS = {
   target: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 12h.01',
   help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7M12 17h.01',
   palette: 'M12 21a9 9 0 1 1 9-9c0 2-1.5 3-3.5 3H16a2 2 0 0 0-1.5 3.3c.5.6.3 1.7-.5 2.2-.6.3-1.3.5-2 .5zM7.5 11h.01M10 7.5h.01M15 7.5h.01',
-  rock: 'M7 11V8a1.5 1.5 0 0 1 3 0v3M10 10V7a1.5 1.5 0 0 1 3 0v3M13 10V7.5a1.5 1.5 0 0 1 3 0V11M16 10a1.5 1.5 0 0 1 3 0v4a7 7 0 0 1-7 7h-1a6 6 0 0 1-6-6v-2a2 2 0 0 1 2-2h3',
-  scissors: 'M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM8.1 7.9 20 18M8.1 16.1 20 6',
+  rock: 'M7 10.5V8a1.75 1.75 0 0 1 3.5 0v2.5M10.5 9V7.25a1.75 1.75 0 0 1 3.5 0V9M14 9.5V8a1.75 1.75 0 0 1 3.5 0v3M17.5 11a1.75 1.75 0 0 1 3.5 0v3.5a7 7 0 0 1-7 7h-2a7 7 0 0 1-7-7V12a2 2 0 0 1 2-2h4.5a2 2 0 0 1 0 4H9',
+  paper: 'M7.5 12.5V5.5a1.5 1.5 0 0 1 3 0v6M10.5 11V3.5a1.5 1.5 0 0 1 3 0V11M13.5 11V4.5a1.5 1.5 0 0 1 3 0V12M16.5 12V7.5a1.5 1.5 0 0 1 3 0V15a7 7 0 0 1-7 7h-1a7 7 0 0 1-6-3.4l-2.6-4.4a1.6 1.6 0 0 1 2.7-1.7l1.4 1.9',
+  scissors: 'M9.5 12.5 6.2 4.2a1.6 1.6 0 0 1 3-1.1l3.3 8.4M12.5 11.5l1.3-8a1.6 1.6 0 0 1 3.2.5l-1.2 8.5M15.8 12.5a1.6 1.6 0 0 1 3.2 0v2.5a6.5 6.5 0 0 1-6.5 6.5h-1a6.5 6.5 0 0 1-6.3-4.9l-.6-2.4a1.8 1.8 0 0 1 3.4-1.1l1 2.4M9.5 15c1.6-1.2 3.8-1.3 5.6-.2',
   glasses: 'M6.5 16a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM17.5 16a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM10 12.5h4M3 12.5 2 10M21 12.5l1-2.5',
   circle: 'M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16z',
   grid: 'M4 9h16M4 15h16M9 4v16M15 4v16'
@@ -1892,7 +1893,9 @@ function renderWarHero() {
 }
 
 // ===== Личные дуэли =====
-const RPS_EMO = { rock: 'rock', scissors: 'scissors', paper: 'hand' };
+const RPS_EMO = { rock: 'rock', scissors: 'scissors', paper: 'paper' };
+// Плитка «Камень, ножницы, бумага»: кулак и ножницы друг напротив друга
+const rpsDuo = () => `<svg class="rps-duo" viewBox="0 0 54 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><g transform="rotate(90 12 12)"><path d="${ICONS.rock}"/></g><g transform="translate(30 0) rotate(-90 12 12)"><path d="${ICONS.scissors}"/></g></svg>`;
 const RPS_NAME = { rock: 'Камень', scissors: 'Ножницы', paper: 'Бумага' };
 const PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
 const dieFace = (n, cls = '') => `<span class="die ${cls}" aria-label="${n}">${Array.from({ length: 9 }, (_, i) => `<i class="${PIPS[n] && PIPS[n].includes(i) ? 'on' : ''}"></i>`).join('')}</span>`;
@@ -1904,7 +1907,7 @@ function duelHead(d) {
   const res = d.result === 'win' ? '<span class="duel-res win">trophy Победа</span>' : d.result === 'lose' ? `<span class="duel-res lose">${d.resigned ? 'Сдался' : 'Поражение'}</span>` : d.result === 'draw' ? '<span class="duel-res">Ничья</span>' : '';
   const score = d.score ? `<span class="duel-score">${d.score.me} : ${d.score.opp}</span>` : '';
   const untouched = !d.mine && (d.game === 'ttt' ? !d.board.includes('me') : !d.rounds.some((r) => r.me));
-  return `<div class="duel-head"><b>${{ rps: 'rock КНБ', dice: 'dice Кости', ttt: 'x Крестики-нолики' }[d.game]}</b>${score}${res}${d.status === 'play' ? `<button class="linkbtn small" data-act="duel-resign" data-id="${d.id}" data-soft="${untouched ? 1 : 0}">${untouched ? 'отказаться' : 'сдаться'}</button>` : ''}</div>${stakeTag}`;
+  return `<div class="duel-head"><b>${{ rps: 'rock Камень, ножницы, бумага', dice: 'dice Кости', ttt: 'x Крестики-нолики' }[d.game]}</b>${score}${res}${d.status === 'play' ? `<button class="linkbtn small" data-act="duel-resign" data-id="${d.id}" data-soft="${untouched ? 1 : 0}">${untouched ? 'отказаться' : 'сдаться'}</button>` : ''}</div>${stakeTag}`;
 }
 function renderDuel(d) {
   const fresh = S.duelAnim && S.duelAnim.id === d.id && S.duelAnim.seq === d.seq;
@@ -1945,15 +1948,15 @@ function renderDuelsBox(f) {
   return `<section class="card duels">
     <div class="chats-head"><h3>game Дуэль</h3><span class="small">победа +2 зерна</span></div>
     <div class="duel-stake"><span class="small">Ставка:</span>${[0, 5, 10].map((x) => `<button class="chip ${(S.duelStake || 0) === x ? 'on' : ''}" data-act="duel-stake" data-v="${x}">${x ? x + ' зёрен' : 'без ставки'}</button>`).join('')}</div>
-    <div class="duel-new">${[['rps', 'rock', 'КНБ'], ['dice', 'dice', 'Кости'], ['ttt', 'xcircle', 'Крестики']].map(([g, e, t]) => `<button class="duel-start" data-act="duel-new" data-to="${f.id}" data-v="${g}"><span>${e}</span><b>${t}</b></button>`).join('')}</div>
-    ${hint('duel-rules', 'Правила дуэлей и ставок', `<ul class="ol"><li><b>КНБ</b> и <b>кости</b> — до двух побед. В КНБ ход соперника скрыт, пока не сходишь сам. Кости бросает сервер — подкрутить нельзя.</li><li><b>Крестики-нолики</b> — кто вызвал, ходит крестиками первым.</li><li><b>Ставка</b> 5 или 10 зёрен: вызвавший платит сразу, соперник — своим первым ходом. Не хочешь — откажись до хода, ничего не потеряешь. Победитель забирает обе ставки, ничья — возврат.</li><li>Победа без ставки — +2 зерна (до 3 раз в день). Брошенная на 3 дня дуэль закрывается, ставки возвращаются.</li></ul>`)}
+    <div class="duel-new">${[['rps', rpsDuo(), 'Камень, ножницы, бумага'], ['dice', 'dice', 'Кости'], ['ttt', 'xcircle', 'Крестики-нолики']].map(([g, e, t]) => `<button class="duel-start" data-act="duel-new" data-to="${f.id}" data-v="${g}"><span>${e}</span><b>${t}</b></button>`).join('')}</div>
+    ${hint('duel-rules', 'Правила дуэлей и ставок', `<ul class="ol"><li><b>Камень, ножницы, бумага</b> и <b>кости</b> — до двух побед. В камне-ножницах-бумаге ход соперника скрыт, пока не сходишь сам. Кости бросает сервер — подкрутить нельзя.</li><li><b>Крестики-нолики</b> — кто вызвал, ходит крестиками первым.</li><li><b>Ставка</b> 5 или 10 зёрен: вызвавший платит сразу, соперник — своим первым ходом. Не хочешь — откажись до хода, ничего не потеряешь. Победитель забирает обе ставки, ничья — возврат.</li><li>Победа без ставки — +2 зерна (до 3 раз в день). Брошенная на 3 дня дуэль закрывается, ставки возвращаются.</li></ul>`)}
     ${items.map(renderDuel).join('')}
   </section>`;
 }
 function renderDuelsCard() {
   const items = (S.duels || []).filter((d) => d.status === 'play');
   return `<section class="card duels-card"><div class="chats-head"><h3>game Дуэли один на один</h3><span class="small">${items.length ? `${items.filter((d) => d.myTurn).length} ждут тебя` : 'победа +2 зерна'}</span></div>
-    <div class="duel-new">${[['rps', 'rock', 'КНБ'], ['dice', 'dice', 'Кости'], ['ttt', 'xcircle', 'Крестики']].map(([g, e, t]) => `<button class="duel-start" data-act="duel-pick" data-v="${g}"><span>${e}</span><b>${t}</b></button>`).join('')}</div>
+    <div class="duel-new">${[['rps', rpsDuo(), 'Камень, ножницы, бумага'], ['dice', 'dice', 'Кости'], ['ttt', 'xcircle', 'Крестики-нолики']].map(([g, e, t]) => `<button class="duel-start" data-act="duel-pick" data-v="${g}"><span>${e}</span><b>${t}</b></button>`).join('')}</div>
     ${items.length ? '' : '<p class="small" style="margin:0">Выбери игру и соперника. Можно на ставку 5 или 10 зёрен — победитель забирает обе.</p>'}
     ${items.map((d) => `<button class="chat-row" data-act="dm-open" data-id="${d.opp.id}">${avatar(d.opp.look, 32)}<span class="grow"><span class="chat-title">${esc(d.opp.nick)}</span><span class="where">${{ rps: 'rock Камень, ножницы, бумага', dice: 'dice Кости', ttt: 'x Крестики-нолики' }[d.game]}${d.score ? ` · ${d.score.me}:${d.score.opp}` : ''}</span></span>${d.myTurn ? '<span class="crew-badge">!</span>' : ''}</button>`).join('')}</section>`;
 }
@@ -3670,7 +3673,7 @@ function renderShop() {
     <h3>Как заработать</h3>
     <div class="earn">
       <div class="earn-g"><b>where Каждый день</b><span>Отметка в офисе или «из дома» — +5</span><span>Столовая — +2 (до 2 раз)</span><span>Ответ на зов — +1 (до 10)</span><span>Подтверждённый сигнал офиса — +2 (до 3)</span><span>Задания дня — +3 за каждое, +5 за все</span><span>Спасибо от коллеги — +1</span></div>
-      <div class="earn-g"><b>game Игры</b><span>game <b>Дуэли</b> (КНБ, кости, крестики) — +2 за победу, до 3 раз в день</span><span>coin Дуэль на ставку — победитель забирает обе ставки (5 или 10 зёрен)</span><span>anchor Морской бой — +5 за первую победу в день</span><span>Квиз недели — +3 за верный ответ, блиц — до +10</span><span>«Кто из наших?» — +1 за верный ответ</span></div>
+      <div class="earn-g"><b>game Игры</b><span>game <b>Дуэли</b> (камень-ножницы-бумага, кости, крестики-нолики) — +2 за победу, до 3 раз в день</span><span>coin Дуэль на ставку — победитель забирает обе ставки (5 или 10 зёрен)</span><span>anchor Морской бой — +5 за первую победу в день</span><span>Квиз недели — +3 за верный ответ, блиц — до +10</span><span>«Кто из наших?» — +1 за верный ответ</span></div>
       <div class="earn-g"><b>swords Банда</b><span>Битва банд: герою-победителю +20, всей банде по +5</span><span>Ставки в битвах — делите банк соперника</span><span>Кубок месяца: чемпионам по +15, финалистам по +5</span><span>Призовые места в Лиге: до +30 за неделю и до +100 за месяц</span><span>Банда набрала 3 человек — залог 50 вернётся</span></div>
       <div class="earn-g"><b>medal Прочее</b><span>Ачивки: обычные, редкие и легендарные — в том числе за дуэли</span><span>Приведи новичка по своей ссылке — +15</span><span>Принятая идея или найденный баг — +10</span></div>
     </div>`;
