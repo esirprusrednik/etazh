@@ -374,6 +374,33 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.ok(Object.values(st).every((v) => typeof v === 'number'), 'одни числа');
   });
 
+  await step('события банды: любой создаёт, «иду/может/не смогу», чужим не видно, отменяет автор или владелец', async () => {
+    const day = new Date(Date.parse(mskToday() + 'T00:00:00Z') + 3 * 864e5).toISOString().slice(0, 10);
+    assert.equal((await b.post(`/api/gangs/${g.id}/gevents`, { kind: 'party', title: 'Сабантуй', day: '2020-01-01' })).status, 400, 'прошлое нельзя');
+    const r = await b.post(`/api/gangs/${g.id}/gevents`, { kind: 'party', title: 'Сабантуй перед праздником', day, time: '18:30', place: 'Кафе внизу', note: 'По 500' });
+    assert.equal(r.status, 200);
+    const id = r.json.id;
+    let v = (await a.get(`/api/gangs/${g.id}/gevents`)).json;
+    const e = v.upcoming.find((x) => x.id === id);
+    assert.equal(e.yes.length, 1, 'автор сразу идёт'); assert.equal(e.inDays, 3); assert.equal(e.canCancel, true, 'владелец банды может отменить');
+    assert.ok(Array.isArray(v.kinds) && v.kinds.length >= 5);
+    await a.post(`/api/gevents/${id}/rsvp`, { answer: 'yes' });
+    await c.post(`/api/gevents/${id}/rsvp`, { answer: 'maybe' });
+    v = (await c.get(`/api/gangs/${g.id}/gevents`)).json;
+    const e2 = v.upcoming.find((x) => x.id === id);
+    assert.equal(e2.yes.length, 2); assert.equal(e2.maybe.length, 1); assert.equal(e2.my, 'maybe'); assert.equal(e2.canCancel, false);
+    await c.post(`/api/gevents/${id}/rsvp`, { answer: 'maybe' });
+    assert.equal((await c.get(`/api/gangs/${g.id}/gevents`)).json.upcoming.find((x) => x.id === id).my, null, 'повторное нажатие снимает ответ');
+    const outsider = await new Client().login('chuzhoy@mts.ru', 'посторонний_ёж');
+    assert.equal((await outsider.get(`/api/gangs/${g.id}/gevents`)).status, 404, 'чужим не видно');
+    assert.equal((await outsider.post(`/api/gevents/${id}/rsvp`, { answer: 'yes' })).status, 404);
+    assert.equal((await c.post(`/api/gevents/${id}/cancel`)).status, 400, 'не автор и не владелец');
+    const chat = (await a.get(`/api/gangs/${g.id}`)).json.messages.map((m) => m.text).join('\n');
+    assert.ok(/Событие: «Сабантуй перед праздником»/.test(chat), 'в чате — отметка');
+    assert.equal((await a.post(`/api/gevents/${id}/cancel`)).status, 200);
+    assert.ok(!(await b.get(`/api/gangs/${g.id}/gevents`)).json.upcoming.some((x) => x.id === id));
+  });
+
   console.log(`\nВсё прошло: ${passed} проверок`);
 })()
   .catch((e) => { console.error('\nПровал:', e.message, '\n--- лог ---\n' + log.slice(-2000)); process.exitCode = 1; })

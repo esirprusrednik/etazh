@@ -170,6 +170,7 @@ const DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт'];
 function createApi(db) {
   let features = null;
   let league = null;
+  let gevents = null;
   const MAX_MEMBERS = 30;      // больше 30 — уже не банда, а отдел
   const gangLimit = (g) => Math.min(g.max_members || MAX_MEMBERS, MAX_MEMBERS);
   let crew = null;
@@ -1398,6 +1399,7 @@ function createApi(db) {
   battle = require('./battle').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, publicLook, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   blitz = require('./blitz').register({ db, q, route, requireUser, bad, U, addBeans, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   polls = require('./polls').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, rateLimit, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
+  gevents = require('./gevents').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, rateLimit, readProfile, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   league = require('./league').register({ db, q, route, requireUser, U, addBeans, notify, fireAndForget });
   feedback = require('./feedback').register({ db, q, route, requireUser, requireAdmin, bad, U, addBeans, notify, fireAndForget, HttpError, BUILD });
 
@@ -1462,6 +1464,7 @@ function createApi(db) {
     if (quiz) quiz.cleanup();
     if (feedback) feedback.cleanup();
     if (polls) polls.cleanup();
+    if (gevents) gevents.cleanup();
   }
 
   return { handle, verifyLogin, cleanup, HttpError };
