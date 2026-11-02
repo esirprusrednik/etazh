@@ -1308,9 +1308,9 @@ function renderGames() {
     <button class="btn small" data-act="open" data-v="battle-pick">Вызвать на бой</button>
   </section>`;
   return `${pageHead('Игры', 'Задания, квизы и бои со своими. За всё дают зёрна, их тратят в Лавке')}
+    ${renderDuelsCard()}
     ${renderLeagueCard()}
     ${renderTourCard()}
-    ${renderDuelsCard()}
     ${renderQuests()}
     ${renderBlitzCard()}
     ${renderQuiz()}
@@ -1805,8 +1805,9 @@ function renderDuelsBox(f) {
 }
 function renderDuelsCard() {
   const items = (S.duels || []).filter((d) => d.status === 'play');
-  if (!items.length) return '';
-  return `<section class="card"><div class="chats-head"><h3>🎮 Дуэли</h3><span class="small">${items.filter((d) => d.myTurn).length} ждут тебя</span></div>
+  return `<section class="card duels-card"><div class="chats-head"><h3>🎮 Дуэли один на один</h3><span class="small">${items.length ? `${items.filter((d) => d.myTurn).length} ждут тебя` : 'победа +2 зерна'}</span></div>
+    <div class="duel-new">${[['rps', '✊', 'КНБ'], ['dice', '🎲', 'Кости'], ['ttt', '❌⭕', 'Крестики']].map(([g, e, t]) => `<button class="duel-start" data-act="duel-pick" data-v="${g}"><span>${e}</span><b>${t}</b></button>`).join('')}</div>
+    ${items.length ? '' : '<p class="small" style="margin:0">Выбери игру и соперника. Можно на ставку 5 или 10 зёрен — победитель забирает обе.</p>'}
     ${items.map((d) => `<button class="chat-row" data-act="dm-open" data-id="${d.opp.id}">${avatar(d.opp.look, 32)}<span class="grow"><span class="chat-title">${esc(d.opp.nick)}</span><span class="where">${{ rps: '✊ Камень, ножницы, бумага', dice: '🎲 Кости', ttt: '❌ Крестики-нолики' }[d.game]}${d.score ? ` · ${d.score.me}:${d.score.opp}` : ''}</span></span>${d.myTurn ? '<span class="crew-badge">!</span>' : ''}</button>`).join('')}</section>`;
 }
 
@@ -2655,6 +2656,11 @@ function renderSheet() {
     case 'dm-pick': return sheetWrap('Написать в личку', `<p class="sub" style="margin:0">Написать можно любому — если он сам не ограничил личку. Подельникам и своей банде — проще всего.</p>
       <button class="find-bar light" data-act="find-open">${ico('search', 18)}<span>Найти человека по нику или почте</span></button>
       ${(S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${p.crew ? '<span class="fav-star">★</span> ' : ''}${esc(p.nick)}</span><span class="where">${esc(p.gangs.map((g) => g.name).join(', ') || (p.crew ? 'подельник' : whereText(p)[0]))}</span></span><span aria-hidden="true">›</span></button>`).join('')}`);
+    case 'duel-pick': return sheetWrap(`${{ rps: '✊ Камень, ножницы, бумага', dice: '🎲 Кости', ttt: '❌ Крестики-нолики' }[S.duelGame] || 'Дуэль'}: с кем?`, `
+      <div class="duel-stake"><span class="small">Ставка:</span>${[0, 5, 10].map((x) => `<button class="chip ${(S.duelStake || 0) === x ? 'on' : ''}" data-act="duel-stake" data-v="${x}">${x ? x + ' зёрен' : 'без ставки'}</button>`).join('')}</div>
+      ${(S.people || []).length ? (S.people || []).map((p) => `<button class="chat-row" data-act="duel-go" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${p.crew ? '<span class="fav-star">★</span> ' : ''}${esc(p.nick)}</span><span class="where">${esc(whereText(p)[0])}</span></span><span aria-hidden="true">⚔️</span></button>`).join('') : '<p class="sub">Пока некого вызвать: найди своих по нику или вступи в банду.</p>'}
+      <button class="find-bar light" data-act="find-open">${ico('search', 18)}<span>Найти соперника по нику</span></button>
+      <p class="small" style="margin:0">Вызвать можно любого, кому можно написать лично. Дуэль появится у вас в личке.</p>`);
     case 'battle-pick': return sheetWrap('С кем сыграть?', (S.people || []).length ? (S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${esc(p.nick)}</span><span class="where">${esc(whereText(p)[0])}</span></span><span aria-hidden="true">›</span></button>`).join('') + '<p class="small">Откроется переписка — там выбери «Без спешки» или «Быстрая».</p>' : '<p class="sub">Сначала сколоти банду и позови в неё своих.</p>');
     case 'whatsnew': return sheetWrap('Что поменялось', `<div class="wn">
       <div class="wn-i"><span>👥</span><div><b>Рядом</b><p>Главный экран: где ты сегодня и все твои люди одним списком — кто в офисе, кто дома, кто в отпуске.</p></div></div>
@@ -3006,7 +3012,7 @@ function sfx(name, arg) {
 const tabSound = (tab) => sfx('tab', tab);
 
 // Какой звук у какого нажатия. Свои звуки у вкладок, выстрелов, сдачи и Лавки — их играют сами действия
-const FEEL_SELF = new Set(['war-bet', 'war-cheer', 'war-volunteer', 'tourney-reg', 'duel-rps', 'duel-roll', 'duel-cell', 'duel-new', 'war-start', 'war-send', 'war-accept', 'tab', 'blitz-pick', 'bshoot', 'bresign', 'sound-toggle', 'vibro-toggle', 'sound-test', 'splash-skip']);
+const FEEL_SELF = new Set(['duel-go', 'war-bet', 'war-cheer', 'war-volunteer', 'tourney-reg', 'duel-rps', 'duel-roll', 'duel-cell', 'duel-new', 'war-start', 'war-send', 'war-accept', 'tab', 'blitz-pick', 'bshoot', 'bresign', 'sound-toggle', 'vibro-toggle', 'sound-test', 'splash-skip']);
 const FEEL = {
   open: 'open', 'open-sec': 'open', person: 'open', 'find-open': 'open', 'poll-new': 'open', 'gev-new': 'open', 'ava-open': 'open', 'ava-open-vac': 'open', 'meme-open': 'open', 'pcall-open': 'open',
   'call-open': 'open', 'dm-call-open': 'open', 'battle-new': 'open', 'crew-share': 'open',
@@ -3594,6 +3600,14 @@ const actions = {
     const r = await post('/api/duels', { to: Number(el.dataset.to), game: el.dataset.v, stake: S.duelStake || 0 });
     if (S.duelStake) loadMe().catch(() => {});
     sfx(r.existing ? 'open' : 'fanfare'); toast(r.existing ? 'Эта дуэль уже идёт' : 'Вызов брошен!'); await loadDuels(S.dm);
+  }),
+  'duel-pick'(el) { S.duelGame = el.dataset.v; S.sheet = 'duel-pick'; S.lastSheet = null; render(); },
+  'duel-go': (el) => run(async () => {
+    const to = Number(el.dataset.id);
+    const r = await post('/api/duels', { to, game: S.duelGame, stake: S.duelStake || 0 });
+    sfx(r.existing ? 'open' : 'fanfare'); toast(r.existing ? 'Эта дуэль уже идёт — открываем' : 'Вызов брошен!');
+    S.sheet = null; S.tab = 'chats'; S.chatGang = false; S.battle = null; S.dm = to; S.dmView = null; render();
+    await Promise.all([loadDm(), loadMe()]); window.scrollTo(0, 0);
   }),
   'duel-stake'(el) { S.duelStake = Number(el.dataset.v); sfx('pick'); render(); },
   'duel-rps': (el) => run(async () => {
