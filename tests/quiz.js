@@ -161,7 +161,9 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     const dm = chats.items.find((x) => x.type === 'dm' && x.id === c.id);
     assert.equal(dm.unread, 1); assert.ok(dm.last.text.includes('Привет'));
     const z = await new Client().login('zed@mts.ru', 'чужак_зет');
-    assert.equal((await z.post(`/api/crew/${d.id}/messages`, { type: 'text', text: 'эй' })).status, 404, 'чужим нельзя');
+    await d.post('/api/me/profile', { profile: { dmFrom: 'gang' } });
+    assert.equal((await z.post(`/api/crew/${d.id}/messages`, { type: 'text', text: 'эй' })).status, 400, 'личка только для банды — чужим нельзя');
+    await d.post('/api/me/profile', { profile: { dmFrom: 'all' } });
     assert.equal((await c.post('/api/battle', { to: d.id })).status, 200, 'бой с участником банды');
   });
 
