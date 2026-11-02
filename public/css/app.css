@@ -1217,3 +1217,5 @@ a { color: var(--link); }
 /* На золотом фоне текст всегда тёмный — в любой теме */
 .status-chip, .banner, .ava-tile em, .ts-beta, .logo-beta { color: var(--gold-ink); }
 .status-chip { font-weight: 800; }
+:root[data-theme="dark"] .lg-mine .g-stats div { background: var(--s1); }
+.banner .x { color: var(--gold-ink); }
