@@ -1457,6 +1457,10 @@ function renderSignalsMini() {
 
 const ddmm = (d) => (d ? `${d.slice(8, 10)}.${d.slice(5, 7)}` : '');
 function whereText(r) {
+  const [t, c] = whereText0(r);
+  return r.vacSoon ? [`🌴 с ${ddmm(r.vacSoon)} в отпуске · ${t}`, c] : [t, c];
+}
+function whereText0(r) {
   if (r.where === 'office') return [r.officeName || officeName(r.office), '#1F7A3A'];
   if (r.where === 'home') return [r.planned ? 'из дома (по плану)' : 'работает из дома', '#2563C9'];
   if (r.where === 'plan_office') return ['собирается в офис (по плану)', '#7BC79A'];
@@ -1474,11 +1478,11 @@ function whereText(r) {
 function renderToday() {
   const st = S.state;
   const p = st.presence;
-  const vacIn = st.nextVacation ? Math.round((Date.parse(st.nextVacation.from) - Date.parse(st.today)) / 864e5) : 0;
-  const next = st.nextVacation ? `<p class="small">Следующий отпуск: ${ddmm(st.nextVacation.from)}–${ddmm(st.nextVacation.to)} · ${vacIn === 1 ? 'уже завтра 🌴' : `через ${vacIn} ${plural(vacIn, 'день', 'дня', 'дней')}`}</p>` : '';
+  const next = renderVacSoon();
   if (p.where === 'vacation') {
     return `<section class="card" style="background:#FFF4E0">
       <h2>🌴 Ты в отпуске${p.until === st.today ? ' сегодня' : ` до ${ddmm(p.until)}`}</h2>
+      ${st.vacNow ? `<p class="vac-back">Выходить <b>${st.vacNow.backDow.toLowerCase()} ${ddmm(st.vacNow.back)}</b>${st.vacNow.restDays > 1 ? ` · ещё ${st.vacNow.restDays} ${plural(st.vacNow.restDays, 'день', 'дня', 'дней')} отдыха` : ' · последний день, лови момент'}</p>` : ''}
       <p class="sub">Банда видит статус «в отпуске», зовы не присылают пуши — прочитаешь в чате, когда вернёшься.</p>
       <div class="row" style="gap:8px"><button class="btn ghost grow" data-act="vac-end">Вышел из отпуска</button><button class="btn ghost grow" data-act="open" data-v="profile">График</button></div>
     </section>`;
@@ -1495,21 +1499,50 @@ function renderToday() {
       <h2>😏 Сегодня отлыниваешь</h2>
       <p class="sub">Честность — лучшая политика. Банда видит «отлынивает (${meG('сам признался', 'сама призналась')})».</p>
       <button class="btn ghost" data-act="today" data-v="">Ладно, работаю</button>
-    </section>`;
+    </section>${next}`;
   }
   if (p.where === 'idle') {
     return `<section class="card">
-      <p class="sub">Ты не ${meG('отметился', 'отметилась')}, и банда видит про тебя шутку: <b>«${esc((S.cat.idleJokes || [])[p.joke] || 'в астрале')}»</b>. Выбери статус или отметься в офисе.</p>${next}
-    </section>`;
+      <p class="sub">Ты не ${meG('отметился', 'отметилась')}, и банда видит про тебя шутку: <b>«${esc((S.cat.idleJokes || [])[p.joke] || 'в астрале')}»</b>. Выбери статус или отметься в офисе.</p>
+    </section>${next}`;
   }
   if (p.where === 'home') {
     return `<section class="card">
       <h2>🏠 Сегодня из дома${p.planned ? '?' : ''}</h2>
       <p class="sub">${p.planned ? 'Так в твоём плане на этот день недели. Подтверди — банда увидит, что ты на связи из дома. +5 зёрен, как за офис, и задание «Отметься» засчитается.' : 'Отметка стоит: банда видит «работает из дома». Приедешь — просто отметься в офисе.'}</p>
-      ${p.planned ? '<button class="btn" data-act="today" data-v="home">Да, сегодня из дома</button>' : '<div class="row" style="gap:8px;align-items:center"><span class="note good grow" style="margin:0">✓ Отмечено</span><button class="btn small ghost" data-act="today" data-v="">Отменить</button></div>'}${next}
-    </section>`;
+      ${p.planned ? '<button class="btn" data-act="today" data-v="home">Да, сегодня из дома</button>' : '<div class="row" style="gap:8px;align-items:center"><span class="note good grow" style="margin:0">✓ Отмечено</span><button class="btn small ghost" data-act="today" data-v="">Отменить</button></div>'}
+    </section>${next}`;
   }
-  return next ? `<section class="card">${next}</section>` : '';
+  return next;
+}
+
+// Скорый отпуск: обратный отсчёт, «2 дня отпуска → 5 дней отдыха», что сделать до ухода
+function renderVacSoon() {
+  const v = S.state.nextVacation;
+  if (!v) return '';
+  const range = `${ddmm(v.from)}${v.to !== v.from ? `–${ddmm(v.to)}` : ''}`;
+  if (v.in > 21) return `<div class="vac-far">🌴 Следующий отпуск ${range} · через ${v.in} ${plural(v.in, 'день', 'дня', 'дней')}</div>`;
+  const bonus = v.restDays > v.vacDays;
+  const ann = store.get('vacAnn:' + v.from);
+  const hasGang = S.me.gangs.length > 0;
+  const big = v.in === 1 ? 'завтра' : v.workLeft === 0 ? 'вот-вот' : '';
+  const dots = v.workLeft > 0 && v.workLeft <= 10 ? `<div class="vac-dots">${Array.from({ length: v.workLeft }, () => '<i></i>').join('')}<span>${v.workLeft === 1 ? 'последний рабочий день' : `осталось отработать ${v.workLeft} ${plural(v.workLeft, 'день', 'дня', 'дней')}`}</span></div>` : '';
+  return `<section class="card vac-soon">
+    <div class="vac-top">
+      <div class="vac-count">${big ? `<b class="w">${big}</b>` : `<b>${v.in}</b><span>${plural(v.in, 'день', 'дня', 'дней')}</span>`}</div>
+      <div class="grow">
+        <div class="vac-k">до отпуска 🌴</div>
+        <div class="vac-range">${range}</div>
+        <div class="vac-sub">${bonus ? `${v.vacDays} ${plural(v.vacDays, 'день', 'дня', 'дней')} отпуска → <b>${v.restDays} ${plural(v.restDays, 'день', 'дня', 'дней')} отдыха</b>` : `${v.restDays} ${plural(v.restDays, 'день', 'дня', 'дней')} отдыха`} · выходить ${v.backDow.toLowerCase()} ${ddmm(v.back)}</div>
+      </div>
+    </div>
+    ${dots}
+    <div class="vac-acts">
+      ${hasGang ? (ann ? '<span class="vac-done">✓ Банда в курсе</span>' : '<button class="vac-btn" data-act="vac-tell">📣 Сказать банде</button>') : ''}
+      ${hasGang ? '<button class="vac-btn" data-act="vac-party">🎉 Проводы</button>' : ''}
+      ${!S.me.profile.vacationLook ? '<button class="vac-btn" data-act="ava-open-vac">🕶 Образ для отпуска</button>' : ''}
+    </div>
+  </section>`;
 }
 const officeName = (id) => (S.cat.offices.find((o) => o.id === id) || {}).name || '';
 
@@ -3066,7 +3099,7 @@ const tabSound = (tab) => sfx('tab', tab);
 // Какой звук у какого нажатия. Свои звуки у вкладок, выстрелов, сдачи и Лавки — их играют сами действия
 const FEEL_SELF = new Set(['tr-buy', 'tr-vote', 'tr-equip', 'duel-go', 'war-bet', 'war-cheer', 'war-volunteer', 'tourney-reg', 'duel-rps', 'duel-roll', 'duel-cell', 'duel-new', 'war-start', 'war-send', 'war-accept', 'tab', 'blitz-pick', 'bshoot', 'bresign', 'sound-toggle', 'vibro-toggle', 'sound-test', 'splash-skip']);
 const FEEL = {
-  open: 'open', 'open-sec': 'open', person: 'open', 'find-open': 'open', 'poll-new': 'open', 'gev-new': 'open', 'ava-open': 'open', 'ava-open-vac': 'open', 'meme-open': 'open', 'pcall-open': 'open',
+  open: 'open', 'open-sec': 'open', person: 'open', 'find-open': 'open', 'poll-new': 'open', 'gev-new': 'open', 'ava-open': 'open', 'ava-open-vac': 'open', 'vac-party': 'open', 'meme-open': 'open', 'pcall-open': 'open',
   'call-open': 'open', 'dm-call-open': 'open', 'battle-new': 'open', 'crew-share': 'open',
   'gang-open': 'open', 'dm-open': 'open', 'battle-open': 'open',
   close: 'close', 'close-bg': 'close', 'chats-back': 'close', 'dm-back': 'close', 'battle-back': 'close', 'onb-back': 'close', 'nick-no': 'close', 'food-cancel': 'close', 'feed-close': 'close', 'coach-skip': 'close',
@@ -3967,6 +4000,19 @@ const actions = {
     const r = await post('/api/feedback', { kind: (S.fb || {}).kind || 'idea', text, tab: S.tab });
     S.fb = { kind: (S.fb || {}).kind || 'idea', text: '' }; S.fbItems = r.items;
     toast('Спасибо! Ответим здесь и пушем');
+  }),
+  'vac-tell': () => run(async () => {
+    const v = S.state.nextVacation; const gid = S.me.gangs[0].id;
+    const range = `${ddmm(v.from)}${v.to !== v.from ? `–${ddmm(v.to)}` : ''}`;
+    const text = `🌴 Ухожу в отпуск ${range}, выхожу ${v.backDow.toLowerCase()} ${ddmm(v.back)}. Если что-то срочное — ловите до ${ddmm(v.lastWork)}`;
+    await post(`/api/gangs/${gid}/messages`, { type: 'text', text });
+    store.set('vacAnn:' + v.from, 1); toast('Написал в чат банды'); sfx('confirm'); render();
+  }),
+  'vac-party': () => run(async () => {
+    const v = S.state.nextVacation;
+    S.activeGang = S.me.gangs[0].id; await loadGEvents();
+    S.gevDraft = { kind: 'party', title: 'Проводы в отпуск', day: v.lastWork, time: '18:00', place: '', note: `Ухожу ${ddmm(v.from)}, выхожу ${ddmm(v.back)}` };
+    S.sheet = 'gev-new'; S.error = ''; render();
   }),
   'gev-new'(el) {
     const x = el && el.dataset.sug !== undefined && S.gev ? S.gev.suggestions[Number(el.dataset.sug)] : null;

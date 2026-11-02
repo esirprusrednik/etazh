@@ -98,6 +98,20 @@ const DEFAULT_LOOK = { preset: 'm', face: 'oval', eyes: '#22252D', mouth: 'smile
 const DEFAULT_PROFILE = { coffee: false, mood: 'coffee', home: null, days: [], plan: {}, today: null, vacations: [], about: '', tags: [], bday: '', showBday: true, firstName: '', lastName: '', nameVis: 'gang', vacationLook: null, findable: true, dmFrom: 'all' };
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const addDays = (day, n) => new Date(Date.parse(day + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
+const dayDiff = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 864e5);
+// Отпуск вместе с прилегающими выходными и праздниками: когда реально начинается и кончается отдых,
+// какой последний рабочий день перед ним и когда выходить. «2 дня отпуска → 5 дней отдыха».
+function vacRest(v, today, night) {
+  let restFrom = v.from;
+  for (let i = 0; i < 14 && !weekdayName(addDays(restFrom, -1)); i++) restFrom = addDays(restFrom, -1);
+  let back = addDays(v.to, 1);
+  for (let i = 0; i < 14 && !weekdayName(back); i++) back = addDays(back, 1);
+  const lastWork = addDays(restFrom, -1);
+  let workLeft = 0;
+  for (let d = today; d <= lastWork && workLeft < 60; d = addDays(d, 1)) if (weekdayName(d) && !(d === today && night)) workLeft++;
+  const vacDays = dayDiff(v.from, v.to) + 1;
+  return { from: v.from, to: v.to, in: dayDiff(today, v.from), vacDays, restFrom, restDays: dayDiff(restFrom, back), back, backDow: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'][new Date(back + 'T00:00:00Z').getUTCDay()], lastWork, workLeft };
+}
 // День плана недели для рабочего дня; null — выходной или праздник по производственному календарю
 const HOL = require('./holidays');
 const weekdayName = (day) => HOL.workdayName(day);
@@ -367,7 +381,8 @@ function createApi(db) {
     const look = publicLook(member);
     return {
       id: member.id, nick: member.nick, name: fullName(prof, 'gang'), mood: (U.fem(look) && MOODS_F[prof.mood]) || MOODS[prof.mood] || '', where: pr.where, office: pr.office || null,
-      until: pr.until || null, planned: !!pr.planned, joke: pr.joke ?? null, look, status: statusName(look.status)
+      until: pr.until || null, planned: !!pr.planned, joke: pr.joke ?? null, look, status: statusName(look.status),
+      vacSoon: member.share_office && pr.where !== 'vacation' ? ((prof.vacations || []).find((v) => v.from > U.msk().day && dayDiff(U.msk().day, v.from) <= 5) || {}).from || null : null
     };
   }
 
@@ -653,7 +668,8 @@ function createApi(db) {
       checkin: ci ? { office: ci.office_id, name: office.name, at: ci.at, since: U.msk(ci.at).hhmm } : null,
       today: U.msk().day, build: BUILD,
       presence: presenceOf(u.profile, ci, u.id),
-      nextVacation: u.profile.vacations.find((v) => v.from > U.msk().day) || null,
+      nextVacation: (() => { const v = u.profile.vacations.filter((x) => x.from > U.msk().day).sort((a, b) => (a.from < b.from ? -1 : 1))[0]; return v ? vacRest(v, U.msk().day, U.isAfterCheckinCutoff()) : null; })(),
+      vacNow: (() => { const pr = presenceOf(u.profile, ci, u.id); return pr.where === 'vacation' ? vacRest({ from: U.msk().day, to: pr.until || U.msk().day }, U.msk().day, true) : null; })(),
       canteen: office ? canteenEstimate(office) : null,
       inCanteen: !!canteenOpen,
       gangNow: { hasGang: gangs.length > 0, rows: rows.slice(0, 6), more: Math.max(0, rows.length - 6) },
