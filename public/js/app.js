@@ -471,7 +471,12 @@ function renderNick() {
     <div class="logo">Этаж<span>.</span></div>
     <div class="card">
       <h2>Придумай никнейм</h2>
-      <p class="sub">Его видят все на Этаже. Без ФИО и должностей — так веселее. Менять можно раз в 30 дней.</p>
+      <p class="sub">По нему тебя узнают на Этаже. ФИО и должность оставь для почты, здесь веселее под псевдонимом.</p>
+      <div class="nick-rules">
+        <p><b>Можно почти всё:</b> гроза_дедлайнов, повелитель_кофемашины, просто_Петя. Буквы, цифры и «_», от 3 до 20 символов.</p>
+        <p><b>Нельзя:</b> мат, оскорбления и шутки, над которыми смеёшься только ты. Проверка простая: такой ник не стыдно произнести вслух на планёрке.</p>
+        <p><b>Передумаешь</b> — сменишь в профиле когда угодно за ${S.cat ? S.cat.nickPrice : 50} зёрен. Первый ник бесплатный, старый после смены сразу освобождается.</p>
+      </div>
       <div class="chips">${o.nicks.map((n) => `<button class="chip" data-act="nick-pick" data-v="${esc(n)}">${esc(n)}</button>`).join('')}
         <button class="chip" data-act="nick-more">Ещё варианты</button></div>
       <label class="field">Никнейм<input id="nick" maxlength="21" autocomplete="off" placeholder="бодрый_енот" value="${esc(o.nick || '')}"></label>

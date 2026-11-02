@@ -574,3 +574,8 @@ body { font-weight: 500; }
 .ach-lv i.on.common { background: #3A86FF; } .ach-lv i.on.rare { background: var(--violet); } .ach-lv i.on.legendary { background: #F4A72C; }
 .ach.secret:not(.got) { background: #2A3352; color: #AEB6CF; opacity: 1; }
 .ach.secret:not(.got) .ach-ico { background: #3A4466; color: #fff; }
+
+/* Правила ника на экране знакомства */
+.nick-rules { background: #F4F6FB; border-radius: 14px; padding: 10px 12px; font-size: 13px; line-height: 1.45; color: var(--muted); }
+.nick-rules p { margin: 0 0 6px; } .nick-rules p:last-child { margin: 0; }
+.nick-rules b { color: var(--ink); }
