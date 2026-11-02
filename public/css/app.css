@@ -654,3 +654,4 @@ button.quest:disabled { cursor: default; }
 .bl-opt.bad { background: #E5484D !important; color: #fff !important; }
 .bl-opt.dim { opacity: .45; }
 @media (prefers-reduced-motion: reduce) { .bl-time.hot { animation: none; } }
+.swatch.same { background: repeating-linear-gradient(45deg, #fff 0 4px, #EEF1F7 4px 8px); color: var(--ink); font-weight: 900; font-size: 16px; display: grid; place-items: center; }
