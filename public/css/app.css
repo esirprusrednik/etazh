@@ -1236,3 +1236,8 @@ a { color: var(--link); }
 .duel-start b { font-size: 12.5px; line-height: 1.2; text-align: center; padding: 0 4px; }
 .duel-start span { height: 32px; align-items: center; }
 .rps-duo { width: 50px; height: 32px; display: block; }
+
+/* Лавка: «Надето» — спокойная серая отметка (нажать — снять), «Надеть» — доступно, акцентом */
+.btn.worn { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1.5px var(--line); font-weight: 700; gap: 4px; }
+.btn.worn .ei { color: var(--green); }
+.btn.ghost.wear { color: var(--tint-v-fg); background: var(--tint-v); }

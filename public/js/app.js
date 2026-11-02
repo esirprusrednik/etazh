@@ -1753,7 +1753,7 @@ function renderTreasury() {
       <span class="small">Предложил(а) ${esc(v.author)} · за — ${v.za}, против — ${v.protiv} из ${v.members}. Досрочно решит ${v.needEarly}, иначе через ${Math.max(0, Math.round((v.endsAt - Date.now()) / 3600e3))} ч при кворуме ${v.quorum}. Голос тайный.</span>
       <div class="row"><button class="btn small grow ${v.my === 1 ? 'green' : ''}" data-act="tr-vote" data-v="1">thumbUp За${v.my === 1 ? ' ✓' : ''}</button><button class="btn small ghost grow" data-act="tr-vote" data-v="-1">thumbDown Против${v.my === -1 ? ' ✓' : ''}</button></div></div>` : '';
   const action = (it) => {
-    if (it.owned) return t.isOwner ? `<button class="btn small ${it.equipped ? 'green' : 'ghost'}" data-act="tr-equip" data-v="${it.id}" data-slot="${it.slot}" data-on="${it.equipped ? '0' : '1'}">${it.equipped ? 'Надето' : 'Надеть'}</button>` : `<span class="small">${it.equipped ? 'надето' : 'есть'}</span>`;
+    if (it.owned) return t.isOwner ? `<button class="btn small ${it.equipped ? 'worn' : 'ghost wear'}" data-act="tr-equip" data-v="${it.id}" data-slot="${it.slot}" data-on="${it.equipped ? '0' : '1'}">${it.equipped ? 'check Надето' : 'Надеть'}</button>` : `<span class="small">${it.equipped ? 'надето' : 'есть'}</span>`;
     const short = t.balance < it.price;
     if (it.needVote) return `<button class="btn small ${short ? 'ghost' : ''}" data-act="tr-buy" data-v="${it.id}" ${short || v ? 'disabled' : ''}>vote ${it.price}</button>`;
     return t.isOwner ? `<button class="btn small" data-act="tr-buy" data-v="${it.id}" ${short ? 'disabled' : ''}>bank ${it.price}</button>` : `<span class="small">bank ${it.price}</span>`;
@@ -3645,7 +3645,7 @@ function renderShop() {
     if (it.award) {
       const prev = it.kind === 'part' ? avatar({ ...S.me.look, [it.slot]: it.value, frame: null, crown: false }, 44) : avatar({ ...S.me.look, frame: it.id, crown: false }, 44);
       action = !it.owned ? '<span class="small">не продаётся</span>'
-        : it.kind === 'frame' ? `<button class="btn small ${it.equipped ? 'green' : 'ghost'}" data-act="equip" data-v="${it.id}" data-on="${it.equipped ? '0' : '1'}">${it.equipped ? 'Надето' : 'Надеть'}</button>`
+        : it.kind === 'frame' ? `<button class="btn small ${it.equipped ? 'worn' : 'ghost wear'}" data-act="equip" data-v="${it.id}" data-on="${it.equipped ? '0' : '1'}">${it.equipped ? 'check Надето' : 'Надеть'}</button>`
         : `<button class="btn small ghost" data-act="ava-open" data-cat="${it.slot === 'prop' ? 'meme' : 'acc'}">В конструктор</button>`;
       return `<div class="item">${prev}<div class="grow"><div style="font-weight:900">${esc(it.name)}</div><div class="small">${it.owned ? 'твой трофей' : 'за ' + esc(it.how)}</div></div>${action}</div>`;
     }
@@ -3657,7 +3657,7 @@ function renderShop() {
         : `<button class="btn small" data-act="buy" data-v="${it.id}" ${S.shop.beans < it.price ? 'disabled' : ''}>${it.price} ${BEAN}</button>`;
       return `<div class="item">${prev}<div class="grow"><div style="font-weight:900">${it.legend ? 'star ' : ''}${esc(it.name)}</div><div class="small">${it.owned ? 'куплено — надень в конструкторе' : 'можно примерить в конструкторе'}</div></div>${action}</div>`;
     } else if (it.owned) {
-      action = `<button class="btn small ${it.equipped ? 'green' : 'ghost'}" data-act="equip" data-v="${it.id}" data-on="${it.equipped ? '0' : '1'}">${it.equipped ? 'Надето' : 'Надеть'}</button>`;
+      action = `<button class="btn small ${it.equipped ? 'worn' : 'ghost wear'}" data-act="equip" data-v="${it.id}" data-on="${it.equipped ? '0' : '1'}">${it.equipped ? 'check Надето' : 'Надеть'}</button>`;
     } else if (it.left === 0) {
       action = '<span class="small">тираж закончился</span>';
     } else {
