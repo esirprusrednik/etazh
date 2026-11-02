@@ -2340,9 +2340,21 @@ function renderAvatarEditor() {
   const d = S.draft, L = S.cat.look;
   const cat = (S.avaCat === 'makeup' && d.preset !== 'f') || (S.avaCat === 'beard' && d.preset === 'f') ? 'face' : (S.avaCat || 'face');
   const sw = (key, vals) => `<div class="row" style="flex-wrap:wrap;gap:8px">${vals.map((v) => `<button class="swatch ${d[key] === v ? 'on' : ''}" style="background:${HOODIE[v] || v}" data-act="ava-set" data-k="${key}" data-v="${v}" aria-label="${key} ${v}"></button>`).join('')}</div>`;
+  // Превью без лишнего: на «Лице» не мешают шапка и волосы, на «Волосах» — шапка, на «Глазах» — очки.
+  // Это только показ: в сохранённый аватар ничего не попадает. Кнопками над вкладками можно вернуть
+  const auto = { face: { hat: true, hair: true }, hair: { hat: true }, eyes: { glasses: true } }[cat] || {};
+  const hide = { ...auto, ...((S.avaHide || {})[cat] || {}) };
+  const view = (l) => ({ ...l, ...(hide.hat ? { hat: 'none', phones: false, crown: false } : {}), ...(hide.hair ? { hairStyle: 'bald' } : {}), ...(hide.glasses ? { glasses: false } : {}) });
+  const hasHat = (d.hat && d.hat !== 'none') || d.phones;
+  const hideChip = (k, on, off) => `<button class="chip ${hide[k] ? 'on' : ''}" data-act="ava-hide" data-k="${k}" data-c="${cat}" data-v="${hide[k] ? '0' : '1'}">${hide[k] ? on : off}</button>`;
+  const hideBar = [
+    hasHat && (cat === 'face' || cat === 'hair') ? hideChip('hat', 'Шапка скрыта', 'Скрыть шапку') : '',
+    d.hairStyle !== 'bald' && cat === 'face' ? hideChip('hair', 'Волосы скрыты', 'Скрыть волосы') : '',
+    d.glasses && (cat === 'eyes' || cat === 'face') ? hideChip('glasses', 'Очки скрыты', 'Скрыть очки') : ''
+  ].filter(Boolean).join('');
   const tiles = (key, vals, names, zoom = false) => `<div class="ava-tiles">${vals.map((v) => {
     const lock = partLocked(key, v);
-    return `<button class="ava-tile ${(d[key] || DEF_LOOK[key]) === v ? 'on' : ''} ${lock ? 'paid' : ''}" data-act="ava-set" data-k="${key}" data-v="${v}">${avatar({ ...d, [key]: v, frame: null, crown: false, ...(zoom ? { pet: 'none', prop: 'none' } : {}) }, 60, zoom)}<span>${names[v] || v}</span>${lock ? `<em>${lock.price} ${BEAN}</em>` : ''}</button>`;
+    return `<button class="ava-tile ${(d[key] || DEF_LOOK[key]) === v ? 'on' : ''} ${lock ? 'paid' : ''}" data-act="ava-set" data-k="${key}" data-v="${v}">${avatar(view({ ...d, [key]: v, frame: null, crown: false, ...(zoom ? { pet: 'none', prop: 'none' } : {}) }), 60, zoom)}<span>${names[v] || v}</span>${lock ? `<em>${lock.price} ${BEAN}</em>` : ''}</button>`;
   }).join('')}</div>`;
   const tog = (k, label) => `<button class="chip ${d[k] ? 'on' : ''}" data-act="ava-toggle" data-k="${k}">${label}</button>`;
   const sex = d.preset === 'f' ? 'f' : 'm';
@@ -2378,11 +2390,12 @@ function renderAvatarEditor() {
   }[cat];
   const locked = draftLocked();
   return `<div class="ava-ed">
-    <div class="ava-stage">${avatar(d, 170)}
+    <div class="ava-stage">${avatar(view(d), 170)}
       <div class="ava-tools"><button class="tool" data-act="ava-random" aria-label="Случайный аватар">🎲</button><button class="tool" data-act="ava-reset" aria-label="Вернуть как было">↺</button></div>
     </div>
     <div class="presets">${AVA_PRESETS.map((pr) => `<button class="preset" data-act="ava-preset" data-v="${pr.id}">${avatar({ ...d, ...pr.look, frame: null, crown: false }, 52)}<span>${esc(pr.name)}</span></button>`).join('')}</div>
     <div class="cats" role="tablist">${AVA_CATS.filter(([id]) => (id !== 'makeup' || d.preset === 'f') && (id !== 'beard' || d.preset !== 'f')).map(([id, label]) => `<button class="cat ${cat === id ? 'on' : ''}" role="tab" aria-selected="${cat === id}" data-act="ava-cat" data-v="${id}">${label}</button>`).join('')}</div>
+    ${hideBar ? `<div class="hide-bar"><span class="small">В превью:</span>${hideBar}<span class="small">— на аватар не влияет</span></div>` : ''}
     <div class="cat-body">${body}</div>
     <div class="ava-foot">
       ${locked ? `<button class="btn grow" data-act="ava-buy" data-v="${locked.id}" ${S.me.beans < locked.price ? 'disabled' : ''}>Купить «${esc(locked.name)}» · ${locked.price} ${BEAN}</button>`
@@ -2975,6 +2988,7 @@ const actions = {
   'ava-cat'(el) { S.avaCat = el.dataset.v; render(); },
   'ava-set'(el) { S.draft = { ...S.draft, [el.dataset.k]: el.dataset.v }; render(); },
   'ava-glasses'(el) { const v = el.dataset.v; S.draft = v === 'none' ? { ...S.draft, glasses: false } : { ...S.draft, glasses: true, glassesStyle: v }; render(); },
+  'ava-hide'(el) { const c = el.dataset.c; S.avaHide = S.avaHide || {}; S.avaHide[c] = { ...(S.avaHide[c] || {}), [el.dataset.k]: el.dataset.v === '1' }; render(); },
   'ava-toggle'(el) { S.draft = { ...S.draft, [el.dataset.k]: !S.draft[el.dataset.k] }; render(); },
   'ava-preset'(el) { const pr = AVA_PRESETS.find((x) => x.id === el.dataset.v); S.draft = { ...S.draft, ...pr.look }; toast(`Образ «${pr.name}»`); render(); },
   'ava-random'() { S.draft = { ...S.draft, ...randomLook() }; if (navigator.vibrate) navigator.vibrate(10); render(); },
