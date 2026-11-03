@@ -512,7 +512,9 @@ function register(ctx) {
       holiday: HOL.holidayName(d), short: HOL.isShort(d), workSat: HOL.isWorkSaturday(d)
     }));
     let best = null;
-    cols.forEach((c) => { if (!c.holiday && c.office >= 2 && (!best || c.office > best.office)) best = c; });
+    // «Сегодня в офисе будут» имеет смысл, пока день не кончился: после 17:00 (в сокращённый день — после 16:00) сегодня не предлагаем
+    const late = U.msk().hour >= (HOL.isShort(today()) ? 16 : 17);
+    cols.forEach((c) => { if (!c.holiday && !(late && c.day === today()) && c.office >= 2 && (!best || c.office > best.office)) best = c; });
     return { days: cols, rows, best: best ? { label: best.label, office: best.office, total: rows.length, today: best.day === today() } : null, hidden: gangMembers(gangId).length - members.length };
   }
 
