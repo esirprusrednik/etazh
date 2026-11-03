@@ -3290,11 +3290,12 @@ function tone(ctx, { f = 600, f2 = null, type = 'triangle', at = 0, dur = 0.12, 
   o.connect(g).connect(master); o.start(t); o.stop(t + dur + 0.02);
 }
 // Медная труба: пила через фильтр, который «раскрывается» на атаке, подъезд к ноте снизу и вибрато на длинных
-function brass(ctx, { f, at = 0, dur = 0.2, vol = 0.09, vib = 0 }) {
+function brass(ctx, { f, at = 0, dur = 0.2, vol = 0.09, vib = 0, dark = false }) {
   const t = ctx.currentTime + at;
   const mix = ctx.createGain(); mix.gain.value = 1;
   const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 2;
-  lp.frequency.setValueAtTime(f * 1.2, t); lp.frequency.exponentialRampToValueAtTime(f * 6, t + 0.05); lp.frequency.exponentialRampToValueAtTime(f * 3.4, t + dur);
+  const k = dark ? 0.6 : 1;
+  lp.frequency.setValueAtTime(f * 1.2 * k, t); lp.frequency.exponentialRampToValueAtTime(f * 6 * k, t + 0.05); lp.frequency.exponentialRampToValueAtTime(f * 3.4 * k, t + dur);
   const g = ctx.createGain();
   g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.03); g.gain.setValueAtTime(vol * 0.85, t + Math.max(0.04, dur - 0.06)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   [[1, 'sawtooth', 1], [1.003, 'square', 0.35]].forEach(([k, type, lvl]) => {
@@ -3353,11 +3354,13 @@ const SOUNDS = {
   sunk: (c) => { boom(c, 0, 0.5, 0.8); tone(c, { f: 400, f2: 90, type: 'sawtooth', at: 0.1, dur: 0.6, vol: 0.035 }); },
   lose: (c) => [[392, 0], [370, 0.32], [349, 0.64], [330, 0.96]].forEach(([f, at], i) => tone(c, { f, f2: i === 3 ? 290 : null, type: 'sawtooth', at, dur: i === 3 ? 0.8 : 0.3, vol: 0.04 })),
   bugle: (c) => {
-    const G4 = 392, C5 = 523.25, E5 = 659.25, G5 = 784, C6 = 1046.5;
-    const seq = [[G4, 0, 0.13], [G4, 0.15, 0.13], [C5, 0.3, 0.13], [E5, 0.45, 0.42, 0.012], [C5, 0.92, 0.13], [E5, 1.07, 0.13], [G5, 1.22, 0.13], [C6, 1.37, 0.75, 0.014]];
-    seq.forEach(([f, at, dur, vib]) => brass(c, { f, at, dur, vol: 0.075, vib: vib || 0 }));
-    noise(c, { at: 1.37, dur: 0.5, vol: 0.05, type: 'lowpass', f: 180, q: 0.7 });
+    // Горн, одна фраза «та-та-та-ТАА» октавой ниже: соль-до-ми-СОЛЬ, тёмный фильтр и низкий гул под последней нотой
+    const G3 = 196, C4 = 261.63, E4 = 329.63, G4 = 392;
+    [[G3, 0, 0.12], [C4, 0.14, 0.12], [E4, 0.28, 0.12], [G4, 0.42, 0.62, 0.012]].forEach(([f, at, dur, vib]) => brass(c, { f, at, dur, vol: 0.11, vib: vib || 0, dark: true }));
+    tone(c, { f: G4 / 2, type: 'sine', at: 0.42, dur: 0.6, vol: 0.06 });
+    noise(c, { at: 0.42, dur: 0.45, vol: 0.06, type: 'lowpass', f: 140, q: 0.7 });
   },
+
   flap: (c) => { [0, 0.13, 0.26].forEach((at, i) => noise(c, { at, dur: 0.09, vol: 0.13 - i * 0.03, f: 1400 - i * 150, f2: 500, q: 0.9 })); tone(c, { f: 520, f2: 880, type: 'sine', at: 0.3, dur: 0.16, vol: 0.025 }); },
   swish: (c) => { noise(c, { dur: 0.22, vol: 0.12, f: 800, f2: 4200, q: 1.2 }); tone(c, { f: 300, f2: 900, type: 'sine', dur: 0.18, vol: 0.03 }); },
   dice: (c) => { for (let i = 0; i < 7; i++) noise(c, { at: i * 0.075 + Math.random() * 0.03, dur: 0.03, vol: 0.16 - i * 0.015, f: 1800 + Math.random() * 1600, q: 4 }); tone(c, { f: 180, f2: 120, type: 'sine', at: 0.55, dur: 0.12, vol: 0.06 }); },
@@ -3375,7 +3378,7 @@ const SOUNDS = {
   }
 };
 // Вибрация под стать звуку: короткий «тик» на нажатия, узор — на события
-const BUZZ = { bugle: [60, 40, 60, 40, 60, 40, 220], tap: 8, tab: 10, on: 6, off: 6, pick: 5, open: 8, close: 6, expand: 5, collapse: 5, send: 14, confirm: [12, 40, 18], danger: [25, 50, 25], error: [35, 45, 35],
+const BUZZ = { bugle: [50, 40, 50, 40, 50, 40, 260], tap: 8, tab: 10, on: 6, off: 6, pick: 5, open: 8, close: 6, expand: 5, collapse: 5, send: 14, confirm: [12, 40, 18], danger: [25, 50, 25], error: [35, 45, 35],
   vote: 10, coin: [8, 30, 8], click: 8, tick: 4, splash: 15, hit: [30, 40, 60], sunk: [40, 30, 90], lose: [80, 60, 160], chicken: [30, 40, 30], fanfare: [60, 60, 60, 60, 200] };
 let lastSfx = { name: '', at: 0 };
 function sfx(name, arg) {
