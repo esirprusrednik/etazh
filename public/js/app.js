@@ -309,15 +309,12 @@ function hatLayer(h, hood) {
       <path d="M50 12.5 L50 37" stroke="${shade(c, -0.15)}" stroke-width="1.2"/><circle cx="50" cy="13" r="1.8" fill="${shade(c, -0.3)}"/><path d="M36 20 Q43 15.5 52 15.6" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/>`;
   }
   if (h === 'hood') {
-    // Капюшон худи: закрывает лоб и уши, проём по овалу лица, толстый край с тенью внутри
-    if (true) {
-      const d = shade(hood, -0.28);
-      const outer = 'M22.6 77 Q17.5 47 25 27 Q35 11.5 50 11.5 Q65 11.5 75 27 Q82.5 47 77.4 77 Q66 72.6 50 74 Q34 72.6 22.6 77 Z';
-      const hole = 'M35 67 Q31.4 51 32.8 41 Q35 31.6 50 31 Q65 31.6 67.2 41 Q68.6 51 65 67 Q58 71.6 50 71.6 Q42 71.6 35 67 Z';
-      return `<path d="${outer} ${hole}" fill="${hood}" fill-rule="evenodd"/><path d="${hole}" fill="none" stroke="${d}" stroke-width="2.6"/><path d="M36.4 33.6 Q50 27.6 63.6 33.6" fill="none" stroke="#000" stroke-opacity=".18" stroke-width="3"/><path d="M30 24 Q38 15 48 14" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width="2" stroke-linecap="round"/>`;
-    }
-    // Капюшон поверх головы — передний край вокруг лица (задняя часть рисуется за головой отдельно)
-    return `<path d="M27.4 54 Q24.6 20 50 17.4 Q75.4 20 72.6 54 Q72 30 50 26.6 Q28 30 27.4 54 Z" fill="${hood}"/><path d="M28.6 52 Q27 28 50 25 Q73 28 71.4 52" fill="none" stroke="${shade(hood, -0.3)}" stroke-width="1.6"/>`;
+    // Капюшон худи: остроконечный верх со швом, толстый край проёма; низ уходит в худи на груди
+    const d = shade(hood, -0.22), l = shade(hood, 0.18);
+    return `<path d="${HOOD.outer} ${HOOD.hole}" fill="${hood}" fill-rule="evenodd"/>`
+      + `<path d="M23 60 Q20 44 25.6 33 Q31 21 43 13.4" fill="none" stroke="${l}" stroke-opacity=".55" stroke-width="2" stroke-linecap="round"/>`
+      + `<path d="M50 8.6 Q50.6 15 50 22" fill="none" stroke="${d}" stroke-width="1.1"/>`
+      + `<path d="${HOOD.hole}" fill="none" stroke="${d}" stroke-width="3.2"/><path d="${HOOD.rim}" fill="none" stroke="${l}" stroke-opacity=".6" stroke-width="1.2"/>`;
   }
   if (h === 'knight') {
     // Рыцарский шлем: стальной купол с забралом-щелью и красным плюмажем
@@ -385,6 +382,15 @@ function hatLayer(h, hood) {
   }
   return '';
 }
+// Геометрия капюшона (в координатах лица до подгонки по ширине)
+const HOOD = {
+  outer: 'M20.6 94 Q16.6 57 22.6 36.6 Q28.6 19 43.6 10.8 Q50 7 56.4 10.8 Q71.4 19 77.4 36.6 Q83.4 57 79.4 94 Q64 83.4 50 85.4 Q36 83.4 20.6 94 Z',
+  hole: 'M32.6 72 Q28.6 52 31.6 39 Q35.6 25 50 24.4 Q64.4 25 68.4 39 Q71.4 52 67.4 72 Q59 79 50 79.4 Q41 79 32.6 72 Z',
+  rim: 'M30.4 70 Q26.4 51 29.6 38 Q34 22.4 50 21.8 Q66 22.4 70.4 38 Q73.6 51 69.6 70'
+};
+// Тёмная глубина капюшона — за лицом; тень от края на лоб — поверх лица
+const hoodInside = (c) => `<path d="${HOOD.hole}" fill="${shade(c, -0.62)}"/>`;
+const hoodShade = (c, u) => `<clipPath id="hd${u}"><path d="${HOOD.hole}"/></clipPath><g clip-path="url(#hd${u})"><path d="M28 24 H72 V37 Q50 45 28 37 Z" fill="${shade(c, -0.62)}" opacity=".42"/></g>`;
 function hoodBack(c) {
   return `<path d="M22 76 Q18 40 28 24 Q38 12 50 12 Q62 12 72 24 Q82 40 78 76 Z" fill="${shade(c, -0.12)}"/>`;
 }
@@ -751,10 +757,10 @@ function avatarInner(look = {}) {
   const showGlasses = look.glasses && !eyesCovered;
   const beardL = helmet ? { under: '', over: '' } : beard;
   return `${bgLayer(look.bg, skin, u)}${hairBackC}
-    ${hooded ? fit(hoodBack(hatC)) : ''}
     ${look.neck === 'snake' ? snakeBack() : ''}
     ${outfitLayer(look.outfit, hood, skin, sex)}
     ${look.neck === 'snake' && ['corgi', 'pug', 'frenchie'].includes(look.pet) && !mug ? `<g transform="translate(100 0) scale(-1 1)">${snakeLayer()}</g>` : neckLayer(look.neck)}
+    ${hooded ? fit(hoodInside(hatC)) : ''}
     ${ears}
     <path d="${g.d}" fill="${skin}"/>
     ${jaw}
@@ -769,6 +775,7 @@ function avatarInner(look = {}) {
     ${earsCovered ? '' : earringsLayer(look.earrings, exL, exR, 49 + 5 * ek - 0.8)}
     ${helmet ? '' : fit(hairFront)}
     ${showGlasses && capped ? glassesLayer(look.glassesStyle, look.glassesColor, look.lensColor, u, rx) : ''}
+    ${hooded ? fit(hoodShade(hatC, u)) : ''}
     ${capped ? fit(hatLayer(hat, hatC)) : ''}
     ${showGlasses && !capped ? glassesLayer(look.glassesStyle, look.glassesColor, look.lensColor, u, rx) : ''}
     ${hat === 'headset' || hat === 'laurel' || hat === 'royal' || hat === 'kokoshnik' ? fit(hatLayer(hat, hood)) : ''}
