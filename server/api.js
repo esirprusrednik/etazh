@@ -681,6 +681,8 @@ function createApi(db) {
       beans: q('SELECT beans FROM users WHERE id = ?').get(u.id).beans,
       checkin: ci ? { office: ci.office_id, name: office.name, at: ci.at, since: U.msk(ci.at).hhmm } : null,
       today: U.msk().day, build: BUILD,
+      // Для приветствия: завтра праздник (а сегодня рабочий день) — «предпраздничный» набор фраз
+      tomorrowHoliday: weekdayName(U.msk().day) ? HOL.holidayName(addDays(U.msk().day, 1)) : null,
       presence: presenceOf(u.profile, ci, u.id),
       nextVacation: (() => { const v = u.profile.vacations.filter((x) => x.from > U.msk().day).sort((a, b) => (a.from < b.from ? -1 : 1))[0]; return v ? vacRest(v, U.msk().day, U.isAfterCheckinCutoff()) : null; })(),
       vacNow: (() => { const pr = presenceOf(u.profile, ci, u.id); return pr.where === 'vacation' ? vacRest({ from: U.msk().day, to: pr.until || U.msk().day }, U.msk().day, true) : null; })(),
