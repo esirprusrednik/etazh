@@ -42,11 +42,11 @@ const LOOK = {
   hoodie: ['red', 'blue', 'green', 'violet', 'navy', 'black', 'white', 'beige', 'yellow', 'pink', 'orange', 'khaki', 'burgundy', 'grey'],
   hatColor: ['same', 'red', 'blue', 'green', 'violet', 'navy', 'black', 'white', 'beige', 'yellow', 'pink', 'orange', 'khaki', 'burgundy', 'grey'],
   eyeShape: ['normal', 'tired', 'sly', 'wide', 'anime'],
-  outfit: ['hoodie', 'tee', 'dev', 'shirt', 'suit', 'jacket', 'puffer', 'dress', 'cami', 'biker', 'cyber', 'armor', 'vampire'],
-  neck: ['none', 'tie', 'tie_crooked', 'bow', 'badge', 'beads', 'chain', 'tie_gold', 'chain_gold', 'snake'],
-  hat: ['none', 'beanie', 'cap', 'headset', 'laurel', 'knight', 'royal', 'fedora', 'ushanka', 'tricorn', 'dedmoroz', 'kokoshnik'],
+  outfit: ['hoodie', 'tee', 'dev', 'shirt', 'suit', 'jacket', 'puffer', 'dress', 'cami', 'biker', 'cyber', 'armor', 'vampire', 'nysweater', 'telnyashka'],
+  neck: ['none', 'tie', 'tie_crooked', 'bow', 'badge', 'beads', 'chain', 'tie_gold', 'chain_gold', 'snake', 'garland'],
+  hat: ['none', 'beanie', 'cap', 'headset', 'laurel', 'knight', 'royal', 'fedora', 'ushanka', 'tricorn', 'dedmoroz', 'kokoshnik', 'wreath', 'shawl'],
   mask: ['none', 'medical', 'gauze', 'visor', 'scuba'],
-  prop: ['none', 'mug', 'papers', 'sign', 'laptop', 'mug_best', 'trophy', 'phone', 'torch'],
+  prop: ['none', 'mug', 'papers', 'sign', 'laptop', 'mug_best', 'trophy', 'phone', 'torch', 'mimosa', 'pancakes'],
   bg: ['auto', 'sky', 'mint', 'peach', 'lilac', 'sun', 'slate', 'office', 'meeting', 'home', 'street', 'cafe'],
   // Черты лица: размер глаз, нос, уши
   eyeSize: ['s', 'm', 'l'],
@@ -117,6 +117,7 @@ function vacRest(v, today, night) {
 }
 // День плана недели для рабочего дня; null — выходной или праздник по производственному календарю
 const HOL = require('./holidays');
+const SEASON = require('./seasons');
 const VOICE_MOD = 'голосовое — звук модератору не передаётся и сгорает через час';
 const weekdayName = (day) => HOL.workdayName(day);
 
@@ -203,6 +204,8 @@ function createApi(db) {
   const gangLimit = (g) => Math.min(g.max_members || MAX_MEMBERS, MAX_MEMBERS);
   let crew = null;
   let voice = null;
+  let santa = null;
+  let advent = null;
   let battle = null;
   let quiz = null;
   let feedback = null;
@@ -524,8 +527,8 @@ function createApi(db) {
         moods: MOODS, moodsF: { ...MOODS, ...MOODS_F }, idleJokesF: IDLE_JOKES_F,
         calls: Object.fromEntries(Object.entries(CALLS).map(([k, v]) => [k, { label: v.label, opts: v.opts, needsText: !!v.needsText, textLabel: v.textLabel || (v.needsText ? 'Уточни' : null), textHint: v.textHint || '' }])),
         signals: Object.fromEntries(Object.entries(SIGNALS).map(([k, v]) => [k, v.label])),
-        tags: TAGS, days: DAYS, look: LOOK, nickPrice: NICK_PRICE, memes: MEMES, memeEmos: MEME_EMOS,
-        parts: SHOP.filter((it) => it.kind === 'part').map(({ id, slot, value, name, price, legend, award }) => ({ id, slot, value, name, price, legend: !!legend, award: !!award })), gangColors: GANG_COLORS, idleJokes: IDLE_JOKES,
+        tags: TAGS, days: DAYS, look: LOOK, nickPrice: NICK_PRICE, memes: MEMES.map((m) => ({ ...m, on: SEASON.seasonOn(m.season, U.msk().day) })), memeEmos: MEME_EMOS, seasons: SEASON.activeSeasons(U.msk().day),
+        parts: SHOP.filter((it) => it.kind === 'part').map(({ id, slot, value, name, price, legend, award, season }) => ({ id, slot, value, name, price, legend: !!legend, award: !!award, season: season || null, on: SEASON.seasonOn(season, U.msk().day), until: season && SEASON.seasonOn(season, U.msk().day) ? SEASON.nextWindow(season, U.msk().day).to : null })), gangColors: GANG_COLORS, idleJokes: IDLE_JOKES,
         offices: offices().map((o) => ({ id: o.id, name: o.name, color: o.color }))
       }
     };
@@ -1139,8 +1142,9 @@ function createApi(db) {
         const def = m.type === 'call' ? CALLS[m.kind] : null;
         return {
           id: m.id, type: m.type, kind: m.kind, author: m.author || 'удалённый аккаунт', mine, at: m.at, time: U.msk(m.at).hhmm,
-          toNick: m.to_nick, toMe: m.to_user_id === u.id, opt: m.opt, text: m.type === 'voice' ? null : m.text,
+          toNick: m.to_nick, toMe: m.to_user_id === u.id, opt: m.opt, text: m.type === 'voice' || m.type === 'meme' ? null : m.text,
           voice: m.type === 'voice' ? { dur: Number(m.opt), ...(voice.info(m.text) || { gone: true }) } : undefined,
+          look: m.type === 'meme' ? JSON.parse(m.text || '{}') : undefined,
           callText: def ? def.verb : null, replies: rs,
           canReply: !!def && !mine && (m.to_user_id === null || m.to_user_id === u.id) && !rs.some((r) => r.me),
           replyOptions: def ? def.replies : []
@@ -1154,6 +1158,15 @@ function createApi(db) {
     const g = q('SELECT * FROM gangs WHERE id = ? AND hidden = 0').get(Number(params.id));
     if (!g || !isMember(g.id, u.id)) throw bad('Ты не в этой банде.');
     rateLimit('msg:' + u.id, 30, 60e3);
+    if (body.type === 'meme') {
+      // Праздничная открытка банде: только праздничные сюжеты и только в сезон, не больше 3 в день
+      const m = MEMES.find((x) => x.id === body.kind);
+      if (!m || !m.season || !SEASON.seasonOn(m.season, U.msk().day) || !MEME_EMOS[body.opt]) throw bad('Открытку банде можно отправить только в праздники.');
+      if (q("SELECT COUNT(*) AS n FROM messages WHERE gang_id = ? AND user_id = ? AND type = 'meme' AND at > ?").get(g.id, u.id, U.now() - 864e5).n >= 3) throw bad('Не больше трёх открыток банде в день.');
+      q('INSERT INTO messages (gang_id, user_id, type, kind, opt, text, at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(g.id, u.id, 'meme', m.id, body.opt, JSON.stringify(u.look || {}), U.now());
+      if (features) features.onEvent('gang_meme', u.id, {});
+      return { ok: true };
+    }
     if (body.type === 'voice') {
       const v = voice.store(u.id, { gangId: g.id }, body);
       q('INSERT INTO messages (gang_id, user_id, type, opt, text, at) VALUES (?, ?, ?, ?, ?, ?)').run(g.id, u.id, 'voice', String(v.dur), v.token, U.now());
@@ -1309,8 +1322,10 @@ function createApi(db) {
     const owned = new Set(q('SELECT item_id FROM owned WHERE user_id = ?').all(u.id).map((r) => r.item_id));
     return {
       beans: u.beans,
-      items: SHOP.map((it) => ({
+      // Сезонные вещи вне сезона не показываем — если уже не куплены
+      items: SHOP.filter((it) => !it.season || owned.has(it.id) || SEASON.seasonOn(it.season, U.msk().day)).map((it) => ({
         ...it,
+        until: it.season && SEASON.seasonOn(it.season, U.msk().day) ? SEASON.nextWindow(it.season, U.msk().day).to : undefined,
         owned: it.kind === 'gang' ? undefined : owned.has(it.id),
         equipped: it.kind === 'status' ? u.look.status === it.id : it.kind === 'frame' ? u.look.frame === it.id : it.kind === 'crown' ? !!u.look.crown : undefined,
         left: it.limit ? Math.max(0, it.limit - q('SELECT COUNT(*) AS n FROM owned WHERE item_id = ?').get(it.id).n) : undefined
@@ -1322,7 +1337,8 @@ function createApi(db) {
     const u = requireUser(req);
     const it = SHOP.find((s) => s.id === body.item);
     if (!it) throw bad('Нет такого предмета.');
-    if (it.award) throw bad('Это не купить — только выиграть в Лиге банд.');
+    if (it.award) throw bad(it.how ? `Это не купить — только заслужить: ${it.how}.` : 'Это не купить — только выиграть в Лиге банд.');
+    if (it.season && !SEASON.seasonOn(it.season, U.msk().day)) throw bad('Сезон этой вещи закончился — она вернётся к следующему празднику.');
     if (it.kind === 'gang') {
       const g = q('SELECT * FROM gangs WHERE id = ?').get(Number(body.gangId));
       if (!g || !isMember(g.id, u.id)) throw bad('Выбери свою банду.');
@@ -1438,6 +1454,10 @@ function createApi(db) {
 
   // ---------- Голосовые: до 30 секунд, живут час ----------
   voice = require('./voice').register({ db, q, route, requireUser, bad, U, HttpError, isMember, rateLimit });
+
+  // ---------- Праздники: Тайный Санта банды и адвент-календарь ----------
+  santa = require('./santa').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
+  advent = require('./advent').register({ db, q, route, requireUser, bad, U, config, addBeans, workdayName: weekdayName, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
 
   // ---------- Подельники: личные контакты ----------
   crew = require('./crew').register({

@@ -177,7 +177,7 @@ function register(ctx) {
         polls: pollsUnvoted ? pollsUnvoted(u.id, g.id) : 0,
         ...(gangSummary ? gangSummary(g.id, u.id) : {}), motto: g.motto || '',
         lastTime: last ? U.msk(last.at).hhmm : null,
-        last: last ? { mine: last.user_id === u.id, who: last.nick, text: last.type === 'call' ? (CALLS[last.kind] || {}).verb || 'зов' : last.type === 'voice' ? preview(last) : last.text } : null
+        last: last ? { mine: last.user_id === u.id, who: last.nick, text: last.type === 'call' ? (CALLS[last.kind] || {}).verb || 'зов' : last.type === 'voice' || last.type === 'meme' ? preview(last) : last.text } : null
       });
     }
     const people = myPeople(u.id);
@@ -428,7 +428,7 @@ function register(ctx) {
     }
     // Мем-открытка: аватар отправителя (как он есть сейчас), ситуация и эмоция из списка
     if (body.type === 'meme') {
-      if (!MEMES.some((x) => x.id === body.kind) || !MEME_EMOS[body.opt]) throw bad('Выбери ситуацию и эмоцию из списка.');
+      if (!MEMES.some((x) => x.id === body.kind && require('./seasons').seasonOn(x.season, U.msk().day)) || !MEME_EMOS[body.opt]) throw bad('Выбери ситуацию и эмоцию из списка.');
       if (q("SELECT COUNT(*) AS n FROM dms WHERE from_id = ? AND to_id = ? AND type = 'meme' AND at > ?").get(u.id, f.id, U.now() - 3600e3).n >= 10) {
         throw bad('Не больше 10 мемов в час одному человеку.');
       }

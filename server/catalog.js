@@ -69,6 +69,15 @@ const SHOP = [
   { id: 'p_torch', kind: 'part', slot: 'prop', value: 'torch', name: 'Факел', price: 60, legend: true },
   { id: 'p_dedmoroz', kind: 'part', slot: 'hat', value: 'dedmoroz', name: 'Шапка Деда Мороза', price: 60, legend: true },
   { id: 'p_kokoshnik', kind: 'part', slot: 'hat', value: 'kokoshnik', name: 'Кокошник Снегурочки', price: 60, legend: true },
+  // Сезонные: продаются только в праздничное окно (см. seasons.js), купленное остаётся навсегда
+  { id: 'p_nysweater', kind: 'part', slot: 'outfit', value: 'nysweater', name: 'Новогодний свитер', price: 60, legend: true, season: 'newyear' },
+  { id: 'p_telnyashka', kind: 'part', slot: 'outfit', value: 'telnyashka', name: 'Тельняшка', price: 50, legend: true, season: 'feb23' },
+  { id: 'p_mimosa', kind: 'part', slot: 'prop', value: 'mimosa', name: 'Букет мимозы', price: 40, legend: true, season: 'mar8' },
+  { id: 'p_wreath', kind: 'part', slot: 'hat', value: 'wreath', name: 'Весенний венок', price: 60, legend: true, season: 'mar8' },
+  { id: 'p_pancakes', kind: 'part', slot: 'prop', value: 'pancakes', name: 'Стопка блинов', price: 40, legend: true, season: 'maslenitsa' },
+  { id: 'p_shawl', kind: 'part', slot: 'hat', value: 'shawl', name: 'Расписной платок', price: 50, legend: true, season: 'maslenitsa' },
+  // Награда адвент-календаря: 20 окошек из 31
+  { id: 'p_garland', kind: 'part', slot: 'neck', value: 'garland', name: 'Ёлочная гирлянда', price: 0, award: true, how: '20 окошек адвент-календаря' },
   // Трофеи Лиги банд: не продаются, только за призовое место
   { id: 'p_trophy', kind: 'part', slot: 'prop', value: 'trophy', name: 'Кубок Лиги', price: 0, award: true, how: '1 место в Лиге недели' },
   { id: 'p_laurel', kind: 'part', slot: 'hat', value: 'laurel', name: 'Лавровый венок', price: 0, award: true, how: 'топ-3 в Лиге месяца' },
@@ -81,6 +90,7 @@ const SHOP = [
 const EARN = {
   welcome: { amount: Number(process.env.WELCOME_BEANS || 50), perDay: 1 },
   checkin: { amount: 5, perDay: 1 },
+  advent: { amount: 2, perDay: 1 },   // окошко адвент-календаря
   home: { amount: 5, perDay: 1 },     // «Сегодня из дома» — столько же, сколько отметка в офисе; вместе — не больше 5 в день
   canteen: { amount: 2, perDay: 2 },
   reply: { amount: 1, perDay: 10 },
@@ -109,7 +119,12 @@ const MEMES = [
   { id: 'best', caption: 'Сотрудник месяца. Сам себя наградил', bg: ['#F4C430', '#C2410C'] },
   { id: 'deadline', caption: 'Дедлайн вчера, а я спокоен', bg: ['#E5484D', '#7F1D1D'] },
   { id: 'excel', caption: 'Сводная сошлась с первого раза', bg: ['#1F7A3A', '#0B3D1E'] },
-  { id: 'thanks', caption: 'Спасибо, что ты есть в банде', bg: ['#FF6FA8', '#9D174D'] }
+  { id: 'thanks', caption: 'Спасибо, что ты есть в банде', bg: ['#FF6FA8', '#9D174D'] },
+  // Праздничные — только в сезон
+  { id: 'newyear', caption: 'С Новым годом, банда!', bg: ['#1F7A3A', '#7F1D1D'], season: 'newyear' },
+  { id: 'feb23', caption: 'С 23 Февраля, защитник дедлайнов', bg: ['#2E5BD0', '#0E2C52'], season: 'feb23' },
+  { id: 'mar8', caption: 'С 8 Марта! Весна и в офисе', bg: ['#FF8FB8', '#C2185B'], season: 'mar8' },
+  { id: 'maslenitsa', caption: 'Масленица: блины важнее KPI', bg: ['#F4C430', '#C2410C'], season: 'maslenitsa' }
 ];
 const MEME_EMOS = {
   joy: { label: 'Радость', mouth: 'grin', eyeShape: 'normal' },

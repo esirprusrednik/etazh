@@ -249,6 +249,24 @@ function outfitLayer(o, hood, skin, sex) {
       ${[[38, 80], [40.6, 84.6], [61.4, 80], [59, 84.6], [31, 76.6], [69, 76.6]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r=".9" fill="#D5DAE5"/>`).join('')}
       <path d="M${f ? 22 : 15} 82 Q30 77 36 77" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width="2" stroke-linecap="round"/><rect x="60" y="92" width="9" height="1.4" rx=".7" fill="#C9CED9"/>`;
   }
+  if (o === 'nysweater') {
+    // Новогодний свитер: красный, белая полоса со снежинками и зелёной «ёлочкой», высокое горло
+    const c = '#C62828', w = '#F6F7FB', g = '#1F7A3A';
+    const flake = (x, y) => `<path d="M${x} ${y - 2.4} V${y + 2.4} M${x - 2.1} ${y - 1.2} L${x + 2.1} ${y + 1.2} M${x - 2.1} ${y + 1.2} L${x + 2.1} ${y - 1.2}" stroke="${c}" stroke-width=".9" stroke-linecap="round"/>`;
+    return `<path d="${body}" fill="${c}"/>${shadeR}${neck}`
+      + `<path d="M${f ? 17 : 10} 88 Q50 83 ${f ? 83 : 90} 88 L${f ? 83.6 : 90.6} 97 Q50 92 ${f ? 16.4 : 9.4} 97 Z" fill="${w}"/>`
+      + [24, 36, 50, 64, 76].map((x) => flake(x, 90.6)).join('')
+      + `<path d="M${f ? 16.4 : 9.4} 99.6 Q50 94.6 ${f ? 83.6 : 90.6} 99.6" fill="none" stroke="${g}" stroke-width="1.6" stroke-dasharray="2.2 1.4"/>`
+      + `<path d="M39.6 76 Q38.6 67.6 44 66.4 L56 66.4 Q61.4 67.6 60.4 76 Q50 79 39.6 76 Z" fill="${c}" stroke="${shade(c, -0.25)}" stroke-width=".8"/><path d="M41 69.6 H59 M40.6 72.6 H59.4" stroke="${shade(c, -0.25)}" stroke-width=".6"/>`;
+  }
+  if (o === 'telnyashka') {
+    // Тельняшка: белая в синюю полоску, вырез лодочкой
+    const st = '#1E3A8A';
+    const clip = `tl${Math.random().toString(36).slice(2, 7)}`;
+    return `<clipPath id="${clip}"><path d="${body}"/></clipPath><path d="${body}" fill="#F7F8FB"/>`
+      + `<g clip-path="url(#${clip})">${Array.from({ length: 10 }, (_, i) => `<rect x="0" y="${73 + i * 3.4}" width="100" height="1.7" fill="${st}"/>`).join('')}</g>${shadeR}${neck}`
+      + `<path d="M38 73 Q50 80 62 73" fill="none" stroke="${st}" stroke-width="1.6"/>`;
+  }
   if (o === 'vampire') {
     // Плащ вампира: чёрный, высокий стоячий воротник с красной подкладкой, белая рубашка и рубиновая брошь
     const k = '#15131A', r = '#9B111E';
@@ -292,6 +310,13 @@ function neckLayer(n) {
   if (n === 'tie_crooked') return `<g transform="rotate(24 50 74)">${tie('#2563C9', 'rgba(255,255,255,.3)')}</g>`;
   if (n === 'bow') return '<path d="M50 75.5 L42.5 71.5 L42.5 79.5 Z M50 75.5 L57.5 71.5 L57.5 79.5 Z" fill="#1A1A2E"/><circle cx="50" cy="75.5" r="2" fill="#2E2E48"/>';
   if (n === 'snake') return snakeLayer();
+  if (n === 'garland') {
+    // Ёлочная гирлянда: провод вокруг шеи и разноцветные лампочки со свечением
+    const cols = ['#FF4D4D', '#FFC93C', '#3AD07A', '#3A86FF', '#FF6FD1'];
+    const pts = Array.from({ length: 9 }, (_, i) => { const t = (i + 0.5) / 9; return [38 + 24 * t, 73.4 + 8.4 * Math.sin(Math.PI * t)]; });
+    return '<path d="M37 73 Q50 87 63 73" fill="none" stroke="#1E5A2E" stroke-width="1.1"/>'
+      + pts.map(([x, y], i) => `<circle cx="${x.toFixed(2)}" cy="${(y + 1.6).toFixed(2)}" r="2.6" fill="${cols[i % cols.length]}" opacity=".35"/><ellipse cx="${x.toFixed(2)}" cy="${(y + 1.6).toFixed(2)}" rx="1.25" ry="1.7" fill="${cols[i % cols.length]}"/><circle cx="${(x - 0.4).toFixed(2)}" cy="${(y + 1).toFixed(2)}" r=".4" fill="#fff" opacity=".85"/>`).join('');
+  }
   if (n === 'beads') return ['#E5484D', '#F4C430', '#3A86FF', '#2FA84F', '#FF6FA8', '#7C4DFF', '#F28C28', '#22D3EE', '#E5484D'].map((c, i) => { const t = (i + 0.5) / 9, x = 41 + 18 * t, y = 72.4 + 7.2 * Math.sin(Math.PI * t); return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="1.3" fill="${c}" stroke="#000" stroke-opacity=".15" stroke-width=".3"/>`; }).join('');
   if (n === 'chain') return '<path d="M42 72.6 Q50 81.4 58 72.6" fill="none" stroke="#B9C0CC" stroke-width="1.1" stroke-dasharray="1.4 .6"/><path d="M50 77.8 L50 80.4" stroke="#B9C0CC" stroke-width=".7"/><circle cx="50" cy="81.4" r="1.1" fill="#D5DAE5" stroke="#8A919E" stroke-width=".4"/>';
   if (n === 'chain_gold') return '<path d="M40 72 Q50 85 60 72" fill="none" stroke="#B8922E" stroke-width="2.6"/><path d="M40 72 Q50 85 60 72" fill="none" stroke="#F4C430" stroke-width="1.8" stroke-dasharray="2 .8"/><path d="M50 79 L50 82" stroke="#F4C430" stroke-width="1"/><path d="M50 82 L53.4 85.4 L50 89 L46.6 85.4 Z" fill="#F4C430" stroke="#B8922E" stroke-width=".7"/><circle cx="50" cy="85.4" r="1" fill="#fff" opacity=".8"/>';
@@ -379,6 +404,26 @@ function hatLayer(h, hood, sex, badge) {
       <path d="M29.5 31 Q50 27 70.5 31 L70 36 Q50 32 30 36 Z" fill="#E0A800"/>
       <circle cx="43" cy="9" r="2" fill="#fff"/><circle cx="57" cy="9" r="2" fill="#fff"/><circle cx="28" cy="14" r="1.7" fill="#fff"/><circle cx="72" cy="14" r="1.7" fill="#fff"/>
       <circle cx="50" cy="31.5" r="2.4" fill="#D7263D"/><circle cx="40" cy="32.5" r="1.7" fill="#2563C9"/><circle cx="60" cy="32.5" r="1.7" fill="#1F8A4C"/>`;
+  }
+  if (h === 'wreath') {
+    // Весенний венок: зелёные листья и цветы — тюльпаны, мимоза, ромашки
+    const leaf = (x, y, a) => `<ellipse cx="${x}" cy="${y}" rx="3.6" ry="1.6" transform="rotate(${a} ${x} ${y})" fill="#4FA35E"/>`;
+    const flower = (x, y, c, r = 2.6) => [0, 72, 144, 216, 288].map((a) => `<ellipse cx="${(x + Math.cos(a * Math.PI / 180) * r * 0.8).toFixed(2)}" cy="${(y + Math.sin(a * Math.PI / 180) * r * 0.8).toFixed(2)}" rx="${(r * 0.62).toFixed(2)}" ry="${(r * 0.62).toFixed(2)}" fill="${c}"/>`).join('') + `<circle cx="${x}" cy="${y}" r="${(r * 0.5).toFixed(2)}" fill="#FFC93C"/>`;
+    const mimosa = (x, y) => [[0, 0], [1.6, 1], [-1.6, 1], [0, 2], [1.2, -1.2], [-1.2, -1.2]].map(([dx, dy]) => `<circle cx="${x + dx}" cy="${y + dy}" r="1" fill="#FFD600"/>`).join('');
+    return `<path d="M29 40 Q28 21 50 17 Q72 21 71 40" fill="none" stroke="#3E7D44" stroke-width="1.4"/>`
+      + [[31, 34, -60], [33.4, 27, -40], [38.6, 21.4, -20], [61.4, 21.4, 20], [66.6, 27, 40], [69, 34, 60], [45, 18.6, -6], [55, 18.6, 6]].map(([x, y, a]) => leaf(x, y, a)).join('')
+      + flower(34, 30, '#FF8FB8') + flower(50, 17.6, '#FF5E7E', 3) + flower(66, 30, '#FF8FB8') + flower(42, 20.4, '#FFFFFF', 2.2) + flower(58, 20.4, '#FFFFFF', 2.2)
+      + mimosa(30, 39) + mimosa(70, 39);
+  }
+  if (h === 'shawl') {
+    // Расписной платок: покрывает голову, по краю бахрома, цветочный узор, узел под подбородком
+    const c = '#B71C1C', e = '#3A0E0E';
+    const rose = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#FFD3D9"/><circle cx="${x}" cy="${y}" r="${r * 0.55}" fill="#F06292"/><ellipse cx="${x + r * 1.1}" cy="${y + r * 0.6}" rx="${r * 0.7}" ry="${r * 0.35}" fill="#2E7D32" transform="rotate(30 ${x + r * 1.1} ${y + r * 0.6})"/>`;
+    return `<path d="M24.6 66 Q20 40 27 26 Q36 11 50 11 Q64 11 73 26 Q80 40 75.4 66 Q70 56 69.6 46 Q68 30 50 28.6 Q32 30 30.4 46 Q30 56 24.6 66 Z" fill="${c}"/>`
+      + `<path d="M24.6 66 Q20 40 27 26 Q36 11 50 11 Q64 11 73 26 Q80 40 75.4 66" fill="none" stroke="${e}" stroke-width="1.2" stroke-dasharray="1.4 1.1"/>`
+      + rose(40, 18, 2.6) + rose(58, 17, 2.8) + rose(30, 34, 2.2) + rose(70, 34, 2.2) + rose(50, 22.6, 1.8)
+      + `<path d="M30.4 46 Q32 30 50 28.6 Q68 30 69.6 46" fill="none" stroke="#FFC93C" stroke-width="1"/>`
+      + `<path d="M44 70 Q50 66.6 56 70 L58.6 79 L54 76.4 L50 80 L46 76.4 L41.4 79 Z" fill="${c}" stroke="${e}" stroke-width=".6"/><circle cx="50" cy="70.6" r="2.2" fill="${shade(c, -0.15)}"/>`;
   }
   if (h === 'laurel') {
     // Лавровый венок: две ветви листьев по кругу головы, сходятся надо лбом
@@ -659,6 +704,25 @@ function torchHand(skin, sleeve) {
     + `<path d="M81.6 71.6 Q80.2 69 81.8 66.6 Q82.6 68.4 83.6 68 Q84.6 70.6 83.2 71.8 Z" fill="#FFF3C4"/>`
     + fist(77.6, 88, skin, 9.6, 10) + '</g>';
 }
+// Букет мимозы: стебли в кулаке, пушистые жёлтые шарики и перистые листья
+function mimosaHand(skin, sleeve) {
+  const balls = [[72, 64], [76, 61], [80, 64], [74, 68.4], [78.4, 67.6], [70, 70], [82, 69], [76, 72], [68.6, 65.6], [83.4, 63.6], [79.6, 58.6], [73, 59.4]];
+  return `<g transform="translate(-4 -6)"><path d="M93 114 Q91 104 87 98" fill="none" stroke="${sleeve}" stroke-width="10" stroke-linecap="round"/>`
+    + `<path d="M81 100 L76 70 M82 100 L80 68 M83 100 L84 70" stroke="#5E8C3A" stroke-width="1.2"/>`
+    + `<path d="M70 74 Q74 70 78 74 M80 74 Q84 70 88 74 M68 70 Q72 67 75 71" fill="none" stroke="#6FA34A" stroke-width="2.4" stroke-linecap="round" stroke-dasharray="1.2 .6"/>`
+    + balls.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2.6" fill="#FFD600"/><circle cx="${x - 0.7}" cy="${y - 0.7}" r=".9" fill="#FFF3A0"/>`).join('')
+    + fist(77.6, 90, skin, 9.4, 10) + '</g>';
+}
+// Стопка блинов на тарелке: держит снизу ладонью
+function pancakesHand(skin, sleeve) {
+  const e = shade(skin, -0.22);
+  return `<g transform="translate(-4 -8)"><path d="M93 114 Q90 106 84 100" fill="none" stroke="${sleeve}" stroke-width="10" stroke-linecap="round"/>`
+    + `<path d="M64 96 Q76 100.6 88 96 Q86 99.6 76 100.4 Q66 99.6 64 96 Z" fill="${skin}" stroke="${e}" stroke-width=".7"/>`
+    + `<ellipse cx="76" cy="94" rx="13" ry="3" fill="#F2F4F8" stroke="#C9CED9" stroke-width=".7"/>`
+    + [91.6, 89.4, 87.2, 85, 82.8].map((y, i) => `<ellipse cx="76" cy="${y}" rx="${11 - i * 0.4}" ry="2.4" fill="${i % 2 ? '#E9A23B' : '#F4BC5C'}" stroke="#C47F1E" stroke-width=".5"/>`).join('')
+    + `<path d="M72 81.6 Q76 79.6 80 81.6 Q78 83.2 76 82.6 Q74 83.2 72 81.6 Z" fill="#FFE27A"/><path d="M68 84 Q70 86.4 69 88" fill="none" stroke="#FFE27A" stroke-width="1.2" stroke-linecap="round"/>`
+    + `<path d="M70 79 Q68 75 71 71 M76 78 Q74 74 77 70 M82 79 Q80 75 83 71" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="1.1" stroke-linecap="round"/></g>`;
+}
 // Телефон: держит перед грудью экраном к зрителю, большой палец сбоку
 function phoneHand(skin, sleeve) {
   const e = shade(skin, -0.22);
@@ -735,7 +799,7 @@ function avatarInner(look = {}) {
   const lip = mk.lip || (sex === 'f' ? '#C9707C' : shade(skin, -0.28));
   const line = sex === 'f' ? shade(lip, -0.4) : shade(skin, -0.55);
   const freckles = look.freckles ? [[39.5, 52.5], [42, 54], [38.8, 55], [60.5, 52.5], [58, 54], [61.2, 55]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r=".85" fill="${shade(skin, -0.38)}"/>`).join('') : '';
-  const capped = hat && !['headset', 'laurel', 'royal', 'kokoshnik'].includes(hat);
+  const capped = hat && !['headset', 'laurel', 'royal', 'kokoshnik', 'wreath'].includes(hat);
   const hatC = look.hatColor && look.hatColor !== 'same' && HOODIE[look.hatColor] ? HOODIE[look.hatColor] : hood;
   // Под шапкой высокие причёски (пучки, ирокез, кок) прячутся, длинные торчат прядями
   const hairBack = HAIR_BACK[hs] && !(capped && HAIR_TALL.includes(hs) && hs !== 'ponytail') ? HAIR_BACK[hs](hair) : '';
@@ -747,10 +811,10 @@ function avatarInner(look = {}) {
   // Правила наложения: шлем закрывает всё лицо (очки, маска, борода, серьги, пряди не видны);
   // маска аквалангиста и кибервизор закрывают глаза — очки под ними прячутся; капюшон закрывает уши — серьги не видны
   const helmet = hat === 'knight';
-  const brimY = { cap: 39, fedora: 36, beanie: 40, tricorn: 40, ushanka: 40, dedmoroz: 40 }[hat];
+  const brimY = { cap: 39, fedora: 36, beanie: 40, tricorn: 40, ushanka: 40, dedmoroz: 40, shawl: 100 }[hat];
   const hairBackC = brimY && hairBack ? `<clipPath id="hb${u}"><rect x="0" y="${brimY}" width="100" height="100"/></clipPath><g clip-path="url(#hb${u})">${fit(hairBack)}</g>` : fit(hairBack);
   const eyesCovered = helmet || look.mask === 'scuba' || look.mask === 'visor';
-  const earsCovered = helmet || hat === 'ushanka';
+  const earsCovered = helmet || hat === 'ushanka' || hat === 'shawl';
   const showGlasses = look.glasses && !eyesCovered;
   const beardL = helmet ? { under: '', over: '' } : beard;
   return `${bgLayer(look.bg, skin, u)}${hairBackC}
@@ -773,11 +837,11 @@ function avatarInner(look = {}) {
     ${showGlasses && capped ? glassesLayer(look.glassesStyle, look.glassesColor, look.lensColor, u, rx) : ''}
     ${capped ? fit(hatLayer(hat, hatC, sex, look.capBadge)) : ''}
     ${showGlasses && !capped ? glassesLayer(look.glassesStyle, look.glassesColor, look.lensColor, u, rx) : ''}
-    ${hat === 'headset' || hat === 'laurel' || hat === 'royal' || hat === 'kokoshnik' ? fit(hatLayer(hat, hood)) : ''}
+    ${hat === 'headset' || hat === 'laurel' || hat === 'royal' || hat === 'kokoshnik' || hat === 'wreath' ? fit(hatLayer(hat, hood)) : ''}
     ${look.phones && hat !== 'headset' && hat !== 'ushanka' && !helmet ? fit('<path d="M29 47 Q27 15 50 15 Q73 15 71 47" fill="none" stroke="#2B2B3A" stroke-width="6" stroke-linecap="round"/><path d="M33 26 Q40 18 50 17.5" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/><rect x="23" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="67" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="25" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/><rect x="72" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/>') : ''}
     ${look.crown && !helmet && hat !== 'royal' ? `<g ${capped ? 'transform="translate(50 5) scale(.78) translate(-50 0)"' : ''}><path d="M33 19 L37 5 L44 13 L50 3 L56 13 L63 5 L67 19 Z" fill="#FFC93C" stroke="#D99A0B" stroke-width="2" stroke-linejoin="round"/><circle cx="50" cy="13" r="2" fill="#E5484D"/></g>` : ''}
-    ${(() => { const sl = look.outfit === 'suit' ? shade(hood, -0.45) : look.outfit === 'shirt' ? shade(hood, 0.8) : look.outfit === 'dev' ? '#262B36' : look.outfit === 'vampire' ? '#15131A' : look.outfit === 'armor' ? '#B9C3D1' : look.outfit === 'biker' ? '#1B1C22' : look.outfit === 'cyber' ? '#13131C' : hood;
-      return mug ? mugHand(look.prop === 'mug_best', skin, sl) : look.prop === 'torch' ? torchHand(skin, sl) : look.prop === 'phone' ? phoneHand(skin, sl) : propLayer(look.prop); })()}
+    ${(() => { const sl = look.outfit === 'telnyashka' ? '#F7F8FB' : look.outfit === 'nysweater' ? '#C62828' : look.outfit === 'suit' ? shade(hood, -0.45) : look.outfit === 'shirt' ? shade(hood, 0.8) : look.outfit === 'dev' ? '#262B36' : look.outfit === 'vampire' ? '#15131A' : look.outfit === 'armor' ? '#B9C3D1' : look.outfit === 'biker' ? '#1B1C22' : look.outfit === 'cyber' ? '#13131C' : hood;
+      return mug ? mugHand(look.prop === 'mug_best', skin, sl) : look.prop === 'torch' ? torchHand(skin, sl) : look.prop === 'phone' ? phoneHand(skin, sl) : look.prop === 'mimosa' ? mimosaHand(skin, sl) : look.prop === 'pancakes' ? pancakesHand(skin, sl) : propLayer(look.prop); })()}
     ${look.pet === 'parrot' && look.prop && look.prop !== 'none' ? `<g transform="translate(100 0) scale(-1 1)">${petLayer('parrot')}</g>` : petLayer(look.pet)}`;
 }
 
@@ -792,6 +856,8 @@ const tap = (id, html) => `<button class="ava-btn" data-act="person" data-id="${
 const BEAN = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><ellipse cx="12" cy="12" rx="6" ry="9" transform="rotate(30 12 12)"/><path d="M9 6c3 3 3 9 6 12"/></svg>';
 const FLAME = '<svg width="13" height="13" viewBox="0 0 24 24" fill="#FF8A3D" aria-hidden="true"><path d="M12 2c1 4 5 5.5 5 11a5 5 0 0 1-10 0c0-2.5 1.2-4 2.5-5.2.2 1.7 1 2.7 2 3.2C11 8.5 11 5.5 12 2z"/></svg>';
 const ICONS = {
+  gift: 'M3 8h18v4H3zM5 12v9h14v-9M12 8v13M12 8C10.5 4.5 7 4 7 6.2S10 8 12 8zm0 0c1.5-3.5 5-4 5-1.8S14 8 12 8z',
+  tree: 'M12 2l5 7h-3l4 6h-4l3 5H7l3-5H6l4-6H7zM12 20v2',
   coffee: 'M4 8h12v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5zM16 10h2a2 2 0 0 1 0 4h-2M8 2v3M12 2v3',
   lunch: 'M4 3v8a3 3 0 0 0 3 3v7M7 3v6M10 3v8a3 3 0 0 1-3 3M17 21V3c-2 1-3 4-3 8h3',
   where: 'M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12zM12 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4z',
@@ -909,7 +975,7 @@ async function loadState() {
 async function loadGang() {
   if (!S.activeGang) { S.gang = null; return; }
   try { S.gang = await get(`/api/gangs/${S.activeGang}`); } catch { S.gang = null; S.activeGang = null; }
-  await Promise.all([loadPolls(), loadGEvents(), loadCV(), loadWars()]);
+  await Promise.all([loadPolls(), loadGEvents(), loadCV(), loadWars(), loadSanta()]);
 }
 function gevSync() {
   const d = S.gevDraft; if (!d) return;
@@ -920,6 +986,11 @@ async function loadCV() {
   if (!S.activeGang) { S.cv = null; return; }
   try { S.cv = await get(`/api/gangs/${S.activeGang}/crest-vote`); } catch { S.cv = null; }
 }
+async function loadSanta() {
+  if (!S.activeGang) { S.santa = null; return; }
+  try { S.santa = await get(`/api/gangs/${S.activeGang}/santa`); } catch { S.santa = null; }
+}
+async function loadAdvent() { try { S.advent = await get('/api/advent'); } catch { S.advent = null; } }
 async function loadGEvents() {
   if (!S.activeGang) { S.gev = null; return; }
   try { S.gev = await get(`/api/gangs/${S.activeGang}/gevents`); } catch { S.gev = null; }
@@ -1030,6 +1101,7 @@ async function refresh({ all = false } = {}) {
   const jobs = [loadState()];
   if (all || t === 'near') jobs.push(loadPeople());
   if (all || t === 'near' || t === 'office' || t === 'games') jobs.push(loadFeatures());
+  if (all || t === 'near' || t === 'games') jobs.push(loadAdvent());
   if (all || t === 'chats') jobs.push(loadChats());
   if (all || t === 'chats' || t === 'games') jobs.push(loadCrew());
   if (all || (t === 'chats' && S.chatGang) || t === 'games') jobs.push(loadGang(), loadGangExtra());
@@ -1362,6 +1434,7 @@ function renderNear() {
   return `${pageHead('Рядом', 'Где ты сегодня и кто из твоих людей рядом')}
     ${aboutCard}
     ${renderStatusBlock()}
+    ${renderAdvent(true)}
     ${(S.people && !S.people.length) || !S.me.gangs.length ? findBar() : ''}
     ${renderQuickCalls()}
     ${renderBirthdays()}
@@ -1490,6 +1563,67 @@ function renderOfficeTab() {
 }
 
 // ===== Вкладка «Игры»: задания, квизы, морской бой, кофе, ачивки, Лавка =====
+// ----- Праздники: адвент-календарь и Тайный Санта -----
+const MONTHS_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+const dayHuman = (d) => `${Number(d.slice(8, 10))} ${MONTHS_GEN[Number(d.slice(5, 7)) - 1]}`;
+function renderAdvent(compact = false) {
+  const a = S.advent;
+  if (!a || !a.active) return '';
+  const t = a.today;
+  if (compact) {
+    if (t.opened) return '';
+    return `<button class="adv-strip" data-act="tab" data-v="games"><span class="adv-strip-n">${t.n}</span><span class="grow"><b>Окошко адвента ждёт</b><span class="small">${t.kind === 'open' ? 'Сегодня без задания — просто открой' : esc(t.title)}</span></span><span aria-hidden="true">→</span></button>`;
+  }
+  const lead = (new Date(Date.parse(a.days[0].day + 'T12:00:00Z')).getUTCDay() + 6) % 7;
+  const cells = Array.from({ length: lead }, () => '<span class="adv-d pad"></span>').join('')
+    + a.days.map((d) => `<span class="adv-d ${d.state}${d.rest ? ' rest' : ''}" aria-label="${d.n} декабря: ${d.state === 'done' ? 'открыто' : d.state === 'missed' ? 'пропущено' : d.state === 'today' ? 'сегодня' : 'впереди'}">${d.state === 'done' ? ico('check', 14) : d.n}</span>`).join('');
+  const prog = Math.min(a.count, a.goal);
+  const task = t.kind === 'open'
+    ? (t.opened ? `<p class="adv-fact">${esc(t.text)}</p>` : '<p class="small">Сегодня выходной, задания нет. Открой окошко — внутри факт про Новый год.</p>')
+    : `<p class="small">${esc(t.text)}</p>`;
+  const btn = t.opened ? `<div class="adv-done">${ico('check', 16)} Открыто, +2 зерна. Завтра новое окошко</div>`
+    : t.ready ? '<button class="btn" data-act="advent-open">Открыть окошко · +2</button>'
+    : '<button class="btn ghost" disabled>Сначала задание</button>';
+  return `<section class="card adv">
+    <div class="row" style="justify-content:space-between"><span class="card-title">tree Адвент-календарь</span><span class="small">${a.count} из 31</span></div>
+    <div class="adv-week" aria-hidden="true">${['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((x) => `<i>${x}</i>`).join('')}</div>
+    <div class="adv-grid">${cells}</div>
+    <div class="adv-today">
+      <div class="adv-day">${dayHuman(t.day)} · <b>${esc(t.title)}</b></div>
+      ${task}
+      ${btn}
+    </div>
+    <div class="adv-goal">
+      <div class="adv-bar"><i style="width:${Math.round(prog / a.goal * 100)}%"></i></div>
+      <span class="small">${a.garland ? 'Гирлянда твоя — она в конструкторе аватара, раздел «Аксессуары»' : `Ещё ${a.goal - prog} — и ёлочная гирлянда для аватара. Для неё хватит ${a.goal} окошек из 31, так что выходные можно пропускать`}</span>
+    </div>
+  </section>`;
+}
+function renderSanta() {
+  const s = S.santa;
+  if (!s || !s.visible) return '';
+  if (s.status === 'cancelled') return s.joined ? '<section class="card santa"><span class="card-title">gift Тайный Санта</span><p class="sub">В этом году не состоялся: записалось меньше трёх человек.</p></section>' : '';
+  const dd = dayHuman(s.drawDay);
+  const draw = s.canDraw ? '<button class="btn ghost" data-act="santa-draw">Провести жеребьёвку сейчас</button>' : '';
+  let body;
+  if (s.status === 'drawn') {
+    body = !s.joined ? `<p class="sub">Жеребьёвка прошла без тебя: участников ${s.count}, подарки вручены ${s.gifted}.</p>`
+      : `<div class="santa-target"><span class="small">Ты даришь</span><b>${esc(s.target ? s.target.nick : '—')}</b>
+          ${s.target && s.target.wish ? `<p>«${esc(s.target.wish)}»</p>` : '<p class="small">Пожелания нет — придётся угадывать.</p>'}</div>
+        ${s.myGifted ? `<div class="adv-done">${ico('check', 16)} Подарок вручён</div>` : '<button class="btn" data-act="santa-gifted">Подарок вручён</button>'}
+        <p class="small" style="margin:0">Вручено ${s.gifted} из ${s.count}. Кто дарит тебе — секрет. Видно его только в момент вручения.</p>`;
+  } else if (s.joined) {
+    body = `<p class="sub">Ты участвуешь. Записалось ${s.count}, жеребьёвка ${dd}${s.count < s.min ? `, нужно хотя бы ${s.min}` : ''}.</p>
+      <label class="field">Пожелание для своего Санты<textarea id="santa-wish" maxlength="200" rows="2" placeholder="Что любишь и чего дарить не надо">${esc(s.wish)}</textarea></label>
+      <div class="row" style="justify-content:space-between"><button class="btn ghost small" data-act="santa-wish">Сохранить</button><button class="linkbtn" data-act="santa-leave">Не участвую</button></div>${draw}`;
+  } else if (s.regOpen) {
+    body = `<p class="sub">Каждый тайно готовит подарок одному человеку из банды. Запишись и напиши, что любишь. ${dd} пройдёт жеребьёвка, и каждый узнает, кому дарит. Записалось: ${s.count}.</p>
+      <label class="field">Пожелание<textarea id="santa-wish" maxlength="200" rows="2" placeholder="Люблю чай и настолки, сладкое не дарите"></textarea></label>
+      <button class="btn" data-act="santa-join">Участвую</button>${draw}`;
+  } else return '';
+  return `<section class="card santa"><div class="row" style="justify-content:space-between"><span class="card-title">gift Тайный Санта</span><span class="small">${s.status === 'drawn' ? 'жеребьёвка прошла' : `до ${dd}`}</span></div>${body}</section>`;
+}
+
 function renderGames() {
   const f = S.fx;
   const got = f ? f.achievements.filter((a) => a.got).length : 0;
@@ -1501,6 +1635,7 @@ function renderGames() {
     <button class="btn small" data-act="open" data-v="battle-pick">Вызвать на бой</button>
   </section>`;
   return `${pageHead('Игры', 'Задания, квизы и бои со своими. За всё дают зёрна, их тратят в Лавке')}
+    ${renderAdvent()}
     ${renderDuelsCard()}
     ${renderLeagueCard()}
     ${renderTourCard()}
@@ -2405,6 +2540,7 @@ function renderGang() {
     ${g.depositPending ? '<div class="note warn">Залог 50 зёрен вернётся, когда в банде будет 3 человека.</div>' : ''}
     <div class="calls">${Object.entries(S.cat.calls).map(([k, c]) => `<button class="call" style="--c:${CALL_STYLE[k]}" data-act="call-open" data-kind="${k}" data-gang="${g.id}">${ico(k, 20)}<span>${esc(c.label)}</span></button>`).join('')}</div>
   </section>
+  ${renderSanta()}
   ${renderWars()}
   ${renderCrestVote()}
   ${renderGEvents()}
@@ -2412,6 +2548,7 @@ function renderGang() {
   <section class="card ${gst(g).chat ? 'chat-theme ' + gst(g).chat : ''}">
     <h3>Чат</h3>
     <div class="chat" id="chat">${msgs}</div>
+    ${(S.cat.memes || []).some((x) => x.season && x.on !== false) ? `<div class="chips"><button class="chip hol-chip" data-act="meme-open" data-gang="${g.id}">gift Праздничная открытка банде</button></div>` : ''}
     <div class="row"><label class="field grow" style="gap:0"><span class="hidden">Сообщение</span><input id="chat-text" maxlength="300" placeholder="Написать банде" aria-label="Сообщение банде"></label>
       ${micBtn('gang')}<button class="btn" data-act="chat-send" aria-label="Отправить">→</button></div>${recBar('gang')}
   </section>
@@ -2439,6 +2576,11 @@ function renderMsg(m) {
       <div class="text">${body}</div>${reps}
       ${m.canReply ? `<div class="chips">${m.replyOptions.map((l) => `<button class="chip" data-act="reply" data-id="${m.id}" data-v="${esc(l)}">${esc(l)}</button>`).join('')}</div><span class="small">Ответ: +1 зерно</span>` : ''}
     </div>`;
+  }
+  if (m.type === 'meme') {
+    return `<div class="msg meme-msg ${m.mine ? 'mine' : ''}">
+    <div class="meta"><b>${esc(m.author)}</b><span>${m.time}</span>${m.mine ? '' : `<button class="linkbtn" data-act="report" data-type="message" data-id="${m.id}" aria-label="Пожаловаться">⚑</button>`}</div>
+    ${memeSvg(m.look || {}, m.kind, m.opt, 190)}</div>`;
   }
   if (m.type === 'voice') {
     return `<div class="msg ${m.mine ? 'mine' : ''}">
@@ -3440,16 +3582,16 @@ const PENCIL = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stro
 const HAIR_NAMES = { short: 'Короткие', long: 'Длинные', tail: 'Хвост', curly: 'Кудри', bob: 'Каре', bun: 'Пучок', side: 'Набок', mohawk: 'Ирокез', afro: 'Афро', bald: 'Без волос',
   undercut: 'Андеркат', quiff: 'Кок', crop: 'Кроп', slick: 'Зачёс назад', buzz: 'Ёжик', manbun: 'Мужской пучок', waves: 'Локоны', bangs: 'С чёлкой', lob: 'Удлинённое каре', pixie: 'Пикси', ponytail: 'Высокий хвост', braid: 'Коса', buns: 'Два пучка', anime: 'Аниме' };
 const FACE_NAMES = { oval: 'Овал', round: 'Круглое', square: 'Квадрат', long: 'Вытянутое', heart: 'Сердечко' };
-const OUTFIT_NAMES = { hoodie: 'Худи', tee: 'Футболка', dev: 'Футболка разработчика', shirt: 'Рубашка', suit: 'Костюм', jacket: 'Бомбер', puffer: 'Пуховик', dress: 'Платье', cami: 'Топ на бретельках', biker: 'Косуха', cyber: 'Неон', armor: 'Доспехи', vampire: 'Плащ вампира' };
+const OUTFIT_NAMES = { hoodie: 'Худи', tee: 'Футболка', dev: 'Футболка разработчика', shirt: 'Рубашка', suit: 'Костюм', jacket: 'Бомбер', puffer: 'Пуховик', dress: 'Платье', cami: 'Топ на бретельках', biker: 'Косуха', cyber: 'Неон', armor: 'Доспехи', vampire: 'Плащ вампира', nysweater: 'Новогодний свитер', telnyashka: 'Тельняшка' };
 const MASK_NAMES = { none: 'Без маски', medical: 'Медицинская', gauze: 'Марлевая', visor: 'Кибервизор', scuba: 'Аквалангист' };
 const COLOR_NAMES = { same: 'Как одежда', red: 'Красный', blue: 'Синий', green: 'Зелёный', violet: 'Фиолетовый', navy: 'Тёмно-синий', black: 'Чёрный', white: 'Белый', beige: 'Бежевый', yellow: 'Жёлтый', pink: 'Розовый', orange: 'Оранжевый', khaki: 'Хаки', burgundy: 'Бордовый', grey: 'Серый' };
-const NECK_NAMES = { none: 'Ничего', tie: 'Галстук', tie_crooked: 'Галстук набок', bow: 'Бабочка', badge: 'Пропуск', beads: 'Бусы', chain: 'Цепочка', tie_gold: 'Золотой галстук', chain_gold: 'Золотая цепь', snake: 'Змея' };
+const NECK_NAMES = { none: 'Ничего', tie: 'Галстук', tie_crooked: 'Галстук набок', bow: 'Бабочка', badge: 'Пропуск', beads: 'Бусы', chain: 'Цепочка', tie_gold: 'Золотой галстук', chain_gold: 'Золотая цепь', snake: 'Змея', garland: 'Ёлочная гирлянда' };
 const PET_NAMES = { none: 'Без питомца', corgi: 'Корги', pug: 'Мопс', frenchie: 'Французский бульдог', parrot: 'Попугай на плече' };
 const LENS_NAMES = { clear: 'Прозрачные', grey: 'Серые', brown: 'Коричневые', blue: 'Голубые', green: 'Зелёные', pink: 'Розовые', yellow: 'Жёлтые' };
 const LENS_SWATCH = { clear: 'repeating-linear-gradient(45deg,#fff 0 4px,#E3E8F2 4px 8px)', grey: '#555B68', brown: '#7A5232', blue: '#4A86E0', green: '#3A9A68', pink: '#F08BB4', yellow: '#F2C230' };
-const HAT_NAMES = { none: 'Без шапки', beanie: 'Шапка', cap: 'Кепка', headset: 'Гарнитура', laurel: 'Лавровый венок', knight: 'Рыцарский шлем', royal: 'Корона', fedora: 'Шляпа', ushanka: 'Ушанка', tricorn: 'Треуголка капитана', dedmoroz: 'Шапка Деда Мороза', kokoshnik: 'Кокошник Снегурочки' };
+const HAT_NAMES = { none: 'Без шапки', beanie: 'Шапка', cap: 'Кепка', headset: 'Гарнитура', laurel: 'Лавровый венок', knight: 'Рыцарский шлем', royal: 'Корона', fedora: 'Шляпа', ushanka: 'Ушанка', tricorn: 'Треуголка капитана', dedmoroz: 'Шапка Деда Мороза', kokoshnik: 'Кокошник Снегурочки', wreath: 'Весенний венок', shawl: 'Расписной платок' };
 const EYE_NAMES = { normal: 'Обычные', tired: 'После совещания', sly: 'Хитрые', wide: 'Удивлённые', anime: 'Аниме' };
-const PROP_NAMES = { none: 'Ничего', torch: 'Факел', phone: 'Телефон', mug: 'Кружка', papers: 'Квартальный отчёт', sign: 'Табличка', laptop: 'Ноутбук', mug_best: 'Лучший сотрудник', trophy: 'Кубок Лиги' };
+const PROP_NAMES = { none: 'Ничего', torch: 'Факел', phone: 'Телефон', mimosa: 'Букет мимозы', pancakes: 'Стопка блинов', mug: 'Кружка', papers: 'Квартальный отчёт', sign: 'Табличка', laptop: 'Ноутбук', mug_best: 'Лучший сотрудник', trophy: 'Кубок Лиги' };
 const AVA_CATS = [['face', 'Лицо'], ['hair', 'Волосы'], ['eyes', 'Глаза'], ['mouth', 'Рот'], ['beard', 'Борода'], ['makeup', 'Макияж'], ['outfit', 'Одежда'], ['acc', 'Аксессуары'], ['bg', 'Фон'], ['meme', 'Мемы']];
 const DEF_LOOK = { hatColor: 'same', mask: 'none', glassesColor: 'black', lensColor: 'clear', pet: 'none', eyeSize: 'm', nose: 'button', ears: 'normal', makeup: 'none', earrings: 'none', glassesStyle: 'classic', beardColor: 'same', mustacheColor: 'same' };
 const GLASS_COLOR_NAMES = { black: 'Чёрная', tortoise: 'Черепаховая', gold: 'Золото', silver: 'Серебро', red: 'Красная', navy: 'Синяя', pink: 'Розовая' };
@@ -3544,15 +3686,23 @@ async function svgToPng(svg, w, h) {
   c.getContext('2d').drawImage(img, 0, 0, w, h);
   return new Promise((ok) => c.toBlob(ok, 'image/png'));
 }
+// Сцены для мем-открыток: праздничные видны только в свой сезон; для чата банды — только праздничные
+function memeScenes(holidayOnly) {
+  const all = (S.cat.memes || []).filter((x) => x.on !== false);
+  const hol = all.filter((x) => x.season);
+  return holidayOnly && hol.length ? hol : all;
+}
 function renderMemeMaker() {
   const m = S.meme;
   const crew = S.people || (S.crew && S.crew.list) || [];
+  const scenes = memeScenes(!!m.gang);
+  const gname = m.gang ? ((S.me.gangs.find((x) => x.id === m.gang) || {}).name || 'банды') : '';
   return `<div class="meme-ed">
     <div class="meme-prev">${memeSvg(S.me.look, m.scene, m.emo, 230)}</div>
-    <div class="field">Ситуация<div class="scenes">${S.cat.memes.map((x) => `<button class="scene ${m.scene === x.id ? 'on' : ''}" style="background:linear-gradient(160deg, ${x.bg[0]}, ${x.bg[1]})" data-act="meme-scene" data-v="${x.id}">${esc(x.caption)}</button>`).join('')}</div></div>
+    <div class="field">${m.gang ? 'Праздник' : 'Ситуация'}<div class="scenes">${scenes.map((x) => `<button class="scene ${m.scene === x.id ? 'on' : ''}" style="background:linear-gradient(160deg, ${x.bg[0]}, ${x.bg[1]})" data-act="meme-scene" data-v="${x.id}">${esc(x.caption)}</button>`).join('')}</div></div>
     <div class="field">Эмоция<div class="chips">${Object.entries(S.cat.memeEmos).map(([k, v]) => `<button class="chip ${m.emo === k ? 'on' : ''}" data-act="meme-emo" data-v="${k}">${esc(v.label)}</button>`).join('')}</div></div>
-    ${crew.length ? `<div class="field">Кому отправить<div class="chips">${crew.map((f) => `<button class="chip ${m.to === f.id ? 'on' : ''}" data-act="meme-to" data-v="${f.id}">${esc(f.nick)}</button>`).join('')}</div></div>` : '<p class="small" style="margin:0">Отправлять мемы можно членам твоих банд. А картинкой — куда угодно.</p>'}
-    <div class="row">${m.to ? `<button class="btn grow" data-act="meme-send">Отправить ${esc((crew.find((f) => f.id === m.to) || {}).nick || '')}</button>` : ''}<button class="btn ${m.to ? 'ghost' : ''} grow" data-act="meme-share">${navigator.share ? 'Поделиться картинкой' : 'Скачать картинку'}</button></div>
+    ${m.gang ? `<button class="btn" data-act="meme-send-gang">В чат «${esc(gname)}»</button>` : crew.length ? `<div class="field">Кому отправить<div class="chips">${crew.map((f) => `<button class="chip ${m.to === f.id ? 'on' : ''}" data-act="meme-to" data-v="${f.id}">${esc(f.nick)}</button>`).join('')}</div></div>` : '<p class="small" style="margin:0">Отправлять мемы можно членам твоих банд. А картинкой — куда угодно.</p>'}
+    <div class="row">${m.to && !m.gang ? `<button class="btn grow" data-act="meme-send">Отправить ${esc((crew.find((f) => f.id === m.to) || {}).nick || '')}</button>` : ''}<button class="btn ${m.to || m.gang ? 'ghost' : ''} grow" data-act="meme-share">${navigator.share ? 'Поделиться картинкой' : 'Скачать картинку'}</button></div>
     <p class="small" style="margin:0">На открытке твой текущий аватар. Подписи — из готового списка, чтобы мемы оставались добрыми.</p>
   </div>`;
 }
@@ -3575,7 +3725,8 @@ function renderAvatarEditor() {
     d.glasses && (cat === 'eyes' || cat === 'face') ? hideChip('glasses', 'Очки скрыты', 'Скрыть очки') : '',
     d.preset !== 'f' && d.beard && d.beard !== 'none' && (cat === 'face' || cat === 'mouth') ? hideChip('beard', 'Борода скрыта', 'Скрыть бороду') : ''
   ].filter(Boolean).join('');
-  const tiles = (key, vals, names, zoom = false) => `<div class="ava-tiles">${vals.map((v) => {
+  const offSeason = (key, v) => { const pt = (S.cat.parts || []).find((x) => x.slot === key && x.value === v); return pt && ((pt.season && !pt.on) || pt.award) && !(S.me.owned || []).includes(pt.id) && d[key] !== v && !(pt.award && pt.slot !== 'neck'); };
+  const tiles = (key, vals, names, zoom = false) => `<div class="ava-tiles">${vals.filter((v) => !offSeason(key, v)).map((v) => {
     const lock = partLocked(key, v);
     return `<button class="ava-tile ${(d[key] || DEF_LOOK[key]) === v ? 'on' : ''} ${lock ? 'paid' : ''}" data-act="ava-set" data-k="${key}" data-v="${v}">${avatar(view({ ...d, [key]: v, frame: null, crown: false, ...(zoom ? { pet: 'none', prop: 'none' } : {}) }), 60, zoom)}<span>${hy(names[v] || v)}</span>${lock ? `<em>${lock.award ? 'trophy Лига' : `${lock.price} ${BEAN}`}</em>` : ''}</button>`;
   }).join('')}</div>`;
@@ -3606,7 +3757,7 @@ function renderAvatarEditor() {
     outfit: `<div class="field">Одежда${tiles('outfit', L.outfit, OUTFIT_NAMES)}</div><div class="field">Цвет одежды${sw('hoodie', L.hoodie)}</div>`,
     acc: `<div class="field">Очки${glassesTiles}</div>${d.glasses ? `<div class="field">Цвет оправы<div class="row" style="flex-wrap:wrap;gap:8px">${L.glassesColor.map((v) => `<button class="swatch gc ${(d.glassesColor || 'black') === v ? 'on' : ''}" style="background:${GLASS_SWATCH[v]}" data-act="ava-set" data-k="glassesColor" data-v="${v}" aria-label="${GLASS_COLOR_NAMES[v]}" title="${GLASS_COLOR_NAMES[v]}"></button>`).join('')}</div></div>
       <div class="field">Цвет стёкол<div class="row" style="flex-wrap:wrap;gap:8px">${L.lensColor.map((v) => `<button class="swatch gc ${(d.lensColor || 'clear') === v ? 'on' : ''}" style="background:${LENS_SWATCH[v]}" data-act="ava-set" data-k="lensColor" data-v="${v}" aria-label="${LENS_NAMES[v]}" title="${LENS_NAMES[v]}"></button>`).join('')}</div></div>` : ''}<div class="field">Серьги${tiles('earrings', L.earrings, EARRING_NAMES, true)}</div><div class="field">На шее${tiles('neck', L.neck, NECK_NAMES)}</div><div class="field">На голове${tiles('hat', L.hat, HAT_NAMES)}</div>${d.hat === 'cap' ? `<div class="field">Значок на кепке${tiles('capBadge', L.capBadge || ['none'], CAP_BADGE_NAMES)}</div>` : ''}${d.hat && d.hat !== 'none' && d.hat !== 'headset' ? `<div class="field">Цвет головного убора<div class="row" style="flex-wrap:wrap;gap:8px"><button class="swatch same ${!d.hatColor || d.hatColor === 'same' ? 'on' : ''}" data-act="ava-set" data-k="hatColor" data-v="same" title="Как одежда" aria-label="Как одежда">=</button>${L.hoodie.map((v) => `<button class="swatch ${d.hatColor === v ? 'on' : ''}" style="background:${HOODIE[v]}" data-act="ava-set" data-k="hatColor" data-v="${v}" title="${COLOR_NAMES[v]}" aria-label="${COLOR_NAMES[v]}"></button>`).join('')}</div></div>` : ''}<div class="field">Маска${tiles('mask', L.mask, MASK_NAMES, true)}</div><div class="chips">${tog('phones', 'Наушники')}</div>
-      <div class="field">В руке${tiles('prop', ['none', 'mug', 'mug_best', 'phone', 'torch'], { none: 'Ничего', mug: 'Кружка', mug_best: 'Лучший сотрудник', phone: 'Телефон', torch: 'Факел' })}</div>
+      <div class="field">В руке${tiles('prop', ['none', 'mug', 'mug_best', 'phone', 'torch', 'mimosa', 'pancakes'], { none: 'Ничего', mug: 'Кружка', mug_best: 'Лучший сотрудник', phone: 'Телефон', torch: 'Факел', mimosa: 'Букет мимозы', pancakes: 'Стопка блинов' })}</div>
       <div class="field">Питомец рядом${tiles('pet', L.pet, PET_NAMES)}</div>`,
     bg: `<div class="field">Фон${tiles('bg', L.bg, BG_NAMES)}</div><p class="small" style="margin:0">«Под кожу» сам подбирает цвет, на котором лицо не сливается с фоном.</p>`,
     meme: `<div class="field">В руках${tiles('prop', ['none', 'papers', 'sign', 'laptop', 'trophy'], PROP_NAMES)}</div><p class="small" style="margin:0">Детали с ценой можно примерить бесплатно, а сохранить — после покупки в Лавке. Корона и рамки — тоже в Лавке.</p>`
@@ -3815,7 +3966,7 @@ function renderShop() {
       const prev = avatar({ ...S.me.look, [it.slot]: it.value, frame: null, crown: false }, 44);
       action = it.owned ? `<button class="btn small ghost" data-act="ava-open" data-cat="${it.slot === 'prop' ? 'meme' : it.slot === 'outfit' ? 'outfit' : it.slot === 'hairStyle' ? 'hair' : it.slot === 'eyeShape' ? 'eyes' : 'acc'}">В конструктор</button>`
         : `<button class="btn small" data-act="buy" data-v="${it.id}" ${S.shop.beans < it.price ? 'disabled' : ''}>${it.price} ${BEAN}</button>`;
-      return `<div class="item">${prev}<div class="grow"><div style="font-weight:900">${it.legend ? 'star ' : ''}${esc(it.name)}</div><div class="small">${it.owned ? 'куплено — надень в конструкторе' : 'можно примерить в конструкторе'}</div></div>${action}</div>`;
+      return `<div class="item">${prev}<div class="grow"><div style="font-weight:900">${it.legend ? 'star ' : ''}${esc(it.name)}</div><div class="small">${it.owned ? 'куплено — надень в конструкторе' : it.until ? `в продаже до ${it.until.slice(8, 10)}.${it.until.slice(5, 7)}` : 'можно примерить в конструкторе'}</div></div>${action}</div>`;
     } else if (it.owned) {
       action = `<button class="btn small ${it.equipped ? 'worn' : 'ghost wear'}" data-act="equip" data-v="${it.id}" data-on="${it.equipped ? '0' : '1'}">${it.equipped ? 'check Надето' : 'Надеть'}</button>`;
     } else if (it.left === 0) {
@@ -3824,7 +3975,7 @@ function renderShop() {
       action = `<button class="btn small" data-act="buy" data-v="${it.id}" ${S.shop.beans < it.price ? 'disabled' : ''}>${it.price} ${BEAN}</button>`;
     }
     return `<div class="item"><div class="grow"><div style="font-weight:900">${it.color ? `<span class="dot" style="background:${it.color}"></span>` : ''}${esc(it.name)}</div>
-      ${it.left !== undefined ? `<div class="small">осталось ${it.left}</div>` : ''}</div>${action}</div>`;
+      ${it.left !== undefined ? `<div class="small">осталось ${it.left}</div>` : ''}${it.until && !it.owned ? `<div class="small">в продаже до ${it.until.slice(8, 10)}.${it.until.slice(5, 7)}</div>` : ''}</div>${action}</div>`;
   };
   const gangSel = S.me.gangs.length > 1 ? `<div class="field">Покупка для банды<div class="chips">${S.me.gangs.map((g) => `<button class="chip ${g.id === (S.shopGang || S.activeGang) ? 'on' : ''}" data-act="shop-gang" data-v="${g.id}">${esc(g.name)}</button>`).join('')}</div></div>` : '';
   return `<div class="note warn">У тебя ${S.shop.beans} зёрен</div>
@@ -4472,7 +4623,10 @@ const actions = {
   'ava-open'(el) { S.draft = { ...S.me.look }; S.avaMode = 'main'; S.avaCat = (el && el.dataset.cat) || 'face'; S.sheet = 'avatar'; S.lastSheet = null; render(); },
   'ava-open-vac'() { S.draft = { ...S.me.look, ...(S.me.profile.vacationLook || {}) }; S.avaMode = 'vacation'; S.avaCat = 'outfit'; S.sheet = 'avatar'; S.lastSheet = null; render(); },
   'meme-open'(el) {
-    S.meme = { scene: (S.meme && S.meme.scene) || S.cat.memes[0].id, emo: (S.meme && S.meme.emo) || 'calm', to: el && el.dataset.to ? Number(el.dataset.to) : null };
+    const gang = el && el.dataset.gang ? Number(el.dataset.gang) : null;
+    const scenes = memeScenes(!!gang);
+    const prev = S.meme && scenes.find((x) => x.id === S.meme.scene);
+    S.meme = { scene: prev ? prev.id : scenes[0].id, emo: (S.meme && S.meme.emo) || 'calm', to: el && el.dataset.to ? Number(el.dataset.to) : null, gang };
     S.sheet = 'meme'; S.lastSheet = null; render();
     if (!S.people) loadPeople().then(render).catch(() => {});
   },
@@ -4484,6 +4638,30 @@ const actions = {
     await post(`/api/crew/${to}/messages`, { type: 'meme', kind: S.meme.scene, opt: S.meme.emo });
     pigeon(to, true); S.sheet = null; toast('Голубь унёс мем');
     if (S.tab === 'chats' && S.dm === to) await loadDm();
+  }),
+  'meme-send-gang': () => run(async () => {
+    const gid = S.meme.gang;
+    await post(`/api/gangs/${gid}/messages`, { type: 'meme', kind: S.meme.scene, opt: S.meme.emo });
+    S.sheet = null; sfx('send'); toast('Открытка в чате банды');
+    if (S.activeGang === gid) await loadGang();
+  }),
+  'santa-join': () => run(async () => { S.santa = await post(`/api/gangs/${S.activeGang}/santa/join`, { wish: ($('#santa-wish') || {}).value || '' }); toast('Ты в Тайном Санте'); }),
+  'santa-wish': () => run(async () => { S.santa = await post(`/api/gangs/${S.activeGang}/santa/wish`, { wish: ($('#santa-wish') || {}).value || '' }); toast('Пожелание сохранено'); }),
+  'santa-leave': (el) => run(async () => {
+    if (!confirmInline('santa-leave', 'Нажми ещё раз, чтобы выйти из Тайного Санты')) return;
+    S.santa = await post(`/api/gangs/${S.activeGang}/santa/leave`); toast('Ты вышел из Тайного Санты');
+  }),
+  'santa-draw': () => run(async () => {
+    if (!confirmInline('santa-draw', `Нажми ещё раз: жеребьёвка на ${S.santa.count} человек, потом записаться будет нельзя`)) return;
+    S.santa = await post(`/api/gangs/${S.activeGang}/santa/draw`); toast('Жеребьёвка прошла'); await loadGang();
+  }),
+  'santa-gifted': () => run(async () => { S.santa = await post(`/api/gangs/${S.activeGang}/santa/gifted`); toast('Отмечено. Хорошего праздника!'); }),
+  'advent-open': () => run(async () => {
+    const r = await post('/api/advent/open');
+    S.advent = r;
+    if (r.prize) toast('Гирлянда твоя! Надень её в конструкторе аватара');
+    else toast(r.beans ? `Окошко открыто · +${r.beans} зерна` : 'Окошко открыто');
+    if (r.beans) await loadMe();
   }),
   'meme-share': () => run(async () => {
     const svg = memeSvg(S.me.look, S.meme.scene, S.meme.emo, 720, true);

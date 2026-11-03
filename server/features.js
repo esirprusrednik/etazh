@@ -79,6 +79,9 @@ const ACH = [
   A('social', 'dm3', 'common', 'Свой человек', 'Переписываться лично с тремя людьми', 'dm_people', 3, { series: 'dm_people' }),
   A('social', 'dm10', 'rare', 'Нетворкер', 'Переписываться лично с десятью людьми', 'dm_people', 10, { series: 'dm_people' }),
   A('social', 'dm50', 'rare', 'Почтмейстер', 'Отправить 50 голубей — личных сообщений', 'dms', 50),
+  A('social', 'santa1', 'rare', 'Тайный Санта', 'Вручить подарок подопечному в Тайном Санте банды', 'santa', 1),
+  A('social', 'advent10', 'common', 'В предвкушении', 'Открыть 10 окошек адвент-календаря', 'advent', 10),
+  A('social', 'advent31', 'legendary', 'Ни дня без чуда', 'Открыть все 31 окошко адвент-календаря', 'advent', 31),
   A('social', 'msgs10', 'common', 'Разговорчивый', '10 сообщений в чатах банд', 'msgs', 10, { series: 'msgs' }),
   A('social', 'msgs50', 'rare', 'Душа чата', '50 сообщений в чатах банд', 'msgs', 50, { series: 'msgs' }),
   A('social', 'msgs200', 'legendary', 'Язык без костей', '200 сообщений в чатах банд', 'msgs', 200, { series: 'msgs' }),
@@ -278,7 +281,7 @@ function register(ctx) {
   const seenPair = (uid, kind, other) => q('INSERT OR IGNORE INTO ach_pairs (user_id, kind, other_id) VALUES (?, ?, ?)').run(uid, kind, other).changes > 0;
 
   const COUNTER_KEYS = ['checkins', 'replies', 'thanks_given', 'thanks_got', 'canteen', 'signals', 'coffee', 'guess_ok', 'quiz_ok', 'quiz_any',
-    'sea_wins', 'sea_clean', 'sea_rivals', 'msgs', 'calls', 'dms', 'memes', 'lunches', 'food', 'looks', 'battles', 'signals_sent',
+    'sea_wins', 'sea_clean', 'sea_rivals', 'msgs', 'calls', 'dms', 'memes', 'santa', 'advent', 'lunches', 'food', 'looks', 'battles', 'signals_sent',
     'day_streak', 'active_days', 'quest_all', 'polls', 'poll_votes', 'blitz', 'blitz_best', 'early', 'dm_people', 'thanks_people', 'recruits', 'big_lunch',
     'st_hide', 'st_unfindable', 'st_incognito', 'st_night', 'st_ghost', 'st_slack',
     'duels_started', 'duel_wins', 'duel_wins_rps', 'duel_wins_dice', 'duel_wins_ttt', 'duel_rivals', 'duel_streak_best', 'duel_pots', 'duel_comeback', 'duel_sixes', 'duel_snake',
@@ -402,6 +405,8 @@ function register(ctx) {
       if (type === 'text') { stat('messages'); bump(uid, 'msgs'); completeQuest(uid, 'chat'); }
       if ((type === 'dm' || type === 'meme') && data.to && bdayIdsToday(uid).has(data.to)) completeQuest(uid, 'bday');
       if (type === 'dm') { bump(uid, data.call ? 'calls' : 'dms'); if (seenPair(uid, 'dm', data.to)) bump(uid, 'dm_people'); completeQuest(uid, data.call ? 'call' : 'dm'); }
+      if (type === 'santa') bump(uid, 'santa');
+      if (type === 'advent') bump(uid, 'advent');
       if (type === 'meme') { bump(uid, 'memes'); if (seenPair(uid, 'dm', data.to)) bump(uid, 'dm_people'); completeQuest(uid, 'meme'); }
       if (type === 'dm_reply') { bump(uid, 'replies'); completeQuest(uid, 'reply'); }
       if (type === 'home') completeQuest(uid, 'where');

@@ -1244,3 +1244,37 @@ a { color: var(--link); }
 
 /* Подписи плиток конструктора: не шире плитки, перенос по слогам, максимум 3 строки */
 .ava-tile > span { display: block; max-width: 100%; font-size: 11px; line-height: 1.15; text-align: center; overflow-wrap: anywhere; hyphens: manual; -webkit-hyphens: manual; }
+
+/* Адвент-календарь: сетка декабря, сегодняшнее окошко и шкала до гирлянды */
+.adv { display: grid; gap: 12px; }
+.adv-week, .adv-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.adv-week i { font-style: normal; font-size: 11px; font-weight: 700; color: var(--muted); text-align: center; }
+.adv-d { aspect-ratio: 1; display: grid; place-items: center; border-radius: 10px; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; border: 1.5px solid var(--line); color: var(--ink); background: var(--card); }
+.adv-d.pad { border: 0; background: none; }
+.adv-d.rest { color: var(--muted); }
+.adv-d.done { background: var(--tint-g); color: var(--tint-g-fg); border-color: transparent; }
+.adv-d.missed { color: var(--muted); border-style: dashed; opacity: .55; }
+.adv-d.today { border-color: var(--gold-ink); background: var(--tint-y); color: var(--tint-y-fg); font-weight: 900; box-shadow: 0 0 0 2px var(--tint-y); }
+.adv-d.today.done { background: var(--tint-g); color: var(--tint-g-fg); }
+.adv-today { display: grid; gap: 8px; padding: 12px; border-radius: 14px; background: var(--s1); }
+.adv-today p { margin: 0; }
+.adv-day { font-size: 14px; color: var(--muted); }
+.adv-day b { color: var(--ink); }
+.adv-fact { font-size: 14px; line-height: 1.4; }
+.adv-done { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700; color: var(--tint-g-fg); }
+.adv-goal { display: grid; gap: 6px; }
+.adv-bar { height: 6px; border-radius: 3px; background: var(--s2); overflow: hidden; }
+.adv-bar i { display: block; height: 100%; border-radius: 3px; background: var(--tint-g-fg); }
+.adv-strip { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 14px; margin: 0 0 12px; border: 0; border-radius: 16px; background: var(--tint-y); color: var(--tint-y-fg); font: inherit; text-align: left; cursor: pointer; }
+.adv-strip .grow { display: grid; gap: 1px; min-width: 0; }
+.adv-strip .small { color: inherit; opacity: .8; }
+.adv-strip-n { flex: none; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; border: 1.5px solid currentColor; font-family: var(--font-display); font-weight: 800; font-size: 16px; }
+
+/* Тайный Санта */
+.santa { display: grid; gap: 10px; }
+.santa .sub { margin: 0; }
+.santa-target { display: grid; gap: 2px; padding: 12px; border-radius: 14px; background: var(--tint-r); color: var(--tint-r-fg); }
+.santa-target b { font-family: var(--font-display); font-size: 22px; font-weight: 800; }
+.santa-target p { margin: 4px 0 0; font-size: 14px; }
+.santa-target .small { color: inherit; opacity: .8; }
+.hol-chip { color: var(--tint-r-fg); background: var(--tint-r); border-color: transparent; }

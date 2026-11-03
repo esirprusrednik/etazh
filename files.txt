@@ -34,6 +34,7 @@ scripts/gen-secrets.js
 scripts/install.sh
 scripts/rename-gang.js
 scripts/set-nick.js
+server/advent.js
 server/api.js
 server/battle.js
 server/blitz.js
@@ -56,12 +57,15 @@ server/index.js
 server/mailer.js
 server/polls.js
 server/quiz.js
+server/santa.js
+server/seasons.js
 server/util.js
 server/voice.js
 server/webpush.js
 tests/battle.js
 tests/crew.js
 tests/features.js
+tests/holidays.js
 tests/quiz.js
 tests/smoke.js
 tests/unit.js
