@@ -4,7 +4,7 @@ import { crestSvg, crestOf, autoCrest, randomCrest, CREST_PARTS, TINCTURES, TINC
 
 const $ = (sel) => document.querySelector(sel);
 const root = $('#app');
-const esc = (s) => String(s ?? '').replace(/[\uE000\uE001]/g, '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const esc = (s) => String(s ?? '').replace(/\uE000\w*\uE001\s?/g, '').replace(/[\uE000\uE001]/g, '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 // Род в текстах: по полу аватара. gw(look, 'ушёл', 'ушла'); me(...) — про себя
 const gw = (look, m, f) => (look && look.preset === 'f' ? f : m);
@@ -538,14 +538,24 @@ function petLayer(p) {
   }
   return '';
 }
-// Змея на шее (Лавка): обвивает шею, голова на плече, язык — раздвоенный
+// Змея на шее (Лавка): обвивает шею. Задняя часть кольца рисуется за шеей (до одежды), передние витки — поверх воротника,
+// хвост свисает на грудь слева, голова приподнята на правом плече
+const SNAKE = { d: '#2F7A3A', m: '#4FB062', b: '#E8D34A' };
+function snakeBack() {
+  return `<path d="M39 74.5 Q39.5 64.5 50 64 Q60.5 64.5 61 74.5" fill="none" stroke="${SNAKE.d}" stroke-width="5.4" stroke-linecap="round"/>`
+    + `<path d="M39 74.5 Q39.5 64.5 50 64 Q60.5 64.5 61 74.5" fill="none" stroke="${shade(SNAKE.m, -0.12)}" stroke-width="3.8" stroke-linecap="round"/>`;
+}
 function snakeLayer() {
-  return '<path d="M20 92 Q30 78 44 76 Q50 75 56 76 Q70 78 80 86" fill="none" stroke="#2F7A3A" stroke-width="5.6" stroke-linecap="round"/>'
-    + '<path d="M20 92 Q30 78 44 76 Q50 75 56 76 Q70 78 80 86" fill="none" stroke="#4FB062" stroke-width="4" stroke-linecap="round"/>'
-    + '<path d="M24 87 l2 -1.6 M30 81.6 l2.2 -1 M37 78 l2.2 -.6 M46 76.2 l2.4 0 M55 76.4 l2.4 .4 M63 77.6 l2.2 .8 M70 80.4 l2 1.2" stroke="#E8D34A" stroke-width="1.2" stroke-linecap="round"/>'
-    + '<path d="M20 92 Q16 98 20 104" fill="none" stroke="#4FB062" stroke-width="3.4" stroke-linecap="round"/>'
-    + '<ellipse cx="82.6" cy="87.6" rx="5" ry="3.6" fill="#4FB062" stroke="#2F7A3A" stroke-width=".9" transform="rotate(30 82.6 87.6)"/>'
-    + '<circle cx="83.4" cy="86" r=".9" fill="#111"/><circle cx="83.7" cy="85.7" r=".3" fill="#fff"/><path d="M86.4 90.4 L89 92.2 M89 92.2 L90.4 91.6 M89 92.2 L89.6 93.6" stroke="#E5484D" stroke-width=".7" stroke-linecap="round"/>';
+  const body = (d, w = 5.4) => `<path d="${d}" fill="none" stroke="${SNAKE.d}" stroke-width="${w}" stroke-linecap="round"/><path d="${d}" fill="none" stroke="${SNAKE.m}" stroke-width="${w - 1.6}" stroke-linecap="round"/>`;
+  // Два витка вокруг основания шеи; хвост уходит за правое плечо, голова приподнята над левым
+  return body('M61 74.5 Q66 76 66 79 Q65 84 50 84.6 Q35 84 34.6 79 Q35 75.6 39 74.5', 5)
+    + body('M39 74.5 Q38 81 50 81.5 Q62 81 61 74.5')
+    + body('M66 79 Q70.6 78.4 73 75.6', 4.2)
+    + body('M34.6 79 Q31 78.6 30 75', 4.6)
+    + `<path d="M43 80.4 l1.6 .8 M48.4 81.5 h1.8 M54 81.2 l1.6 -.5 M40 83.2 l1.5 .5 M50 84.4 h1.8 M58.6 83.6 l1.5 -.5" stroke="${SNAKE.b}" stroke-width="1" stroke-linecap="round"/>`
+    + `<g transform="rotate(-62 30 74)"><ellipse cx="28" cy="73.6" rx="4.6" ry="3.3" fill="${SNAKE.m}" stroke="${SNAKE.d}" stroke-width=".9"/>`
+    + `<circle cx="26.8" cy="72.4" r=".95" fill="#111"/><circle cx="26.5" cy="72.1" r=".3" fill="#fff"/>`
+    + `<path d="M23.6 74.2 L21 74.8 M21 74.8 L19.8 74 M21 74.8 L20 76" stroke="#E5484D" stroke-width=".7" stroke-linecap="round"/></g>`;
 }
 // Рука с кружкой (Аксессуары): рукав, кисть и пальцы обхватывают кружку
 function mugHand(gold, skin, sleeve) {
@@ -633,8 +643,16 @@ function avatarInner(look = {}) {
   const ears = `<ellipse cx="${exL}" cy="49" rx="${3.6 * ek}" ry="${5 * ek}" fill="${skin}"/><ellipse cx="${exR}" cy="49" rx="${3.6 * ek}" ry="${5 * ek}" fill="${skin}"/>
     <ellipse cx="${exL + 0.2}" cy="49.3" rx="${1.6 * ek}" ry="${2.8 * ek}" fill="${skinDark}"/><ellipse cx="${exR - 0.2}" cy="49.3" rx="${1.6 * ek}" ry="${2.8 * ek}" fill="${skinDark}"/>`;
   const mug = look.prop === 'mug' || look.prop === 'mug_best';
+  // Правила наложения: шлем закрывает всё лицо (очки, маска, борода, серьги, пряди не видны);
+  // маска аквалангиста и кибервизор закрывают глаза — очки под ними прячутся; капюшон закрывает уши — серьги не видны
+  const helmet = hat === 'knight';
+  const eyesCovered = helmet || look.mask === 'scuba' || look.mask === 'visor';
+  const earsCovered = helmet || hooded;
+  const showGlasses = look.glasses && !eyesCovered;
+  const beardL = helmet ? { under: '', over: '' } : beard;
   return `${bgLayer(look.bg, skin, u)}${fit(hairBack)}
     ${hooded ? fit(hoodBack(hatC)) : ''}
+    ${look.neck === 'snake' ? snakeBack() : ''}
     ${outfitLayer(look.outfit, hood, skin, sex)}
     ${neckLayer(look.neck)}
     ${ears}
@@ -645,16 +663,17 @@ function avatarInner(look = {}) {
     <g transform="translate(50 48) scale(${es.toFixed(3)}) translate(-50 -48)">${shadow}${eyesLayer(shape, eyes, skin)}${lash}${liner}</g>
     ${brows}
     ${noseLayer(look.nose, skin, sex)}
-    ${beard.under}
-    <g transform="translate(0 1.4)">${(MOUTHS[look.mouth] || MOUTHS.smile)(lip, line)}</g>${beard.over}
-    ${maskLayer(look.mask, g)}
-    ${fit(hairFront)}
-    ${earringsLayer(look.earrings, exL, exR, 49 + 5 * ek - 0.8)}
+    ${beardL.under}
+    <g transform="translate(0 1.4)">${(MOUTHS[look.mouth] || MOUTHS.smile)(lip, line)}</g>${beardL.over}
+    ${helmet ? '' : maskLayer(look.mask, g)}
+    ${earsCovered ? '' : earringsLayer(look.earrings, exL, exR, 49 + 5 * ek - 0.8)}
+    ${helmet ? '' : fit(hairFront)}
+    ${showGlasses && capped ? glassesLayer(look.glassesStyle, look.glassesColor, look.lensColor, u, rx) : ''}
     ${capped ? fit(hatLayer(hat, hatC)) : ''}
-    ${look.glasses ? glassesLayer(look.glassesStyle, look.glassesColor, look.lensColor, u, rx) : ''}
+    ${showGlasses && !capped ? glassesLayer(look.glassesStyle, look.glassesColor, look.lensColor, u, rx) : ''}
     ${hat === 'headset' || hat === 'laurel' || hat === 'royal' ? fit(hatLayer(hat, hood)) : ''}
-    ${look.phones && hat !== 'headset' ? fit('<path d="M29 47 Q27 15 50 15 Q73 15 71 47" fill="none" stroke="#2B2B3A" stroke-width="6" stroke-linecap="round"/><path d="M33 26 Q40 18 50 17.5" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/><rect x="23" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="67" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="25" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/><rect x="72" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/>') : ''}
-    ${look.crown ? `<g ${capped ? 'transform="translate(0 -6)"' : ''}><path d="M33 19 L37 5 L44 13 L50 3 L56 13 L63 5 L67 19 Z" fill="#FFC93C" stroke="#D99A0B" stroke-width="2" stroke-linejoin="round"/><circle cx="50" cy="13" r="2" fill="#E5484D"/></g>` : ''}
+    ${look.phones && hat !== 'headset' && !helmet ? fit('<path d="M29 47 Q27 15 50 15 Q73 15 71 47" fill="none" stroke="#2B2B3A" stroke-width="6" stroke-linecap="round"/><path d="M33 26 Q40 18 50 17.5" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/><rect x="23" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="67" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="25" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/><rect x="72" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/>') : ''}
+    ${look.crown && !helmet && hat !== 'royal' ? `<g ${capped ? 'transform="translate(50 5) scale(.78) translate(-50 0)"' : ''}><path d="M33 19 L37 5 L44 13 L50 3 L56 13 L63 5 L67 19 Z" fill="#FFC93C" stroke="#D99A0B" stroke-width="2" stroke-linejoin="round"/><circle cx="50" cy="13" r="2" fill="#E5484D"/></g>` : ''}
     ${mug ? mugHand(look.prop === 'mug_best', skin, look.outfit === 'suit' ? shade(hood, -0.45) : look.outfit === 'shirt' ? shade(hood, 0.8) : look.outfit === 'dev' ? '#262B36' : hood) : propLayer(look.prop)}
     ${petLayer(look.pet)}`;
 }
@@ -1517,7 +1536,7 @@ const addDaysC = (d, n) => new Date(Date.parse(d + 'T00:00:00Z') + n * 864e5).to
 const ddmm = (d) => (d ? `${d.slice(8, 10)}.${d.slice(5, 7)}` : '');
 function whereText(r) {
   const [t, c] = whereText0(r);
-  return r.vacSoon ? [`sun с ${ddmm(r.vacSoon)} в отпуске · ${t}`, c] : [t, c];
+  return r.vacSoon ? [`с ${ddmm(r.vacSoon)} в отпуске · ${t}`, c] : [t, c];
 }
 function whereText0(r) {
   if (r.where === 'office') return [r.officeName || officeName(r.office), '#1F7A3A'];
@@ -4799,3 +4818,6 @@ async function boot() {
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 boot().catch((e) => { root.innerHTML = `<div class="onb"><div class="card"><h2>Не получилось загрузиться</h2><p class="sub">${esc(e.message)}</p></div></div>`; });
+
+// Для проверки сочетаний деталей аватара (скриншоты-матрицы)
+window.__etazhAvatar = avatar;
