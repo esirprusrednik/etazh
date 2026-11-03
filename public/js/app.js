@@ -215,7 +215,8 @@ function outfitLayer(o, hood, skin, sex) {
   if (o === 'jacket') {
     // Бомбер: трикотажный воротник, молния, карман на рукаве
     const r = shade(hood, -0.35);
-    return `<path d="${body}" fill="${hood}"/>${shadeR}${neck}<path d="M38.4 73.6 Q50 81 61.6 73.6 Q60 70.6 50 70.4 Q40 70.6 38.4 73.6 Z" fill="${r}"/><path d="M39.6 74 Q50 80 60.4 74" fill="none" stroke="${shade(r, 0.25)}" stroke-width=".7" stroke-dasharray="1 1"/>
+    // Горловина: тёмная внутренность за шеей, шея уходит в неё, спереди — трикотажная резинка
+    return `<path d="${body}" fill="${hood}"/>${shadeR}<path d="M38.6 73.4 Q41 68.4 50 68 Q59 68.4 61.4 73.4 Q50 77.4 38.6 73.4 Z" fill="${shade(r, -0.45)}"/><path d="M38.6 73.4 Q41 68.4 50 68 Q59 68.4 61.4 73.4" fill="none" stroke="${r}" stroke-width="2.2"/>${neck}<path d="M37.6 73 Q50 78.6 62.4 73 L63 75.6 Q50 82 37 75.6 Z" fill="${r}"/><path d="M38.6 74.6 Q50 80 61.4 74.6" fill="none" stroke="${shade(r, 0.25)}" stroke-width=".7" stroke-dasharray="1 1"/>
       <path d="M50 79.4 L50 104" stroke="${shade(hood, -0.4)}" stroke-width="1.4"/><path d="M50 79.4 L50 104" stroke="#D5DAE5" stroke-width=".5" stroke-dasharray="1 .8"/><rect x="48.8" y="83" width="2.4" height="3.6" rx=".6" fill="#C9CED9"/>
       <rect x="${f ? 22 : 16}" y="84" width="7" height="5" rx="1" fill="${shade(hood, -0.18)}"/><path d="M${f ? 23 : 17} 86.4 h5" stroke="${shade(hood, 0.3)}" stroke-width=".7"/>`;
   }
