@@ -215,7 +215,8 @@ async function waitUp() {
     assert.equal((await a.post('/api/me/profile', { profile: { vacations: [{ from: day(0), to: day(3) }, { from: day(2), to: day(9) }] } })).status, 400);
     assert.equal((await a.post('/api/me/profile', { profile: { vacations: [{ from: day(-2), to: day(3) }, { from: day(30), to: day(40) }] } })).status, 200);
     const s3 = await status();
-    assert.equal(s3.where, 'vacation'); assert.equal(s3.until, day(3));
+    // «до» — последний день отдыха: конец отпуска плюс выходные и праздники сразу после него
+    assert.equal(s3.where, 'vacation'); assert.ok(s3.until >= day(3) && s3.until <= day(7), s3.until);
     const st = (await a.get('/api/state')).json;
     assert.equal(st.presence.where, 'vacation'); assert.equal(st.nextVacation.from, day(30));
     // Зов человеку в отпуске: пуш не уйдёт, отправитель узнаёт об этом
