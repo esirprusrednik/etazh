@@ -44,7 +44,7 @@ const LOOK = {
   eyeShape: ['normal', 'tired', 'sly', 'wide', 'anime'],
   outfit: ['hoodie', 'tee', 'dev', 'shirt', 'suit', 'jacket', 'puffer', 'dress', 'cami', 'biker', 'cyber', 'armor', 'vampire'],
   neck: ['none', 'tie', 'tie_crooked', 'bow', 'badge', 'beads', 'chain', 'tie_gold', 'chain_gold', 'snake'],
-  hat: ['none', 'beanie', 'cap', 'hood', 'headset', 'laurel', 'knight', 'royal', 'fedora', 'ushanka', 'tricorn', 'dedmoroz', 'kokoshnik'],
+  hat: ['none', 'beanie', 'cap', 'headset', 'laurel', 'knight', 'royal', 'fedora', 'ushanka', 'tricorn', 'dedmoroz', 'kokoshnik'],
   mask: ['none', 'medical', 'gauze', 'visor', 'scuba'],
   prop: ['none', 'mug', 'papers', 'sign', 'laptop', 'mug_best', 'trophy', 'phone', 'torch'],
   bg: ['auto', 'sky', 'mint', 'peach', 'lilac', 'sun', 'slate', 'office', 'meeting', 'home', 'street', 'cafe'],
@@ -80,8 +80,8 @@ function applyLook(base, l, owned) {
   for (const k of ['glasses', 'phones', 'freckles']) if (l[k] !== undefined) look[k] = !!l[k];
   // Борода — только у «М», макияж — только у «Ж»
   if (look.preset === 'f') look.beard = 'none'; else look.makeup = 'none';
-  // Капюшон бывает только у худи
-  if (look.hat === 'hood' && look.outfit && look.outfit !== 'hoodie') look.hat = 'none';
+  // Капюшон убран из конструктора — у кого был, просто без головного убора
+  if (look.hat === 'hood') look.hat = 'none';
   return look;
 }
 const NICK_PRICE = 50;

@@ -308,14 +308,6 @@ function hatLayer(h, hood, sex) {
     return `<path d="M26.6 40 Q26 13 50 12.5 Q74 13 73.4 40 Z" fill="${c}"/><path d="M25 40 Q50 31.5 80 42 Q62 46.5 27 44 Z" fill="${shade(c, -0.3)}"/>
       <path d="M50 12.5 L50 37" stroke="${shade(c, -0.15)}" stroke-width="1.2"/><circle cx="50" cy="13" r="1.8" fill="${shade(c, -0.3)}"/><path d="M36 20 Q43 15.5 52 15.6" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/>`;
   }
-  if (h === 'hood') {
-    // Капюшон худи: по форме головы, лёгкий острый верх со швом, толстый край проёма; низ лежит на плечах
-    const d = shade(hood, -0.22), l = shade(hood, 0.18);
-    return `<path d="${HOOD.outer(sex === 'f')} ${HOOD.hole}" fill="${hood}" fill-rule="evenodd"/>`
-      + `<path d="M24.4 60 Q21.6 45 26.4 34.6 Q31.6 23.6 43 16.8" fill="none" stroke="${l}" stroke-opacity=".5" stroke-width="2" stroke-linecap="round"/>`
-      + `<path d="M50 11.6 Q50.5 18 50 25" fill="none" stroke="${d}" stroke-width="1.1"/>`
-      + `<path d="${HOOD.hole}" fill="none" stroke="${d}" stroke-width="3"/><path d="${HOOD.rim}" fill="none" stroke="${l}" stroke-opacity=".55" stroke-width="1.1"/>`;
-  }
   if (h === 'knight') {
     // Рыцарский шлем: стальной купол с забралом-щелью и красным плюмажем
     return `<path d="M50 14 Q60 2 71 6 Q62 8 58 15" fill="#D7263D"/><path d="M50 14 Q56 5 64 6" fill="none" stroke="#8E1424" stroke-width="1"/>
@@ -381,22 +373,6 @@ function hatLayer(h, hood, sex) {
     return '<path d="M30 47 Q28 17 50 17 Q72 17 70 47" fill="none" stroke="#2B2B3A" stroke-width="3.6" stroke-linecap="round"/><rect x="24.5" y="42" width="8" height="13" rx="3.5" fill="#2B2B3A"/><rect x="67.5" y="42" width="8" height="13" rx="3.5" fill="#2B2B3A"/><path d="M28 54 Q28.5 63 39 63.5" fill="none" stroke="#2B2B3A" stroke-width="2.2" stroke-linecap="round"/><rect x="38" y="61" width="5.5" height="4.5" rx="2" fill="#E5484D"/>';
   }
   return '';
-}
-// Геометрия капюшона (в координатах лица до подгонки по ширине)
-const HOOD = {
-  // Внешний контур идёт по голове с запасом на ткань и ложится на линию плеч (у «Ж» плечи ниже и уже)
-  outer: (f) => f
-    ? 'M23.6 84 Q19.4 58 24 39 Q29 23 42 15.6 Q50 11.4 58 15.6 Q71 23 76 39 Q80.6 58 76.4 84 Q68 77.6 60 76 Q55 77 50 77.6 Q45 77 40 76 Q32 77.6 23.6 84 Z'
-    : 'M20.6 80 Q17.4 57 23 38.6 Q28.6 22.6 42 15.4 Q50 11.2 58 15.4 Q71.4 22.6 77 38.6 Q82.6 57 79.4 80 Q70 74.6 60 75 Q55 76 50 76.6 Q45 76 40 75 Q30 74.6 20.6 80 Z',
-  // Проём: лоб и уши закрыты, снизу — сразу под подбородком
-  hole: 'M33.6 66 Q30.2 52 32.6 40.4 Q35.6 28.2 50 27.6 Q64.4 28.2 67.4 40.4 Q69.8 52 66.4 66 Q60 72.6 50 73 Q40 72.6 33.6 66 Z',
-  rim: 'M31.2 64 Q27.8 51 30.4 39.6 Q34 25.8 50 25.2 Q66 25.8 69.6 39.6 Q72.2 51 68.8 64'
-};
-// Тёмная глубина капюшона — за лицом; тень от края на лоб — поверх лица
-const hoodInside = (c) => `<path d="${HOOD.hole}" fill="${shade(c, -0.62)}"/>`;
-const hoodShade = (c, u) => `<clipPath id="hd${u}"><path d="${HOOD.hole}"/></clipPath><g clip-path="url(#hd${u})"><path d="M28 24 H72 V37 Q50 45 28 37 Z" fill="${shade(c, -0.62)}" opacity=".42"/></g>`;
-function hoodBack(c) {
-  return `<path d="M22 76 Q18 40 28 24 Q38 12 50 12 Q62 12 72 24 Q82 40 78 76 Z" fill="${shade(c, -0.12)}"/>`;
 }
 // Маски: медицинская и марлевая закрывают нос и рот; кибервизор (Лавка) — неоновая полоса на глазах
 function maskLayer(m, g, c) {
@@ -723,7 +699,7 @@ function avatarInner(look = {}) {
   // Борода — только у «М», макияж — только у «Ж»
   const mg = MOUTH_GEO[look.mouth] || MOUTH_GEO.smile;
   const beard = sex === 'm' ? (BEARDS[look.beard] || BEARDS.none)(bc, mc, mg, g) : { under: '', over: '' };
-  const hat = look.hat && look.hat !== 'none' && !(look.hat === 'hood' && look.outfit && look.outfit !== 'hoodie') ? look.hat : null;
+  const hat = look.hat && look.hat !== 'none' && look.hat !== 'hood' ? look.hat : null;
   const mk = sex === 'f' ? (MAKEUP[look.makeup] || MAKEUP.none) : MAKEUP.none;
   const es = (EYE_SCALE[look.eyeSize] || 1) * (sex === 'f' ? 1.08 : 1);
   const ek = (EAR_SCALE[look.ears] || 1) * (sex === 'f' ? 0.9 : 1);
@@ -743,10 +719,9 @@ function avatarInner(look = {}) {
   const freckles = look.freckles ? [[39.5, 52.5], [42, 54], [38.8, 55], [60.5, 52.5], [58, 54], [61.2, 55]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r=".85" fill="${shade(skin, -0.38)}"/>`).join('') : '';
   const capped = hat && !['headset', 'laurel', 'royal', 'kokoshnik'].includes(hat);
   const hatC = look.hatColor && look.hatColor !== 'same' && HOODIE[look.hatColor] ? HOODIE[look.hatColor] : hood;
-  const hooded = hat === 'hood' && (!look.outfit || look.outfit === 'hoodie');
   // Под шапкой высокие причёски (пучки, ирокез, кок) прячутся, длинные торчат прядями
-  const hairBack = hooded ? '' : HAIR_BACK[hs] && !(capped && HAIR_TALL.includes(hs) && hs !== 'ponytail') ? HAIR_BACK[hs](hair) : '';
-  const hairFront = hooded ? '' : capped ? (HAIR_LONG.includes(hs) || sex === 'f' ? locks(hair, HAIR_LONG.includes(hs) ? 62 : 52, 3.4) : '') : HAIR_FRONT[hs](hair);
+  const hairBack = HAIR_BACK[hs] && !(capped && HAIR_TALL.includes(hs) && hs !== 'ponytail') ? HAIR_BACK[hs](hair) : '';
+  const hairFront = capped ? (HAIR_LONG.includes(hs) || sex === 'f' ? locks(hair, HAIR_LONG.includes(hs) ? 62 : 52, 3.4) : '') : HAIR_FRONT[hs](hair);
   const exL = 50 - rx - 0.5, exR = 50 + rx + 0.5;
   const ears = `<ellipse cx="${exL}" cy="49" rx="${3.6 * ek}" ry="${5 * ek}" fill="${skin}"/><ellipse cx="${exR}" cy="49" rx="${3.6 * ek}" ry="${5 * ek}" fill="${skin}"/>
     <ellipse cx="${exL + 0.2}" cy="49.3" rx="${1.6 * ek}" ry="${2.8 * ek}" fill="${skinDark}"/><ellipse cx="${exR - 0.2}" cy="49.3" rx="${1.6 * ek}" ry="${2.8 * ek}" fill="${skinDark}"/>`;
@@ -757,15 +732,13 @@ function avatarInner(look = {}) {
   const brimY = { cap: 39, fedora: 36, beanie: 40, tricorn: 40, ushanka: 40, dedmoroz: 40 }[hat];
   const hairBackC = brimY && hairBack ? `<clipPath id="hb${u}"><rect x="0" y="${brimY}" width="100" height="100"/></clipPath><g clip-path="url(#hb${u})">${fit(hairBack)}</g>` : fit(hairBack);
   const eyesCovered = helmet || look.mask === 'scuba' || look.mask === 'visor';
-  const earsCovered = helmet || hooded || hat === 'ushanka';
+  const earsCovered = helmet || hat === 'ushanka';
   const showGlasses = look.glasses && !eyesCovered;
   const beardL = helmet ? { under: '', over: '' } : beard;
   return `${bgLayer(look.bg, skin, u)}${hairBackC}
     ${look.neck === 'snake' ? snakeBack() : ''}
     ${outfitLayer(look.outfit, hood, skin, sex)}
     ${look.neck === 'snake' && ['corgi', 'pug', 'frenchie'].includes(look.pet) && !mug ? `<g transform="translate(100 0) scale(-1 1)">${snakeLayer()}</g>` : neckLayer(look.neck)}
-    ${hooded ? fit(hoodInside(hatC)) : ''}
-    ${hooded ? `<clipPath id="hc${u}"><path d="${HOOD.hole}" transform="translate(50 0) scale(${kx} 1) translate(-50 0)"/></clipPath><g clip-path="url(#hc${u})">` : ''}
     ${ears}
     <path d="${g.d}" fill="${skin}"/>
     ${jaw}
@@ -780,8 +753,6 @@ function avatarInner(look = {}) {
     ${earsCovered ? '' : earringsLayer(look.earrings, exL, exR, 49 + 5 * ek - 0.8)}
     ${helmet ? '' : fit(hairFront)}
     ${showGlasses && capped ? glassesLayer(look.glassesStyle, look.glassesColor, look.lensColor, u, rx) : ''}
-    ${hooded ? '</g>' : ''}
-    ${hooded ? fit(hoodShade(hatC, u)) : ''}
     ${capped ? fit(hatLayer(hat, hatC, sex)) : ''}
     ${showGlasses && !capped ? glassesLayer(look.glassesStyle, look.glassesColor, look.lensColor, u, rx) : ''}
     ${hat === 'headset' || hat === 'laurel' || hat === 'royal' || hat === 'kokoshnik' ? fit(hatLayer(hat, hood)) : ''}
@@ -3420,7 +3391,7 @@ const NECK_NAMES = { none: 'Ничего', tie: 'Галстук', tie_crooked: '
 const PET_NAMES = { none: 'Без питомца', corgi: 'Корги', pug: 'Мопс', frenchie: 'Французский бульдог', parrot: 'Попугай на плече' };
 const LENS_NAMES = { clear: 'Прозрачные', grey: 'Серые', brown: 'Коричневые', blue: 'Голубые', green: 'Зелёные', pink: 'Розовые', yellow: 'Жёлтые' };
 const LENS_SWATCH = { clear: 'repeating-linear-gradient(45deg,#fff 0 4px,#E3E8F2 4px 8px)', grey: '#555B68', brown: '#7A5232', blue: '#4A86E0', green: '#3A9A68', pink: '#F08BB4', yellow: '#F2C230' };
-const HAT_NAMES = { none: 'Без шапки', beanie: 'Шапка', cap: 'Кепка', hood: 'Капюшон', headset: 'Гарнитура', laurel: 'Лавровый венок', knight: 'Рыцарский шлем', royal: 'Корона', fedora: 'Шляпа', ushanka: 'Ушанка', tricorn: 'Треуголка капитана', dedmoroz: 'Шапка Деда Мороза', kokoshnik: 'Кокошник Снегурочки' };
+const HAT_NAMES = { none: 'Без шапки', beanie: 'Шапка', cap: 'Кепка', headset: 'Гарнитура', laurel: 'Лавровый венок', knight: 'Рыцарский шлем', royal: 'Корона', fedora: 'Шляпа', ushanka: 'Ушанка', tricorn: 'Треуголка капитана', dedmoroz: 'Шапка Деда Мороза', kokoshnik: 'Кокошник Снегурочки' };
 const EYE_NAMES = { normal: 'Обычные', tired: 'После совещания', sly: 'Хитрые', wide: 'Удивлённые', anime: 'Аниме' };
 const PROP_NAMES = { none: 'Ничего', torch: 'Факел', phone: 'Телефон', mug: 'Кружка', papers: 'Квартальный отчёт', sign: 'Табличка', laptop: 'Ноутбук', mug_best: 'Лучший сотрудник', trophy: 'Кубок Лиги' };
 const AVA_CATS = [['face', 'Лицо'], ['hair', 'Волосы'], ['eyes', 'Глаза'], ['mouth', 'Рот'], ['beard', 'Борода'], ['makeup', 'Макияж'], ['outfit', 'Одежда'], ['acc', 'Аксессуары'], ['bg', 'Фон'], ['meme', 'Мемы']];
@@ -3578,7 +3549,7 @@ function renderAvatarEditor() {
     makeup: `<div class="field">Макияж${tiles('makeup', L.makeup, MAKEUP_NAMES, true)}</div><div class="field">Серьги${tiles('earrings', L.earrings, EARRING_NAMES, true)}</div>`,
     outfit: `<div class="field">Одежда${tiles('outfit', L.outfit, OUTFIT_NAMES)}</div><div class="field">Цвет одежды${sw('hoodie', L.hoodie)}</div>`,
     acc: `<div class="field">Очки${glassesTiles}</div>${d.glasses ? `<div class="field">Цвет оправы<div class="row" style="flex-wrap:wrap;gap:8px">${L.glassesColor.map((v) => `<button class="swatch gc ${(d.glassesColor || 'black') === v ? 'on' : ''}" style="background:${GLASS_SWATCH[v]}" data-act="ava-set" data-k="glassesColor" data-v="${v}" aria-label="${GLASS_COLOR_NAMES[v]}" title="${GLASS_COLOR_NAMES[v]}"></button>`).join('')}</div></div>
-      <div class="field">Цвет стёкол<div class="row" style="flex-wrap:wrap;gap:8px">${L.lensColor.map((v) => `<button class="swatch gc ${(d.lensColor || 'clear') === v ? 'on' : ''}" style="background:${LENS_SWATCH[v]}" data-act="ava-set" data-k="lensColor" data-v="${v}" aria-label="${LENS_NAMES[v]}" title="${LENS_NAMES[v]}"></button>`).join('')}</div></div>` : ''}<div class="field">Серьги${tiles('earrings', L.earrings, EARRING_NAMES, true)}</div><div class="field">На шее${tiles('neck', L.neck, NECK_NAMES)}</div><div class="field">На голове${tiles('hat', L.hat.filter((v) => v !== 'hood' || !d.outfit || d.outfit === 'hoodie'), HAT_NAMES)}</div>${!d.outfit || d.outfit === 'hoodie' ? '' : '<p class="small" style="margin:0">Капюшон есть только у худи.</p>'}${d.hat && d.hat !== 'none' && d.hat !== 'headset' ? `<div class="field">Цвет головного убора<div class="row" style="flex-wrap:wrap;gap:8px"><button class="swatch same ${!d.hatColor || d.hatColor === 'same' ? 'on' : ''}" data-act="ava-set" data-k="hatColor" data-v="same" title="Как одежда" aria-label="Как одежда">=</button>${L.hoodie.map((v) => `<button class="swatch ${d.hatColor === v ? 'on' : ''}" style="background:${HOODIE[v]}" data-act="ava-set" data-k="hatColor" data-v="${v}" title="${COLOR_NAMES[v]}" aria-label="${COLOR_NAMES[v]}"></button>`).join('')}</div></div>` : ''}<div class="field">Маска${tiles('mask', L.mask, MASK_NAMES, true)}</div><div class="chips">${tog('phones', 'Наушники')}</div>
+      <div class="field">Цвет стёкол<div class="row" style="flex-wrap:wrap;gap:8px">${L.lensColor.map((v) => `<button class="swatch gc ${(d.lensColor || 'clear') === v ? 'on' : ''}" style="background:${LENS_SWATCH[v]}" data-act="ava-set" data-k="lensColor" data-v="${v}" aria-label="${LENS_NAMES[v]}" title="${LENS_NAMES[v]}"></button>`).join('')}</div></div>` : ''}<div class="field">Серьги${tiles('earrings', L.earrings, EARRING_NAMES, true)}</div><div class="field">На шее${tiles('neck', L.neck, NECK_NAMES)}</div><div class="field">На голове${tiles('hat', L.hat, HAT_NAMES)}</div>${d.hat && d.hat !== 'none' && d.hat !== 'headset' ? `<div class="field">Цвет головного убора<div class="row" style="flex-wrap:wrap;gap:8px"><button class="swatch same ${!d.hatColor || d.hatColor === 'same' ? 'on' : ''}" data-act="ava-set" data-k="hatColor" data-v="same" title="Как одежда" aria-label="Как одежда">=</button>${L.hoodie.map((v) => `<button class="swatch ${d.hatColor === v ? 'on' : ''}" style="background:${HOODIE[v]}" data-act="ava-set" data-k="hatColor" data-v="${v}" title="${COLOR_NAMES[v]}" aria-label="${COLOR_NAMES[v]}"></button>`).join('')}</div></div>` : ''}<div class="field">Маска${tiles('mask', L.mask, MASK_NAMES, true)}</div><div class="chips">${tog('phones', 'Наушники')}</div>
       <div class="field">В руке${tiles('prop', ['none', 'mug', 'mug_best', 'phone', 'torch'], { none: 'Ничего', mug: 'Кружка', mug_best: 'Лучший сотрудник', phone: 'Телефон', torch: 'Факел' })}</div>
       <div class="field">Питомец рядом${tiles('pet', L.pet, PET_NAMES)}</div>`,
     bg: `<div class="field">Фон${tiles('bg', L.bg, BG_NAMES)}</div><p class="small" style="margin:0">«Под кожу» сам подбирает цвет, на котором лицо не сливается с фоном.</p>`,
@@ -4460,7 +4431,7 @@ const actions = {
     toast('Картинка сохранена');
   }, { rerender: false }),
   'ava-cat'(el) { S.avaCat = el.dataset.v; render(); },
-  'ava-set'(el) { S.draft = { ...S.draft, [el.dataset.k]: el.dataset.v }; if (el.dataset.k === 'outfit' && el.dataset.v !== 'hoodie' && S.draft.hat === 'hood') S.draft.hat = 'none'; render(); },
+  'ava-set'(el) { S.draft = { ...S.draft, [el.dataset.k]: el.dataset.v }; render(); },
   'ava-glasses'(el) { const v = el.dataset.v; S.draft = v === 'none' ? { ...S.draft, glasses: false } : { ...S.draft, glasses: true, glassesStyle: v }; render(); },
   'ava-hide'(el) { const c = el.dataset.c; S.avaHide = S.avaHide || {}; S.avaHide[c] = { ...(S.avaHide[c] || {}), [el.dataset.k]: el.dataset.v === '1' }; render(); },
   'ava-toggle'(el) { S.draft = { ...S.draft, [el.dataset.k]: !S.draft[el.dataset.k] }; render(); },
