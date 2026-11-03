@@ -297,7 +297,7 @@ function neckLayer(n) {
   if (n === 'badge') return '<path d="M44 72 L57 86 M56 72 L59 86" stroke="#E5484D" stroke-width="1.6"/><rect x="53.5" y="85" width="13" height="16" rx="2" fill="#fff" stroke="#C9CED9" stroke-width=".8"/><rect x="53.5" y="85" width="13" height="4" rx="1.5" fill="#E5484D"/><circle cx="58" cy="94" r="2.4" fill="#C9CED9"/><path d="M61.5 92.5 h3 M61.5 95.5 h3" stroke="#C9CED9" stroke-width="1.2"/>';
   return '';
 }
-function hatLayer(h, hood) {
+function hatLayer(h, hood, sex) {
   if (h === 'beanie') {
     const c = shade(hood, 0.1);
     return `<path d="M28.5 42 Q27.5 15 50 14.5 Q72.5 15 71.5 42 Z" fill="${c}"/><path d="M38 20 L38 40 M46 16 L46 38 M54 16 L54 38 M62 20 L62 40" stroke="${shade(c, -0.15)}" stroke-width="1.4"/>
@@ -309,12 +309,12 @@ function hatLayer(h, hood) {
       <path d="M50 12.5 L50 37" stroke="${shade(c, -0.15)}" stroke-width="1.2"/><circle cx="50" cy="13" r="1.8" fill="${shade(c, -0.3)}"/><path d="M36 20 Q43 15.5 52 15.6" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/>`;
   }
   if (h === 'hood') {
-    // Капюшон худи: остроконечный верх со швом, толстый край проёма; низ уходит в худи на груди
+    // Капюшон худи: по форме головы, лёгкий острый верх со швом, толстый край проёма; низ лежит на плечах
     const d = shade(hood, -0.22), l = shade(hood, 0.18);
-    return `<path d="${HOOD.outer} ${HOOD.hole}" fill="${hood}" fill-rule="evenodd"/>`
-      + `<path d="M23 60 Q20 44 25.6 33 Q31 21 43 13.4" fill="none" stroke="${l}" stroke-opacity=".55" stroke-width="2" stroke-linecap="round"/>`
-      + `<path d="M50 8.6 Q50.6 15 50 22" fill="none" stroke="${d}" stroke-width="1.1"/>`
-      + `<path d="${HOOD.hole}" fill="none" stroke="${d}" stroke-width="3.2"/><path d="${HOOD.rim}" fill="none" stroke="${l}" stroke-opacity=".6" stroke-width="1.2"/>`;
+    return `<path d="${HOOD.outer(sex === 'f')} ${HOOD.hole}" fill="${hood}" fill-rule="evenodd"/>`
+      + `<path d="M24.4 60 Q21.6 45 26.4 34.6 Q31.6 23.6 43 16.8" fill="none" stroke="${l}" stroke-opacity=".5" stroke-width="2" stroke-linecap="round"/>`
+      + `<path d="M50 11.6 Q50.5 18 50 25" fill="none" stroke="${d}" stroke-width="1.1"/>`
+      + `<path d="${HOOD.hole}" fill="none" stroke="${d}" stroke-width="3"/><path d="${HOOD.rim}" fill="none" stroke="${l}" stroke-opacity=".55" stroke-width="1.1"/>`;
   }
   if (h === 'knight') {
     // Рыцарский шлем: стальной купол с забралом-щелью и красным плюмажем
@@ -384,9 +384,13 @@ function hatLayer(h, hood) {
 }
 // Геометрия капюшона (в координатах лица до подгонки по ширине)
 const HOOD = {
-  outer: 'M20.6 94 Q16.6 57 22.6 36.6 Q28.6 19 43.6 10.8 Q50 7 56.4 10.8 Q71.4 19 77.4 36.6 Q83.4 57 79.4 94 Q64 83.4 50 85.4 Q36 83.4 20.6 94 Z',
-  hole: 'M32.6 72 Q28.6 52 31.6 39 Q35.6 25 50 24.4 Q64.4 25 68.4 39 Q71.4 52 67.4 72 Q59 79 50 79.4 Q41 79 32.6 72 Z',
-  rim: 'M30.4 70 Q26.4 51 29.6 38 Q34 22.4 50 21.8 Q66 22.4 70.4 38 Q73.6 51 69.6 70'
+  // Внешний контур идёт по голове с запасом на ткань и ложится на линию плеч (у «Ж» плечи ниже и уже)
+  outer: (f) => f
+    ? 'M23.6 84 Q19.4 58 24 39 Q29 23 42 15.6 Q50 11.4 58 15.6 Q71 23 76 39 Q80.6 58 76.4 84 Q68 77.6 60 76 Q55 77 50 77.6 Q45 77 40 76 Q32 77.6 23.6 84 Z'
+    : 'M20.6 80 Q17.4 57 23 38.6 Q28.6 22.6 42 15.4 Q50 11.2 58 15.4 Q71.4 22.6 77 38.6 Q82.6 57 79.4 80 Q70 74.6 60 75 Q55 76 50 76.6 Q45 76 40 75 Q30 74.6 20.6 80 Z',
+  // Проём: лоб и уши закрыты, снизу — сразу под подбородком
+  hole: 'M33.6 66 Q30.2 52 32.6 40.4 Q35.6 28.2 50 27.6 Q64.4 28.2 67.4 40.4 Q69.8 52 66.4 66 Q60 72.6 50 73 Q40 72.6 33.6 66 Z',
+  rim: 'M31.2 64 Q27.8 51 30.4 39.6 Q34 25.8 50 25.2 Q66 25.8 69.6 39.6 Q72.2 51 68.8 64'
 };
 // Тёмная глубина капюшона — за лицом; тень от края на лоб — поверх лица
 const hoodInside = (c) => `<path d="${HOOD.hole}" fill="${shade(c, -0.62)}"/>`;
@@ -761,6 +765,7 @@ function avatarInner(look = {}) {
     ${outfitLayer(look.outfit, hood, skin, sex)}
     ${look.neck === 'snake' && ['corgi', 'pug', 'frenchie'].includes(look.pet) && !mug ? `<g transform="translate(100 0) scale(-1 1)">${snakeLayer()}</g>` : neckLayer(look.neck)}
     ${hooded ? fit(hoodInside(hatC)) : ''}
+    ${hooded ? `<clipPath id="hc${u}"><path d="${HOOD.hole}" transform="translate(50 0) scale(${kx} 1) translate(-50 0)"/></clipPath><g clip-path="url(#hc${u})">` : ''}
     ${ears}
     <path d="${g.d}" fill="${skin}"/>
     ${jaw}
@@ -775,8 +780,9 @@ function avatarInner(look = {}) {
     ${earsCovered ? '' : earringsLayer(look.earrings, exL, exR, 49 + 5 * ek - 0.8)}
     ${helmet ? '' : fit(hairFront)}
     ${showGlasses && capped ? glassesLayer(look.glassesStyle, look.glassesColor, look.lensColor, u, rx) : ''}
+    ${hooded ? '</g>' : ''}
     ${hooded ? fit(hoodShade(hatC, u)) : ''}
-    ${capped ? fit(hatLayer(hat, hatC)) : ''}
+    ${capped ? fit(hatLayer(hat, hatC, sex)) : ''}
     ${showGlasses && !capped ? glassesLayer(look.glassesStyle, look.glassesColor, look.lensColor, u, rx) : ''}
     ${hat === 'headset' || hat === 'laurel' || hat === 'royal' || hat === 'kokoshnik' ? fit(hatLayer(hat, hood)) : ''}
     ${look.phones && hat !== 'headset' && hat !== 'ushanka' && !helmet ? fit('<path d="M29 47 Q27 15 50 15 Q73 15 71 47" fill="none" stroke="#2B2B3A" stroke-width="6" stroke-linecap="round"/><path d="M33 26 Q40 18 50 17.5" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/><rect x="23" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="67" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="25" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/><rect x="72" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/>') : ''}
