@@ -1069,6 +1069,7 @@ function createApi(db) {
     const g = q('SELECT * FROM gangs WHERE id = ?').get(Number(params.id));
     if (!g || !isMember(g.id, u.id)) throw bad('Ты не в этой банде.');
     leaveGang(u.id, g.id);
+    if (features) features.onEvent('gang_leave', u.id);
     return { ok: true };
   });
 

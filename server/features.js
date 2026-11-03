@@ -105,6 +105,7 @@ const ACH = [
   A('stealth', 'st_ghost', 'rare', 'Призрак офиса', 'Отметиться в офисе и уйти меньше чем через час', 'st_ghost', 1, { secret: true }),
   A('stealth', 'st_slack', 'rare', 'Чистосердечное', 'Трижды честно признаться, что отлыниваешь', 'st_slack', 3, { secret: true }),
   A('stealth', 'st_lurker', 'rare', 'Читаю молча', 'Заходить 10 дней — и не написать ни слова', 'lurker', 1, { secret: true }),
+  A('stealth', 'st_lone', 'common', 'Одинокий волк', 'Выйти из банды и никуда не вступить', 'st_lone', 1, { secret: true }),
   A('stealth', 'st_master', 'legendary', 'Мастер маскировки', 'Собрать все остальные секретные ачивки', 'st_all', 6, { secret: true }),
 
   // ---- Дуэли ----
@@ -283,7 +284,7 @@ function register(ctx) {
   const COUNTER_KEYS = ['checkins', 'replies', 'thanks_given', 'thanks_got', 'canteen', 'signals', 'coffee', 'guess_ok', 'quiz_ok', 'quiz_any',
     'sea_wins', 'sea_clean', 'sea_rivals', 'msgs', 'calls', 'dms', 'memes', 'santa', 'advent', 'lunches', 'food', 'looks', 'battles', 'signals_sent',
     'day_streak', 'active_days', 'quest_all', 'polls', 'poll_votes', 'blitz', 'blitz_best', 'early', 'dm_people', 'thanks_people', 'recruits', 'big_lunch',
-    'st_hide', 'st_unfindable', 'st_incognito', 'st_night', 'st_ghost', 'st_slack',
+    'st_hide', 'st_unfindable', 'st_incognito', 'st_night', 'st_ghost', 'st_slack', 'st_lone',
     'duels_started', 'duel_wins', 'duel_wins_rps', 'duel_wins_dice', 'duel_wins_ttt', 'duel_rivals', 'duel_streak_best', 'duel_pots', 'duel_comeback', 'duel_sixes', 'duel_snake',
     'duel_resign', 'duel_resign_lead', 'duel_declined', 'duel_lost3', 'duel_ttt_draw'];
   function countersOf(uid, u) {
@@ -411,6 +412,8 @@ function register(ctx) {
       if (type === 'dm_reply') { bump(uid, 'replies'); completeQuest(uid, 'reply'); }
       if (type === 'home') completeQuest(uid, 'where');
       if (type === 'gang_join') completeQuest(uid, 'join');
+      // Одинокий волк: вышел сам и остался без банды (переход в другую банду не считается)
+      if (type === 'gang_leave' && !q('SELECT 1 FROM gang_members WHERE user_id = ?').get(uid)) flag(uid, 'st_lone');
       if (type === 'guess_any') completeQuest(uid, 'guess');
       if (type === 'sea_shot') completeQuest(uid, 'sea');
       if (type === 'signal_sent') bump(uid, 'signals_sent');

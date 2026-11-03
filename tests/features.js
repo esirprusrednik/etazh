@@ -249,6 +249,10 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     await x.post('/api/checkin', { office: 'smol' });
     await x.post('/api/checkout');
     assert.ok((await x.get('/api/features')).json.achievements.find((a) => a.id === 'st_ghost').got);
+    // Одинокий волк: вышел из банды и остался один
+    await y.post(`/api/gangs/${gx.id}/leave`);
+    const yl = (await y.get('/api/features')).json.achievements.find((a) => a.id === 'st_lone');
+    assert.ok(yl.got && yl.name === 'Одинокий волк');
   });
 
   await step('женский род: ачивка «получила», статус «Готова к кофе»', async () => {
