@@ -3893,8 +3893,16 @@ const actions = {
   },
 
   async tab(el) {
-    if (S.tab !== el.dataset.v) tabSound(el.dataset.v);
+    const again = S.tab === el.dataset.v;
+    if (!again) tabSound(el.dataset.v);
+    // Повторное нажатие на открытую вкладку — к её главному экрану: из банды, лички и партии — в список чатов, и наверх
+    if (again) {
+      const nested = S.chatGang || S.dm || S.battle;
+      S.chatGang = false; S.dm = null; S.dmView = null; S.battle = null; S.bv = null;
+      if (nested) sfx('close');
+    }
     S.tab = el.dataset.v; S.sheet = null; render();
+    if (again) window.scrollTo(0, 0);
     await run(() => refresh());
   },
   checkin: (el) => run(async () => {
