@@ -59,7 +59,7 @@ const LOOK = {
   glassesStyle: ['classic', 'round', 'square', 'aviator', 'cat'],
   glassesColor: ['black', 'tortoise', 'gold', 'silver', 'red', 'navy', 'pink'],
   lensColor: ['clear', 'grey', 'brown', 'blue', 'green', 'pink', 'yellow'],
-  pet: ['none', 'corgi', 'pug', 'parrot'],
+  pet: ['none', 'corgi', 'pug', 'frenchie', 'parrot'],
   // Отдельный цвет бороды и усов; same — как волосы
   beardColor: ['same', '#2B1D14', '#6B3E26', '#E0B04B', '#C2412F', '#9AA3B5', '#F2E6C9', '#7C4DFF', '#FF6FA8'],
   mustacheColor: ['same', '#2B1D14', '#6B3E26', '#E0B04B', '#C2412F', '#9AA3B5', '#F2E6C9', '#7C4DFF', '#FF6FA8']
@@ -80,6 +80,8 @@ function applyLook(base, l, owned) {
   for (const k of ['glasses', 'phones', 'freckles']) if (l[k] !== undefined) look[k] = !!l[k];
   // Борода — только у «М», макияж — только у «Ж»
   if (look.preset === 'f') look.beard = 'none'; else look.makeup = 'none';
+  // Капюшон бывает только у худи
+  if (look.hat === 'hood' && look.outfit && look.outfit !== 'hoodie') look.hat = 'none';
   return look;
 }
 const NICK_PRICE = 50;
