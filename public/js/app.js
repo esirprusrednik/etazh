@@ -294,8 +294,8 @@ function hatLayer(h, hood) {
   }
   if (h === 'cap') {
     const c = hood;
-    return `<path d="M29.5 39 Q29 18.5 50 18 Q71 18.5 70.5 39 Z" fill="${c}"/><path d="M27 39 Q50 31 78 41 Q62 45.5 29 43 Z" fill="${shade(c, -0.3)}"/>
-      <path d="M50 18 L50 37" stroke="${shade(c, -0.15)}" stroke-width="1.2"/><circle cx="50" cy="18.5" r="1.8" fill="${shade(c, -0.3)}"/><path d="M38 24 Q44 20.5 52 21" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/>`;
+    return `<path d="M26.6 40 Q26 13 50 12.5 Q74 13 73.4 40 Z" fill="${c}"/><path d="M25 40 Q50 31.5 80 42 Q62 46.5 27 44 Z" fill="${shade(c, -0.3)}"/>
+      <path d="M50 12.5 L50 37" stroke="${shade(c, -0.15)}" stroke-width="1.2"/><circle cx="50" cy="13" r="1.8" fill="${shade(c, -0.3)}"/><path d="M36 20 Q43 15.5 52 15.6" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/>`;
   }
   if (h === 'hood') {
     // Капюшон поверх головы — передний край вокруг лица (задняя часть рисуется за головой отдельно)
@@ -311,8 +311,8 @@ function hatLayer(h, hood) {
   }
   if (h === 'fedora') {
     const c = shade(hood, -0.35);
-    return `<path d="M33 30 Q33 15 50 15 Q67 15 67 30 L68 36 H32 Z" fill="${c}"/><path d="M42 16 Q50 22 58 16" fill="none" stroke="${shade(c, -0.3)}" stroke-width="1.6"/>
-      <path d="M32 31.5 H68 V36 H32 Z" fill="${shade(c, -0.45)}"/><ellipse cx="50" cy="37" rx="27" ry="4.6" fill="${c}"/><ellipse cx="50" cy="36" rx="20" ry="2" fill="${shade(c, -0.25)}" opacity=".6"/>`;
+    return `<path d="M28 31 Q28 11.5 50 11.5 Q72 11.5 72 31 L73 37 H27 Z" fill="${c}"/><path d="M40 12.5 Q50 20 60 12.5" fill="none" stroke="${shade(c, -0.3)}" stroke-width="1.6"/>
+      <path d="M27.4 31.5 H72.6 V37 H27.4 Z" fill="${shade(c, -0.45)}"/><ellipse cx="50" cy="38" rx="32" ry="4.8" fill="${c}"/><ellipse cx="50" cy="37" rx="24" ry="2" fill="${shade(c, -0.25)}" opacity=".6"/>`;
   }
   if (h === 'royal') {
     // Королевская корона: высокая, с бархатом и камнями
@@ -646,15 +646,17 @@ function avatarInner(look = {}) {
   // Правила наложения: шлем закрывает всё лицо (очки, маска, борода, серьги, пряди не видны);
   // маска аквалангиста и кибервизор закрывают глаза — очки под ними прячутся; капюшон закрывает уши — серьги не видны
   const helmet = hat === 'knight';
+  const brimY = { cap: 39, fedora: 36, beanie: 40 }[hat];
+  const hairBackC = brimY && hairBack ? `<clipPath id="hb${u}"><rect x="0" y="${brimY}" width="100" height="100"/></clipPath><g clip-path="url(#hb${u})">${fit(hairBack)}</g>` : fit(hairBack);
   const eyesCovered = helmet || look.mask === 'scuba' || look.mask === 'visor';
   const earsCovered = helmet || hooded;
   const showGlasses = look.glasses && !eyesCovered;
   const beardL = helmet ? { under: '', over: '' } : beard;
-  return `${bgLayer(look.bg, skin, u)}${fit(hairBack)}
+  return `${bgLayer(look.bg, skin, u)}${hairBackC}
     ${hooded ? fit(hoodBack(hatC)) : ''}
     ${look.neck === 'snake' ? snakeBack() : ''}
     ${outfitLayer(look.outfit, hood, skin, sex)}
-    ${neckLayer(look.neck)}
+    ${look.neck === 'snake' && look.pet && look.pet !== 'none' && !mug ? `<g transform="translate(100 0) scale(-1 1)">${snakeLayer()}</g>` : neckLayer(look.neck)}
     ${ears}
     <path d="${g.d}" fill="${skin}"/>
     ${jaw}
