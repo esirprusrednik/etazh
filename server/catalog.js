@@ -63,6 +63,12 @@ const SHOP = [
   { id: 'p_armor', kind: 'part', slot: 'outfit', value: 'armor', name: 'Доспехи', price: 160, legend: true },
   { id: 'p_fedora', kind: 'part', slot: 'hat', value: 'fedora', name: 'Шляпа', price: 70, legend: true },
   { id: 'p_scuba', kind: 'part', slot: 'mask', value: 'scuba', name: 'Маска аквалангиста', price: 90, legend: true },
+  { id: 'p_tricorn', kind: 'part', slot: 'hat', value: 'tricorn', name: 'Треуголка капитана', price: 90, legend: true },
+  { id: 'p_vampire', kind: 'part', slot: 'outfit', value: 'vampire', name: 'Плащ вампира', price: 130, legend: true },
+  { id: 'p_parrot', kind: 'part', slot: 'pet', value: 'parrot', name: 'Попугай на плече', price: 100, legend: true },
+  { id: 'p_torch', kind: 'part', slot: 'prop', value: 'torch', name: 'Факел', price: 60, legend: true },
+  { id: 'p_dedmoroz', kind: 'part', slot: 'hat', value: 'dedmoroz', name: 'Шапка Деда Мороза', price: 60, legend: true },
+  { id: 'p_kokoshnik', kind: 'part', slot: 'hat', value: 'kokoshnik', name: 'Кокошник Снегурочки', price: 60, legend: true },
   // Трофеи Лиги банд: не продаются, только за призовое место
   { id: 'p_trophy', kind: 'part', slot: 'prop', value: 'trophy', name: 'Кубок Лиги', price: 0, award: true, how: '1 место в Лиге недели' },
   { id: 'p_laurel', kind: 'part', slot: 'hat', value: 'laurel', name: 'Лавровый венок', price: 0, award: true, how: 'топ-3 в Лиге месяца' },

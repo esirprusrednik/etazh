@@ -42,11 +42,11 @@ const LOOK = {
   hoodie: ['red', 'blue', 'green', 'violet', 'navy', 'black', 'white', 'beige', 'yellow', 'pink', 'orange', 'khaki', 'burgundy', 'grey'],
   hatColor: ['same', 'red', 'blue', 'green', 'violet', 'navy', 'black', 'white', 'beige', 'yellow', 'pink', 'orange', 'khaki', 'burgundy', 'grey'],
   eyeShape: ['normal', 'tired', 'sly', 'wide', 'anime'],
-  outfit: ['hoodie', 'tee', 'dev', 'shirt', 'suit', 'jacket', 'puffer', 'dress', 'cami', 'biker', 'cyber', 'armor'],
+  outfit: ['hoodie', 'tee', 'dev', 'shirt', 'suit', 'jacket', 'puffer', 'dress', 'cami', 'biker', 'cyber', 'armor', 'vampire'],
   neck: ['none', 'tie', 'tie_crooked', 'bow', 'badge', 'beads', 'chain', 'tie_gold', 'chain_gold', 'snake'],
-  hat: ['none', 'beanie', 'cap', 'hood', 'headset', 'laurel', 'knight', 'royal', 'fedora'],
+  hat: ['none', 'beanie', 'cap', 'hood', 'headset', 'laurel', 'knight', 'royal', 'fedora', 'ushanka', 'tricorn', 'dedmoroz', 'kokoshnik'],
   mask: ['none', 'medical', 'gauze', 'visor', 'scuba'],
-  prop: ['none', 'mug', 'papers', 'sign', 'laptop', 'mug_best', 'trophy'],
+  prop: ['none', 'mug', 'papers', 'sign', 'laptop', 'mug_best', 'trophy', 'phone', 'torch'],
   bg: ['auto', 'sky', 'mint', 'peach', 'lilac', 'sun', 'slate', 'office', 'meeting', 'home', 'street', 'cafe'],
   // Черты лица: размер глаз, нос, уши
   eyeSize: ['s', 'm', 'l'],
@@ -59,7 +59,7 @@ const LOOK = {
   glassesStyle: ['classic', 'round', 'square', 'aviator', 'cat'],
   glassesColor: ['black', 'tortoise', 'gold', 'silver', 'red', 'navy', 'pink'],
   lensColor: ['clear', 'grey', 'brown', 'blue', 'green', 'pink', 'yellow'],
-  pet: ['none', 'corgi', 'pug'],
+  pet: ['none', 'corgi', 'pug', 'parrot'],
   // Отдельный цвет бороды и усов; same — как волосы
   beardColor: ['same', '#2B1D14', '#6B3E26', '#E0B04B', '#C2412F', '#9AA3B5', '#F2E6C9', '#7C4DFF', '#FF6FA8'],
   mustacheColor: ['same', '#2B1D14', '#6B3E26', '#E0B04B', '#C2412F', '#9AA3B5', '#F2E6C9', '#7C4DFF', '#FF6FA8']

@@ -248,6 +248,17 @@ function outfitLayer(o, hood, skin, sex) {
       ${[[38, 80], [40.6, 84.6], [61.4, 80], [59, 84.6], [31, 76.6], [69, 76.6]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r=".9" fill="#D5DAE5"/>`).join('')}
       <path d="M${f ? 22 : 15} 82 Q30 77 36 77" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width="2" stroke-linecap="round"/><rect x="60" y="92" width="9" height="1.4" rx=".7" fill="#C9CED9"/>`;
   }
+  if (o === 'vampire') {
+    // Плащ вампира: чёрный, высокий стоячий воротник с красной подкладкой, белая рубашка и рубиновая брошь
+    const k = '#15131A', r = '#9B111E';
+    return `<path d="M${f ? 26 : 22} 76 L${f ? 19 : 14} 46 Q${f ? 28 : 24} 54 ${f ? 37 : 35} 59 L42 72 Z" fill="${k}"/><path d="M${f ? 26.6 : 23} 73 L${f ? 21.6 : 17} 50.6 Q${f ? 28.6 : 25} 56.6 ${f ? 35.6 : 34} 60.4 L40.6 71.4 Z" fill="${r}"/>`
+      + `<path d="M${f ? 74 : 78} 76 L${f ? 81 : 86} 46 Q${f ? 72 : 76} 54 ${f ? 63 : 65} 59 L58 72 Z" fill="${k}"/><path d="M${f ? 73.4 : 77} 73 L${f ? 78.4 : 83} 50.6 Q${f ? 71.4 : 75} 56.6 ${f ? 64.4 : 66} 60.4 L59.4 71.4 Z" fill="${r}"/>`
+      + `<path d="${body}" fill="${k}"/>${neck}`
+      + `<path d="M42.6 72 L50 90 L57.4 72 Q50 70.6 42.6 72 Z" fill="#F4F6FA"/><path d="M45 74 Q50 77.6 55 74" fill="none" stroke="#D5DAE5" stroke-width=".8"/>`
+      + `<path d="M41.6 72 L50 92 L40 104 L${f ? 30 : 24} 104 L36 78 Z M58.4 72 L50 92 L60 104 L${f ? 70 : 76} 104 L64 78 Z" fill="#221E2A"/>`
+      + `<path d="M41.6 72 L36 78 L${f ? 30 : 24} 104 M58.4 72 L64 78 L${f ? 70 : 76} 104" fill="none" stroke="${r}" stroke-width="1.2"/>`
+      + `<path d="M47.6 79.6 L50 77 L52.4 79.6 L50 82.2 Z" fill="#D7263D" stroke="#7E151B" stroke-width=".6"/><circle cx="49.4" cy="79" r=".5" fill="#fff"/>`;
+  }
   if (o === 'armor') {
     // Доспехи (легендарные): стальная кираса с наплечниками, заклёпки и блик
     const st = '#B9C3D1', dk = '#6B7689', lt = '#E8EDF4';
@@ -308,6 +319,39 @@ function hatLayer(h, hood) {
       <path d="M50 14 V40" stroke="#6B7689" stroke-width="1.2"/><path d="M29 44 H71 V50 H29 Z" fill="#1E2433"/><path d="M31 46.5 H69" stroke="#3A4256" stroke-width=".8"/>
       ${[0, 1, 2, 3, 4].map((i) => `<path d="M${40 + i * 5} 54 V62" stroke="#6B7689" stroke-width="1.4" stroke-linecap="round"/>`).join('')}
       <path d="M33 24 Q38 17 46 16" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="2" stroke-linecap="round"/>`;
+  }
+  if (h === 'tricorn') {
+    // Треуголка капитана: поднятые поля, золотой кант, пряжка
+    return `<path d="M35 23 Q36 8.5 50 8.5 Q64 8.5 65 23 Z" fill="#1B1B24"/>`
+      + `<path d="M18 30 Q25 13 50 17 Q75 13 82 30 Q66 26 50 27.6 Q34 26 18 30 Z" fill="#23232E" stroke="#E0B04B" stroke-width="1.3" stroke-linejoin="round"/>`
+      + `<path d="M18 30 Q34 27.6 50 27.6 Q66 27.6 82 30 Q71 41 50 45 Q29 41 18 30 Z" fill="#2C2C38" stroke="#E0B04B" stroke-width="1.4" stroke-linejoin="round"/>`
+      + `<path d="M27 33.4 Q50 40 73 33.4" fill="none" stroke="#000" stroke-opacity=".25" stroke-width="1"/><rect x="46.6" y="32" width="6.8" height="5.6" rx="1" fill="none" stroke="#E0B04B" stroke-width="1.3"/>`;
+  }
+  if (h === 'ushanka') {
+    // Ушанка: мех, отворот спереди, уши опущены
+    const f = '#6E4B2E', l = '#8C6642', d = '#4E3320';
+    return `<path d="M24.6 38 Q21 52 24.4 64 Q28.4 67.4 32.6 63 L33 39 Z" fill="${l}" stroke="${d}" stroke-width=".8"/><path d="M75.4 38 Q79 52 75.6 64 Q71.6 67.4 67.4 63 L67 39 Z" fill="${l}" stroke="${d}" stroke-width=".8"/>`
+      + `<path d="M27 40 Q26 13 50 12.5 Q74 13 73 40 Z" fill="${f}"/>`
+      + `<path d="M25.4 31.6 Q50 25 74.6 31.6 L75 42 Q50 36 25 42 Z" fill="${l}" stroke="${d}" stroke-width=".8"/>`
+      + `<g stroke="${d}" stroke-width=".7" stroke-linecap="round" opacity=".7"><path d="M33 34 l1 2.4 M40 32 l.8 2.4 M47 31 l.6 2.4 M54 31 l.4 2.4 M61 32 l.2 2.4 M68 33.6 l0 2.4 M26.6 46 l2 .6 M26.4 54 l2 .6 M73.4 46 l-2 .6 M73.6 54 l-2 .6 M38 18 l1.4 1.6 M50 15 l0 2 M62 18 l-1.4 1.6"/></g>`;
+  }
+  if (h === 'dedmoroz') {
+    // Шапка Деда Мороза: красная, круглая, с белой меховой опушкой и серебряными снежинками
+    const sn = (x, y) => `<path d="M${x} ${y - 2.6} V${y + 2.6} M${x - 2.3} ${y - 1.3} L${x + 2.3} ${y + 1.3} M${x - 2.3} ${y + 1.3} L${x + 2.3} ${y - 1.3}" stroke="#E6ECF5" stroke-width=".8" stroke-linecap="round"/>`;
+    return `<path d="M27.4 38 Q26.4 11 50 10.4 Q73.6 11 72.6 38 Z" fill="#C62828"/><path d="M33 18 Q40 12.6 49 12.6" fill="none" stroke="#fff" stroke-opacity=".3" stroke-width="2" stroke-linecap="round"/>`
+      + sn(40, 22) + sn(55, 18) + sn(63, 27) + sn(48, 28)
+      + `<path d="M25.4 31.4 Q50 25.4 74.6 31.4 L75 41.6 Q50 36 25 41.6 Z" fill="#F6F7FB"/>`
+      + [27, 33, 39, 45, 51, 57, 63, 69, 74].map((x, i) => `<circle cx="${x}" cy="${i % 2 ? 40.6 : 41.4}" r="2.4" fill="#F6F7FB"/>`).join('')
+      + `<path d="M28 34 Q50 29 72 34" fill="none" stroke="#D5DAE5" stroke-width=".8"/>`;
+  }
+  if (h === 'kokoshnik') {
+    // Кокошник Снегурочки: высокий полумесяц, жемчуг по краю и голубой камень
+    return `<path d="M29 38 Q26 22 34.6 13.6 Q42 6 50 4 Q58 6 65.4 13.6 Q74 22 71 38 Q50 30.6 29 38 Z" fill="#DCEBFA" stroke="#7FA8DA" stroke-width="1.2"/>`
+      + `<path d="M33.6 34.6 Q32 22 39 15.4 Q44.6 10.4 50 9.4 Q55.4 10.4 61 15.4 Q68 22 66.4 34.6" fill="none" stroke="#9CC0EA" stroke-width="1"/>`
+      + `<path d="M39 30 Q42 22 50 18 Q58 22 61 30" fill="none" stroke="#B8D3F2" stroke-width="1.6"/><path d="M50 10 V18" stroke="#B8D3F2" stroke-width="1.2"/>`
+      + [[31, 36.2], [35.4, 33.8], [40, 32.2], [45, 31.3], [50, 31], [55, 31.3], [60, 32.2], [64.6, 33.8], [69, 36.2]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.25" fill="#fff" stroke="#C9D3EA" stroke-width=".4"/>`).join('')
+      + `<path d="M50 20.4 L53.4 24.6 L50 28.8 L46.6 24.6 Z" fill="#3A86FF" stroke="#1E4FA8" stroke-width=".7"/><circle cx="49" cy="23.6" r=".7" fill="#fff"/>`
+      + [[36, 20], [64, 20], [42, 13], [58, 13]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1" fill="#fff"/>`).join('');
   }
   if (h === 'fedora') {
     const c = shade(hood, -0.35);
@@ -529,6 +573,15 @@ function petLayer(p) {
       + '<circle cx="13.4" cy="78" r="1.3" fill="#1E1A18"/><circle cx="20.6" cy="78" r="1.3" fill="#1E1A18"/><circle cx="13.8" cy="77.6" r=".4" fill="#fff"/><circle cx="21" cy="77.6" r=".4" fill="#fff"/>'
       + '<ellipse cx="17" cy="82" rx="1.7" ry="1.2" fill="#1E1A18"/><path d="M17 83.2 Q17 85 15.6 85.4 M17 83.2 Q17 85 18.4 85.4" fill="none" stroke="#1E1A18" stroke-width=".6" stroke-linecap="round"/><path d="M16.2 85.4 Q17 88 17.8 85.4 Z" fill="#F07A8A"/></g>';
   }
+  if (p === 'parrot') {
+    // Попугай ара на правом плече (слева от зрителя питомцы уже заняты корги и мопсом)
+    return `<g transform="translate(0 -1)"><path d="M80 78 Q84 90 82 100 L79 99 Q80 90 77.6 79 Z" fill="#2A7BD5"/><path d="M81 80 Q86 90 86 99 L83.6 99 Q83 90 79 81 Z" fill="#E5484D"/>`
+      + `<ellipse cx="79.6" cy="68" rx="6" ry="9.4" fill="#E5484D"/><path d="M74.4 66 Q73 74 77.6 79.4 Q82 76 82.4 68 Q79 70 74.4 66 Z" fill="#F4C430"/><path d="M75 71 Q75.6 77 78.8 80 Q81.2 76.6 81 71.6 Q78 73.4 75 71 Z" fill="#2A7BD5"/>`
+      + `<circle cx="79.4" cy="57.6" r="5.4" fill="#E5484D"/><path d="M80.6 54.6 Q85.4 54.4 86.4 57 Q86.6 60.6 83.6 61.6 Q84.4 58.4 81 58 Z" fill="#F7F4EE"/>`
+      + `<path d="M84.4 56.6 Q88.6 57.2 88 61 Q87.4 63.4 85 63 Q86.6 60.4 84 59.6 Z" fill="#2B2B33"/><path d="M84 59.8 Q85.6 61.6 84.6 62.4" fill="none" stroke="#111" stroke-width=".5"/>`
+      + `<circle cx="82.4" cy="57.2" r="1.2" fill="#111"/><circle cx="82.7" cy="56.9" r=".35" fill="#fff"/>`
+      + `<path d="M76.6 77.4 l-.8 2.2 M79 78 l0 2.4 M81.4 77.6 l.8 2.2" stroke="#8A919E" stroke-width="1.1" stroke-linecap="round"/></g>`;
+  }
   if (p === 'pug') {
     return '<g transform="translate(4 -5)"><ellipse cx="17" cy="97" rx="11.6" ry="8" fill="#D9B98C"/><ellipse cx="17" cy="80" rx="9.6" ry="8.6" fill="#D9B98C"/>'
       + '<path d="M8 74 Q6 72.6 6.4 78 Q8.6 78.4 10 76 Z M26 74 Q28 72.6 27.6 78 Q25.4 78.4 24 76 Z" fill="#3A2E28"/>'
@@ -557,16 +610,43 @@ function snakeLayer() {
     + `<circle cx="26.8" cy="72.4" r=".95" fill="#111"/><circle cx="26.5" cy="72.1" r=".3" fill="#fff"/>`
     + `<path d="M23.6 74.2 L21 74.8 M21 74.8 L19.8 74 M21 74.8 L20 76" stroke="#E5484D" stroke-width=".7" stroke-linecap="round"/></g>`;
 }
-// Рука с кружкой (Аксессуары): рукав, кисть и пальцы обхватывают кружку
+// Предметы в руке. Рука — левая у персонажа (справа на картинке): рукав снизу, кулак обхватывает предмет
+function fist(x, y, skin, w = 9, h = 10) {
+  const e = shade(skin, -0.22);
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="3.6" fill="${skin}" stroke="${e}" stroke-width=".7"/>`
+    + `<path d="M${x + 1.2} ${y + h * 0.36} h${w * 0.55} M${x + 1.2} ${y + h * 0.64} h${w * 0.55}" stroke="${e}" stroke-width=".7" stroke-linecap="round"/>`;
+}
+// Кружка: пальцы продеты в ручку, большой палец сверху на ручке
 function mugHand(gold, skin, sleeve) {
-  const c = gold ? '#F4C430' : '#fff', e = gold ? '#C99A0E' : '#C9CED9';
-  return '<g transform="translate(-5 -9)">' + `<path d="M62 118 Q62 100 68 92" fill="none" stroke="${sleeve}" stroke-width="10" stroke-linecap="round"/>`
-    + `<path d="M70 82 Q66 78 70 74 M75 82 Q71 78 75 74" fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="1.3" stroke-linecap="round"/>`
-    + `<path d="M80.5 88 Q87 88 86.5 93 Q86 97.5 80.5 97" fill="none" stroke="${e}" stroke-width="2.4"/>`
-    + `<rect x="66" y="84" width="15" height="17" rx="2.5" fill="${c}" stroke="${e}" stroke-width="1"/><ellipse cx="73.5" cy="85" rx="6.6" ry="1.7" fill="#6B3E26"/>`
-    + (gold ? '<path d="M73.5 88.5 L74.8 91.3 L77.8 91.6 L75.6 93.6 L76.2 96.6 L73.5 95.1 L70.8 96.6 L71.4 93.6 L69.2 91.6 L72.2 91.3 Z" fill="#fff"/>' : '<path d="M71 91 h6 M71 94 h4" stroke="#E5484D" stroke-width="1.2" stroke-linecap="round"/>')
-    + `<path d="M62.6 90 Q66 88 70.4 89.4 L70.6 92.6 Q66.6 92 64 93.6 Z" fill="${skin}" stroke="${shade(skin, -0.2)}" stroke-width=".6"/>`
-    + [91.6, 94.6, 97.6].map((y) => `<rect x="${y === 91.6 ? 64.8 : 64.4}" y="${y}" width="7.6" height="2.8" rx="1.4" fill="${skin}" stroke="${shade(skin, -0.2)}" stroke-width=".6"/>`).join('') + '</g>';
+  const c = gold ? '#F4C430' : '#fff', e = gold ? '#C99A0E' : '#C9CED9', sk = shade(skin, -0.22);
+  return `<g transform="translate(-4 -7)">` + `<path d="M93 114 Q91 104 87.6 98" fill="none" stroke="${sleeve}" stroke-width="10" stroke-linecap="round"/>`
+    + `<path d="M66 79 Q63 75 66 71 M71 79 Q68 75 71 71" fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="1.3" stroke-linecap="round"/>`
+    + `<rect x="61" y="81" width="15" height="17" rx="2.5" fill="${c}" stroke="${e}" stroke-width="1"/><ellipse cx="68.5" cy="82" rx="6.6" ry="1.7" fill="#6B3E26"/>`
+    + (gold ? '<path d="M68.5 85.5 L69.8 88.3 L72.8 88.6 L70.6 90.6 L71.2 93.6 L68.5 92.1 L65.8 93.6 L66.4 90.6 L64.2 88.6 L67.2 88.3 Z" fill="#fff"/>' : '<path d="M65 88 h7 M65 91 h5" stroke="#E5484D" stroke-width="1.2" stroke-linecap="round"/>')
+    + `<path d="M76 84.6 Q82.6 84.6 82.2 89.6 Q81.8 94.4 76 94" fill="none" stroke="${e}" stroke-width="2.4"/>`
+    + fist(79.4, 86.2, skin, 9, 10.4)
+    + `<path d="M80.4 86.6 Q81.6 83.6 85.4 84.4" fill="none" stroke="${sk}" stroke-width="3.6" stroke-linecap="round"/><path d="M80.4 86.6 Q81.6 83.6 85.4 84.4" fill="none" stroke="${skin}" stroke-width="2.4" stroke-linecap="round"/>` + '</g>';
+}
+// Факел: деревянная рукоять, промасленная обмотка и живое пламя
+function torchHand(skin, sleeve) {
+  return `<g transform="translate(-4 -6)">` + `<path d="M93 114 Q91 104 87 98" fill="none" stroke="${sleeve}" stroke-width="10" stroke-linecap="round"/>`
+    + `<path d="M84 106 L80.4 76" stroke="#7A4A22" stroke-width="4.4" stroke-linecap="round"/><path d="M83.4 101 L80.6 78" stroke="#A86B3A" stroke-width="1.2" stroke-linecap="round"/>`
+    + `<path d="M77.2 78.6 L84 77.6 L83 72.4 L77.6 73.2 Z" fill="#5E3818"/><path d="M77.4 76 L83.6 75.2" stroke="#3A2210" stroke-width=".8"/>`
+    + `<path d="M80 73.6 Q72.6 68 76 60 Q77 64.6 79.2 64.4 Q77.6 56.6 82.4 50 Q83.4 57.6 86.6 60.4 Q89.4 66.6 85.4 72 Q83 74.4 80 73.6 Z" fill="#FF7A1A"/>`
+    + `<path d="M80.4 72.6 Q76.6 68.6 79 64 Q80 66.8 81.4 66.4 Q80.8 61 83.4 57.4 Q84.4 62.4 86 64.6 Q87 69.4 84.2 72 Q82.4 73.4 80.4 72.6 Z" fill="#FFC93C"/>`
+    + `<path d="M81.6 71.6 Q80.2 69 81.8 66.6 Q82.6 68.4 83.6 68 Q84.6 70.6 83.2 71.8 Z" fill="#FFF3C4"/>`
+    + fist(77.6, 88, skin, 9.6, 10) + '</g>';
+}
+// Телефон: держит перед грудью экраном к зрителю, большой палец сбоку
+function phoneHand(skin, sleeve) {
+  const e = shade(skin, -0.22);
+  return `<g transform="translate(-3 -8)">` + `<path d="M86 114 Q82 106 75 101" fill="none" stroke="${sleeve}" stroke-width="10" stroke-linecap="round"/>`
+    + `<path d="M58.6 96 Q59 105 66.6 105.4 Q74.4 105 75 96 Z" fill="${skin}" stroke="${e}" stroke-width=".7"/>`
+    + `<rect x="59.6" y="77" width="14" height="23" rx="2.6" fill="#1E2433"/><rect x="60.9" y="79.4" width="11.4" height="18" rx="1.2" fill="#2E5BD0"/>`
+    + `<rect x="62.2" y="81" width="8.8" height="3" rx="1" fill="#fff" opacity=".85"/><rect x="62.2" y="85.6" width="6" height="2" rx="1" fill="#fff" opacity=".55"/><rect x="62.2" y="89" width="7.4" height="2" rx="1" fill="#fff" opacity=".55"/>`
+    + `<circle cx="66.6" cy="78.2" r=".5" fill="#555"/>`
+    + `<rect x="56.8" y="86" width="4.4" height="8.4" rx="2.2" fill="${skin}" stroke="${e}" stroke-width=".7" transform="rotate(-14 59 90)"/>`
+    + [86.4, 90, 93.6].map((y) => `<rect x="72.2" y="${y}" width="4.2" height="3.2" rx="1.6" fill="${skin}" stroke="${e}" stroke-width=".7"/>`).join('') + '</g>';
 }
 
 // Серьги — на мочках ушей (x — центр уха, y — низ мочки)
@@ -633,7 +713,7 @@ function avatarInner(look = {}) {
   const lip = mk.lip || (sex === 'f' ? '#C9707C' : shade(skin, -0.28));
   const line = sex === 'f' ? shade(lip, -0.4) : shade(skin, -0.55);
   const freckles = look.freckles ? [[39.5, 52.5], [42, 54], [38.8, 55], [60.5, 52.5], [58, 54], [61.2, 55]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r=".85" fill="${shade(skin, -0.38)}"/>`).join('') : '';
-  const capped = hat && !['headset', 'laurel', 'royal'].includes(hat);
+  const capped = hat && !['headset', 'laurel', 'royal', 'kokoshnik'].includes(hat);
   const hatC = look.hatColor && look.hatColor !== 'same' && HOODIE[look.hatColor] ? HOODIE[look.hatColor] : hood;
   const hooded = hat === 'hood';
   // Под шапкой высокие причёски (пучки, ирокез, кок) прячутся, длинные торчат прядями
@@ -646,17 +726,17 @@ function avatarInner(look = {}) {
   // Правила наложения: шлем закрывает всё лицо (очки, маска, борода, серьги, пряди не видны);
   // маска аквалангиста и кибервизор закрывают глаза — очки под ними прячутся; капюшон закрывает уши — серьги не видны
   const helmet = hat === 'knight';
-  const brimY = { cap: 39, fedora: 36, beanie: 40 }[hat];
+  const brimY = { cap: 39, fedora: 36, beanie: 40, tricorn: 40, ushanka: 40, dedmoroz: 40 }[hat];
   const hairBackC = brimY && hairBack ? `<clipPath id="hb${u}"><rect x="0" y="${brimY}" width="100" height="100"/></clipPath><g clip-path="url(#hb${u})">${fit(hairBack)}</g>` : fit(hairBack);
   const eyesCovered = helmet || look.mask === 'scuba' || look.mask === 'visor';
-  const earsCovered = helmet || hooded;
+  const earsCovered = helmet || hooded || hat === 'ushanka';
   const showGlasses = look.glasses && !eyesCovered;
   const beardL = helmet ? { under: '', over: '' } : beard;
   return `${bgLayer(look.bg, skin, u)}${hairBackC}
     ${hooded ? fit(hoodBack(hatC)) : ''}
     ${look.neck === 'snake' ? snakeBack() : ''}
     ${outfitLayer(look.outfit, hood, skin, sex)}
-    ${look.neck === 'snake' && look.pet && look.pet !== 'none' && !mug ? `<g transform="translate(100 0) scale(-1 1)">${snakeLayer()}</g>` : neckLayer(look.neck)}
+    ${look.neck === 'snake' && (look.pet === 'corgi' || look.pet === 'pug') && !mug ? `<g transform="translate(100 0) scale(-1 1)">${snakeLayer()}</g>` : neckLayer(look.neck)}
     ${ears}
     <path d="${g.d}" fill="${skin}"/>
     ${jaw}
@@ -673,11 +753,12 @@ function avatarInner(look = {}) {
     ${showGlasses && capped ? glassesLayer(look.glassesStyle, look.glassesColor, look.lensColor, u, rx) : ''}
     ${capped ? fit(hatLayer(hat, hatC)) : ''}
     ${showGlasses && !capped ? glassesLayer(look.glassesStyle, look.glassesColor, look.lensColor, u, rx) : ''}
-    ${hat === 'headset' || hat === 'laurel' || hat === 'royal' ? fit(hatLayer(hat, hood)) : ''}
-    ${look.phones && hat !== 'headset' && !helmet ? fit('<path d="M29 47 Q27 15 50 15 Q73 15 71 47" fill="none" stroke="#2B2B3A" stroke-width="6" stroke-linecap="round"/><path d="M33 26 Q40 18 50 17.5" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/><rect x="23" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="67" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="25" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/><rect x="72" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/>') : ''}
+    ${hat === 'headset' || hat === 'laurel' || hat === 'royal' || hat === 'kokoshnik' ? fit(hatLayer(hat, hood)) : ''}
+    ${look.phones && hat !== 'headset' && hat !== 'ushanka' && !helmet ? fit('<path d="M29 47 Q27 15 50 15 Q73 15 71 47" fill="none" stroke="#2B2B3A" stroke-width="6" stroke-linecap="round"/><path d="M33 26 Q40 18 50 17.5" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/><rect x="23" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="67" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="25" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/><rect x="72" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/>') : ''}
     ${look.crown && !helmet && hat !== 'royal' ? `<g ${capped ? 'transform="translate(50 5) scale(.78) translate(-50 0)"' : ''}><path d="M33 19 L37 5 L44 13 L50 3 L56 13 L63 5 L67 19 Z" fill="#FFC93C" stroke="#D99A0B" stroke-width="2" stroke-linejoin="round"/><circle cx="50" cy="13" r="2" fill="#E5484D"/></g>` : ''}
-    ${mug ? mugHand(look.prop === 'mug_best', skin, look.outfit === 'suit' ? shade(hood, -0.45) : look.outfit === 'shirt' ? shade(hood, 0.8) : look.outfit === 'dev' ? '#262B36' : hood) : propLayer(look.prop)}
-    ${petLayer(look.pet)}`;
+    ${(() => { const sl = look.outfit === 'suit' ? shade(hood, -0.45) : look.outfit === 'shirt' ? shade(hood, 0.8) : look.outfit === 'dev' ? '#262B36' : look.outfit === 'vampire' ? '#15131A' : look.outfit === 'armor' ? '#B9C3D1' : look.outfit === 'biker' ? '#1B1C22' : look.outfit === 'cyber' ? '#13131C' : hood;
+      return mug ? mugHand(look.prop === 'mug_best', skin, sl) : look.prop === 'torch' ? torchHand(skin, sl) : look.prop === 'phone' ? phoneHand(skin, sl) : propLayer(look.prop); })()}
+    ${look.pet === 'parrot' && look.prop && look.prop !== 'none' ? `<g transform="translate(100 0) scale(-1 1)">${petLayer('parrot')}</g>` : petLayer(look.pet)}`;
 }
 
 function avatar(look = {}, size = 42, zoom = false) {
@@ -3301,16 +3382,16 @@ const PENCIL = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stro
 const HAIR_NAMES = { short: 'Короткие', long: 'Длинные', tail: 'Хвост', curly: 'Кудри', bob: 'Каре', bun: 'Пучок', side: 'Набок', mohawk: 'Ирокез', afro: 'Афро', bald: 'Без волос',
   undercut: 'Андеркат', quiff: 'Кок', crop: 'Кроп', slick: 'Зачёс назад', buzz: 'Ёжик', manbun: 'Мужской пучок', waves: 'Локоны', bangs: 'С чёлкой', lob: 'Удлинённое каре', pixie: 'Пикси', ponytail: 'Высокий хвост', braid: 'Коса', buns: 'Два пучка', anime: 'Аниме' };
 const FACE_NAMES = { oval: 'Овал', round: 'Круглое', square: 'Квадрат', long: 'Вытянутое', heart: 'Сердечко' };
-const OUTFIT_NAMES = { hoodie: 'Худи', tee: 'Футболка', dev: 'Футболка разработчика', shirt: 'Рубашка', suit: 'Костюм', jacket: 'Бомбер', puffer: 'Пуховик', dress: 'Платье', cami: 'Топ на бретельках', biker: 'Косуха', cyber: 'Неон', armor: 'Доспехи' };
+const OUTFIT_NAMES = { hoodie: 'Худи', tee: 'Футболка', dev: 'Футболка разработчика', shirt: 'Рубашка', suit: 'Костюм', jacket: 'Бомбер', puffer: 'Пуховик', dress: 'Платье', cami: 'Топ на бретельках', biker: 'Косуха', cyber: 'Неон', armor: 'Доспехи', vampire: 'Плащ вампира' };
 const MASK_NAMES = { none: 'Без маски', medical: 'Медицинская', gauze: 'Марлевая', visor: 'Кибервизор', scuba: 'Аквалангист' };
 const COLOR_NAMES = { same: 'Как одежда', red: 'Красный', blue: 'Синий', green: 'Зелёный', violet: 'Фиолетовый', navy: 'Тёмно-синий', black: 'Чёрный', white: 'Белый', beige: 'Бежевый', yellow: 'Жёлтый', pink: 'Розовый', orange: 'Оранжевый', khaki: 'Хаки', burgundy: 'Бордовый', grey: 'Серый' };
 const NECK_NAMES = { none: 'Ничего', tie: 'Галстук', tie_crooked: 'Галстук набок', bow: 'Бабочка', badge: 'Пропуск', beads: 'Бусы', chain: 'Цепочка', tie_gold: 'Золотой галстук', chain_gold: 'Золотая цепь', snake: 'Змея' };
-const PET_NAMES = { none: 'Без питомца', corgi: 'Корги', pug: 'Мопс' };
+const PET_NAMES = { none: 'Без питомца', corgi: 'Корги', pug: 'Мопс', parrot: 'Попугай на плече' };
 const LENS_NAMES = { clear: 'Прозрачные', grey: 'Серые', brown: 'Коричневые', blue: 'Голубые', green: 'Зелёные', pink: 'Розовые', yellow: 'Жёлтые' };
 const LENS_SWATCH = { clear: 'repeating-linear-gradient(45deg,#fff 0 4px,#E3E8F2 4px 8px)', grey: '#555B68', brown: '#7A5232', blue: '#4A86E0', green: '#3A9A68', pink: '#F08BB4', yellow: '#F2C230' };
-const HAT_NAMES = { none: 'Без шапки', beanie: 'Шапка', cap: 'Кепка', hood: 'Капюшон', headset: 'Гарнитура', laurel: 'Лавровый венок', knight: 'Рыцарский шлем', royal: 'Корона', fedora: 'Шляпа' };
+const HAT_NAMES = { none: 'Без шапки', beanie: 'Шапка', cap: 'Кепка', hood: 'Капюшон', headset: 'Гарнитура', laurel: 'Лавровый венок', knight: 'Рыцарский шлем', royal: 'Корона', fedora: 'Шляпа', ushanka: 'Ушанка', tricorn: 'Треуголка капитана', dedmoroz: 'Шапка Деда Мороза', kokoshnik: 'Кокошник Снегурочки' };
 const EYE_NAMES = { normal: 'Обычные', tired: 'После совещания', sly: 'Хитрые', wide: 'Удивлённые', anime: 'Аниме' };
-const PROP_NAMES = { none: 'Ничего', mug: 'Кружка', papers: 'Квартальный отчёт', sign: 'Табличка', laptop: 'Ноутбук', mug_best: 'Лучший сотрудник', trophy: 'Кубок Лиги' };
+const PROP_NAMES = { none: 'Ничего', torch: 'Факел', phone: 'Телефон', mug: 'Кружка', papers: 'Квартальный отчёт', sign: 'Табличка', laptop: 'Ноутбук', mug_best: 'Лучший сотрудник', trophy: 'Кубок Лиги' };
 const AVA_CATS = [['face', 'Лицо'], ['hair', 'Волосы'], ['eyes', 'Глаза'], ['mouth', 'Рот'], ['beard', 'Борода'], ['makeup', 'Макияж'], ['outfit', 'Одежда'], ['acc', 'Аксессуары'], ['bg', 'Фон'], ['meme', 'Мемы']];
 const DEF_LOOK = { hatColor: 'same', mask: 'none', glassesColor: 'black', lensColor: 'clear', pet: 'none', eyeSize: 'm', nose: 'button', ears: 'normal', makeup: 'none', earrings: 'none', glassesStyle: 'classic', beardColor: 'same', mustacheColor: 'same' };
 const GLASS_COLOR_NAMES = { black: 'Чёрная', tortoise: 'Черепаховая', gold: 'Золото', silver: 'Серебро', red: 'Красная', navy: 'Синяя', pink: 'Розовая' };
@@ -3467,7 +3548,7 @@ function renderAvatarEditor() {
     outfit: `<div class="field">Одежда${tiles('outfit', L.outfit, OUTFIT_NAMES)}</div><div class="field">Цвет одежды${sw('hoodie', L.hoodie)}</div>`,
     acc: `<div class="field">Очки${glassesTiles}</div>${d.glasses ? `<div class="field">Цвет оправы<div class="row" style="flex-wrap:wrap;gap:8px">${L.glassesColor.map((v) => `<button class="swatch gc ${(d.glassesColor || 'black') === v ? 'on' : ''}" style="background:${GLASS_SWATCH[v]}" data-act="ava-set" data-k="glassesColor" data-v="${v}" aria-label="${GLASS_COLOR_NAMES[v]}" title="${GLASS_COLOR_NAMES[v]}"></button>`).join('')}</div></div>
       <div class="field">Цвет стёкол<div class="row" style="flex-wrap:wrap;gap:8px">${L.lensColor.map((v) => `<button class="swatch gc ${(d.lensColor || 'clear') === v ? 'on' : ''}" style="background:${LENS_SWATCH[v]}" data-act="ava-set" data-k="lensColor" data-v="${v}" aria-label="${LENS_NAMES[v]}" title="${LENS_NAMES[v]}"></button>`).join('')}</div></div>` : ''}<div class="field">Серьги${tiles('earrings', L.earrings, EARRING_NAMES, true)}</div><div class="field">На шее${tiles('neck', L.neck, NECK_NAMES)}</div><div class="field">На голове${tiles('hat', L.hat, HAT_NAMES)}</div>${d.hat && d.hat !== 'none' && d.hat !== 'headset' ? `<div class="field">Цвет головного убора<div class="row" style="flex-wrap:wrap;gap:8px"><button class="swatch same ${!d.hatColor || d.hatColor === 'same' ? 'on' : ''}" data-act="ava-set" data-k="hatColor" data-v="same" title="Как одежда" aria-label="Как одежда">=</button>${L.hoodie.map((v) => `<button class="swatch ${d.hatColor === v ? 'on' : ''}" style="background:${HOODIE[v]}" data-act="ava-set" data-k="hatColor" data-v="${v}" title="${COLOR_NAMES[v]}" aria-label="${COLOR_NAMES[v]}"></button>`).join('')}</div></div>` : ''}<div class="field">Маска${tiles('mask', L.mask, MASK_NAMES, true)}</div><div class="chips">${tog('phones', 'Наушники')}</div>
-      <div class="field">В руке${tiles('prop', ['none', 'mug', 'mug_best'], { none: 'Ничего', mug: 'Кружка', mug_best: 'Лучший сотрудник' })}</div>
+      <div class="field">В руке${tiles('prop', ['none', 'mug', 'mug_best', 'phone', 'torch'], { none: 'Ничего', mug: 'Кружка', mug_best: 'Лучший сотрудник', phone: 'Телефон', torch: 'Факел' })}</div>
       <div class="field">Питомец рядом${tiles('pet', L.pet, PET_NAMES)}</div>`,
     bg: `<div class="field">Фон${tiles('bg', L.bg, BG_NAMES)}</div><p class="small" style="margin:0">«Под кожу» сам подбирает цвет, на котором лицо не сливается с фоном.</p>`,
     meme: `<div class="field">В руках${tiles('prop', ['none', 'papers', 'sign', 'laptop', 'trophy'], PROP_NAMES)}</div><p class="small" style="margin:0">Детали с ценой можно примерить бесплатно, а сохранить — после покупки в Лавке. Корона и рамки — тоже в Лавке.</p>`
