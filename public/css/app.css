@@ -1278,3 +1278,6 @@ a { color: var(--link); }
 .santa-target p { margin: 4px 0 0; font-size: 14px; }
 .santa-target .small { color: inherit; opacity: .8; }
 .hol-chip { color: var(--tint-r-fg); background: var(--tint-r); border-color: transparent; }
+
+/* Подтверждение «нажми ещё раз» — сверху, под шапкой: внизу оно закрывало кнопку, которую надо нажать */
+.toast.top { bottom: auto; top: calc(96px + env(safe-area-inset-top)); }

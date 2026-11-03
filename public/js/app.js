@@ -44,10 +44,12 @@ const get = (u) => api('GET', u);
 const post = (u, b = {}) => api('POST', u, b);
 
 let toastTimer;
-function toast(text) {
+// top — показать сверху: для «нажми ещё раз», чтобы плашка не закрыла ту самую кнопку внизу экрана
+function toast(text, { top = false } = {}) {
   let el = $('.toast');
   if (!el) { el = document.createElement('div'); el.className = 'toast'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
   el.textContent = plain(text);
+  el.classList.toggle('top', top);
   el.classList.remove('hidden');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.add('hidden'), 2600);
@@ -3995,7 +3997,7 @@ function renderShop() {
 function confirmTwice(id, text) {
   const t = Date.now();
   if (S.confirmId === id && t - S.confirmAt < 4000) { S.confirmId = null; return true; }
-  S.confirmId = id; S.confirmAt = t; toast(text); return false;
+  S.confirmId = id; S.confirmAt = t; toast(text, { top: true }); return false;
 }
 
 async function run(fn, { rerender = true } = {}) {
@@ -4859,7 +4861,7 @@ let pendingConfirm = null;
 function confirmInline(key, text = 'Нажми ещё раз для подтверждения') {
   if (pendingConfirm && pendingConfirm.key === key && Date.now() - pendingConfirm.at < 4000) { pendingConfirm = null; return true; }
   pendingConfirm = { key, at: Date.now() };
-  toast(text);
+  toast(text, { top: true });
   return false;
 }
 function saveComposeText() { const el = $('#c-text'); if (el && S.compose) S.compose.text = el.value; }
