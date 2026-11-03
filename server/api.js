@@ -517,7 +517,7 @@ function createApi(db) {
         completion, affordable,
         id: u.id, nick: u.nick, beans: u.beans, look: u.look, profile: u.profile, shareOffice: !!u.share_office, quiet: !!u.quiet,
         welcomed: !!u.welcomed, isAdmin: u.isAdmin, owned, newbie: U.now() - (u.created_at || 0) < 7 * 864e5, status: statusName(u.look.status), streak, level,
-        nickChangeableAt: u.nick_changed_at ? u.nick_changed_at + 30 * 864e5 : null,
+        nickChangeableAt: u.nick_changed_at ? u.nick_changed_at + 30 * 864e5 : null, nickFree: !!u.nick && !u.nick_free_used,
         gangs: myGangs(u.id).map((g) => ({ id: g.id, name: g.name, color: g.color, emoji: g.emoji || null, ...U.crestPub(g) }))
       },
       vapidKey: config.vapid.publicKey || null, build: BUILD,
@@ -557,14 +557,16 @@ function createApi(db) {
     const low = nick.toLocaleLowerCase('ru');
     if (q('SELECT nick FROM users WHERE nick IS NOT NULL AND id != ? AND length(nick) = ?').all(u.id, nick.length).some((x) => x.nick.toLocaleLowerCase('ru') === low)) throw bad('Такой никнейм уже занят.');
     const first = !u.nick;
-    if (!first && !spendBeans(u.id, NICK_PRICE, 'nick')) throw bad(`Смена никнейма стоит ${NICK_PRICE} зёрен. Пока не хватает.`);
-    q('UPDATE users SET nick = ?, nick_changed_at = ? WHERE id = ?').run(nick, first ? null : U.now(), u.id);
+    // Первый ник бесплатный; одна смена тоже бесплатная, дальше — за зёрна
+    const free = !first && !u.nick_free_used;
+    if (!first && !free && !spendBeans(u.id, NICK_PRICE, 'nick')) throw bad(`Смена никнейма стоит ${NICK_PRICE} зёрен. Пока не хватает.`);
+    q('UPDATE users SET nick = ?, nick_changed_at = ?, nick_free_used = nick_free_used + ? WHERE id = ?').run(nick, first ? null : U.now(), free ? 1 : 0, u.id);
     if (first && !u.welcomed) {
       addBeans(u.id, 'welcome');
       q('UPDATE users SET welcomed = 1 WHERE id = ?').run(u.id);
       pushEvent(null, u.id, `${nick} ${U.g(u.look, 'присоединился', 'присоединилась')} к Этажу`, 'join');
     }
-    return { ok: true, nick };
+    return { ok: true, nick, free };
   });
 
   route('POST', '/api/me/profile', async (req, body) => {

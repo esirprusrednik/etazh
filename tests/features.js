@@ -177,11 +177,16 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.ok(!/anna@mts/i.test(raw));
   });
 
-  await step('ник за 50 зёрен, имя видно банде, но не чужим', async () => {
+  await step('одна смена ника бесплатно, дальше 50 зёрен; имя видно банде, но не чужим', async () => {
     const before = (await a.get('/api/me')).json.user.beans;
+    assert.equal((await a.get('/api/me')).json.user.nickFree, true);
     assert.equal((await a.post('/api/me/nick', { nick: 'ночной_филин' })).status, 400);
-    assert.equal((await a.post('/api/me/nick', { nick: 'новый_енот' })).status, 200);
-    assert.equal((await a.get('/api/me')).json.user.beans, before - 50);
+    const r1 = await a.post('/api/me/nick', { nick: 'новый_енот' });
+    assert.equal(r1.status, 200); assert.equal(r1.json.free, true);
+    assert.equal((await a.get('/api/me')).json.user.beans, before, 'первая смена бесплатная');
+    assert.equal((await a.get('/api/me')).json.user.nickFree, false);
+    assert.equal((await a.post('/api/me/nick', { nick: 'новый_енот_2' })).status, 200);
+    assert.equal((await a.get('/api/me')).json.user.beans, before - 50, 'вторая — за зёрна');
     await a.post('/api/me/profile', { profile: { firstName: 'Анна', lastName: 'Петрова' } });
     assert.equal((await a.post('/api/me/profile', { profile: { firstName: 'Ан<на>' } })).status, 400);
     const gm = (await b.get(`/api/gangs/${g.id}`)).json.members.find((m) => m.id === a.id);

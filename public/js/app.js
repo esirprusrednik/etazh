@@ -1217,7 +1217,7 @@ function renderNick() {
       <div class="nick-rules">
         <p><b>Можно почти всё:</b> гроза_дедлайнов, повелитель_кофемашины, просто_Петя. Буквы, цифры и «_», от 3 до 20 символов.</p>
         <p><b>Нельзя:</b> мат, оскорбления и шутки, над которыми смеёшься только ты. Проверка простая: такой ник не стыдно произнести вслух на планёрке.</p>
-        <p><b>Передумаешь</b> — сменишь в профиле когда угодно за ${S.cat ? S.cat.nickPrice : 50} зёрен. Первый ник бесплатный, старый после смены сразу освобождается.</p>
+        <p><b>Передумаешь</b> — сменишь в профиле: первая смена бесплатно, дальше — ${S.cat ? S.cat.nickPrice : 50} зёрен. Ник при регистрации тоже бесплатный, старый после смены сразу освобождается.</p>
       </div>
       <div class="chips">${o.nicks.map((n) => `<button class="chip" data-act="nick-pick" data-v="${esc(n)}">${esc(n)}</button>`).join('')}
         <button class="chip" data-act="nick-more">Ещё варианты</button></div>
@@ -3842,11 +3842,11 @@ function renderProfile() {
 
   const nameBody = `
     <div class="field">Никнейм
-      ${S.nickConfirm ? `<div class="note warn" style="margin:0">Сменить ${esc(me.nick)} на <b>${esc(S.nickConfirm)}</b> за ${S.cat.nickPrice} зёрен? Старый ник освободится, и его сможет занять кто-то другой.</div>
+      ${S.nickConfirm ? `<div class="note warn" style="margin:0">Сменить ${esc(me.nick)} на <b>${esc(S.nickConfirm)}</b> ${me.nickFree ? 'бесплатно? Бесплатная смена одна, следующие — за ' + S.cat.nickPrice + ' зёрен.' : `за ${S.cat.nickPrice} зёрен?`} Старый ник освободится, и его сможет занять кто-то другой.</div>
       <div class="row"><button class="btn small grow" data-act="nick-yes">Да, сменить</button><button class="btn small ghost grow" data-act="nick-no">Отмена</button></div>`
       : `<div class="row"><label class="grow" style="display:flex"><span class="hidden">Новый никнейм</span><input id="p-nick" maxlength="21" value="${esc(me.nick)}" aria-label="Новый никнейм"></label>
-      <button class="btn small" data-act="nick-change" ${me.beans < S.cat.nickPrice ? 'disabled' : ''}>Сменить</button></div>
-      <span class="small" style="font-weight:600">${me.beans < S.cat.nickPrice ? `Смена стоит ${S.cat.nickPrice} зёрен, у тебя ${me.beans}.` : `Стоит ${S.cat.nickPrice} зёрен. Буквы, цифры и «_», от 3 до 20 символов.`}</span>`}</div>
+      <button class="btn small" data-act="nick-change" ${!me.nickFree && me.beans < S.cat.nickPrice ? 'disabled' : ''}>Сменить</button></div>
+      <span class="small" style="font-weight:600">${me.nickFree ? 'Первая смена бесплатно, дальше — ' + S.cat.nickPrice + ' зёрен. Буквы, цифры и «_», от 3 до 20 символов.' : me.beans < S.cat.nickPrice ? `Смена стоит ${S.cat.nickPrice} зёрен, у тебя ${me.beans}.` : `Стоит ${S.cat.nickPrice} зёрен. Буквы, цифры и «_», от 3 до 20 символов.`}</span>`}</div>
     <div class="row" style="gap:8px">
       <label class="field grow">Имя<input id="p-first" maxlength="30" value="${esc(p.firstName)}" autocomplete="given-name"></label>
       <label class="field grow">Фамилия<input id="p-last" maxlength="30" value="${esc(p.lastName)}" autocomplete="family-name"></label>
