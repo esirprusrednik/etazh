@@ -297,7 +297,24 @@ function neckLayer(n) {
   if (n === 'badge') return '<path d="M44 72 L57 86 M56 72 L59 86" stroke="#E5484D" stroke-width="1.6"/><rect x="53.5" y="85" width="13" height="16" rx="2" fill="#fff" stroke="#C9CED9" stroke-width=".8"/><rect x="53.5" y="85" width="13" height="4" rx="1.5" fill="#E5484D"/><circle cx="58" cy="94" r="2.4" fill="#C9CED9"/><path d="M61.5 92.5 h3 M61.5 95.5 h3" stroke="#C9CED9" stroke-width="1.2"/>';
   return '';
 }
-function hatLayer(h, hood, sex) {
+// Значки на кепку: белые на тёмной кепке, чёрные на светлой
+const CAP_BADGES = {
+  star: 'M50 21.6 L51.9 25.6 L56.3 26.1 L53 29.1 L53.9 33.4 L50 31.2 L46.1 33.4 L47 29.1 L43.7 26.1 L48.1 25.6 Z',
+  bolt: 'M51.6 20.8 L45.6 28.6 H49.8 L48.2 34.4 L54.6 26 H50.4 Z',
+  heart: 'M50 33.4 Q43.4 28.6 44 24.8 Q44.8 21.4 48 22 Q49.4 22.4 50 24 Q50.6 22.4 52 22 Q55.2 21.4 56 24.8 Q56.6 28.6 50 33.4 Z',
+  crown: 'M44 32.6 L43.4 24.4 L46.8 27.6 L50 22 L53.2 27.6 L56.6 24.4 L56 32.6 Z',
+  paw: 'M50 33.2 Q46.2 33.2 46.4 30.2 Q46.8 27.6 50 27.4 Q53.2 27.6 53.6 30.2 Q53.8 33.2 50 33.2 Z M45.2 27.2 a1.5 1.9 0 1 0 .01 0 Z M48.4 24.6 a1.5 1.9 0 1 0 .01 0 Z M51.6 24.6 a1.5 1.9 0 1 0 .01 0 Z M54.8 27.2 a1.5 1.9 0 1 0 .01 0 Z',
+  e: null, one: null
+};
+const CAP_BADGE_NAMES = { none: 'Без значка', star: 'Звезда', bolt: 'Молния', heart: 'Сердце', crown: 'Корона', paw: 'Лапа', e: 'Буква Э', one: 'Номер 1' };
+const lum = (hex) => { const h = hex.replace('#', ''); const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+function capBadge(b, cap) {
+  if (!b || b === 'none') return '';
+  const ink = lum(cap) > 0.55 ? '#1E2433' : '#FFFFFF';
+  if (b === 'e' || b === 'one') return `<text x="50" y="33" text-anchor="middle" font-family="Unbounded, Arial Black, sans-serif" font-weight="800" font-size="12" fill="${ink}">${b === 'e' ? 'Э' : '1'}</text>`;
+  return CAP_BADGES[b] ? `<path d="${CAP_BADGES[b]}" fill="${ink}"/>` : '';
+}
+function hatLayer(h, hood, sex, badge) {
   if (h === 'beanie') {
     const c = shade(hood, 0.1);
     return `<path d="M28.5 42 Q27.5 15 50 14.5 Q72.5 15 71.5 42 Z" fill="${c}"/><path d="M38 20 L38 40 M46 16 L46 38 M54 16 L54 38 M62 20 L62 40" stroke="${shade(c, -0.15)}" stroke-width="1.4"/>
@@ -306,14 +323,14 @@ function hatLayer(h, hood, sex) {
   if (h === 'cap') {
     const c = hood;
     return `<path d="M26.6 40 Q26 13 50 12.5 Q74 13 73.4 40 Z" fill="${c}"/><path d="M25 40 Q50 31.5 80 42 Q62 46.5 27 44 Z" fill="${shade(c, -0.3)}"/>
-      <path d="M50 12.5 L50 37" stroke="${shade(c, -0.15)}" stroke-width="1.2"/><circle cx="50" cy="13" r="1.8" fill="${shade(c, -0.3)}"/><path d="M36 20 Q43 15.5 52 15.6" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/>`;
+      <path d="M50 12.5 L50 ${badge && badge !== 'none' ? 19.6 : 37}" stroke="${shade(c, -0.15)}" stroke-width="1.2"/>${capBadge(badge, c)}<circle cx="50" cy="13" r="1.8" fill="${shade(c, -0.3)}"/><path d="M36 20 Q43 15.5 52 15.6" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/>`;
   }
   if (h === 'knight') {
     // Рыцарский шлем: стальной купол с забралом-щелью и красным плюмажем
     return `<path d="M50 14 Q60 2 71 6 Q62 8 58 15" fill="#D7263D"/><path d="M50 14 Q56 5 64 6" fill="none" stroke="#8E1424" stroke-width="1"/>
-      <path d="M26.5 54 Q24.5 15 50 13.5 Q75.5 15 73.5 54 Q72.6 61 63 62.6 H37 Q27.4 61 26.5 54 Z" fill="#B9C3D1" stroke="#6B7689" stroke-width="1.2"/><path d="M37 62.6 H63" stroke="#6B7689" stroke-width="1.6"/>
+      <path d="M26.5 52 Q24.5 15 50 13.5 Q75.5 15 73.5 52 Q72.4 58.6 62 61 Q56 62.4 50 62.4 Q44 62.4 38 61 Q27.6 58.6 26.5 52 Z" fill="#B9C3D1" stroke="#6B7689" stroke-width="1.2"/><path d="M38 61 Q50 63.6 62 61" fill="none" stroke="#6B7689" stroke-width="1.6"/>
       <path d="M50 14 V40" stroke="#6B7689" stroke-width="1.2"/><path d="M29 44 H71 V50 H29 Z" fill="#1E2433"/><path d="M31 46.5 H69" stroke="#3A4256" stroke-width=".8"/>
-      ${[0, 1, 2, 3, 4].map((i) => `<path d="M${40 + i * 5} 53 V59.6" stroke="#6B7689" stroke-width="1.4" stroke-linecap="round"/>`).join('')}
+      ${[0, 1, 2, 3, 4].map((i) => `<path d="M${40 + i * 5} 52 V58" stroke="#6B7689" stroke-width="1.4" stroke-linecap="round"/>`).join('')}
       <path d="M33 24 Q38 17 46 16" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="2" stroke-linecap="round"/>`;
   }
   if (h === 'tricorn') {
@@ -753,7 +770,7 @@ function avatarInner(look = {}) {
     ${earsCovered ? '' : earringsLayer(look.earrings, exL, exR, 49 + 5 * ek - 0.8)}
     ${helmet ? '' : fit(hairFront)}
     ${showGlasses && capped ? glassesLayer(look.glassesStyle, look.glassesColor, look.lensColor, u, rx) : ''}
-    ${capped ? fit(hatLayer(hat, hatC, sex)) : ''}
+    ${capped ? fit(hatLayer(hat, hatC, sex, look.capBadge)) : ''}
     ${showGlasses && !capped ? glassesLayer(look.glassesStyle, look.glassesColor, look.lensColor, u, rx) : ''}
     ${hat === 'headset' || hat === 'laurel' || hat === 'royal' || hat === 'kokoshnik' ? fit(hatLayer(hat, hood)) : ''}
     ${look.phones && hat !== 'headset' && hat !== 'ushanka' && !helmet ? fit('<path d="M29 47 Q27 15 50 15 Q73 15 71 47" fill="none" stroke="#2B2B3A" stroke-width="6" stroke-linecap="round"/><path d="M33 26 Q40 18 50 17.5" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/><rect x="23" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="67" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="25" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/><rect x="72" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/>') : ''}
@@ -838,6 +855,17 @@ const ICONS = {
 const ico = (name, size = 20) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICONS[name]}"/></svg>`;
 // Эмодзи в интерфейсе заменены монохромными иконками: в коде они записаны токеном \uE000имя\uE001,
 // при отрисовке токен превращается в линейную иконку под цвет текста (в атрибутах — просто выкидывается)
+// Мягкие переносы для подписей плиток: длинные слова делятся по слогам (В|СВ, ВС|СВ, Й|С), чтобы не вылезать за плитку
+const HV = 'аеёиоуыэюяАЕЁИОУЫЭЮЯ', HJ = 'йьъЙЬЪ';
+const hyWord = (w) => { const v = (c) => !!c && HV.includes(c); const lt = (c) => !!c && /[А-Яа-яЁё]/.test(c); let o = '';
+  for (let i = 0; i < w.length; i++) { o += w[i]; if (i < 1 || w.length - i - 1 < 3) continue;
+    const a = w[i], b = w[i + 1], c = w[i + 2], p = w[i - 1];
+    const brk = (v(a) && lt(b) && !v(b) && !HJ.includes(b) && v(c))
+      || (!v(a) && !HJ.includes(a) && v(p) && lt(b) && !v(b) && !HJ.includes(b) && v(c))
+      || (HJ.includes(a) && lt(b) && !v(b));
+    if (brk) o += '\u00AD'; }
+  return o; };
+const hy = (t) => String(t).replace(/[А-Яа-яЁё]{8,}/g, hyWord);
 const ICON_TOKEN = /\uE000(\w+)\uE001/g;
 const iconize = (html) => html.replace(/(<[^>]*>)|\uE000(\w+)\uE001/g, (m, tag, n) => tag ? tag.replace(/\uE000\w+\uE001\s?/g, '') : ICONS[n] ? `<svg class="ei ei-${n}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICONS[n]}"/></svg>` : '');
 const plain = (t) => String(t ?? '').replace(/\uE000\w+\uE001\s?/g, '').trim();
@@ -3521,7 +3549,7 @@ function renderAvatarEditor() {
   ].filter(Boolean).join('');
   const tiles = (key, vals, names, zoom = false) => `<div class="ava-tiles">${vals.map((v) => {
     const lock = partLocked(key, v);
-    return `<button class="ava-tile ${(d[key] || DEF_LOOK[key]) === v ? 'on' : ''} ${lock ? 'paid' : ''}" data-act="ava-set" data-k="${key}" data-v="${v}">${avatar(view({ ...d, [key]: v, frame: null, crown: false, ...(zoom ? { pet: 'none', prop: 'none' } : {}) }), 60, zoom)}<span>${names[v] || v}</span>${lock ? `<em>${lock.award ? 'trophy Лига' : `${lock.price} ${BEAN}`}</em>` : ''}</button>`;
+    return `<button class="ava-tile ${(d[key] || DEF_LOOK[key]) === v ? 'on' : ''} ${lock ? 'paid' : ''}" data-act="ava-set" data-k="${key}" data-v="${v}">${avatar(view({ ...d, [key]: v, frame: null, crown: false, ...(zoom ? { pet: 'none', prop: 'none' } : {}) }), 60, zoom)}<span>${hy(names[v] || v)}</span>${lock ? `<em>${lock.award ? 'trophy Лига' : `${lock.price} ${BEAN}`}</em>` : ''}</button>`;
   }).join('')}</div>`;
   const tog = (k, label) => `<button class="chip ${d[k] ? 'on' : ''}" data-act="ava-toggle" data-k="${k}">${label}</button>`;
   const sex = d.preset === 'f' ? 'f' : 'm';
@@ -3549,7 +3577,7 @@ function renderAvatarEditor() {
     makeup: `<div class="field">Макияж${tiles('makeup', L.makeup, MAKEUP_NAMES, true)}</div><div class="field">Серьги${tiles('earrings', L.earrings, EARRING_NAMES, true)}</div>`,
     outfit: `<div class="field">Одежда${tiles('outfit', L.outfit, OUTFIT_NAMES)}</div><div class="field">Цвет одежды${sw('hoodie', L.hoodie)}</div>`,
     acc: `<div class="field">Очки${glassesTiles}</div>${d.glasses ? `<div class="field">Цвет оправы<div class="row" style="flex-wrap:wrap;gap:8px">${L.glassesColor.map((v) => `<button class="swatch gc ${(d.glassesColor || 'black') === v ? 'on' : ''}" style="background:${GLASS_SWATCH[v]}" data-act="ava-set" data-k="glassesColor" data-v="${v}" aria-label="${GLASS_COLOR_NAMES[v]}" title="${GLASS_COLOR_NAMES[v]}"></button>`).join('')}</div></div>
-      <div class="field">Цвет стёкол<div class="row" style="flex-wrap:wrap;gap:8px">${L.lensColor.map((v) => `<button class="swatch gc ${(d.lensColor || 'clear') === v ? 'on' : ''}" style="background:${LENS_SWATCH[v]}" data-act="ava-set" data-k="lensColor" data-v="${v}" aria-label="${LENS_NAMES[v]}" title="${LENS_NAMES[v]}"></button>`).join('')}</div></div>` : ''}<div class="field">Серьги${tiles('earrings', L.earrings, EARRING_NAMES, true)}</div><div class="field">На шее${tiles('neck', L.neck, NECK_NAMES)}</div><div class="field">На голове${tiles('hat', L.hat, HAT_NAMES)}</div>${d.hat && d.hat !== 'none' && d.hat !== 'headset' ? `<div class="field">Цвет головного убора<div class="row" style="flex-wrap:wrap;gap:8px"><button class="swatch same ${!d.hatColor || d.hatColor === 'same' ? 'on' : ''}" data-act="ava-set" data-k="hatColor" data-v="same" title="Как одежда" aria-label="Как одежда">=</button>${L.hoodie.map((v) => `<button class="swatch ${d.hatColor === v ? 'on' : ''}" style="background:${HOODIE[v]}" data-act="ava-set" data-k="hatColor" data-v="${v}" title="${COLOR_NAMES[v]}" aria-label="${COLOR_NAMES[v]}"></button>`).join('')}</div></div>` : ''}<div class="field">Маска${tiles('mask', L.mask, MASK_NAMES, true)}</div><div class="chips">${tog('phones', 'Наушники')}</div>
+      <div class="field">Цвет стёкол<div class="row" style="flex-wrap:wrap;gap:8px">${L.lensColor.map((v) => `<button class="swatch gc ${(d.lensColor || 'clear') === v ? 'on' : ''}" style="background:${LENS_SWATCH[v]}" data-act="ava-set" data-k="lensColor" data-v="${v}" aria-label="${LENS_NAMES[v]}" title="${LENS_NAMES[v]}"></button>`).join('')}</div></div>` : ''}<div class="field">Серьги${tiles('earrings', L.earrings, EARRING_NAMES, true)}</div><div class="field">На шее${tiles('neck', L.neck, NECK_NAMES)}</div><div class="field">На голове${tiles('hat', L.hat, HAT_NAMES)}</div>${d.hat === 'cap' ? `<div class="field">Значок на кепке${tiles('capBadge', L.capBadge || ['none'], CAP_BADGE_NAMES)}</div>` : ''}${d.hat && d.hat !== 'none' && d.hat !== 'headset' ? `<div class="field">Цвет головного убора<div class="row" style="flex-wrap:wrap;gap:8px"><button class="swatch same ${!d.hatColor || d.hatColor === 'same' ? 'on' : ''}" data-act="ava-set" data-k="hatColor" data-v="same" title="Как одежда" aria-label="Как одежда">=</button>${L.hoodie.map((v) => `<button class="swatch ${d.hatColor === v ? 'on' : ''}" style="background:${HOODIE[v]}" data-act="ava-set" data-k="hatColor" data-v="${v}" title="${COLOR_NAMES[v]}" aria-label="${COLOR_NAMES[v]}"></button>`).join('')}</div></div>` : ''}<div class="field">Маска${tiles('mask', L.mask, MASK_NAMES, true)}</div><div class="chips">${tog('phones', 'Наушники')}</div>
       <div class="field">В руке${tiles('prop', ['none', 'mug', 'mug_best', 'phone', 'torch'], { none: 'Ничего', mug: 'Кружка', mug_best: 'Лучший сотрудник', phone: 'Телефон', torch: 'Факел' })}</div>
       <div class="field">Питомец рядом${tiles('pet', L.pet, PET_NAMES)}</div>`,
     bg: `<div class="field">Фон${tiles('bg', L.bg, BG_NAMES)}</div><p class="small" style="margin:0">«Под кожу» сам подбирает цвет, на котором лицо не сливается с фоном.</p>`,

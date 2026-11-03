@@ -60,11 +60,12 @@ const LOOK = {
   glassesColor: ['black', 'tortoise', 'gold', 'silver', 'red', 'navy', 'pink'],
   lensColor: ['clear', 'grey', 'brown', 'blue', 'green', 'pink', 'yellow'],
   pet: ['none', 'corgi', 'pug', 'frenchie', 'parrot'],
+  capBadge: ['none', 'star', 'bolt', 'heart', 'crown', 'paw', 'e', 'one'],
   // Отдельный цвет бороды и усов; same — как волосы
   beardColor: ['same', '#2B1D14', '#6B3E26', '#E0B04B', '#C2412F', '#9AA3B5', '#F2E6C9', '#7C4DFF', '#FF6FA8'],
   mustacheColor: ['same', '#2B1D14', '#6B3E26', '#E0B04B', '#C2412F', '#9AA3B5', '#F2E6C9', '#7C4DFF', '#FF6FA8']
 };
-const LOOK_ENUMS = ['preset', 'face', 'eyes', 'mouth', 'beard', 'hairStyle', 'hair', 'skin', 'hoodie', 'eyeShape', 'outfit', 'neck', 'hat', 'prop', 'bg', 'eyeSize', 'nose', 'ears', 'makeup', 'earrings', 'glassesStyle', 'glassesColor', 'lensColor', 'pet', 'beardColor', 'mustacheColor', 'hatColor', 'mask'];
+const LOOK_ENUMS = ['capBadge', 'preset', 'face', 'eyes', 'mouth', 'beard', 'hairStyle', 'hair', 'skin', 'hoodie', 'eyeShape', 'outfit', 'neck', 'hat', 'prop', 'bg', 'eyeSize', 'nose', 'ears', 'makeup', 'earrings', 'glassesStyle', 'glassesColor', 'lensColor', 'pet', 'beardColor', 'mustacheColor', 'hatColor', 'mask'];
 // Платные детали: значение слота → предмет Лавки, который нужно купить
 const PAID_PARTS = Object.fromEntries(SHOP.filter((it) => it.kind === 'part').map((it) => [`${it.slot}:${it.value}`, it.id]));
 // Собрать внешность из присланного: только допустимые значения и только купленные платные детали
