@@ -1423,7 +1423,7 @@ function renderPeople() {
     for (const x of g) left.splice(left.indexOf(x), 1);
     return g.length ? `<div class="pgroup"><div class="eyebrow">${title} · ${g.length}</div>${g.map(personRow).join('')}</div>` : '';
   }).join('');
-  const hint = S.fx && S.fx.weekHint ? `<div class="week-hint">${ico('where', 16)}<span>${S.fx.weekHint.today ? 'Сегодня' : esc(S.fx.weekHint.label)} в офисе будут <b>${S.fx.weekHint.office} из ${S.fx.weekHint.total}</b> из банды</span></div>` : '';
+  const hint = S.fx && S.fx.weekHint ? `<div class="week-hint">${ico('where', 16)}<span>${S.fx.weekHint.today ? 'Сегодня' : esc(S.fx.weekHint.label)} в офисе по планам <b>${S.fx.weekHint.office} ${plural(S.fx.weekHint.office, 'человек', 'человека', 'человек')}</b> из банды</span></div>` : '';
   return `<section class="card people">${html}${hint}
     <div class="row" style="justify-content:space-between">${S.me.gangs.length ? `<button class="linkbtn" data-act="gang-invite" data-id="${S.activeGang || S.me.gangs[0].id}">+ Позвать в банду</button>` : '<span></span>'}<button class="linkbtn" data-act="open" data-v="gang-new">Сколотить банду</button></div></section>`;
 }
