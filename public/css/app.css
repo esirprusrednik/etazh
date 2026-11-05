@@ -1381,3 +1381,39 @@ a { color: var(--link); }
 .sea-modes .bi-mode.fast { background: var(--tint-y); color: var(--tint-y-fg); border-color: transparent; }
 .sea-modes .bi-mode small { color: var(--muted); }
 .duel-start.on { outline: 2px solid var(--ink); }
+
+/* ===== Плитки игр: у каждой игры свой цвет — мягкий градиент, иконка и подпись в тон.
+   Ставка и темп — отдельные элементы другой формы, чтобы не сливались с играми ===== */
+.duel-start[data-v] { --g1: #F2EEFF; --g2: #E4DAFF; --gc: #6D3FD6; --gt: #3E2391; }
+.duel-start[data-v="dice"] { --g1: #FFF3E6; --g2: #FFE2C4; --gc: #E0700F; --gt: #8A3E05; }
+.duel-start[data-v="ttt"] { --g1: #E8F8F0; --g2: #CFEFDF; --gc: #0E9F6E; --gt: #08573C; }
+.duel-start[data-v="sea"] { --g1: #E9F2FF; --g2: #D2E3FF; --gc: #2563C9; --gt: #173E80; }
+:root[data-theme="dark"] .duel-start[data-v] { --g1: #2A2152; --g2: #352873; --gc: #BBA6FF; --gt: #E2D9FF; }
+:root[data-theme="dark"] .duel-start[data-v="dice"] { --g1: #3A2414; --g2: #52301A; --gc: #FFB066; --gt: #FFE0C2; }
+:root[data-theme="dark"] .duel-start[data-v="ttt"] { --g1: #123528; --g2: #174634; --gc: #6BE3B5; --gt: #CFF5E4; }
+:root[data-theme="dark"] .duel-start[data-v="sea"] { --g1: #13284A; --g2: #1A3766; --gc: #8AB8FF; --gt: #D6E6FF; }
+.duel-start[data-v] { background: linear-gradient(160deg, var(--g1), var(--g2)) !important; border: 1px solid transparent; color: var(--gt);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.55) !important; transition: transform .12s ease, box-shadow .12s ease; }
+:root[data-theme="dark"] .duel-start[data-v] { box-shadow: inset 0 1px 0 rgba(255,255,255,.07) !important; }
+.duel-start[data-v] span { color: var(--gc) !important; }
+.duel-start[data-v] b { color: var(--gt); }
+.duel-start[data-v]:active { transform: scale(.97); }
+.duel-start[data-v].on { box-shadow: 0 0 0 2px var(--gc), inset 0 1px 0 rgba(255,255,255,.5) !important; outline: none; }
+
+/* Темп морского боя: горизонтальные карточки «иконка + текст», не похожие на плитки игр */
+.sea-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sm-cap { grid-column: 1 / -1; font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .02em; }
+.sea-mode { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--card-bd); background: var(--card); color: var(--ink); font: inherit; text-align: left; cursor: pointer; min-width: 0; }
+.sea-mode .grow { display: grid; gap: 1px; min-width: 0; }
+.sea-mode b { font-size: 14px; font-weight: 800; }
+.sea-mode small { font-size: 11.5px; color: var(--muted); font-weight: 600; }
+.sm-ico { flex: none; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; }
+.sea-mode.calm .sm-ico { background: linear-gradient(160deg, #3B82F6, #1E4FA8); color: #fff; }
+.sea-mode.fast .sm-ico { background: linear-gradient(160deg, #FFC93C, #F97316); color: #3A2600; }
+.sea-mode.on.calm { border-color: #2563C9; box-shadow: 0 0 0 1px #2563C9; }
+.sea-mode.on.fast { border-color: #E0700F; box-shadow: 0 0 0 1px #E0700F; }
+:root[data-theme="dark"] .sea-mode.on.calm { border-color: #8AB8FF; box-shadow: 0 0 0 1px #8AB8FF; }
+:root[data-theme="dark"] .sea-mode.on.fast { border-color: #FFB066; box-shadow: 0 0 0 1px #FFB066; }
+.sea-mode:active { transform: scale(.98); }
+:root[data-theme="dark"] .duel-start[data-v] { background: linear-gradient(160deg, var(--g1), var(--g2)) !important; border-color: rgba(255,255,255,.06); color: var(--gt); }
+:root[data-theme="dark"] .duel-start[data-v] span { color: var(--gc) !important; }
