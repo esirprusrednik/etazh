@@ -281,17 +281,17 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     const o = await new Client().login('owner@mts.ru', 'хитрый_лис');
     const x = await new Client().login('ksenia@mts.ru', 'быстрая_лань');
     const y = await new Client().login('yaroslav@mts.ru', 'седой_барсук');
-    const gg = (await o.post('/api/gangs', { name: 'Аналитики пятого', area: 'Аналитика и данные', interests: ['Настолки', 'Кофе'], about: 'SQL и пицца', access: 'request', emoji: '📊' })).json;
+    const gg = (await o.post('/api/gangs', { name: 'Аналитики пятого', area: 'Кофейный клуб', interests: ['Настолки', 'Кофе'], about: 'SQL и пицца', access: 'request', emoji: '📊' })).json;
     assert.ok(gg.id, 'банда создана с профилем');
     const hr = await y.post('/api/gangs', { name: 'Тайный клуб', access: 'invite' }); const hidden = hr.json; assert.ok(hidden.id, JSON.stringify(hr.json));
     let found = (await x.get('/api/gangs/search?q=' + encodeURIComponent('пицца'))).json.items;
     assert.equal(found.length, 1);
-    assert.equal(found[0].area, 'Аналитика и данные');
+    assert.equal(found[0].area, 'Кофейный клуб');
     assert.deepEqual(found[0].interests, ['Настолки', 'Кофе']);
     assert.ok(!(await x.get('/api/gangs/search?q=' + encodeURIComponent('Тайный'))).json.items.length, 'закрытая не видна в поиске');
     assert.equal((await x.get(`/api/gangs/${hidden.id}/profile`)).status, 404);
     assert.equal((await x.post(`/api/gangs/${hidden.id}/apply`)).status, 400);
-    assert.equal((await x.get('/api/gangs/search?area=' + encodeURIComponent('Аналитика и данные'))).json.items.length, 1);
+    assert.equal((await x.get('/api/gangs/search?area=' + encodeURIComponent('Кофейный клуб'))).json.items.length, 1);
     // По заявке
     assert.ok((await x.post(`/api/gangs/${gg.id}/apply`)).json.requested);
     assert.ok((await x.get(`/api/gangs/${gg.id}/profile`)).json.requested);

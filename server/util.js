@@ -100,7 +100,7 @@ function fem(look) {
 // g(look, 'вступил', 'вступила')
 const g = (look, m, f) => (fem(look) ? f : m);
 
-// Герб банды для клиента: собранный (или null — клиент соберёт сам из направления, интересов и id)
+// Герб банды для клиента: собранный (или null — клиент соберёт сам из того, что объединяет, интересов и id)
 function crestPub(row) {
   let crest = null, interests = [];
   try { crest = row.crest ? JSON.parse(row.crest) : null; } catch {}

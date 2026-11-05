@@ -11,7 +11,7 @@ function openDb(file) {
   migrate(db);
   // Тип события для фильтра ленты (старые записи определяются по тексту)
   try { db.exec('ALTER TABLE events ADD COLUMN kind TEXT'); } catch {}
-  // Профиль банды: описание, направление работы, интересы, доступ и настройки
+  // Профиль банды: описание, что объединяет (колонка area), интересы, доступ и настройки
   for (const col of ["about TEXT", "area TEXT", "interests TEXT", "emoji TEXT", "access TEXT NOT NULL DEFAULT 'invite'", "max_members INTEGER NOT NULL DEFAULT 0", "who_invites TEXT NOT NULL DEFAULT 'all'", "office_id TEXT", "legend_month TEXT", "crest TEXT"]) {
     try { db.exec(`ALTER TABLE gangs ADD COLUMN ${col}`); } catch {}
   }
@@ -20,6 +20,12 @@ function openDb(file) {
   try { db.exec('ALTER TABLE users ADD COLUMN nick_free_used INTEGER NOT NULL DEFAULT 0'); } catch {}
   // Ники раньше хранились с «@» впереди — убираем знак (разово, повторный запуск ничего не меняет)
   db.exec("UPDATE users SET nick = substr(nick, 2) WHERE nick LIKE '@%'");
+  // Банда — не оргструктура: старые «направления» по подразделениям снимаем («По интересам» → «Просто свои»)
+  {
+    const { OLD_GANG_AREAS } = require('./catalog');
+    db.prepare("UPDATE gangs SET area = 'Просто свои' WHERE area = 'По интересам'").run();
+    db.prepare(`UPDATE gangs SET area = NULL WHERE area IN (${OLD_GANG_AREAS.map(() => '?').join(',')})`).run(...OLD_GANG_AREAS);
+  }
   seed(db);
   return db;
 }

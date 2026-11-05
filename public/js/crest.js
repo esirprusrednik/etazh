@@ -1,6 +1,6 @@
 // Гербы банд: векторный щит из частей — форма, деление поля, два цвета, фигура, навершие и лента с девизом.
 // Ключи частей совпадают с CREST в server/catalog.js — сервер проверяет, что пришли только они.
-// Если банда герб не собирала, он собирается сам из направления, интересов и id — у каждой банды свой.
+// Если банда герб не собирала, он собирается сам из того, что объединяет банду, интересов и id — у каждой банды свой.
 
 export const TINCTURES = {
   gold: ['#F2B705', '#A87C00'], silver: ['#E9EDF3', '#9AA3B5'], red: ['#D7263D', '#8E1424'], blue: ['#2563C9', '#173E80'],
@@ -82,9 +82,8 @@ export const CHARGE_NAMES = { chart: 'График', search: 'Лупа', gear: '
 export const TOP_NAMES = { none: 'Без навершия', crown: 'Корона', laurel: 'Лавры', wings: 'Крылья', stars: 'Звёзды', helm: 'Шлем' };
 
 // Направления и интересы → фигура для автогерба
-const AREA_CHARGE = { 'Аналитика и данные': 'chart', 'Бизнес-анализ': 'search', 'ИТ и разработка': 'code', 'Сеть и техника': 'tower', 'Продукт и диджитал': 'rocket',
-  'Маркетинг и бренд': 'megaphone', 'Продажи B2C': 'bag', 'Продажи B2B': 'briefcase', 'Клиентский сервис и КЦ': 'headset', 'Розница и салоны': 'bag', 'Финансы': 'coin',
-  'Юристы': 'scales', 'HR и обучение': 'people', 'Закупки': 'briefcase', 'Безопасность': 'lock', 'PR и коммуникации': 'megaphone', 'Стратегия': 'crown', 'Администрация и АХО': 'gear', 'По интересам': 'star' };
+const AREA_CHARGE = { 'Кофейный клуб': 'cup', 'Обеденный отряд': 'pizza', 'Соседи по этажу': 'tower', 'Проектная тусовка': 'rocket', 'Спорт и движ': 'medal',
+  'Настолки и игры': 'dice', 'Учимся вместе': 'book', 'Мемы и болтовня': 'wolf', 'После работы': 'owl', 'Добрые дела': 'heart', 'Просто свои': 'people' };
 const INTEREST_CHARGE = { 'Кофе': 'cup', 'Обеды': 'pizza', 'Настолки': 'dice', 'Спорт': 'medal', 'Бег': 'bolt', 'Йога': 'flame', 'Футбол': 'ball', 'Кино': 'film', 'Музыка': 'note',
   'Книги': 'book', 'Путешествия': 'plane', 'Кулинария': 'pizza', 'Викторины': 'owl', 'Excel': 'chart', 'SQL': 'chart', 'Python': 'snake', 'Data Science': 'chart', 'Agile': 'rocket',
   'Продукты': 'rocket', 'Английский': 'globe', 'Волонтёрство': 'heart', 'Мемы': 'wolf' };
@@ -103,7 +102,7 @@ export function autoCrest(g) {
   return { shape: pick(['heater', 'heater', 'french', 'kite', 'badge', 'swiss'], h >> 7), div: pick(['plain', 'chief', 'pale', 'fess', 'bend', 'quarterly', 'chevron', 'bordure', 'plain'], h >> 11),
     c1: colorT, c2: pick(['black', 'blue', 'red', 'green', 'purple'].filter((x) => x !== colorT), h >> 13), charge, cc: met, top: pick(['none', 'none', 'crown', 'stars', 'laurel'], h >> 17), motto: true };
 }
-// Подобрать по направлению и интересам, остальное — случайно
+// Подобрать по тому, что объединяет, и интересам, остальное — случайно
 export function randomCrest(g, keepCharge = false) {
   const r = () => Math.floor(Math.random() * 1e9);
   const colors = Object.keys(TINCTURES).filter((t) => !metal(t));

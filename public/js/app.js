@@ -2617,7 +2617,7 @@ const ACCESS_NAMES = { open: ['Открытая', 'вступить может �
 // Значок банды — её герб (собранный владельцем или автоматический)
 const gangBadge = (g, size = 40) => `<span class="g-crest ${g && g.style && g.style.aura ? 'aura ' + g.style.aura : ''}" style="width:${size}px">${crestSvg(crestOf(g), { size })}</span>`;
 function areaSelect(id, cur) {
-  return `<select id="${id}"><option value="">Не выбрано</option>${S.cat.gangAreas.map((a) => `<option ${cur === a ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>`;
+  return `<select id="${id}"><option value="">Выбери, что вас объединяет</option>${S.cat.gangAreas.map((a) => `<option ${cur === a ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>`;
 }
 function accessPicker(cur) {
   return `<div class="acc-pick">${Object.entries(ACCESS_NAMES).map(([k, [t, d]]) => `<button class="acc-opt ${cur === k ? 'on' : ''}" data-act="gs-access" data-v="${k}"><b>${t}</b><span>${d}</span></button>`).join('')}</div>`;
@@ -2632,7 +2632,7 @@ function crestField(d, ctx) {
     <button class="btn small" data-act="crest-open" data-ctx="vote">vote Предложить герб</button></div></div></div>`;
   const g = { id: (S.gang && ctx === 'set' && S.gang.gang.id) || 0, name: d.name || 'Банда', color: d.color, area: d.area, interests: d.interests, crest: d.crest };
   return `<div class="field">Герб<div class="row crest-field">${crestSvg(crestOf(g), { size: 70, full: true, motto: d.name || '' })}
-    <div class="grow" style="display:flex;flex-direction:column;gap:6px"><span class="small" style="font-weight:600">${d.crest ? 'Собран вручную' : 'Собирается сам — по направлению и интересам'}</span>
+    <div class="grow" style="display:flex;flex-direction:column;gap:6px"><span class="small" style="font-weight:600">${d.crest ? 'Собран вручную' : 'Собирается сам — по тому, что вас объединяет, и интересам'}</span>
     <button class="btn small" data-act="crest-open" data-ctx="${ctx}">shield Собрать герб</button></div></div></div>`;
 }
 const CREST_TABS = [['shape', 'Щит'], ['field', 'Поле'], ['charge', 'Фигура'], ['top', 'Навершие']];
@@ -2655,7 +2655,7 @@ function renderCrestEditor() {
   }[tab];
   return `<div class="ava-ed">
     <div class="ava-stage crest-stage">${crestSvg(c, { size: 150, full: true, motto: e.mottoText })}
-      <div class="ava-tools"><button class="tool" data-act="crest-random" aria-label="Случайный герб">dice</button><button class="tool" data-act="crest-auto" aria-label="Подобрать по направлению и интересам" title="По направлению">spark</button></div></div>
+      <div class="ava-tools"><button class="tool" data-act="crest-random" aria-label="Случайный герб">dice</button><button class="tool" data-act="crest-auto" aria-label="Подобрать по тому, что объединяет, и интересам" title="По смыслу банды">spark</button></div></div>
     <p class="small" style="margin:0;text-align:center">dice — случайный, spark — по направлению и интересам банды</p>
     <div class="cats" role="tablist">${CREST_TABS.map(([id, label]) => `<button class="cat ${tab === id ? 'on' : ''}" role="tab" aria-selected="${tab === id}" data-act="crest-tab" data-v="${id}">${label}</button>`).join('')}</div>
     <div class="cat-body">${body}</div>
@@ -2672,7 +2672,7 @@ function renderGangNew() {
       <div><i>Не банда</i><span>весь отдел по списку</span><span>руководитель «для порядка»</span><span>рабочие задачи — им место в рабочих системах</span></div></div></div>
     <p class="sub" style="margin-top:0">Общий чат, зовы, неделя офиса, опросы. Залог 50 зёрен вернётся, когда в банде будет 3 человека. В банде до 30 человек, а сам ты можешь быть только в одной банде${S.me.gangs.length ? ` — сколотишь новую, выйдешь из «${esc(S.me.gangs[0].name)}»` : ''}.</p>
     <label class="field">Название<input id="gang-name" maxlength="30" placeholder="Например, Кофейный патруль" value="${esc(d.name || '')}"></label>
-    <label class="field">Направление${areaSelect('gang-area', d.area)}</label>
+    <label class="field">Что вас объединяет${areaSelect('gang-area', d.area)}</label>
     ${crestField(d, 'new')}
     <div class="field">Кто может вступить${accessPicker(d.access)}</div>
     <div class="field">Интересы — до 6, по ним банду найдут${interestChips(d.interests)}</div>
@@ -2703,7 +2703,7 @@ function gangCardHtml(c) {
 }
 function renderGangFind() {
   const f = S.gfind || (S.gfind = { q: '', area: '', items: null });
-  return `<div class="row" style="gap:8px"><label class="field grow" style="gap:0"><span class="hidden">Поиск банды</span><input id="gfind-q" placeholder="Название, интерес, направление" value="${esc(f.q)}" autocomplete="off"></label><button class="btn" data-act="gang-find-go">Найти</button></div>
+  return `<div class="row" style="gap:8px"><label class="field grow" style="gap:0"><span class="hidden">Поиск банды</span><input id="gfind-q" placeholder="Название или интерес" value="${esc(f.q)}" autocomplete="off"></label><button class="btn" data-act="gang-find-go">Найти</button></div>
     <div class="chips scroll-x">${['', ...S.cat.gangAreas].map((a) => `<button class="chip ${f.area === a ? 'on' : ''}" data-act="gang-find-area" data-v="${esc(a)}">${a ? esc(a) : 'Все'}</button>`).join('')}</div>
     ${f.recommended && f.items && f.items.length ? '<h3 style="margin:4px 0 0">Рекомендуем</h3>' : ''}
     ${S.me.gangs.length ? `<p class="small" style="margin:0">Ты в банде «${esc(S.me.gangs[0].name)}». Банда может быть одна — при вступлении в новую выйдешь из старой.</p>` : ''}
@@ -2715,7 +2715,7 @@ function renderGangProfile() {
   const [accT, accD] = ACCESS_NAMES[c.access] || ACCESS_NAMES.invite;
   const days = Math.max(1, Math.round((Date.now() - c.since) / 864e5));
   return `<div class="g-hero" style="--gc:${esc(c.color)}"><span class="g-crest ${auraCls(c)}">${crestSvg(crestOf(c), { size: 92, full: true, motto: c.motto || c.name })}</span><div><div class="g-title">${gangName(c)}${c.gold ? ' crown' : ''}</div>
-      <div class="small">${c.area ? esc(c.area) : 'Направление не указано'}</div></div></div>
+      <div class="small">${c.area ? esc(c.area) : 'просто банда'}</div></div></div>
     ${c.legend ? `<div class="g-legend">crown ${esc(c.legend)}</div>` : ''}
     ${trophyLine(c.trophies) ? `<p class="small" style="margin:0">Трофеи Лиги: ${trophyLine(c.trophies)}</p>` : ''}
     ${c.motto ? `<p class="sub" style="font-style:italic;margin:0">«${esc(c.motto)}»</p>` : ''}
@@ -2809,7 +2809,7 @@ function renderGangSettings() {
   return `<label class="field">Название<input id="gs-name" maxlength="30" value="${esc(d.name || '')}"></label>
     ${crestField(d, 'set')}
     <div class="field">Цвет<div class="row" style="gap:8px">${S.cat.gangColors.map((c) => `<button class="swatch ${d.color === c ? 'on' : ''}" style="background:${c}" data-act="gs-color" data-v="${c}" aria-label="Цвет ${c}"></button>`).join('')}</div></div>
-    <label class="field">Направление${areaSelect('gs-area', d.area)}</label>
+    <label class="field">Что вас объединяет${areaSelect('gs-area', d.area)}</label>
     <label class="field">О банде<input id="gs-about" maxlength="160" value="${esc(d.about || '')}" placeholder="Кто мы и зачем собрались"></label>
     <div class="field">Интересы — до 6${interestChips(d.interests)}</div>
     <div class="field">Кто может вступить${accessPicker(d.access)}</div>
