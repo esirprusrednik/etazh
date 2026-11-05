@@ -219,6 +219,7 @@ function createApi(db) {
   let inbox = null;
   let board = null;
   let weather = null;
+  let secret = null;
   let advent = null;
   let battle = null;
   let quiz = null;
@@ -721,7 +722,7 @@ function createApi(db) {
       inCanteen: !!canteenOpen,
       gangNow: { hasGang: gangs.length > 0, rows: rows.slice(0, 6), more: Math.max(0, rows.length - 6) },
       stats: appStats(),
-      badges: { chat: newChat, feed: newFeed, crew: crew ? crew.unread(u.id) : 0, invites: q("SELECT COUNT(*) AS n FROM gang_invites WHERE to_id = ? AND status = 'pending'").get(u.id).n, feedback: feedback ? feedback.unseen(u.id) : 0, gangRequests: q("SELECT COUNT(*) AS n FROM gang_requests r JOIN gangs g ON g.id = r.gang_id WHERE g.owner_id = ? AND r.status = 'pending'").get(u.id).n, polls: polls ? polls.unvoted(u.id) : 0, duels: duels ? duels.myTurns(u.id) : 0 }
+      badges: { chat: newChat, feed: newFeed, crew: (crew ? crew.unread(u.id) : 0) + (secret ? secret.unread(u.id) : 0), invites: q("SELECT COUNT(*) AS n FROM gang_invites WHERE to_id = ? AND status = 'pending'").get(u.id).n, feedback: feedback ? feedback.unseen(u.id) : 0, gangRequests: q("SELECT COUNT(*) AS n FROM gang_requests r JOIN gangs g ON g.id = r.gang_id WHERE g.owner_id = ? AND r.status = 'pending'").get(u.id).n, polls: polls ? polls.unvoted(u.id) : 0, duels: duels ? duels.myTurns(u.id) : 0 }
     };
   });
 
@@ -1517,6 +1518,8 @@ function createApi(db) {
   tourney = require('./tourney').register({ db, q, route, requireUser, requireAdmin, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, gangwar, league });
   // ---------- Доска объявлений на весь «Этаж» ----------
   board = require('./board').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, officeById, publicLook, fullName });
+  // ---------- Секретный чат один на один (сквозное шифрование) ----------
+  secret = require('./secret').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, canDm: (u, t) => (crew ? crew.canDm(u, t) : true) });
   // ---------- Погода на завтра: вечером накануне офисного дня ----------
   weather = require('./weather').register({ db, q, U, notify, fireAndForget, readProfile, weekdayName, features });
   // ---------- «Этаж» пишет сам: живая сводка и один утренний пуш ----------
@@ -1593,6 +1596,7 @@ function createApi(db) {
     if (battle) battle.cleanup();
     if (quiz) quiz.cleanup();
     if (board) board.cleanup();
+    if (secret) secret.cleanup();
     if (feedback) feedback.cleanup();
     if (polls) polls.cleanup();
     if (gevents) gevents.cleanup();

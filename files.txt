@@ -60,6 +60,7 @@ server/mailer.js
 server/polls.js
 server/quiz.js
 server/santa.js
+server/secret.js
 server/seasons.js
 server/util.js
 server/voice.js

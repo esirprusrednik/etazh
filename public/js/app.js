@@ -1061,6 +1061,96 @@ async function loadBattle() {
   if (!S.battle) { S.bv = null; return; }
   try { setBattleView(await get(`/api/battle/${S.battle}`)); } catch { S.battle = null; S.bv = null; }
 }
+// ===== Секретный чат: сквозное шифрование прямо в браузере =====
+// Ключ ECDH P-256 создаётся на устройстве; закрытая часть неизвлекаемая и хранится в IndexedDB.
+// Общий ключ пары — ECDH → HKDF → AES-256-GCM. Сервер видит только открытые ключи и шифр.
+const E2E = (() => {
+  const supported = !!(window.crypto && crypto.subtle && window.indexedDB);
+  const DB = 'etazh-e2e', STORE = 'keys';
+  const idb = () => new Promise((ok, fail) => { const r = indexedDB.open(DB, 1); r.onupgradeneeded = () => r.result.createObjectStore(STORE); r.onsuccess = () => ok(r.result); r.onerror = () => fail(r.error); });
+  const idbGet = async (k) => { const d = await idb(); return new Promise((ok, fail) => { const t = d.transaction(STORE).objectStore(STORE).get(k); t.onsuccess = () => ok(t.result); t.onerror = () => fail(t.error); }); };
+  const idbSet = async (k, v) => { const d = await idb(); return new Promise((ok, fail) => { const t = d.transaction(STORE, 'readwrite').objectStore(STORE).put(v, k); t.onsuccess = () => ok(); t.onerror = () => fail(t.error); }); };
+  const b64u = (buf) => { let s = ''; new Uint8Array(buf).forEach((c) => { s += String.fromCharCode(c); }); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+  const unb64u = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4)), (c) => c.charCodeAt(0));
+  const enc = new TextEncoder(), dec = new TextDecoder();
+  let me = null;
+  async function mine(uid) {
+    if (me && me.uid === uid) return me;
+    let rec = await idbGet('me:' + uid);
+    if (!rec) {
+      const kp = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, false, ['deriveBits']);
+      const jwk = await crypto.subtle.exportKey('jwk', kp.publicKey);
+      rec = { priv: kp.privateKey, pub: { kty: 'EC', crv: 'P-256', x: jwk.x, y: jwk.y }, at: Date.now() };
+      await idbSet('me:' + uid, rec);
+    }
+    me = { uid, ...rec };
+    return me;
+  }
+  const cache = new Map();
+  async function keyFor(my, their, lo, hi) {
+    const id = `${my.pub.x}|${their.x}|${their.y}|${lo}|${hi}`;
+    if (cache.has(id)) return cache.get(id);
+    const tp = await crypto.subtle.importKey('jwk', { kty: 'EC', crv: 'P-256', x: their.x, y: their.y, ext: true }, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+    const bits = await crypto.subtle.deriveBits({ name: 'ECDH', public: tp }, my.priv, 256);
+    const hk = await crypto.subtle.importKey('raw', bits, 'HKDF', false, ['deriveKey']);
+    const k = await crypto.subtle.deriveKey({ name: 'HKDF', hash: 'SHA-256', salt: enc.encode(`etazh-secret:${lo}:${hi}`), info: enc.encode('v1') }, hk, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+    cache.set(id, k);
+    return k;
+  }
+  // Отпечаток пары ключей одинаков у обоих собеседников: ключи сортируются
+  const pairHash = async (a, b) => new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode([a.x + a.y, b.x + b.y].sort().join('|'))));
+  const kfp = async (a, b) => [...(await pairHash(a, b)).slice(0, 8)].map((x) => x.toString(16).padStart(2, '0')).join('');
+  async function safety(a, b) {
+    const h = await pairHash(a, b), out = [];
+    for (let i = 0; i < 5; i++) out.push(String(((h[i * 3] << 16) | (h[i * 3 + 1] << 8) | h[i * 3 + 2]) % 10000).padStart(4, '0'));
+    return out.join(' ');
+  }
+  async function encrypt(my, their, lo, hi, text) {
+    const k = await keyFor(my, their, lo, hi);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, k, enc.encode(JSON.stringify({ t: text })));
+    return { iv: b64u(iv), ct: b64u(ct), kfp: await kfp(my.pub, their) };
+  }
+  async function decrypt(my, their, lo, hi, m) {
+    try {
+      const k = await keyFor(my, their, lo, hi);
+      const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64u(m.iv) }, k, unb64u(m.ct));
+      return JSON.parse(dec.decode(pt)).t;
+    } catch { return null; }
+  }
+  return { supported, mine, encrypt, decrypt, safety, kfp };
+})();
+async function loadSecret() {
+  const id = S.dm;
+  if (!id || !E2E.supported) return;
+  const r = await get(`/api/secret/${id}`);
+  const my = await E2E.mine(S.me.id);
+  if (!r.mine) { await post('/api/e2e/key', { pub: my.pub }); r.mine = { pub: JSON.stringify(my.pub) }; }
+  const sm = JSON.parse(r.mine.pub);
+  const sameDevice = sm.x === my.pub.x && sm.y === my.pub.y;
+  const theirs = r.theirs ? JSON.parse(r.theirs.pub) : null;
+  const [lo, hi] = S.me.id < id ? [S.me.id, id] : [id, S.me.id];
+  const items = [];
+  for (const m of r.items) items.push({ ...m, text: theirs && sameDevice ? await E2E.decrypt(my, theirs, lo, hi, m) : null });
+  S.secret = { id, sameDevice, theirs, code: theirs && sameDevice ? await E2E.safety(my.pub, theirs) : null, items, canWrite: r.canWrite, ttlDays: r.ttlDays };
+}
+function renderSecret(f) {
+  if (!E2E.supported) return '<section class="card secret"><p class="sub" style="margin:0">Этот браузер не умеет шифровать. Открой Этаж в свежем Chrome или Safari.</p></section>';
+  const x = S.secret;
+  if (!x || x.id !== f.id) return '<section class="card secret"><p class="sub" style="margin:0">Готовим ключи…</p></section>';
+  const msgs = x.items.map((m) => `<div class="msg ${m.mine ? 'mine' : ''} ${m.text === null ? 'locked' : ''}"><div class="text">${m.text === null ? 'lock Не расшифровать: сообщение для другого ключа' : esc(m.text)}</div><div class="meta"><span>${m.time}</span>${m.mine ? (m.read ? '<span title="Прочитано">✓✓</span>' : '<span title="Доставлено">✓</span>') : ''}</div></div>`).join('')
+    || `<p class="sub" style="margin:0">Тут пусто. Всё, что напишете, увидите только вы двое — даже сервер не прочитает. Сообщения живут ${x.ttlDays} дней.</p>`;
+  const ready = x.theirs && x.sameDevice && x.canWrite;
+  return `<section class="card secret">
+    <div class="row" style="justify-content:space-between"><span class="card-title">lock Секретный чат</span><span class="small">сквозное шифрование</span></div>
+    ${!x.sameDevice ? `<div class="note warn" style="margin:0">Секретный чат сейчас привязан к другому твоему устройству. Сделай это устройство основным — тогда старые секретные сообщения здесь не прочитать, а новые будут работать тут.<br><button class="btn small" data-act="secret-adopt" style="margin-top:8px">Сделать это устройство основным</button></div>` : ''}
+    ${!x.theirs ? `<div class="note" style="margin:0">${esc(f.nick)} ещё не открывал${gw(f.look, '', 'а')} секретный чат — нужен его ключ. Позови: как только откроет вкладку «Секретный», можно писать.<br><button class="btn small" data-act="secret-invite" style="margin-top:8px">Позвать в секретный чат</button></div>` : ''}
+    <div class="chat" id="sc-chat">${msgs}</div>
+    ${ready ? `<div class="row"><label class="field grow" style="gap:0"><span class="hidden">Секретное сообщение</span><input id="sc-text" maxlength="1000" placeholder="Секретно написать ${esc(f.nick)}" aria-label="Секретное сообщение"></label><button class="btn" data-act="secret-send" aria-label="Отправить">→</button></div>` : ''}
+    ${x.code ? `<div class="sc-code"><span class="small">Код безопасности</span><b>${x.code}</b><span class="small">Сверьте при встрече: у ${esc(f.nick)} должен быть такой же. Совпадает — вас никто не подслушивает.</span></div>` : ''}
+    <p class="small" style="margin:0">Сервер хранит только шифр и не может его прочитать. Поэтому в пуше не будет текста, а пожаловаться на сообщение модератору нельзя — только заблокировать. Ключ живёт на этом устройстве: на новом телефоне старые секретные сообщения не прочитать.</p>
+  </section>`;
+}
 async function loadDm() {
   if (!S.dm) { S.dmView = null; return; }
   try { S.dmView = await get(`/api/crew/${S.dm}`); } catch { S.dm = null; S.dmView = null; return; }
@@ -2888,16 +2978,18 @@ function renderDm() {
     ${shut ? `<div class="note dm-shut">lock ${esc(shut)}</div>` : ''}
     ${shut ? '' : `<div class="chips">${v.calls.map((k) => `<button class="chip" data-act="dm-call-open" data-kind="${k}">${esc(S.cat.calls[k].label)}</button>`).join('')}<button class="chip meme-chip" data-act="meme-open" data-to="${f.id}">image Мем</button></div>`}
   </section>
-  ${!shut ? renderBattleInvite(f) : ''}
-  ${shut ? '' : renderDuelsBox(f)}
-  ${shut && !v.messages.length ? '' : `<section class="card">
+  ${!shut || S.dmSecret ? `<div class="seg dm-mode" role="tablist"><button class="seg-b ${S.dmSecret ? '' : 'on'}" data-act="dm-mode" data-v="plain" aria-selected="${!S.dmSecret}">Обычный чат</button><button class="seg-b ${S.dmSecret ? 'on' : ''}" data-act="dm-mode" data-v="secret" aria-selected="${!!S.dmSecret}">lock Секретный</button></div>` : ''}
+  ${S.dmSecret ? renderSecret(f) : ''}
+  ${!shut && !S.dmSecret ? renderBattleInvite(f) : ''}
+  ${shut || S.dmSecret ? '' : renderDuelsBox(f)}
+  ${S.dmSecret || (shut && !v.messages.length) ? '' : `<section class="card">
     <div class="chat" id="dm-chat">${msgs}</div>
     ${shut ? '' : `<div class="row"><label class="field grow" style="gap:0"><span class="hidden">Сообщение</span><input id="dm-text" maxlength="500" placeholder="Написать ${esc(f.nick)}" aria-label="Личное сообщение"></label>
       ${micBtn('dm')}<button class="btn" data-act="dm-send" aria-label="Отправить">→</button></div>${recBar('dm')}`}
     ${v.closedByMe ? '<p class="small" style="margin:0">Ты закрыл эту личку. Напишешь — она откроется снова.</p>' : ''}
   </section>`}
   <section class="card">
-    <p class="small">Переписку видите только вы двое. Модератор увидит сообщение, только если на него пожалуются (⚑).</p>
+    ${S.dmSecret ? '' : '<p class="small">Переписку видите только вы двое. Модератор увидит сообщение, только если на него пожалуются (⚑).</p>'}
     <div class="row" style="justify-content:space-between">
       <button class="linkbtn" data-act="dm-close" data-id="${f.id}">${v.closedByOther ? 'Убрать из списка' : '× Закрыть личку'}</button>
       <button class="linkbtn" data-act="crew-block" data-id="${f.id}">Заблокировать</button>
@@ -4613,7 +4705,7 @@ const actions = {
     await loadGang(); markSeen('chat');
   }),
   'dm-open': (el) => run(async () => {
-    S.tab = 'chats'; S.chatGang = false; S.battle = null; S.sheet = null; S.dm = Number(el.dataset.id); S.dmView = null; render();
+    S.tab = 'chats'; S.chatGang = false; S.battle = null; S.sheet = null; S.dm = Number(el.dataset.id); S.dmView = null; S.dmSecret = false; render();
     await Promise.all([loadDm(), S.crew ? null : loadCrew()]);
     if (S.crew) { const f = S.crew.list.find((x) => x.id === S.dm); if (f) f.unread = 0; recountCrewBadge(); }
     window.scrollTo(0, 0);
@@ -4880,6 +4972,26 @@ const actions = {
   'board-remove': (el) => run(async () => {
     if (!confirmInline('board-rm' + el.dataset.id, 'Нажми ещё раз — объявление исчезнет')) return;
     await post(`/api/board/${el.dataset.id}/remove`); toast('Снято'); await loadBoard();
+  }),
+  'secret-open': (el) => run(async () => { S.tab = 'chats'; S.chatGang = false; S.battle = null; S.sheet = null; S.dm = Number(el.dataset.id); S.dmSecret = true; S.dmView = null; render(); await Promise.all([loadDm(), loadSecret()]); window.scrollTo(0, 0); }),
+  'dm-mode': (el) => run(async () => { S.dmSecret = el.dataset.v === 'secret'; render(); if (S.dmSecret) { await loadSecret(); render(); const c = $('#sc-chat'); if (c) c.scrollTop = c.scrollHeight; } }),
+  'secret-send': () => run(async () => {
+    const el = $('#sc-text'); const text = (el.value || '').trim();
+    if (!text) return;
+    const x = S.secret, my = await E2E.mine(S.me.id);
+    const [lo, hi] = S.me.id < S.dm ? [S.me.id, S.dm] : [S.dm, S.me.id];
+    const m = await E2E.encrypt(my, x.theirs, lo, hi, text);
+    await post(`/api/secret/${S.dm}`, m);
+    el.value = ''; sfx('send');
+    await loadSecret(); render(); const c = $('#sc-chat'); if (c) c.scrollTop = c.scrollHeight;
+  }),
+  'secret-adopt': () => run(async () => {
+    if (!confirmInline('secret-adopt', 'Нажми ещё раз: на прежнем устройстве секретные чаты перестанут открываться')) return;
+    const my = await E2E.mine(S.me.id); await post('/api/e2e/key', { pub: my.pub }); await loadSecret(); toast('Это устройство теперь основное для секретных чатов');
+  }),
+  'secret-invite': () => run(async () => {
+    await post(`/api/crew/${S.dm}/messages`, { type: 'text', text: 'Открой со мной секретный чат — вкладка «Секретный» в нашей переписке. Его не прочитает даже сервер.' });
+    toast('Позвали — ответ придёт в обычную личку');
   }),
   'quest-open'(el) { S.questOpen = S.questOpen === el.dataset.v ? null : el.dataset.v; render(); },
   'quest-go'(el) {
@@ -5331,6 +5443,13 @@ setInterval(async () => {
 }, 900);
 setInterval(async () => {
   if (document.hidden || !S.me || !S.me.nick || S.tab !== 'chats' || !S.dm || S.battle || S.sheet) return;
+  if (S.dmSecret) {
+    const before = S.secret ? S.secret.items.map((m) => m.id + (m.read ? 'r' : '')).join() + '|' + !!S.secret.theirs : '';
+    try { await loadSecret(); } catch {}
+    const after = S.secret ? S.secret.items.map((m) => m.id + (m.read ? 'r' : '')).join() + '|' + !!S.secret.theirs : '';
+    if (after !== before && !typing()) { render(); const c = $('#sc-chat'); if (c) c.scrollTop = c.scrollHeight; }
+    return;
+  }
   const sig = () => (S.dmView ? S.dmView.messages.map((m) => m.id + ':' + (m.reply || '') + (m.read ? 'r' : '')).join() : '') + '|' + (S.duelsWith || []).map((d) => d.id + ':' + d.seq).join();
   const before = sig();
   try {
@@ -5353,7 +5472,8 @@ function applyHash(hash) {
   if (hash.startsWith('#gang/')) { S.tab = 'chats'; S.chatGang = true; S.dm = null; S.activeGang = Number(hash.slice(6)) || S.activeGang; }
   if (hash === '#feed') S.tab = 'office';
   if (hash === '#crew' || hash === '#chats') S.tab = 'chats';
-  if (hash.startsWith('#crew/')) { S.tab = 'chats'; S.dm = Number(hash.slice(6)) || null; }
+  if (hash.startsWith('#crew/')) { S.tab = 'chats'; S.dm = Number(hash.slice(6)) || null; S.dmSecret = false; }
+  if (hash.startsWith('#secret/')) { S.tab = 'chats'; S.chatGang = false; S.battle = null; S.dm = Number(hash.slice(8)) || null; S.dmSecret = true; Promise.all([loadDm(), loadSecret()]).then(render).catch(() => {}); }
   if (hash.startsWith('#battle/')) { S.tab = 'chats'; S.battle = Number(hash.slice(8)) || null; }
   if (hash === '#league') S.tab = 'games';
   if (hash === '#inbox') { S.tab = 'chats'; S.chatGang = false; S.dm = null; S.sheet = 'inbox'; }

@@ -1463,3 +1463,14 @@ a { color: var(--link); }
 .wl-ico { flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,.6); }
 :root[data-theme="dark"] .wl-ico { background: rgba(0,0,0,.25); }
 .week-lock-strip { display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 10px; padding: 10px 12px; border: 0; border-radius: 12px; background: var(--tint-y); color: var(--tint-y-fg); font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
+
+/* Секретный чат */
+.dm-mode { margin: 0 0 12px; grid-template-columns: 1fr 1fr; }
+.card.secret { display: grid; gap: 10px; border: 1px solid rgba(31,157,85,.3); background: linear-gradient(180deg, rgba(31,157,85,.06), var(--card) 120px); }
+.card.secret .card-title, .card.secret .card-title .ei { color: #157A43; }
+:root[data-theme="dark"] .card.secret .card-title, :root[data-theme="dark"] .card.secret .card-title .ei { color: #6BE3B5; }
+.card.secret .msg.locked .text { color: var(--muted); font-style: italic; }
+.sc-code { display: grid; gap: 2px; padding: 10px 12px; border-radius: 12px; background: var(--s1); text-align: center; }
+.sc-code b { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 18px; letter-spacing: .08em; }
+.k-secret .inbox-ico { background: rgba(31,157,85,.14); color: #157A43; }
+:root[data-theme="dark"] .k-secret .inbox-ico { color: #6BE3B5; }

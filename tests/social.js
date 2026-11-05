@@ -140,6 +140,22 @@ function startServer(day, extra = {}) {
       assert.ok(!raw.includes('СекретнаяФраза42') && !raw.includes('ЛичнаяФраза77'), 'в файлах базы текста нет');
     });
 
+    await step('секретный чат: сервер хранит только ключи и шифр', async () => {
+      const pub = (x) => ({ kty: 'EC', crv: 'P-256', x: x.padEnd(43, 'A'), y: 'B'.repeat(43) });
+      assert.equal((await A.post('/api/e2e/key', { pub: { kty: 'EC', crv: 'P-256', x: 'a', y: 'b', d: 'secret' } })).status, 400, 'закрытый ключ не принимаем');
+      assert.equal((await A.post('/api/e2e/key', { pub: pub('Xa') })).status, 200);
+      const msg = { iv: 'AAAAAAAAAAAAAAAA', ct: 'Q2lwaGVydGV4dA', kfp: '0123456789abcdef' };
+      assert.equal((await A.post(`/api/secret/${B.id}`, msg)).status, 400, 'у собеседника нет ключа');
+      await B.post('/api/e2e/key', { pub: pub('Xb') });
+      assert.equal((await A.post(`/api/secret/${B.id}`, msg)).status, 200);
+      assert.equal((await A.post(`/api/secret/${B.id}`, { ...msg, ct: 'не base64!' })).status, 400);
+      const v = (await B.get(`/api/secret/${A.id}`)).json;
+      assert.equal(v.items.length, 1); assert.equal(v.items[0].ct, msg.ct); assert.ok(v.theirs && v.mine);
+      assert.ok((await B.get('/api/inbox')).json.items.length >= 0);
+      const ib = (await A.get(`/api/secret/${B.id}`)).json.items[0];
+      assert.equal(ib.read, true, 'получатель открыл — прочитано');
+    });
+
     await step('доска: объявление, «я тоже» с отметкой автору, снять может только автор, срок', async () => {
       const r = await A.post('/api/board', { kind: 'company', text: 'Ищу компанию на обед в 13:00', until: '2026-11-12', office: 'smol' });
       assert.equal(r.status, 200);

@@ -34,6 +34,12 @@ function register(ctx) {
       const w = ctx.weather.adviceFor(uid, u.profile);
       if (w) out.push({ id: `weather-${w.day}`, kind: 'weather', icon: w.icon, push: false, title: w.text.replace(/\. [^.]*$/, ''), text: `Завтра в офис · ${w.temp}`, go: { act: 'tab', v: 'near' } });
     }
+    // Непрочитанные секретные сообщения (текста сервер не знает — только от кого)
+    try {
+      for (const r of q('SELECT m.from_id, u.nick, COUNT(*) AS n FROM secret_msgs m JOIN users u ON u.id = m.from_id WHERE m.to_id = ? AND m.read_at IS NULL AND m.at > ? GROUP BY m.from_id').all(uid, U.now() - 7 * 864e5)) {
+        out.push({ id: `secret-${r.from_id}-${r.n}`, kind: 'secret', icon: 'lock', push: false, title: `${r.nick}: ${r.n === 1 ? 'секретное сообщение' : `${r.n} секретных сообщения`}`, text: 'Откроется только на твоём устройстве', go: { act: 'secret-open', id: r.from_id } });
+      }
+    } catch {}
     // Блиц: не начат или не доигран
     const set = blitz && blitz.activeSet();
     if (set) {
