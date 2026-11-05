@@ -213,6 +213,19 @@ function startServer(day) {
       assert.ok((await ib(B)).some((x) => x.kind === 'poll'));
     });
 
+    await step('счётчик в шапке: банды и бандиты считаются верно', async () => {
+      // без ника — ещё не бандит; одиночка — бандит, но не в банде; банда без людей исчезает
+      const noNick = new Client(); const r0 = await noNick.post('/api/auth/request', { email: 'h9@mts.ru', consent: true }); await noNick.post('/api/auth/code', { email: 'h9@mts.ru', code: r0.json.devCode });
+      const solo = await new Client().login('h7@mts.ru', 'одиночка');
+      const temp = await new Client().login('h8@mts.ru', 'временный');
+      const gt = (await temp.post('/api/gangs', { name: 'Пустышка', access: 'open' })).json;
+      await temp.post(`/api/gangs/${gt.id}/leave`);
+      const st = (await A.get('/api/state')).json.stats;
+      assert.equal(st.users, 4, 'A, B, одиночка, временный');
+      assert.equal(st.gangs, 1, 'Снежки; Пустышка удалилась');
+      assert.equal(st.inGangs, 2);
+    });
+
     await step('Санта после 4 декабря: запись закрыта', async () => {
       const v = (await A.get(`/api/gangs/${g.id}/santa`)).json;
       assert.equal(v.regOpen, false);
