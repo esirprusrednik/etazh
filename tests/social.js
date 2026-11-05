@@ -100,6 +100,20 @@ function startServer(day, extra = {}) {
       assert.ok(!(await ib(B)).some((x) => x.kind === 'weather'), 'выключил — не показываем');
     });
 
+    await step('взаимность графика: без своего плана банда скрыта, показываем, сколько уже заполнили', async () => {
+      // D в банде «Бета» без плана, B (владелец) план заполнил
+      let w = (await D.get(`/api/gangs/${gb.id}/extra`)).json;
+      const wk = w.week;
+      assert.ok(wk.locked, JSON.stringify(wk).slice(0, 200));
+      assert.equal(wk.locked.filled, 1); assert.equal(wk.locked.total, 1);
+      assert.equal(wk.rows.length, 1); assert.ok(wk.rows[0].me);
+      assert.ok(wk.days.every((d) => d.office === null), 'счётчики по дням тоже скрыты');
+      assert.ok((await D.get('/api/features')).json.weekLock);
+      await D.post('/api/me/profile', { profile: { plan: { 'Пн': 'home' } } });
+      const w2 = ((await D.get(`/api/gangs/${gb.id}/extra`)).json || {}).week;
+      assert.ok(w2 && !w2.locked && w2.rows.length >= 1);
+    });
+
     await step('доска: объявление, «я тоже» с отметкой автору, снять может только автор, срок', async () => {
       const r = await A.post('/api/board', { kind: 'company', text: 'Ищу компанию на обед в 13:00', until: '2026-11-12', office: 'smol' });
       assert.equal(r.status, 200);

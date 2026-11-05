@@ -1441,7 +1441,7 @@ function renderPeople() {
     for (const x of g) left.splice(left.indexOf(x), 1);
     return g.length ? `<div class="pgroup"><div class="eyebrow">${title} · ${g.length}</div>${g.map(personRow).join('')}</div>` : '';
   }).join('');
-  const hint = S.fx && S.fx.weekHint ? `<div class="week-hint">${ico('where', 16)}<span>${S.fx.weekHint.today ? 'Сегодня' : esc(S.fx.weekHint.label)} в офисе по планам <b>${S.fx.weekHint.office} ${plural(S.fx.weekHint.office, 'человек', 'человека', 'человек')}</b> из банды</span></div>` : '';
+  const hint = S.fx && S.fx.weekLock ? planLockMsg(S.fx.weekLock, true) : S.fx && S.fx.weekHint ? `<div class="week-hint">${ico('where', 16)}<span>${S.fx.weekHint.today ? 'Сегодня' : esc(S.fx.weekHint.label)} в офисе по планам <b>${S.fx.weekHint.office} ${plural(S.fx.weekHint.office, 'человек', 'человека', 'человек')}</b> из банды</span></div>` : '';
   return `<section class="card people">${html}${hint}
     <div class="row" style="justify-content:space-between">${S.me.gangs.length ? `<button class="linkbtn" data-act="gang-invite" data-id="${S.activeGang || S.me.gangs[0].id}">+ Позвать в банду</button>` : '<span></span>'}<button class="linkbtn" data-act="open" data-v="gang-new">Сколотить банду</button></div></section>`;
 }
@@ -1460,6 +1460,14 @@ function renderNear() {
     ${renderMatch()}`;
 }
 
+// Заблокированный график: «заполни свой план — увидишь чужой». filled/total — сколько бандитов уже заполнили
+function planLockMsg(lock, compact = false) {
+  const f = lock.filled, t = lock.total;
+  const who = t ? (f ? `${f} из ${t} ${plural(t, 'бандита', 'бандитов', 'бандитов')} уже ${plural(f, 'заполнил', 'заполнили', 'заполнили')} свой план и ${f > 1 ? 'видят друг друга' : 'видит график'}, а ты — нет.` : 'Пока никто в банде не заполнил план — будь первым.') : '';
+  if (compact) return `<button class="week-lock-strip" data-act="open-sec" data-v="work">${ico('lock', 16)}<span>График банды скрыт: ${f ? `${f} из ${t} уже видят друг друга` : 'заполни план первым'}. <b>Заполнить →</b></span></button>`;
+  return `<div class="week-lock"><span class="wl-ico">${ico('lock', 20)}</span><div class="grow"><b>Заполни свой план — увидишь график банды</b><p>${who} Отметь, в какие дни ты обычно в офисе, а в какие — дома. Это 30 секунд.</p>
+    <button class="btn small" data-act="open-sec" data-v="work">Заполнить план недели</button></div></div>`;
+}
 // ----- «Совпадаем»: кто из коллег (не только банды) где на неделе -----
 function renderMatch() {
   const m = S.match;
@@ -1469,6 +1477,11 @@ function renderMatch() {
       <p class="sub" style="margin:0">Кто из коллег — не только из банды — в какие дни в офисе, а кто дома. Можно позвать на обед, кофе или созвониться.</p>
       <p class="small" style="margin:0">Видят только те, кто сам открыл свои дни. ${m.count ? `Уже открыли: <b>${m.count}</b>.` : 'Будь первым.'} Показываем ник, аватар, офис на день и общие интересы — без имён.</p>
       <button class="btn" data-act="match-on">Открыть свои дни и посмотреть</button></section>`;
+  }
+  if (m.locked) {
+    return `<section class="card match"><div class="card-title">where Совпадаем</div>
+      <div class="week-lock"><span class="wl-ico">${ico('lock', 20)}</span><div class="grow"><b>Заполни свой план — увидишь, с кем совпадаешь</b><p>${m.count ? `${m.count} ${plural(m.count, 'коллега уже открыл', 'коллеги уже открыли', 'коллег уже открыли')} свои дни и видят друг друга.` : ''} Твой план недели пока пустой — отметь офисные и домашние дни.</p>
+      <button class="btn small" data-act="open-sec" data-v="work">Заполнить план недели</button></div></div></section>`;
   }
   const i = Math.min(S.matchDay || 0, m.days.length - 1);
   const d = m.days[i];
@@ -3185,6 +3198,17 @@ function renderWeek() {
   const x = S.gx;
   if (!x) return '';
   const w = x.week;
+  if (w.locked) {
+    const fake = ['office', 'home', 'office', 'office', 'home'];
+    return `<section class="card">
+    <div class="row" style="justify-content:space-between"><span class="card-title">Неделя банды</span><span class="small">${ico('lock', 14)} скрыто</span></div>
+    <div class="week week-blur" aria-hidden="true" style="grid-template-columns: minmax(0, 1.6fr) repeat(${w.days.length}, minmax(0, 1fr))">
+      <span></span>${w.days.map((d) => `<span class="wk-h">${esc(d.label.split(' ')[0])}</span>`).join('')}
+      ${[0, 1, 2, 3].map((r) => `<span class="wk-n">●●●●●●</span>${w.days.map((d, i) => `<span class="wk-c ${fake[(i + r) % 5]}"></span>`).join('')}`).join('')}
+    </div>
+    ${planLockMsg(w.locked)}
+  </section>`;
+  }
   return `<section class="card">
     <div class="row" style="justify-content:space-between"><span class="card-title">Неделя банды</span><button class="linkbtn" data-act="open" data-v="profile">мой план</button></div>
     <div class="week" style="grid-template-columns: minmax(0, 1.6fr) repeat(${w.days.length}, minmax(0, 1fr))">

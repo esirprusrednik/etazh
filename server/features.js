@@ -501,8 +501,23 @@ function register(ctx) {
     return plan === 'office' ? 'office' : plan === 'home' ? 'home' : 'unknown';
   }
 
+  // План недели заполнен: хотя бы один день отмечен «офис» или «дома»
+  const planFilled = (prof) => Object.values(prof.plan || {}).some((v) => v === 'office' || v === 'home');
+  // Взаимность: график банды видит только тот, кто сам заполнил свой план. Остальным — только своя строка
+  // и подсказка, сколько бандитов уже заполнили и видят друг друга
   function gangWeek(gangId, meId) {
     const days = weekDays();
+    const meRow = gangMembers(gangId).find((m) => m.id === meId);
+    if (meRow && !planFilled(readProfile(meRow.profile))) {
+      const all = gangMembers(gangId).filter((m) => m.id !== meId);
+      const filled = all.filter((m) => planFilled(readProfile(m.profile))).length;
+      return {
+        locked: { filled, total: all.length },
+        days: days.map((d) => ({ day: d, label: `${DAY_NAMES[new Date(d + 'T00:00:00Z').getUTCDay()]} ${ddmm(d)}`, office: null, holiday: HOL.holidayName(d), short: HOL.isShort(d), workSat: HOL.isWorkSaturday(d) })),
+        rows: [{ id: meId, nick: meRow.nick, me: true, look: lookOf(meRow), cells: days.map((d) => cellFor(readProfile(meRow.profile), meId, d)) }],
+        best: null, hidden: 0
+      };
+    }
     const members = gangMembers(gangId).filter((m) => m.share_office || m.id === meId);
     const rows = members.map((m) => {
       const prof = readProfile(m.profile);
@@ -764,7 +779,7 @@ function register(ctx) {
         });
       })(),
       achCats: ACH_CATS,
-      weekHint: gangId ? gangWeek(gangId, u.id).best : null,
+      ...(() => { const w = gangId ? gangWeek(gangId, u.id) : null; return { weekHint: w ? w.best : null, weekLock: w ? w.locked || null : null }; })(),
       coffee: { optIn: !!prof.coffee, hasHome: !!prof.home, pair: myPair(u.id) },
       lunches: lunchesFor(u.id),
       birthdaysToday: bdaysToday,
@@ -913,6 +928,11 @@ function register(ctx) {
     const out = { on: !!me.matchShow, home: me.home || null, days: days.map((d) => ({ day: d, label: `${DAY_NAMES[new Date(d + 'T00:00:00Z').getUTCDay()]} ${ddmm(d)}`, holiday: HOL.holidayName(d) || null, today: d === today() })) };
     if (!out.on) {
       out.count = q('SELECT COUNT(*) AS n FROM users WHERE nick IS NOT NULL AND id != ? AND json_extract(profile, \'$.matchShow\') = 1').get(u.id).n;
+      return out;
+    }
+    if (!planFilled(me)) {
+      out.locked = true;
+      out.count = q("SELECT COUNT(*) AS n FROM users WHERE nick IS NOT NULL AND id != ? AND json_extract(profile, '$.matchShow') = 1").get(u.id).n;
       return out;
     }
     const myTags = new Set((me.tags || []).map((t) => String(t).toLowerCase()));
