@@ -189,6 +189,8 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.equal((await a.get('/api/me')).json.user.beans, before - 50, 'вторая — за зёрна');
     await a.post('/api/me/profile', { profile: { firstName: 'Анна', lastName: 'Петрова' } });
     assert.equal((await a.post('/api/me/profile', { profile: { firstName: 'Ан<на>' } })).status, 400);
+    assert.equal((await b.get(`/api/gangs/${g.id}`)).json.members.find((m) => m.id === a.id).name, '', 'сам без имени — чужих имён не видит');
+    await b.post('/api/me/profile', { profile: { firstName: 'Борис' } });
     const gm = (await b.get(`/api/gangs/${g.id}`)).json.members.find((m) => m.id === a.id);
     assert.equal(gm.name, 'Анна Петрова');
     await a.post('/api/me/profile', { profile: { nameVis: 'hidden' } });

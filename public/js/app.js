@@ -1441,8 +1441,10 @@ function renderPeople() {
     for (const x of g) left.splice(left.indexOf(x), 1);
     return g.length ? `<div class="pgroup"><div class="eyebrow">${title} · ${g.length}</div>${g.map(personRow).join('')}</div>` : '';
   }).join('');
+  const nl = S.state && S.state.nameLock;
+  const nameStrip = nl ? `<button class="week-lock-strip" data-act="open-sec" data-v="name">${ico('lock', 16)}<span>Имена коллег скрыты: ${nl.named} из ${nl.total} ${plural(nl.total, 'бандита', 'бандитов', 'бандитов')} указали имя, и ты видишь только ники. <b>Указать своё →</b></span></button>` : '';
   const hint = S.fx && S.fx.weekLock ? planLockMsg(S.fx.weekLock, true) : S.fx && S.fx.weekHint ? `<div class="week-hint">${ico('where', 16)}<span>${S.fx.weekHint.today ? 'Сегодня' : esc(S.fx.weekHint.label)} в офисе по планам <b>${S.fx.weekHint.office} ${plural(S.fx.weekHint.office, 'человек', 'человека', 'человек')}</b> из банды</span></div>` : '';
-  return `<section class="card people">${html}${hint}
+  return `<section class="card people">${html}${hint}${nameStrip}
     <div class="row" style="justify-content:space-between">${S.me.gangs.length ? `<button class="linkbtn" data-act="gang-invite" data-id="${S.activeGang || S.me.gangs[0].id}">+ Позвать в банду</button>` : '<span></span>'}<button class="linkbtn" data-act="open" data-v="gang-new">Сколотить банду</button></div></section>`;
 }
 
@@ -4171,6 +4173,7 @@ function renderPerson() {
     if (x.bday) rows.push(['День рождения', esc(x.bday)]);
     if (x.gangs && x.gangs.length) rows.push([x.gangs.length > 1 ? 'Общие банды' : 'Общая банда', x.gangs.map(esc).join(', ')]);
     if (x.crew) rows.push(['Подельник', 'да']);
+    if (!x.me && !x.name && S.state && S.state.nameLock !== undefined && !(S.me.profile && S.me.profile.firstName)) rows.push(['Имя', '<button class="linkbtn" data-act="open-sec" data-v="name">скрыто — укажи своё, чтобы видеть имена</button>']);
   }
   return `<div class="person-card">
     <div class="person-ava">${avatar(x.look, 180)}</div>

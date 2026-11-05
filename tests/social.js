@@ -114,6 +114,17 @@ function startServer(day, extra = {}) {
       assert.ok(w2 && !w2.locked && w2.rows.length >= 1);
     });
 
+    await step('взаимность имён: без своего имени чужих не видно', async () => {
+      await B.post('/api/me/profile', { profile: { firstName: 'Борис', lastName: 'Петров', nameVis: 'all' } });
+      const cardD = (await D.get(`/api/users/${B.id}`)).json;
+      assert.equal(cardD.name || '', '', 'D без имени — имя B скрыто');
+      assert.ok((await D.get('/api/state')).json.nameLock.named >= 1);
+      assert.equal(((await D.get('/api/search?q=' + encodeURIComponent('Борис'))).json.items || []).length, 0, 'по имени не ищет');
+      await D.post('/api/me/profile', { profile: { firstName: 'Дина' } });
+      assert.equal((await D.get(`/api/users/${B.id}`)).json.name, 'Борис Петров');
+      assert.equal((await D.get('/api/state')).json.nameLock, null);
+    });
+
     await step('доска: объявление, «я тоже» с отметкой автору, снять может только автор, срок', async () => {
       const r = await A.post('/api/board', { kind: 'company', text: 'Ищу компанию на обед в 13:00', until: '2026-11-12', office: 'smol' });
       assert.equal(r.status, 200);

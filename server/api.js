@@ -122,14 +122,21 @@ const VOICE_MOD = 'голосовое — звук модератору не п�
 const weekdayName = (day) => HOL.workdayName(day);
 
 // Имя и фамилия: scope 'gang' — смотрит кто-то из общей банды, 'all' — любой коллега
+// Взаимность имён: кто сам не указал имя, тот не видит имён коллег (только ники).
+// Кто смотрит — знаем из контекста запроса (AsyncLocalStorage), его заполняет requireUser
+const { AsyncLocalStorage } = require('node:async_hooks');
+const viewerCtx = new AsyncLocalStorage();
+const hasOwnName = (prof) => !!String((prof && prof.firstName) || '').trim();
 function fullName(prof, scope) {
+  const v = viewerCtx.getStore();
+  if (v && v.noName) return '';
   const vis = prof.nameVis || 'gang';
   if (vis === 'hidden' || (vis === 'gang' && scope !== 'gang')) return '';
   return [prof.firstName, prof.lastName].filter(Boolean).join(' ');
 }
 
 // Заполненность профиля. Первый шаг — ник — засчитан сразу: начатое дело люди доводят до конца охотнее.
-// Имя, фамилия и день рождения в процент не входят: личные данные — только по желанию, без давления.
+// Имя, фамилия и день рождения в процент не входят: личные данные — по желанию (но имена коллег видит только тот, кто указал своё).
 const LOOK_KEYS = ['face', 'hairStyle', 'hair', 'skin', 'eyes', 'hoodie', 'mouth', 'beard', 'glasses', 'phones', 'freckles', 'preset', 'eyeShape', 'outfit', 'neck', 'hat', 'prop', 'bg', 'eyeSize', 'nose', 'ears', 'makeup', 'earrings', 'glassesStyle', 'glassesColor', 'lensColor', 'pet', 'beardColor', 'mustacheColor', 'hatColor', 'mask'];
 function profileCompletion(look, prof, hasPush) {
   const steps = [
@@ -250,6 +257,8 @@ function createApi(db) {
     if (!u) throw new HttpError(401, 'Нужно войти заново.');
     if (u.banned_until && u.banned_until > U.now()) throw new HttpError(403, 'Аккаунт временно заблокирован модератором.');
     if (nick && !u.nick) throw new HttpError(409, 'Сначала выбери никнейм.');
+    const vc = viewerCtx.getStore();
+    if (vc) vc.noName = !hasOwnName(u.profile);
     if (features && u.nick) features.onEvent('active', u.id);
     return u;
   }
@@ -692,6 +701,13 @@ function createApi(db) {
       // Для приветствия: завтра праздник (а сегодня рабочий день) — «предпраздничный» набор фраз
       tomorrowHoliday: weekdayName(U.msk().day) ? HOL.holidayName(addDays(U.msk().day, 1)) : null,
       presence: presenceOf(u.profile, ci, u.id),
+      // Имена коллег скрыты, пока не укажешь своё: сколько бандитов уже указали
+      nameLock: hasOwnName(u.profile) ? null : (() => {
+        const ids = new Set(); gangs.forEach((g) => gangMembers(g.id).forEach((m) => { if (m.id !== u.id) ids.add(m.id); }));
+        const rows = [...ids].map((id) => q('SELECT profile FROM users WHERE id = ?').get(id)).filter(Boolean).map((r) => readProfile(r.profile));
+        const named = rows.filter((p) => hasOwnName(p) && (p.nameVis || 'gang') !== 'hidden').length;
+        return named ? { named, total: rows.length } : null;
+      })(),
       nextVacation: (() => { const v = u.profile.vacations.filter((x) => x.from > U.msk().day).sort((a, b) => (a.from < b.from ? -1 : 1))[0]; return v ? vacRest(v, U.msk().day, U.isAfterCheckinCutoff()) : null; })(),
       vacNow: (() => { const pr = presenceOf(u.profile, ci, u.id); return pr.where === 'vacation' ? vacRest({ from: U.msk().day, to: pr.until || U.msk().day }, U.msk().day, true) : null; })(),
       canteen: office ? canteenEstimate(office) : null,
@@ -1014,7 +1030,7 @@ function createApi(db) {
       rows = all.filter((r) => {
         if (r.nick.toLocaleLowerCase('ru').includes(needle)) return true;
         const p = readProfile(r.profile);
-        if (p.nameVis !== 'all') return false;
+        if (p.nameVis !== 'all' || !hasOwnName(u.profile)) return false; // по имени ищет тот, кто сам указал имя
         return [p.firstName, p.lastName].filter(Boolean).join(' ').toLocaleLowerCase('ru').includes(needle);
       });
     }
@@ -1514,7 +1530,7 @@ function createApi(db) {
     const m = r.re.exec(pathname);
     const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
     const body = req.method === 'GET' ? {} : await readJson(req, r.maxBody);
-    return r.handler(req, body, query, params);
+    return viewerCtx.run({}, () => r.handler(req, body, query, params));
   }
 
   function verifyLogin(token) {
