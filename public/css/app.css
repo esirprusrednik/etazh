@@ -1417,3 +1417,25 @@ a { color: var(--link); }
 .sea-mode:active { transform: scale(.98); }
 :root[data-theme="dark"] .duel-start[data-v] { background: linear-gradient(160deg, var(--g1), var(--g2)) !important; border-color: rgba(255,255,255,.06); color: var(--gt); }
 :root[data-theme="dark"] .duel-start[data-v] span { color: var(--gc) !important; }
+
+/* Тайный Санта: новогодняя карточка — тёплый красный сверху, хвойный снизу, тонкая праздничная лента
+   и россыпь снежинок в углу. Цвета приглушены, чтобы карточка оставалась в общем стиле */
+.card.santa { --sx: #B4232A; --sx-bg: rgba(229,72,77,.08); position: relative; overflow: hidden;
+  background: linear-gradient(165deg, #FFF3F1 0%, var(--card) 48%, #ECF7F0 100%); border: 1px solid rgba(180,35,42,.14); }
+.card.santa::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: linear-gradient(90deg, #E5484D, #F4C430 50%, #1F9D55); }
+.santa-snow { position: absolute; right: -6px; top: 6px; width: 120px; height: 90px; pointer-events: none; opacity: .55;
+  background-image: radial-gradient(circle, rgba(180,35,42,.35) 1.4px, transparent 1.6px), radial-gradient(circle, rgba(31,157,85,.3) 1.2px, transparent 1.4px);
+  background-size: 22px 22px, 31px 31px; background-position: 0 0, 11px 9px; -webkit-mask-image: radial-gradient(circle at 100% 0, #000 30%, transparent 72%); mask-image: radial-gradient(circle at 100% 0, #000 30%, transparent 72%); }
+.card.santa .card-title { color: var(--sx); }
+.card.santa .card-title .ei { color: var(--sx); }
+.santa-wish { display: grid; gap: 6px; padding: 12px; border-radius: 14px; background: var(--sx-bg); }
+.santa-wish p { margin: 0; font-size: 15px; line-height: 1.35; }
+.santa-wish .btn { justify-self: start; }
+.card.santa .santa-rule { background: var(--sx-bg); color: var(--sx); }
+.card.santa .santa-target { background: linear-gradient(160deg, #B4232A, #8E1C24); color: #fff; }
+.card.santa .btn:not(.ghost) { background: linear-gradient(160deg, #C8323A, #9E1F27); color: #fff; box-shadow: 0 3px 0 #6F1219; }
+:root[data-theme="dark"] .card.santa { --sx: #FF8A8F; --sx-bg: rgba(255,138,143,.1); background: linear-gradient(165deg, #2E1820 0%, var(--card) 50%, #142A20 100%); border-color: rgba(255,138,143,.16); }
+:root[data-theme="dark"] .santa-snow { opacity: .4; background-image: radial-gradient(circle, rgba(255,255,255,.55) 1.4px, transparent 1.6px), radial-gradient(circle, rgba(255,138,143,.5) 1.2px, transparent 1.4px); }
+:root[data-theme="dark"] .card.santa .santa-target { background: linear-gradient(160deg, #7A1B22, #5A1218); }
+:root[data-theme="dark"] .card.santa .btn:not(.ghost) { background: linear-gradient(160deg, #D9434A, #A8262E); color: #fff; box-shadow: 0 3px 0 #5A1218; }
+.k-weather .inbox-ico { background: var(--tint-b); color: var(--tint-b-fg); }

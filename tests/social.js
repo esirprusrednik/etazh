@@ -11,7 +11,7 @@ async function step(name, fn) {
 }
 
 // Сервер с подменённой датой: «сейчас» = day 12:00 по Москве
-function startServer(day) {
+function startServer(day, extra = {}) {
   const PORT = 4000 + Math.floor(Math.random() * 1000);
   const BASE = `http://localhost:${PORT}`;
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'etazh-h-'));
@@ -20,7 +20,7 @@ function startServer(day) {
     env: {
       ...process.env, PORT: String(PORT), BASE_URL: BASE, DB_PATH: path.join(dir, 'db.sqlite'),
       EMAIL_PEPPER: 'test-pepper-test-pepper-test-pepper-123', MAIL_MODE: 'console', SECURE_COOKIES: 'false',
-      TZ_OFFSET_HOURS: String(offset)
+      TZ_OFFSET_HOURS: String(offset), ...extra
     },
     stdio: ['ignore', 'pipe', 'pipe']
   });
@@ -54,7 +54,9 @@ function startServer(day) {
 
 (async () => {
   // 10 ноября 2026, вторник
-  const sv = startServer('2026-11-10');
+  const fake = { daily: { time: ['2026-11-10', '2026-11-11', '2026-11-12'], weather_code: [3, 63, 3], temperature_2m_max: [5, 4, 3], temperature_2m_min: [1, 2, 0],
+    apparent_temperature_min: [-2, -1, -3], precipitation_sum: [0, 8, 0], precipitation_probability_max: [10, 90, 10], snowfall_sum: [0, 0, 0], wind_gusts_10m_max: [20, 30, 20] } };
+  const sv = startServer('2026-11-10', { WEATHER_FAKE: JSON.stringify(fake) });
   try {
     await sv.ready;
     const { Client } = sv;
@@ -81,6 +83,21 @@ function startServer(day) {
       assert.ok(smol && smol.people.some((p) => p.nick === 'другой_отдел'), JSON.stringify(tue));
       assert.ok(!smol.people.some((p) => p.nick === 'скрытный'), 'не открыл — не видно');
       assert.deepEqual(smol.people.find((p) => p.nick === 'другой_отдел').common, ['Настолки']);
+    });
+
+    await step('погода: завтра дождь — пункт в сводке только у того, кто завтра в офисе', async () => {
+      const W = require('../server/weather');
+      assert.equal(W.phrase({ code: 3, tmax: 5, tmin: 1, precip: 0, prob: 10, snow: 0, gusts: 20 }), null, 'обычная погода — молчим');
+      assert.ok(/зонт/.test(W.phrase({ code: 63, tmax: 4, tmin: 2, precip: 8, prob: 90, snow: 0, gusts: 30 }).text));
+      assert.ok(/сугроб/.test(W.phrase({ code: 75, tmax: -3, tmin: -6, precip: 9, prob: 90, snow: 7, gusts: 20 }).text));
+      assert.ok(/теплее/.test(W.phrase({ code: 0, tmax: -15, tmin: -24, feelsMin: -30, precip: 0, snow: 0, gusts: 10 }).text));
+      const ib = async (c) => (await c.get('/api/inbox')).json.items;
+      // B завтра (среда) в офисе, A — дома
+      const wB = (await ib(B)).find((x) => x.kind === 'weather');
+      assert.ok(wB && /зонт/.test(wB.title), JSON.stringify(wB));
+      assert.ok(!(await ib(A)).some((x) => x.kind === 'weather'), 'дома — без напоминания');
+      await B.post('/api/me/profile', { profile: { weather: false } });
+      assert.ok(!(await ib(B)).some((x) => x.kind === 'weather'), 'выключил — не показываем');
     });
 
     await step('доска: объявление, «я тоже» с отметкой автору, снять может только автор, срок', async () => {

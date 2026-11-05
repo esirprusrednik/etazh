@@ -950,7 +950,7 @@ function register(ctx) {
     return { total: list.length, left: list.filter((id) => !done.has(id)).length };
   }
   const activeToday = (uid) => counter(uid, 'last_active') >= Number(today().replace(/-/g, ''));
-  return { onEvent, cleanup, tick, pairNow, questSummary, myPair, activeToday };
+  return { onEvent, cleanup, tick, pairNow, questSummary, myPair, activeToday, cellFor };
 }
 
 module.exports = { register, ACH, QUESTS };

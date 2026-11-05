@@ -858,6 +858,9 @@ const tap = (id, html) => `<button class="ava-btn" data-act="person" data-id="${
 const BEAN = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><ellipse cx="12" cy="12" rx="6" ry="9" transform="rotate(30 12 12)"/><path d="M9 6c3 3 3 9 6 12"/></svg>';
 const FLAME = '<svg width="13" height="13" viewBox="0 0 24 24" fill="#FF8A3D" aria-hidden="true"><path d="M12 2c1 4 5 5.5 5 11a5 5 0 0 1-10 0c0-2.5 1.2-4 2.5-5.2.2 1.7 1 2.7 2 3.2C11 8.5 11 5.5 12 2z"/></svg>';
 const ICONS = {
+  rain: 'M16 13v6M8 13v6M12 15v6M20 16.6A5 5 0 0 0 18 7h-1.3A8 8 0 1 0 4 15.3',
+  snow: 'M20 17.6A5 5 0 0 0 18 8h-1.3A8 8 0 1 0 4 16.3M8 16h.01M8 20h.01M12 18h.01M12 22h.01M16 16h.01M16 20h.01',
+  wind: 'M9.6 4.6A2 2 0 1 1 11 8H2M12.6 19.4A2 2 0 1 0 14 16H2M17.5 8a2.5 2.5 0 1 1 2 4H2',
   gift: 'M3 8h18v4H3zM5 12v9h14v-9M12 8v13M12 8C10.5 4.5 7 4 7 6.2S10 8 12 8zm0 0c1.5-3.5 5-4 5-1.8S14 8 12 8z',
   tree: 'M12 2l5 7h-3l4 6h-4l3 5H7l3-5H6l4-6H7zM12 20v2',
   coffee: 'M4 8h12v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5zM16 10h2a2 2 0 0 1 0 4h-2M8 2v3M12 2v3',
@@ -1710,16 +1713,21 @@ function renderSanta() {
         ${s.myGifted ? `<div class="adv-done">${ico('check', 16)} Подарок вручён</div>` : '<button class="btn" data-act="santa-gifted">Подарок вручён</button>'}
         <p class="small" style="margin:0">Вручено ${s.gifted} из ${s.count}. Кто дарит тебе — секрет. Видно его только в момент вручения.</p>`;
   } else if (s.joined) {
+    const wishBox = S.santaEdit
+      ? `<label class="field">Пожелание для своего Санты<textarea id="santa-wish" maxlength="200" rows="2" placeholder="Что любишь и чего дарить не надо">${esc(s.wish)}</textarea></label>
+        <div class="row" style="gap:8px"><button class="btn small grow" data-act="santa-wish">Сохранить</button><button class="btn ghost small" data-act="santa-edit">Отмена</button></div>`
+      : `<div class="santa-wish"><span class="small">Твоё пожелание</span><p>${s.wish ? `«${esc(s.wish)}»` : '<span class="small">Пока пусто — Санте придётся угадывать</span>'}</p>
+        <button class="btn ghost small" data-act="santa-edit">${s.wish ? 'Редактировать пожелание' : 'Написать пожелание'}</button></div>`;
     body = `<p class="sub">Ты участвуешь. Записалось ${s.count}, жеребьёвка ${dd}${s.count < s.min ? `, нужно хотя бы ${s.min}` : ''}. Подарок — до ${s.budget || 500} ₽.</p>
-      <label class="field">Пожелание для своего Санты<textarea id="santa-wish" maxlength="200" rows="2" placeholder="Что любишь и чего дарить не надо">${esc(s.wish)}</textarea></label>
-      <div class="row" style="justify-content:space-between"><button class="btn ghost small" data-act="santa-wish">Сохранить</button><button class="linkbtn" data-act="santa-leave">Не участвую</button></div>${draw}`;
+      ${wishBox}
+      <div class="row" style="justify-content:flex-end"><button class="linkbtn" data-act="santa-leave">Не участвую</button></div>${draw}`;
   } else if (s.regOpen) {
     body = `<p class="sub">Каждый тайно готовит подарок одному человеку из банды. Запишись и напиши, что любишь. ${dd} пройдёт жеребьёвка, и каждый узнает, кому дарит. Записалось: ${s.count}.</p>
       <div class="santa-rule">Подарок — <b>до ${s.budget || 500} ₽</b>. Дороже не надо: смысл во внимании, а не в цене</div>
       <label class="field">Пожелание<textarea id="santa-wish" maxlength="200" rows="2" placeholder="Люблю чай и настолки, сладкое не дарите"></textarea></label>
       <button class="btn" data-act="santa-join">Участвую</button>${draw}`;
   } else return '';
-  return `<section class="card santa"><div class="row" style="justify-content:space-between"><span class="card-title">gift Тайный Санта</span><span class="small">${s.status === 'drawn' ? 'жеребьёвка прошла' : `до ${dd}`}</span></div>${body}</section>`;
+  return `<section class="card santa"><i class="santa-snow" aria-hidden="true"></i><div class="row" style="justify-content:space-between"><span class="card-title">gift Тайный Санта</span><span class="small">${s.status === 'drawn' ? 'жеребьёвка прошла' : `до ${dd}`}</span></div>${body}</section>`;
 }
 
 function renderGames() {
@@ -4080,6 +4088,7 @@ function renderProfile() {
     <label class="check"><input type="checkbox" data-act="toggle" data-k="shareOffice" ${me.shareOffice ? 'checked' : ''}> <span>Показывать банде, где я: офис, дома или в отпуске</span></label>
     <label class="check"><input type="checkbox" data-act="toggle" data-k="quiet" ${me.quiet ? 'checked' : ''}> <span>Тихие часы 19:00–09:00 — не присылать зовы</span></label>
     <label class="check"><input type="checkbox" data-act="match-toggle" ${p.matchShow ? 'checked' : ''}> <span>«Совпадаем»: показывать коллегам, в какие дни я в офисе и дома (ник, аватар, офис, общие интересы)</span></label>
+    <label class="check"><input type="checkbox" data-act="weather-toggle" ${p.weather !== false ? 'checked' : ''}> <span>Погода на завтра: вечером накануне офисного дня — пуш, если ждёт дождь, снег, мороз или жара</span></label>
     <label class="check"><input type="checkbox" data-act="digest-toggle" ${p.digest !== false ? 'checked' : ''}> <span>Утренняя сводка: один пуш в рабочий день около 11:30, если есть дела и ты ещё не заходил${meG('', 'а')}</span></label>
     <label class="check"><input type="checkbox" data-act="findable-toggle" ${p.findable !== false ? 'checked' : ''}> <span>Меня можно найти по нику и рабочей почте — и позвать в банду</span></label>
     <div class="field">Кто может писать мне в личку<div class="chips">${[['all', 'Все'], ['gang', 'Моя банда'], ['none', 'Никто']].map(([k, t]) => `<button class="chip ${(p.dmFrom || 'all') === k ? 'on' : ''}" data-act="dm-from" data-v="${k}">${t}</button>`).join('')}</div>
@@ -4805,6 +4814,7 @@ const actions = {
     if (g.to) requestAnimationFrame(() => setTimeout(() => { const t = document.querySelector(g.to); if (t) t.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 150));
   },
   'match-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { matchShow: el.checked } }); await Promise.all([loadMe(), loadMatch()]); toast(el.checked ? 'Твои дни видны в «Совпадаем»' : 'Твои дни скрыты — и чужие тоже'); }),
+  'weather-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { weather: el.checked } }); await loadMe(); toast(el.checked ? 'Напомню про погоду накануне офиса' : 'Про погоду больше не пишу'); }),
   'digest-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { digest: el.checked } }); await loadMe(); toast(el.checked ? 'Утренняя сводка включена' : 'Утреннюю сводку больше не пришлю'); }),
   'match-on': () => run(async () => { await post('/api/me/profile', { profile: { matchShow: true } }); await Promise.all([loadMe(), loadMatch()]); toast('Твои дни открыты коллегам'); }),
   'match-day'(el) { S.matchDay = Number(el.dataset.v); render(); },
@@ -4908,8 +4918,9 @@ const actions = {
     S.sheet = null; sfx('send'); toast('Открытка в чате банды');
     if (S.activeGang === gid) await loadGang();
   }),
-  'santa-join': () => run(async () => { S.santa = await post(`/api/gangs/${S.activeGang}/santa/join`, { wish: ($('#santa-wish') || {}).value || '' }); toast('Ты в Тайном Санте'); }),
-  'santa-wish': () => run(async () => { S.santa = await post(`/api/gangs/${S.activeGang}/santa/wish`, { wish: ($('#santa-wish') || {}).value || '' }); toast('Пожелание сохранено'); }),
+  'santa-join': () => run(async () => { S.santa = await post(`/api/gangs/${S.activeGang}/santa/join`, { wish: ($('#santa-wish') || {}).value || '' }); S.santaEdit = false; toast('Ты в Тайном Санте'); }),
+  'santa-wish': () => run(async () => { S.santa = await post(`/api/gangs/${S.activeGang}/santa/wish`, { wish: ($('#santa-wish') || {}).value || '' }); S.santaEdit = false; toast('Пожелание сохранено'); }),
+  'santa-edit'() { S.santaEdit = !S.santaEdit; render(); if (S.santaEdit) requestAnimationFrame(() => { const t = $('#santa-wish'); if (t) t.focus(); }); },
   'santa-leave': (el) => run(async () => {
     if (!confirmInline('santa-leave', 'Нажми ещё раз, чтобы выйти из Тайного Санты')) return;
     S.santa = await post(`/api/gangs/${S.activeGang}/santa/leave`); toast('Ты вышел из Тайного Санты');

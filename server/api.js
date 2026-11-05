@@ -207,6 +207,7 @@ function createApi(db) {
   let santa = null;
   let inbox = null;
   let board = null;
+  let weather = null;
   let advent = null;
   let battle = null;
   let quiz = null;
@@ -639,6 +640,7 @@ function createApi(db) {
       if (p.coffee !== undefined) prof.coffee = !!p.coffee;
       if (p.digest !== undefined) prof.digest = !!p.digest;
       if (p.matchShow !== undefined) prof.matchShow = !!p.matchShow;
+      if (p.weather !== undefined) prof.weather = !!p.weather;
       if (p.findable !== undefined) prof.findable = !!p.findable;
       if (['all', 'gang', 'none'].includes(p.dmFrom)) prof.dmFrom = p.dmFrom;
     }
@@ -1492,8 +1494,10 @@ function createApi(db) {
   tourney = require('./tourney').register({ db, q, route, requireUser, requireAdmin, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, gangwar, league });
   // ---------- Доска объявлений на весь «Этаж» ----------
   board = require('./board').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, officeById, publicLook });
+  // ---------- Погода на завтра: вечером накануне офисного дня ----------
+  weather = require('./weather').register({ db, q, U, notify, fireAndForget, readProfile, weekdayName, features });
   // ---------- «Этаж» пишет сам: живая сводка и один утренний пуш ----------
-  inbox = require('./inbox').register({ db, q, route, requireUser, U, notify, fireAndForget, myGangs, readProfile, weekdayName, features, blitz, advent, santa, duels, gevents, polls });
+  inbox = require('./inbox').register({ db, q, route, requireUser, U, notify, fireAndForget, myGangs, readProfile, weekdayName, features, blitz, advent, santa, duels, gevents, polls, weather });
   feedback = require('./feedback').register({ db, q, route, requireUser, requireAdmin, bad, U, addBeans, notify, fireAndForget, HttpError, BUILD });
 
   // ---------- Обработчик ----------

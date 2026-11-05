@@ -29,6 +29,11 @@ function register(ctx) {
     const duelTurns = (ctx.duels && ctx.duels.myTurns) ? ctx.duels.myTurns(uid) : 0;
     if (duelTurns) out.push({ id: 'duels', kind: 'duel', icon: 'game', push: false, title: duelTurns === 1 ? 'Дуэль ждёт твоего хода' : `${duelTurns} дуэли ждут твоего хода`, go: { act: 'tab', v: 'games' } });
 
+    // Погода на завтра, если завтра в офис и погода необычная (пуш — отдельно, вечером)
+    if (ctx.weather) {
+      const w = ctx.weather.adviceFor(uid, u.profile);
+      if (w) out.push({ id: `weather-${w.day}`, kind: 'weather', icon: w.icon, push: false, title: w.text.replace(/\. [^.]*$/, ''), text: `Завтра в офис · ${w.temp}`, go: { act: 'tab', v: 'near' } });
+    }
     // Блиц: не начат или не доигран
     const set = blitz && blitz.activeSet();
     if (set) {

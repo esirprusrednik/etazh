@@ -63,6 +63,7 @@ server/santa.js
 server/seasons.js
 server/util.js
 server/voice.js
+server/weather.js
 server/webpush.js
 tests/battle.js
 tests/crew.js
