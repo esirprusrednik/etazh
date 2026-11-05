@@ -3411,114 +3411,179 @@ function renderCoach() {
 
 // Звуки и вибрация интерфейса. Всё синтезируется в браузере — без файлов.
 // Громкость 0–100 (0 — тишина) и вибрация настраиваются в профиле. На iPhone браузер вибрацию не поддерживает.
-let audioCtx = null, master = null;
-const TAB_NOTES = { near: 523, chats: 659, office: 784, games: 1047 };
+let audioCtx = null, master = null, wetIn = null;
 const soundVol = () => { const v = Number(store.get('soundVol', store.get('sound', true) === false ? 0 : 60)); return Number.isFinite(v) ? Math.max(0, Math.min(100, v)) : 60; };
 const vibroOn = () => store.get('vibro', true) !== false;
+// Импульс для ревербератора: затухающий стерео-шум — «комната», чтобы игровые звуки не были плоскими
+function impulse(ctx, sec = 1.4, decay = 3.2) {
+  const n = Math.floor(ctx.sampleRate * sec), b = ctx.createBuffer(2, n, ctx.sampleRate);
+  for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, decay); }
+  return b;
+}
+// Шина: громкость → компрессор (не даёт хрипеть при наложении) → выход; отдельная посылка на реверб
+function audioBus(ctx) {
+  const comp = ctx.createDynamicsCompressor();
+  comp.threshold.value = -16; comp.knee.value = 12; comp.ratio.value = 4; comp.attack.value = 0.003; comp.release.value = 0.2;
+  const out = ctx.createGain(); out.connect(comp).connect(ctx.destination);
+  const rv = ctx.createConvolver(); rv.buffer = impulse(ctx);
+  const send = ctx.createGain(), ret = ctx.createGain(); ret.gain.value = 0.35;
+  send.connect(rv).connect(ret).connect(out);
+  return { out, send };
+}
 function actx() {
   const v = soundVol();
   if (!v) return null;
   try {
-    if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); master = audioCtx.createGain(); master.connect(audioCtx.destination); }
+    if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); const b = audioBus(audioCtx); master = b.out; wetIn = b.send; }
     if (audioCtx.state === 'suspended') audioCtx.resume();
     master.gain.value = Math.pow(v / 60, 1.6); // 60 — привычная громкость, выше — громче
     return audioCtx;
   } catch { return null; }
 }
-function tone(ctx, { f = 600, f2 = null, type = 'triangle', at = 0, dur = 0.12, vol = 0.07 }) {
+// Подключить узел к выходу: сухой сигнал + немного в реверб (rv 0…1). pan — стерео −1…1
+function sndOut(ctx, node, rv = 0, pan = null) {
+  let n = node;
+  if (pan !== null && ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.value = pan; n.connect(p); n = p; }
+  n.connect(master);
+  if (rv && wetIn) { const s = ctx.createGain(); s.gain.value = rv; n.connect(s).connect(wetIn); }
+  return n;
+}
+const noiseBuf = (ctx, dur, shape = 2) => {
+  const buf = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate * dur)), ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, shape);
+  return buf;
+};
+function tone(ctx, { f = 600, f2 = null, type = 'triangle', at = 0, dur = 0.12, vol = 0.07, atk = 0.008, rv = 0, pan = null }) {
   const t = ctx.currentTime + at;
   const o = ctx.createOscillator(), g = ctx.createGain();
   o.type = type; o.frequency.setValueAtTime(f, t);
   if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur * 0.8);
-  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g).connect(master); o.start(t); o.stop(t + dur + 0.02);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + atk); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); sndOut(ctx, g, rv, pan); o.start(t); o.stop(t + dur + 0.02);
 }
-// Медная труба: пила через фильтр, который «раскрывается» на атаке, подъезд к ноте снизу и вибрато на длинных
-function brass(ctx, { f, at = 0, dur = 0.2, vol = 0.09, vib = 0, dark = false }) {
+// Фильтрованный шум: щелчки, всплески, «вжух»
+function noise(ctx, { at = 0, dur = 0.08, vol = 0.08, type = 'bandpass', f = 2000, f2 = null, q = 1, shape = 2, rv = 0, pan = null, pan2 = null }) {
   const t = ctx.currentTime + at;
-  const mix = ctx.createGain(); mix.gain.value = 1;
-  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 2;
-  const k = dark ? 0.6 : 1;
-  lp.frequency.setValueAtTime(f * 1.2 * k, t); lp.frequency.exponentialRampToValueAtTime(f * 6 * k, t + 0.05); lp.frequency.exponentialRampToValueAtTime(f * 3.4 * k, t + dur);
-  const g = ctx.createGain();
-  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.03); g.gain.setValueAtTime(vol * 0.85, t + Math.max(0.04, dur - 0.06)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  [[1, 'sawtooth', 1], [1.003, 'square', 0.35]].forEach(([k, type, lvl]) => {
-    const o = ctx.createOscillator(), og = ctx.createGain(); o.type = type; og.gain.value = lvl;
-    o.frequency.setValueAtTime(f * k * 0.94, t); o.frequency.exponentialRampToValueAtTime(f * k, t + 0.035);
-    if (vib) { const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 5.6; lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(f * vib, t + dur * 0.6); lfo.connect(lg).connect(o.frequency); lfo.start(t); lfo.stop(t + dur + 0.05); }
-    o.connect(og).connect(mix); o.start(t); o.stop(t + dur + 0.05);
-  });
-  mix.connect(lp).connect(g).connect(master);
-}
-// Короткий шум через фильтр: щелчки, всплески, «вжух»
-function noise(ctx, { at = 0, dur = 0.08, vol = 0.08, type = 'bandpass', f = 2000, f2 = null, q = 1 }) {
-  const t = ctx.currentTime + at;
-  const buf = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate * dur)), ctx.sampleRate);
-  const d = buf.getChannelData(0);
-  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2);
   const src = ctx.createBufferSource(), fl = ctx.createBiquadFilter(), g = ctx.createGain();
-  src.buffer = buf; fl.type = type; fl.Q.value = q; fl.frequency.setValueAtTime(f, t);
+  src.buffer = noiseBuf(ctx, dur, shape); fl.type = type; fl.Q.value = q; fl.frequency.setValueAtTime(f, t);
   if (f2) fl.frequency.exponentialRampToValueAtTime(f2, t + dur);
   g.gain.setValueAtTime(vol, t);
-  src.connect(fl).connect(g).connect(master); src.start(t);
+  src.connect(fl).connect(g);
+  if (pan2 !== null && ctx.createStereoPanner) {
+    const p = ctx.createStereoPanner(); p.pan.setValueAtTime(pan ?? 0, t); p.pan.linearRampToValueAtTime(pan2, t + dur); g.connect(p); sndOut(ctx, p, rv);
+  } else sndOut(ctx, g, rv, pan);
+  src.start(t);
 }
-// Пушечный выстрел: шум через низкочастотный фильтр
-function boom(ctx, at, vol = 0.5, len = 0.7) {
+// Щелчок как в Android: 5–10 мс шума с крутым спадом и едва слышное «тело» — без нот и мелодий
+function tick(ctx, { at = 0, f = 2600, body = 1500, vol = 0.12, dur = 0.007 } = {}) {
+  noise(ctx, { at, dur, vol, type: 'bandpass', f, q: 0.7, shape: 5 });
+  tone(ctx, { f: body, f2: body * 0.8, type: 'sine', at, dur: 0.018, vol: vol * 0.22, atk: 0.001 });
+}
+// Колокольчик: негармонические обертоны, как у металла
+function bell(ctx, { f, at = 0, dur = 0.9, vol = 0.05, rv = 0.3 }) {
+  [[1, 1], [2.76, 0.45], [5.4, 0.22], [8.93, 0.1]].filter(([k]) => f * k < 7500).forEach(([k, a], i) => tone(ctx, { f: f * k, type: 'sine', at, dur: dur / (1 + i * 0.7), vol: vol * a, atk: 0.003, rv }));
+}
+// Медная труба: три расстроенные пилы через раскрывающийся фильтр, подъезд к ноте снизу, дыхание на атаке.
+// wah — «вау» сурдиной, как у грустного тромбона
+function brass(ctx, { f, at = 0, dur = 0.2, vol = 0.09, vib = 0, dark = false, wah = 0, rv = 0.3 }) {
   const t = ctx.currentTime + at;
-  const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * len), ctx.sampleRate);
-  const d = buf.getChannelData(0);
-  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.5);
+  const mix = ctx.createGain();
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 2.5;
+  const k = dark ? 0.6 : 1;
+  lp.frequency.setValueAtTime(f * 1.1 * k, t); lp.frequency.exponentialRampToValueAtTime(f * 6 * k, t + 0.06); lp.frequency.exponentialRampToValueAtTime(f * 3.2 * k, t + dur);
+  if (wah) { const l = ctx.createOscillator(), lg = ctx.createGain(); l.frequency.value = wah; lg.gain.value = f * 1.6 * k; l.connect(lg).connect(lp.frequency); l.start(t); l.stop(t + dur + 0.05); }
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.035); g.gain.setValueAtTime(vol * 0.85, t + Math.max(0.05, dur - 0.08)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  [[1, 'sawtooth', 1], [1.006, 'sawtooth', 0.6], [0.995, 'sawtooth', 0.6], [0.5, 'triangle', 0.5]].forEach(([d, type, lvl]) => {
+    const o = ctx.createOscillator(), og = ctx.createGain(); o.type = type; og.gain.value = lvl * 0.5;
+    o.frequency.setValueAtTime(f * d * 0.93, t); o.frequency.exponentialRampToValueAtTime(f * d, t + 0.04);
+    if (vib) { const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 5.4; lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(f * d * vib, t + dur * 0.6); lfo.connect(lg).connect(o.frequency); lfo.start(t); lfo.stop(t + dur + 0.05); }
+    o.connect(og).connect(mix); o.start(t); o.stop(t + dur + 0.05);
+  });
+  mix.connect(lp).connect(g); sndOut(ctx, g, rv);
+  noise(ctx, { at, dur: 0.06, vol: vol * 0.5, type: 'bandpass', f: f * 4, q: 1.2, rv }); // дыхание
+}
+// Взрыв: низкий удар, грохот через закрывающийся фильтр и треск обломков
+function blast(ctx, { at = 0, vol = 0.5, len = 0.9, crackle = 6, rv = 0.4 } = {}) {
+  const t = ctx.currentTime + at;
+  tone(ctx, { f: 140, f2: 38, type: 'sine', at, dur: len * 0.6, vol: vol * 0.9, atk: 0.002 });
   const src = ctx.createBufferSource(), lp = ctx.createBiquadFilter(), g = ctx.createGain();
-  src.buffer = buf; lp.type = 'lowpass'; lp.frequency.setValueAtTime(380, t); lp.frequency.exponentialRampToValueAtTime(60, t + len);
-  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
-  src.connect(lp).connect(g).connect(master); src.start(t);
+  src.buffer = noiseBuf(ctx, len, 2.2); lp.type = 'lowpass'; lp.frequency.setValueAtTime(1300, t); lp.frequency.exponentialRampToValueAtTime(60, t + len * 0.8);
+  g.gain.setValueAtTime(vol, t);
+  src.connect(lp).connect(g); sndOut(ctx, g, rv); src.start(t);
+  for (let i = 0; i < crackle; i++) noise(ctx, { at: at + 0.04 + Math.random() * len * 0.6, dur: 0.02 + Math.random() * 0.03, vol: vol * 0.15 * Math.random(), type: 'bandpass', f: 1800 + Math.random() * 1500, q: 1.5, rv, pan: Math.random() * 1.4 - 0.7 });
+}
+const boom = (ctx, at, vol = 0.5, len = 0.7) => blast(ctx, { at, vol, len, crackle: 2, rv: 0.25 });
+// Пузырьки: короткие синусы с подъёмом тона
+function bubbles(ctx, { at = 0, n = 6, spread = 0.5, vol = 0.05 } = {}) {
+  for (let i = 0; i < n; i++) { const f = 350 + Math.random() * 600; tone(ctx, { f, f2: f * 1.9, type: 'sine', at: at + Math.random() * spread, dur: 0.05 + Math.random() * 0.04, vol: vol * (0.5 + Math.random() * 0.5), atk: 0.003, rv: 0.25, pan: Math.random() - 0.5 }); }
+}
+// Улетающий «вжух»: шум с растущим тоном уходит вправо и затихает
+function whoosh(ctx, { at = 0, dur = 0.38, vol = 0.16, from = 500, to = 3800, pan = -0.5, pan2 = 0.9 } = {}) {
+  noise(ctx, { at, dur, vol, type: 'bandpass', f: from, f2: to, q: 2.2, shape: 1, rv: 0.25, pan, pan2 });
 }
 
 // Каждый звук — свой характер: по нему без взгляда понятно, что произошло
 const SOUNDS = {
-  tap: (c) => { noise(c, { dur: 0.025, vol: 0.12, f: 3200, q: 2 }); tone(c, { f: 880, f2: 660, dur: 0.05, vol: 0.035 }); },
-  tab: (c, tab) => { const f = TAB_NOTES[tab] || 600; tone(c, { f, dur: 0.18, vol: 0.06 }); tone(c, { f: f * 2, type: 'sine', dur: 0.12, vol: 0.02 }); noise(c, { dur: 0.02, vol: 0.06, f: 4000 }); },
-  on: (c) => { tone(c, { f: 740, type: 'sine', dur: 0.05, vol: 0.05 }); tone(c, { f: 1110, type: 'sine', at: 0.045, dur: 0.07, vol: 0.05 }); },
-  off: (c) => { tone(c, { f: 1110, type: 'sine', dur: 0.05, vol: 0.045 }); tone(c, { f: 740, type: 'sine', at: 0.045, dur: 0.07, vol: 0.045 }); },
-  pick: (c) => { noise(c, { dur: 0.02, vol: 0.08, f: 5000, q: 3 }); tone(c, { f: 1320, type: 'sine', dur: 0.04, vol: 0.03 }); },
-  open: (c) => { noise(c, { dur: 0.16, vol: 0.05, f: 600, f2: 2400, q: 0.8 }); tone(c, { f: 420, f2: 840, type: 'sine', dur: 0.16, vol: 0.035 }); },
-  close: (c) => { noise(c, { dur: 0.14, vol: 0.045, f: 2200, f2: 500, q: 0.8 }); tone(c, { f: 760, f2: 380, type: 'sine', dur: 0.13, vol: 0.03 }); },
-  expand: (c) => tone(c, { f: 600, f2: 900, type: 'sine', dur: 0.08, vol: 0.04 }),
-  collapse: (c) => tone(c, { f: 900, f2: 600, type: 'sine', dur: 0.08, vol: 0.035 }),
-  send: (c) => { noise(c, { dur: 0.12, vol: 0.05, f: 900, f2: 4000, q: 1 }); tone(c, { f: 500, f2: 1500, type: 'sine', dur: 0.1, vol: 0.04 }); tone(c, { f: 1760, type: 'sine', at: 0.09, dur: 0.06, vol: 0.03 }); },
-  confirm: (c) => [523, 659, 784].forEach((f, i) => tone(c, { f, at: i * 0.06, dur: 0.14, vol: 0.05 })),
-  danger: (c) => { tone(c, { f: 220, f2: 150, type: 'square', dur: 0.09, vol: 0.03 }); tone(c, { f: 180, f2: 120, type: 'square', at: 0.11, dur: 0.12, vol: 0.03 }); },
-  error: (c) => { tone(c, { f: 196, type: 'sawtooth', dur: 0.09, vol: 0.035 }); tone(c, { f: 185, type: 'sawtooth', at: 0.12, dur: 0.14, vol: 0.035 }); },
-  vote: (c) => { tone(c, { f: 500, f2: 1200, type: 'sine', dur: 0.07, vol: 0.06 }); noise(c, { at: 0.05, dur: 0.02, vol: 0.06, f: 3500 }); },
-  coin: (c) => { tone(c, { f: 1319, type: 'square', dur: 0.07, vol: 0.025 }); tone(c, { f: 1760, type: 'square', at: 0.07, dur: 0.22, vol: 0.025 }); },
-  click: (c) => { tone(c, { f: 1400, f2: 900, type: 'square', dur: 0.05, vol: 0.035 }); tone(c, { f: 2100, type: 'sine', at: 0.03, dur: 0.08, vol: 0.04 }); },
-  tick: (c) => tone(c, { f: 1800, type: 'sine', dur: 0.04, vol: 0.03 }),
-  splash: (c) => { noise(c, { dur: 0.35, vol: 0.12, type: 'highpass', f: 1200, f2: 400 }); tone(c, { f: 300, f2: 120, type: 'sine', dur: 0.2, vol: 0.04 }); },
-  hit: (c) => { boom(c, 0, 0.35, 0.35); noise(c, { dur: 0.06, vol: 0.12, f: 2500 }); },
-  sunk: (c) => { boom(c, 0, 0.5, 0.8); tone(c, { f: 400, f2: 90, type: 'sawtooth', at: 0.1, dur: 0.6, vol: 0.035 }); },
-  lose: (c) => [[392, 0], [370, 0.32], [349, 0.64], [330, 0.96]].forEach(([f, at], i) => tone(c, { f, f2: i === 3 ? 290 : null, type: 'sawtooth', at, dur: i === 3 ? 0.8 : 0.3, vol: 0.04 })),
-  bugle: (c) => {
-    // Горн, одна фраза «та-та-та-ТАА» октавой ниже: соль-до-ми-СОЛЬ, тёмный фильтр и низкий гул под последней нотой
-    const G3 = 196, C4 = 261.63, E4 = 329.63, G4 = 392;
-    [[G3, 0, 0.12], [C4, 0.14, 0.12], [E4, 0.28, 0.12], [G4, 0.42, 0.62, 0.012]].forEach(([f, at, dur, vib]) => brass(c, { f, at, dur, vol: 0.11, vib: vib || 0, dark: true }));
-    tone(c, { f: G4 / 2, type: 'sine', at: 0.42, dur: 0.6, vol: 0.06 });
-    noise(c, { at: 0.42, dur: 0.45, vol: 0.06, type: 'lowpass', f: 140, q: 0.7 });
+  // Интерфейс: короткие щелчки
+  tap: (c) => tick(c),
+  tab: (c) => tick(c, { f: 2100, body: 1100, vol: 0.14 }),
+  pick: (c) => tick(c, { f: 3600, body: 2200, vol: 0.08, dur: 0.005 }),
+  on: (c) => { tick(c, { f: 2000, body: 1000, vol: 0.1 }); tick(c, { at: 0.045, f: 3400, body: 1900, vol: 0.1 }); },
+  off: (c) => { tick(c, { f: 3400, body: 1900, vol: 0.1 }); tick(c, { at: 0.045, f: 2000, body: 1000, vol: 0.1 }); },
+  open: (c) => { tick(c, { f: 1800, body: 900, vol: 0.11 }); noise(c, { dur: 0.12, vol: 0.025, f: 700, f2: 2000, q: 0.8, shape: 1 }); },
+  close: (c) => { noise(c, { dur: 0.1, vol: 0.022, f: 2000, f2: 700, q: 0.8, shape: 1 }); tick(c, { at: 0.06, f: 1800, body: 800, vol: 0.1 }); },
+  expand: (c) => tick(c, { f: 3000, body: 1600, vol: 0.09 }),
+  collapse: (c) => tick(c, { f: 2400, body: 1200, vol: 0.09 }),
+  tick: (c) => tick(c, { f: 4200, body: 2600, vol: 0.06, dur: 0.004 }),
+  click: (c) => { tick(c, { f: 2600, body: 1300, vol: 0.13 }); tick(c, { at: 0.05, f: 3800, body: 2000, vol: 0.07 }); },
+  vote: (c) => { tick(c, { vol: 0.11 }); tone(c, { f: 520, f2: 980, type: 'sine', at: 0.01, dur: 0.05, vol: 0.04, atk: 0.003 }); },
+  // Отправка: щелчок кнопки и сообщение улетает
+  send: (c) => { tick(c, { vol: 0.1 }); whoosh(c, { at: 0.02 }); tone(c, { f: 420, f2: 1400, type: 'sine', at: 0.03, dur: 0.3, vol: 0.022, pan: 0.4 }); },
+  swish: (c) => whoosh(c, { dur: 0.3, vol: 0.18, from: 700, to: 4500, pan: 0.6, pan2: -0.6 }),
+  // Итоги действий: мягкие колокольчики вместо писка
+  confirm: (c) => { tick(c, { vol: 0.08 }); bell(c, { f: 1047, at: 0.01, vol: 0.04, dur: 0.6 }); bell(c, { f: 1568, at: 0.08, vol: 0.035, dur: 0.8 }); },
+  coin: (c) => { bell(c, { f: 1976, vol: 0.04, dur: 0.5 }); bell(c, { f: 2637, at: 0.07, vol: 0.045, dur: 1.0, rv: 0.4 }); noise(c, { at: 0.07, dur: 0.15, vol: 0.02, type: 'highpass', f: 7000, rv: 0.4 }); },
+  danger: (c) => { tick(c, { f: 1500, body: 600, vol: 0.12 }); tone(c, { f: 200, f2: 130, type: 'sine', at: 0.01, dur: 0.16, vol: 0.08, atk: 0.003 }); },
+  error: (c) => { tone(c, { f: 330, f2: 300, type: 'triangle', dur: 0.11, vol: 0.06, atk: 0.004 }); tone(c, { f: 262, f2: 230, type: 'triangle', at: 0.13, dur: 0.18, vol: 0.06, atk: 0.004 }); },
+  // Морской бой
+  splash: (c) => { noise(c, { dur: 0.55, vol: 0.18, type: 'lowpass', f: 3500, f2: 300, q: 0.6, shape: 1.6, rv: 0.3 }); noise(c, { dur: 0.25, vol: 0.08, type: 'highpass', f: 2500, rv: 0.3 }); bubbles(c, { at: 0.15, n: 7, spread: 0.45 }); },
+  hit: (c) => { noise(c, { dur: 0.03, vol: 0.2, type: 'highpass', f: 1500 }); blast(c, { vol: 0.42, len: 0.8 }); },
+  sunk: (c) => {
+    blast(c, { vol: 0.55, len: 1.3, crackle: 10 });
+    blast(c, { at: 0.35, vol: 0.3, len: 0.9, crackle: 4 });
+    brass(c, { f: 73, at: 0.5, dur: 1.1, vol: 0.05, dark: true, wah: 1.3, rv: 0.4 }); // стон металла
+    bubbles(c, { at: 0.9, n: 10, spread: 0.8, vol: 0.04 });
   },
-
-  flap: (c) => { [0, 0.13, 0.26].forEach((at, i) => noise(c, { at, dur: 0.09, vol: 0.13 - i * 0.03, f: 1400 - i * 150, f2: 500, q: 0.9 })); tone(c, { f: 520, f2: 880, type: 'sine', at: 0.3, dur: 0.16, vol: 0.025 }); },
-  swish: (c) => { noise(c, { dur: 0.22, vol: 0.12, f: 800, f2: 4200, q: 1.2 }); tone(c, { f: 300, f2: 900, type: 'sine', dur: 0.18, vol: 0.03 }); },
-  dice: (c) => { for (let i = 0; i < 7; i++) noise(c, { at: i * 0.075 + Math.random() * 0.03, dur: 0.03, vol: 0.16 - i * 0.015, f: 1800 + Math.random() * 1600, q: 4 }); tone(c, { f: 180, f2: 120, type: 'sine', at: 0.55, dur: 0.12, vol: 0.06 }); },
+  // Грустный тромбон: «вау-вау-вау-ваааа»
+  lose: (c) => [[294, 0, 0.36], [277, 0.4, 0.36], [262, 0.8, 0.36], [247, 1.2, 1.1]].forEach(([f, at, dur], i) => brass(c, { f, at, dur, vol: 0.1, dark: true, wah: i === 3 ? 6 : 0, vib: i === 3 ? 0.015 : 0, rv: 0.35 })),
+  // Горн: соль-до-ми-СОЛЬ октавой ниже, низкий гул под последней нотой
+  bugle: (c) => {
+    const G3 = 196, C4 = 261.63, E4 = 329.63, G4 = 392;
+    [[G3, 0, 0.12], [C4, 0.14, 0.12], [E4, 0.28, 0.12], [G4, 0.42, 0.66, 0.012]].forEach(([f, at, dur, vib]) => brass(c, { f, at, dur, vol: 0.12, vib: vib || 0, dark: true, rv: 0.4 }));
+    tone(c, { f: G4 / 2, type: 'sine', at: 0.42, dur: 0.62, vol: 0.06, rv: 0.2 });
+    blast(c, { at: 0.42, vol: 0.12, len: 0.5, crackle: 0, rv: 0.3 });
+  },
+  // Победа: литавры и медный аккорд
+  fanfare: (c) => {
+    [0, 0.18, 0.36].forEach((at, i) => { tone(c, { f: 98, f2: 92, type: 'sine', at, dur: 0.5, vol: 0.14 - i * 0.02, atk: 0.003, rv: 0.4 }); noise(c, { at, dur: 0.12, vol: 0.08, type: 'lowpass', f: 600, rv: 0.4 }); });
+    [[392, 0.6, 0.14], [523, 0.76, 0.14], [659, 0.92, 0.14]].forEach(([f, at, dur]) => brass(c, { f, at, dur, vol: 0.08, rv: 0.35 }));
+    [523, 659, 784, 1047].forEach((f) => brass(c, { f, at: 1.1, dur: 1.0, vol: 0.05, vib: 0.008, rv: 0.45 }));
+    tone(c, { f: 65, type: 'sine', at: 1.1, dur: 1.0, vol: 0.08, rv: 0.3 });
+  },
+  flap: (c) => { [0, 0.13, 0.26].forEach((at, i) => noise(c, { at, dur: 0.09, vol: 0.14 - i * 0.03, f: 1400 - i * 150, f2: 500, q: 0.9, rv: 0.2, pan: -0.3 + i * 0.4 })); whoosh(c, { at: 0.3, dur: 0.3, vol: 0.08 }); },
+  // Кости: деревянные стуки о стол и финальный глухой удар
+  dice: (c) => {
+    for (let i = 0; i < 7; i++) { const at = i * 0.07 + Math.random() * 0.03, f = 900 + Math.random() * 900; noise(c, { at, dur: 0.025, vol: 0.2 - i * 0.02, f: f * 2, q: 5, shape: 4, rv: 0.15, pan: Math.random() - 0.5 }); tone(c, { f, f2: f * 0.9, type: 'sine', at, dur: 0.035, vol: 0.05 - i * 0.005, atk: 0.001 }); }
+    tone(c, { f: 160, f2: 110, type: 'sine', at: 0.55, dur: 0.14, vol: 0.09, atk: 0.002 }); noise(c, { at: 0.55, dur: 0.05, vol: 0.08, type: 'lowpass', f: 900 });
+  },
   scribble: (c) => { noise(c, { dur: 0.09, vol: 0.09, f: 3000, q: 1.5 }); noise(c, { at: 0.1, dur: 0.09, vol: 0.08, f: 3600, q: 1.5 }); },
   chicken: (c) => {
     // «ко-ко-ко… кудах!»: короткие писклявые вскрики с резким подъёмом тона
-    [0, 0.17, 0.34].forEach((at) => tone(c, { f: 620, f2: 1250, type: 'square', at, dur: 0.11, vol: 0.05 }));
-    tone(c, { f: 700, f2: 1700, type: 'sawtooth', at: 0.56, dur: 0.16, vol: 0.06 });
-    tone(c, { f: 1500, f2: 520, type: 'sawtooth', at: 0.72, dur: 0.38, vol: 0.05 });
-  },
-  fanfare: (c) => {
-    [0, 0.35, 0.7].forEach((at) => boom(c, at, 0.45));
-    [[523, 1.0], [659, 1.12], [784, 1.24], [1047, 1.36]].forEach(([f, at]) => tone(c, { f, type: 'sawtooth', at, dur: 0.16, vol: 0.05 }));
-    [523, 659, 784, 1047].forEach((f) => tone(c, { f, type: 'triangle', at: 1.5, dur: 0.9, vol: 0.045 }));
+    [0, 0.17, 0.34].forEach((at) => tone(c, { f: 620, f2: 1250, type: 'square', at, dur: 0.11, vol: 0.04, rv: 0.15 }));
+    tone(c, { f: 700, f2: 1700, type: 'sawtooth', at: 0.56, dur: 0.16, vol: 0.05, rv: 0.15 });
+    tone(c, { f: 1500, f2: 520, type: 'sawtooth', at: 0.72, dur: 0.38, vol: 0.04, rv: 0.2 });
   }
 };
 // Вибрация под стать звуку: короткий «тик» на нажатия, узор — на события
