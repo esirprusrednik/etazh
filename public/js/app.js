@@ -1516,7 +1516,7 @@ function renderInboxRow() {
   const items = S.inbox || [];
   const n = inboxNew();
   const line = items.length ? items[0].title + (items.length > 1 ? ` и ещё ${items.length - 1}` : '') : 'Всё сделано. Можно и поработать';
-  return `<button class="chat-row inbox-row" data-act="inbox-open"><span class="inbox-ava" aria-hidden="true">Э<i>.</i></span>
+  return `<button class="chat-row inbox-row" data-act="inbox-open"><img class="inbox-ava" src="/icons/icon-192.png" alt="" width="42" height="42">
     <span class="grow" style="min-width:0"><span class="chat-title">Этаж <span class="small">· что ждёт тебя</span></span><span class="where ellipsis ${n ? 'unread' : ''}">${esc(line)}</span></span>
     <span class="crew-side">${n ? `<span class="crew-badge">${n > 9 ? '9+' : n}</span>` : items.length ? `<span class="small">${items.length}</span>` : ''}</span></button>`;
 }

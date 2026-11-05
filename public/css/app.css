@@ -1328,8 +1328,8 @@ a { color: var(--link); }
 
 /* «Этаж» пишет сам: строка в чатах и шторка со сводкой */
 .inbox-row { margin: 0 0 12px; background: var(--card); border: 1px solid var(--card-bd); border-radius: 18px; padding: 10px 12px; box-shadow: var(--card-sh); width: 100%; }
-.inbox-ava { flex: none; width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(160deg, #FFD84D, #F4B400); color: #1E2440; font-family: var(--font-display); font-weight: 800; font-size: 19px; }
-.inbox-ava i { font-style: normal; color: #E5484D; }
+/* Логотип — та же картинка, что иконка приложения: буква и точка всегда на своих местах */
+.inbox-ava { flex: none; width: 42px; height: 42px; border-radius: 50%; object-fit: cover; display: block; }
 .inbox { display: grid; gap: 8px; }
 .inbox-msg { justify-self: start; max-width: 90%; padding: 10px 14px; border-radius: 18px 18px 18px 6px; background: var(--s1); font-size: 15px; line-height: 1.35; }
 .inbox-item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; border: 1px solid var(--card-bd); border-radius: 16px; background: var(--card); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
