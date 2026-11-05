@@ -1,6 +1,8 @@
 // События банды: встречи, сабантуи к праздникам, дни рождения и другие важные дела.
 // Создать может любой член банды. Остальные отвечают «Иду / Может быть / Не смогу».
-// Отменить может автор или владелец банды. Утром в день события — напоминание тем, кто идёт или думает.
+// Изменить или отменить может автор или владелец банды. Если поменялись дата, время или место —
+// тем, кто идёт или думает, приходит пуш, и сутки висит пункт «Изменилось» в сводке «Этажа».
+// Утром в день события — напоминание тем, кто идёт или думает.
 // Прошедшие события хранятся ещё 7 дней (чтобы было видно «как сходили»), потом удаляются.
 
 const { OFF } = require('./holidays');
@@ -41,7 +43,20 @@ function register(ctx) {
     answer TEXT NOT NULL, at INTEGER NOT NULL,
     PRIMARY KEY (event_id, user_id)
   );
+  -- Что поменялось или отменилось — для сводки «Этажа». Живёт сутки, видит только тот, кто собирался
+  CREATE TABLE IF NOT EXISTS gang_event_notes (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    event_id INTEGER NOT NULL, gang_id INTEGER NOT NULL REFERENCES gangs(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL, title TEXT NOT NULL, text TEXT NOT NULL, at INTEGER NOT NULL,
+    PRIMARY KEY (user_id, event_id)
+  );
   `);
+  const NOTE_TTL = 864e5;
+  const note = (ids, e, kind, text) => {
+    const st = q('INSERT OR REPLACE INTO gang_event_notes (user_id, event_id, gang_id, kind, title, text, at) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    for (const id of ids) st.run(id, e.id, e.gang_id, kind, e.title, text, U.now());
+  };
+  const whenOf = (day, time) => `${day.slice(8)}.${day.slice(5, 7)}${time ? ' в ' + time : ''}`;
 
   const today = () => U.msk().day;
   const addDays = (day, n) => new Date(Date.parse(day + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
@@ -63,7 +78,7 @@ function register(ctx) {
     return {
       id: e.id, kind: e.kind, emoji: k.emoji, kindName: k.name, title: e.title, day: e.day, time: e.time, place: e.place || '', note: e.note || '',
       inDays: daysTo(e.day), past: e.day < today(),
-      author: author ? author.nick : 'удалённый аккаунт', mine: e.user_id === uid, canCancel: e.user_id === uid || ownerId === uid,
+      author: author ? author.nick : 'удалённый аккаунт', mine: e.user_id === uid, canCancel: e.user_id === uid || ownerId === uid, canEdit: (e.user_id === uid || ownerId === uid) && e.day >= today(),
       my: mine ? mine.answer : null,
       yes: rs.filter((r) => r.answer === 'yes').map((r) => ({ id: r.user_id, nick: r.nick, look: lookOf(r) })),
       maybe: rs.filter((r) => r.answer === 'maybe').map((r) => r.nick),
@@ -182,11 +197,70 @@ function register(ctx) {
     const going = q("SELECT user_id FROM gang_event_rsvp WHERE event_id = ? AND answer IN ('yes', 'maybe') AND user_id != ?").all(e.id, u.id).map((r) => r.user_id);
     q('DELETE FROM gang_events WHERE id = ?').run(e.id);
     if (e.day >= today()) {
+      note(going, e, 'cancel', `${u.nick} ${U.g(u.look, 'отменил', 'отменила')} — было ${whenOf(e.day, e.time)}`);
       q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(e.gang_id, u.id, 'text', `Отменено: «${e.title}» (${e.day.slice(8)}.${e.day.slice(5, 7)})`, U.now());
       fireAndForget(notify(going, { title: `Отменено: ${e.title}`, body: `${u.nick} ${U.g(u.look, 'отменил', 'отменила')} событие`, url: `/#gang/${e.gang_id}`, tag: `gevent-${e.id}` }));
     }
     return { ok: true };
   });
+
+  // Изменить событие. Важные правки (дата, время, место) — пуш и пункт в сводке тем, кто идёт или думает
+  route('POST', '/api/gevents/:id/edit', async (req, body, query, params) => {
+    const u = requireUser(req);
+    const e = eventOr404(params.id, u.id);
+    return editEvent(u, e, body);
+  });
+  function editEvent(u, e, body) {
+    const g = q('SELECT * FROM gangs WHERE id = ?').get(e.gang_id);
+    if (e.user_id !== u.id && (!g || g.owner_id !== u.id)) throw bad('Изменить может автор события или владелец банды.');
+    if (e.day < today()) throw bad('Событие уже прошло.');
+    const kind = KINDS[body.kind] ? body.kind : e.kind;
+    const title = clean(body.title ?? e.title, 60);
+    if (title.length < 3) throw bad('Как назовём событие?');
+    const day = String(body.day || e.day);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || isNaN(Date.parse(day))) throw bad('Выбери дату.');
+    if (day < today()) throw bad('Эта дата уже прошла.');
+    if (daysTo(day) > AHEAD_DAYS) throw bad('Не дальше чем на год вперёд.');
+    const time = body.time === undefined ? e.time : /^([01]\d|2[0-3]):[0-5]\d$/.test(body.time || '') ? body.time : null;
+    const place = body.place === undefined ? e.place : clean(body.place, 60) || null;
+    const noteText = body.note === undefined ? e.note : clean(body.note, 300) || null;
+    const changes = [];
+    if (day !== e.day || (time || null) !== (e.time || null)) changes.push(`теперь ${whenOf(day, time)}`);
+    if ((place || null) !== (e.place || null)) changes.push(place ? `место: ${place}` : 'место уточнят');
+    q('UPDATE gang_events SET kind = ?, title = ?, day = ?, time = ?, place = ?, note = ?, reminded = CASE WHEN ? != day THEN 0 ELSE reminded END WHERE id = ?')
+      .run(kind, title, day, time, place, noteText, day, e.id);
+    const fresh = q('SELECT * FROM gang_events WHERE id = ?').get(e.id);
+    if (changes.length) {
+      const text = changes.join(' · ');
+      const going = q("SELECT user_id FROM gang_event_rsvp WHERE event_id = ? AND answer IN ('yes', 'maybe') AND user_id != ?").all(e.id, u.id).map((r) => r.user_id);
+      note(going, fresh, 'edit', text);
+      q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(e.gang_id, u.id, 'text', `Изменилось: «${title}» — ${text}`, U.now());
+      const k = KINDS[kind] || KINDS.other;
+      fireAndForget(notify(going, { title: `${k.emoji} Изменилось: ${title}`, body: `${text} — ${u.nick}`, url: `/#gang/${e.gang_id}`, tag: `gevent-${e.id}` }));
+    }
+    return { event: view(fresh, u.id, g ? g.owner_id : null), notified: changes.length > 0 };
+  }
+
+  // Для сводки «Этажа»: на что ты не ответил, что у тебя сегодня-завтра, что поменялось или отменилось
+  function pending(uid) {
+    const t = today(), soon = addDays(t, 14), tomorrow = addDays(t, 1);
+    const rows = q(`SELECT e.*, g.name AS gname, r.answer FROM gang_events e JOIN gangs g ON g.id = e.gang_id AND g.hidden = 0
+                    JOIN gang_members m ON m.gang_id = e.gang_id AND m.user_id = ?
+                    LEFT JOIN gang_event_rsvp r ON r.event_id = e.id AND r.user_id = ?
+                    WHERE e.day >= ? AND e.day <= ? ORDER BY e.day, COALESCE(e.time, '99:99')`).all(uid, uid, t, soon);
+    const now = U.msk().hhmm;
+    const out = [];
+    for (const e of rows) {
+      if (e.day === t && e.time && e.time < now) continue; // уже началось
+      const k = KINDS[e.kind] || KINDS.other;
+      const rel = e.day === t ? 'сегодня' : e.day === tomorrow ? 'завтра' : whenOf(e.day, null);
+      const tail = [rel, e.time, e.place].filter(Boolean).join(' · ');
+      if (!e.answer && e.user_id !== uid) out.push({ type: 'ask', event: e, gname: e.gname, kindName: k.name, tail });
+      else if ((e.answer === 'yes' || e.answer === 'maybe') && e.day <= tomorrow) out.push({ type: 'soon', event: e, gname: e.gname, tail, maybe: e.answer === 'maybe' });
+    }
+    const notes = q('SELECT n.*, g.name AS gname FROM gang_event_notes n JOIN gangs g ON g.id = n.gang_id WHERE n.user_id = ? AND n.at > ? ORDER BY n.at DESC').all(uid, U.now() - NOTE_TTL);
+    return { events: out, notes };
+  }
 
   // Утреннее напоминание в день события — тем, кто идёт или думает
   function remind() {
@@ -203,11 +277,12 @@ function register(ctx) {
 
   function cleanup() {
     q('DELETE FROM gang_events WHERE day < ?').run(addDays(today(), -KEEP_DAYS));
+    q('DELETE FROM gang_event_notes WHERE at < ?').run(U.now() - NOTE_TTL);
   }
   // Ближайшее событие — для строки банды в чатах
   const next = (gid) => q('SELECT title, day, time, kind FROM gang_events WHERE gang_id = ? AND day >= ? ORDER BY day, COALESCE(time, \'99:99\') LIMIT 1').get(gid, today()) || null;
 
-  return { cleanup, remind, next, KINDS };
+  return { cleanup, remind, next, KINDS, pending };
 }
 
 module.exports = { register, KINDS };

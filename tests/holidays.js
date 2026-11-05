@@ -189,6 +189,30 @@ function startServer(day) {
       assert.equal((await A.post(`/api/gangs/${g.id}/messages`, { type: 'meme', kind: 'monday', opt: 'calm' })).status, 400, 'в чат банды — только праздничные');
     });
 
+    await step('события банды в сводке: ответь, завтра, изменилось, отменено; опрос без голоса', async () => {
+      const ib = async (c) => (await c.get('/api/inbox')).json.items;
+      const e1 = (await A.post(`/api/gangs/${g.id}/gevents`, { kind: 'party', title: 'Ёлка банды', day: '2026-12-25', time: '19:00', place: 'Кафе' })).json.event;
+      assert.ok((await ib(B)).some((x) => x.id === `gev-ask-${e1.id}`), 'не ответил — спрашиваем');
+      assert.ok(!(await ib(A)).some((x) => x.id === `gev-ask-${e1.id}`), 'автору не надо');
+      await B.post(`/api/gevents/${e1.id}/rsvp`, { answer: 'yes' });
+      assert.ok(!(await ib(B)).some((x) => x.id === `gev-ask-${e1.id}`), 'ответил — пункт ушёл');
+      assert.equal((await B.post(`/api/gevents/${e1.id}/edit`, { time: '20:00' })).status, 400, 'менять может автор или владелец');
+      const r = await A.post(`/api/gevents/${e1.id}/edit`, { time: '20:00', place: 'Бар' });
+      assert.equal(r.status, 200); assert.equal(r.json.notified, true); assert.equal(r.json.event.time, '20:00');
+      const ch = (await ib(B)).find((x) => x.kind === 'gev-edit');
+      assert.ok(ch && /20:00/.test(ch.text) && /Бар/.test(ch.text), JSON.stringify(ch));
+      assert.ok(!(await ib(A)).some((x) => x.kind === 'gev-edit'), 'кто менял — тому не пишем');
+      const r2 = await A.post(`/api/gevents/${e1.id}/edit`, { note: 'Берём гирлянды' });
+      assert.equal(r2.json.notified, false, 'подробности — без пуша');
+      const e2 = (await A.post(`/api/gangs/${g.id}/gevents`, { kind: 'meet', title: 'Каток', day: '2026-12-20', time: '12:00' })).json.event;
+      await B.post(`/api/gevents/${e2.id}/rsvp`, { answer: 'maybe' });
+      assert.ok((await ib(B)).some((x) => x.id === `gev-soon-${e2.id}-2026-12-20` && /Завтра/.test(x.title)));
+      await A.post(`/api/gevents/${e2.id}/cancel`);
+      assert.ok((await ib(B)).some((x) => x.kind === 'gev-cancel' && /Каток/.test(x.title)));
+      await A.post(`/api/gangs/${g.id}/polls`, { question: 'Что дарим банде?', options: ['Торт', 'Пицца'], days: 3 });
+      assert.ok((await ib(B)).some((x) => x.kind === 'poll'));
+    });
+
     await step('Санта после 4 декабря: запись закрыта', async () => {
       const v = (await A.get(`/api/gangs/${g.id}/santa`)).json;
       assert.equal(v.regOpen, false);

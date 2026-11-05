@@ -1993,14 +1993,14 @@ function renderGEvent(e) {
       ${e.note ? `<div class="small gev-note">${esc(e.note)}</div>` : ''}
       <div class="gev-who">${e.yes.slice(0, 8).map((p) => `<span title="${esc(p.nick)}">${avatar(p.look, 22)}</span>`).join('')}<span class="small">${e.yes.length ? `идут ${e.yes.length}` : 'пока никто не идёт'}${e.maybe.length ? ` · может ${e.maybe.length}` : ''}${e.no ? ` · не смогут ${e.no}` : ''}</span></div>
       ${e.past ? '' : `<div class="chips">${btn('yes', 'thumbUp Иду')}${btn('maybe', 'Может быть')}${btn('no', 'Не смогу')}</div>`}
-      <div class="small">предложил(а): ${esc(e.author)}${e.canCancel && !e.past ? ` · <button class="linkbtn" data-act="gev-cancel" data-id="${e.id}">отменить</button>` : ''}</div>
+      <div class="small">предложил(а): ${esc(e.author)}${e.canEdit ? ` · <button class="linkbtn" data-act="gev-edit" data-id="${e.id}">изменить</button>` : ''}${e.canCancel && !e.past ? ` · <button class="linkbtn" data-act="gev-cancel" data-id="${e.id}">отменить</button>` : ''}</div>
     </div></div>`;
 }
 function renderGEvents() {
   const v = S.gev;
   if (!v) return '';
   const sug = v.suggestions.length ? `<div class="gev-sug"><span class="small"><b>Повод есть:</b></span>${v.suggestions.map((x, i) => `<button class="chip" data-act="gev-new" data-sug="${i}">${esc(x.hint)} ＋</button>`).join('')}</div>` : '';
-  return `<section class="card">
+  return `<section class="card gevents">
     <div class="chats-head"><h3>cal События${v.upcoming.length ? ` <span class="chats-n">${v.upcoming.length}</span>` : ''}</h3><button class="linkbtn" data-act="gev-new">＋ Событие</button></div>
     ${v.upcoming.length ? v.upcoming.map(renderGEvent).join('') : '<p class="small" style="margin:4px 0 0">Встречи, сабантуи к праздникам, дни рождения — всё, ради чего банда собирается вне созвонов. Создать может любой.</p>'}
     ${sug}
@@ -2314,13 +2314,13 @@ function renderGEventNew() {
       <label class="field" style="width:120px">Время<input id="gev-time" type="time" value="${esc(d.time)}"></label></div>
     <label class="field">Где (необязательно)<input id="gev-place" maxlength="60" placeholder="Кафе на первом этаже, переговорка 5.12" value="${esc(d.place)}"></label>
     <label class="field">Подробности (необязательно)<textarea id="gev-note" maxlength="300" rows="3" placeholder="Скидываемся по 500, Лена несёт торт">${esc(d.note)}</textarea></label>
-    <p class="small" style="margin:0">Банда получит пуш и сообщение в чате. Утром в день события напомним тем, кто идёт.</p>
-    <button class="btn" data-act="gev-save">Создать событие</button>`;
+    <p class="small" style="margin:0">${d.editId ? 'Если поменяешь дату, время или место — кто идёт или думает, получит пуш, а в чат банды уйдёт сообщение «Изменилось».' : 'Банда получит пуш и сообщение в чате. Утром в день события напомним тем, кто идёт.'}</p>
+    <button class="btn" data-act="gev-save">${d.editId ? 'Сохранить' : 'Создать событие'}</button>`;
 }
 
 function renderPolls() {
   const items = S.polls || [];
-  return `<section class="card">
+  return `<section class="card polls">
     <div class="chats-head"><h3>Опросы${items.filter((p) => !p.closed).length ? ` <span class="chats-n">${items.filter((p) => !p.closed).length}</span>` : ''}</h3><button class="linkbtn" data-act="poll-new">＋ Опрос</button></div>
     ${items.length ? items.map(renderPoll).join('') : '<p class="small" style="margin:4px 0 0">Куда идём обедать, когда собираемся, какую пиццу брать — спроси банду. Можно разрешить всем дописывать свои варианты.</p>'}
   </section>`;
@@ -3197,7 +3197,7 @@ function renderSheet() {
     case 'feedback': return sheetWrap('Идеи и ошибки', renderFeedback());
     case 'blitz': return sheetWrap(S.blitz && S.blitz.set ? S.blitz.set.title : 'Блиц', renderBlitzPlay());
     case 'poll-new': return sheetWrap('Новый опрос', renderPollNew());
-    case 'gev-new': return sheetWrap('Новое событие', renderGEventNew());
+    case 'gev-new': return sheetWrap(S.gevDraft && S.gevDraft.editId ? 'Изменить событие' : 'Новое событие', renderGEventNew());
     case 'war-new': return sheetWrap('swords Вызов на битву', renderWarNew());
     case 'war-accept': return sheetWrap('swords Принять вызов', renderWarAccept());
     case 'treasury': return sheetWrap('bank Казна банды', renderTreasury());
@@ -3659,7 +3659,7 @@ const FEEL_SELF = new Set(['tr-buy', 'tr-vote', 'tr-equip', 'duel-go', 'war-bet'
 const FEEL = {
   open: 'open', 'open-sec': 'open', person: 'open', 'find-open': 'open', 'poll-new': 'open', 'gev-new': 'open', 'ava-open': 'open', 'ava-open-vac': 'open', 'vac-party': 'open', 'meme-open': 'open', 'pcall-open': 'open',
   'call-open': 'open', 'dm-call-open': 'open', 'battle-new': 'open', 'crew-share': 'open',
-  'gang-open': 'open', 'dm-open': 'open', 'battle-open': 'open', 'inbox-open': 'open', 'inbox-go': 'open', 'quest-go': 'open',
+  'gang-open': 'open', 'dm-open': 'open', 'battle-open': 'open', 'inbox-open': 'open', 'inbox-go': 'open', 'gev-edit': 'open', 'quest-go': 'open',
   close: 'close', 'close-bg': 'close', 'chats-back': 'close', 'dm-back': 'close', 'battle-back': 'close', 'onb-back': 'close', 'nick-no': 'close', 'food-cancel': 'close', 'feed-close': 'close', 'coach-skip': 'close',
   'poll-vote': 'vote', vote: 'vote', 'quiz-pick': 'vote', 'guess-pick': 'vote', 'food-pick': 'vote', reply: 'vote', 'dm-reply': 'vote', 'coffee-reply': 'vote', bemote: 'vote',
   buy: 'confirm', 'ava-buy': 'confirm', equip: 'confirm', 'invite-accept': 'confirm', 'crew-accept': 'confirm', 'nick-yes': 'confirm', checkin: 'confirm', 'canteen-in': 'confirm',
@@ -4648,10 +4648,22 @@ const actions = {
     S.gevDraft = { kind: x ? x.kind : 'meet', title: x ? x.title : '', day: x ? x.day : '', time: '', place: '', note: '' };
     S.sheet = 'gev-new'; S.error = ''; render();
   },
+  'gev-edit'(el) {
+    const e = S.gev && S.gev.upcoming.find((x) => x.id === Number(el.dataset.id));
+    if (!e) return;
+    S.gevDraft = { editId: e.id, kind: e.kind, title: e.title, day: e.day, time: e.time || '', place: e.place || '', note: e.note || '' };
+    S.sheet = 'gev-new'; S.error = ''; render();
+  },
   'gev-kind'(el) { gevSync(); S.gevDraft.kind = el.dataset.v; render(); },
   'gev-save': () => run(async () => {
     gevSync();
     const d = S.gevDraft;
+    if (d.editId) {
+      const r = await post(`/api/gevents/${d.editId}/edit`, d);
+      S.sheet = null; S.gevDraft = null; toast(r.notified ? 'Сохранено — кто идёт, получит пуш' : 'Сохранено'); sfx('confirm');
+      await Promise.all([loadGEvents(), loadGang()]);
+      return;
+    }
     await post(`/api/gangs/${S.activeGang}/gevents`, d);
     S.sheet = null; S.gevDraft = null; toast('Событие создано — банда получит пуш'); sfx('confirm');
     await Promise.all([loadGEvents(), loadGang()]);

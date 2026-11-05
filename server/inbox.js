@@ -53,6 +53,25 @@ function register(ctx) {
         if (s.status === 'drawn' && s.joined && !s.myGifted && s.target) out.push({ id: `santa-gift-${g.id}-${s.year}`, kind: 'santa', icon: 'gift', push: true, title: `Подарок для ${s.target.nick}`, text: day >= santa.remindDay(s.year) && day.slice(5, 7) === '12' ? 'До Нового года пара дней — ещё успеваешь. Вручишь — отметь в карточке' : 'Когда вручишь — отметь в карточке Санты', go: { act: 'gang-open', id: g.id, to: '.santa' } });
       }
     }
+    // События банды: что поменялось или отменилось (сутки), на что не ответил, что у тебя сегодня-завтра.
+    // Пуши о них уходят в момент события, поэтому в утреннюю сводку не попадают
+    if (ctx.gevents) {
+      const ev = ctx.gevents.pending(uid);
+      for (const n of ev.notes) out.push({ id: `gev-note-${n.event_id}-${n.at}`, kind: n.kind === 'cancel' ? 'gev-cancel' : 'gev-edit', icon: n.kind === 'cancel' ? 'x' : 'cal', push: false,
+        title: `${n.kind === 'cancel' ? 'Отменено' : 'Изменилось'}: ${n.title}`, text: `${n.gname} · ${n.text}`, go: { act: 'gang-open', id: n.gang_id, to: '.gevents' } });
+      for (const x of ev.events) {
+        const e = x.event;
+        if (x.type === 'ask') out.push({ id: `gev-ask-${e.id}`, kind: 'gev', icon: 'cal', push: false, title: `${e.title} — идёшь?`, text: `${x.gname} · ${x.tail}`, go: { act: 'gang-open', id: e.gang_id, to: '.gevents' } });
+        else out.push({ id: `gev-soon-${e.id}-${e.day}`, kind: 'gev', icon: 'cal', push: false, title: `${x.tail.startsWith('сегодня') ? 'Сегодня' : 'Завтра'}: ${e.title}`, text: `${x.gname}${e.time ? ' · ' + e.time : ''}${e.place ? ' · ' + e.place : ''}${x.maybe ? ' · ты пока «может быть»' : ''}`, go: { act: 'gang-open', id: e.gang_id, to: '.gevents' } });
+      }
+    }
+    // Опросы банды без твоего голоса
+    if (ctx.polls) {
+      for (const g of myGangs(uid)) {
+        const n = ctx.polls.unvoted(uid, g.id);
+        if (n) out.push({ id: `polls-${g.id}-${n}`, kind: 'poll', icon: 'chart', push: false, title: n === 1 ? `Опрос в «${g.name}» ждёт твоего голоса` : `${n} опроса в «${g.name}» ждут твоего голоса`, go: { act: 'gang-open', id: g.id, to: '.polls' } });
+      }
+    }
     // Случайный кофе: договориться или ответить
     const p = features && features.myPair(uid);
     if (p) {

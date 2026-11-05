@@ -1488,7 +1488,7 @@ function createApi(db) {
   league = require('./league').register({ db, q, route, requireUser, U, addBeans, notify, fireAndForget });
   tourney = require('./tourney').register({ db, q, route, requireUser, requireAdmin, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, gangwar, league });
   // ---------- «Этаж» пишет сам: живая сводка и один утренний пуш ----------
-  inbox = require('./inbox').register({ db, q, route, requireUser, U, notify, fireAndForget, myGangs, readProfile, weekdayName, features, blitz, advent, santa, duels });
+  inbox = require('./inbox').register({ db, q, route, requireUser, U, notify, fireAndForget, myGangs, readProfile, weekdayName, features, blitz, advent, santa, duels, gevents, polls });
   feedback = require('./feedback').register({ db, q, route, requireUser, requireAdmin, bad, U, addBeans, notify, fireAndForget, HttpError, BUILD });
 
   // ---------- Обработчик ----------
