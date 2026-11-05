@@ -1530,3 +1530,5 @@ button.chip.ask-chip { cursor: pointer; }
 .guide-items dd { margin: 0; font-size: 14px; line-height: 1.4; color: var(--muted); }
 .guide-sec .btn.small { margin: 8px 14px 14px 64px; }
 @media (max-width: 360px) { .guide-items { padding-left: 14px; } .guide-sec .btn.small { margin-left: 14px; } }
+.thx-btn { width: 100%; background: var(--tint-y); color: var(--tint-y-fg); box-shadow: none; }
+.thx-sheet { display: grid; gap: 12px; }

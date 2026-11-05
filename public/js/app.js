@@ -1643,6 +1643,20 @@ function renderMatch() {
   </section>`;
 }
 // ----- «Кто знает?»: поиск коллег по темам «Спроси меня про» и «Чем занимаюсь» -----
+// «Спасибо» коллеге из его карточки или лички — любому, не только из своей банды
+const THX_REASONS = ['за помощь', 'за совет', 'за быстрый ответ', 'за кофе', 'за поддержку', 'просто так'];
+function renderThx() {
+  const t = S.thx;
+  if (!t) return '';
+  const left = S.thxLeft;
+  if (left === 0) return '<p class="sub" style="margin:0">На сегодня спасибо закончились — их три в день, так они ценнее. Завтра будут новые.</p>';
+  return `<div class="thx-sheet">
+    <p class="sub" style="margin:0"><b>${esc(t.nick)}</b> получит пуш и +1 зерно. ${left != null ? `Осталось ${left} из 3 на сегодня.` : ''}</p>
+    <div class="chips">${THX_REASONS.map((r) => `<button class="chip" data-act="thx-reason" data-v="${esc(r)}">${esc(r)}</button>`).join('')}</div>
+    <label class="field">За что спасибо (необязательно)<input id="thx-text" maxlength="80" placeholder="За помощь с отчётом"></label>
+    <button class="btn" data-act="thx-send">hand Сказать спасибо</button>
+  </div>`;
+}
 // Туториал «Как тут всё устроено»: раздел на вкладку или меню, пункты раскрываются, «Показать» ведёт туда
 function guideHtml() {
   const open = S.guideOpen || null;
@@ -3061,7 +3075,7 @@ function renderDm() {
     </div>
     ${away ? '<div class="note warn">Сейчас отдыхает: пуш не придёт, увидит, когда вернётся.</div>' : ''}
     ${shut ? `<div class="note dm-shut">lock ${esc(shut)}</div>` : ''}
-    ${shut ? '' : `<div class="chips">${v.calls.map((k) => `<button class="chip" data-act="dm-call-open" data-kind="${k}">${esc(S.cat.calls[k].label)}</button>`).join('')}<button class="chip meme-chip" data-act="meme-open" data-to="${f.id}">image Мем</button></div>`}
+    ${shut ? '' : `<div class="chips">${v.calls.map((k) => `<button class="chip" data-act="dm-call-open" data-kind="${k}">${esc(S.cat.calls[k].label)}</button>`).join('')}<button class="chip meme-chip" data-act="meme-open" data-to="${f.id}">image Мем</button><button class="chip thx-chip" data-act="thx-open" data-id="${f.id}" data-nick="${esc(f.nick)}">hand Спасибо</button></div>`}
   </section>
   ${!shut || S.dmSecret ? `<div class="seg dm-mode" role="tablist"><button class="seg-b ${S.dmSecret ? '' : 'on'}" data-act="dm-mode" data-v="plain" aria-selected="${!S.dmSecret}">Обычный чат</button><button class="seg-b ${S.dmSecret ? 'on' : ''}" data-act="dm-mode" data-v="secret" aria-selected="${!!S.dmSecret}">lock Секретный</button></div>` : ''}
   ${S.dmSecret ? renderSecret(f) : ''}
@@ -3489,6 +3503,7 @@ function renderSheet() {
     case 'crew': return sheetWrap('Подельники', renderCrew());
     case 'stats': return sheetWrap('Этаж сегодня', renderStats());
     case 'about': store.set('aboutSeen', true); return sheetWrap('Об Этаже', aboutHtml());
+    case 'thanks-person': return sheetWrap('Сказать спасибо', renderThx());
     case 'guide': return sheetWrap('Как тут всё устроено', guideHtml());
     case 'changes': if (S.changes && S.changes[0]) store.set('changesSeen', S.changes[0].day); return sheetWrap('Что нового', changesHtml());
     case 'crest': return sheetWrap('Герб банды', renderCrestEditor());
@@ -3992,7 +4007,7 @@ function feelFor(act, el) {
   if (act === 'sec') return S.sec.has(el.dataset.v) ? 'collapse' : 'expand';
   if (act === 'today') return el.dataset.v ? 'confirm' : 'off';
   if (FEEL[act]) return FEEL[act];
-  if (/(^|-)(send|create|go|add|share|submit)$|^gift$|signal-send|thanks-send|chat-send|find-invite|gang-invite/.test(act)) return 'send';
+  if (/(^|-)(send|create|go|add|share|submit)$|^gift$|signal-send|thanks-send|thx-send|chat-send|find-invite|gang-invite/.test(act)) return 'send';
   if (el.classList.contains('chip') || /-(pick|kind|days|set|cat|scene|emo|to|time|tag|day|opt|select|preset|type)$/.test(act)) return 'pick';
   return 'tap';
 }
@@ -4395,7 +4410,8 @@ function renderPerson() {
     ${rows.length ? `<div class="person-rows">${rows.map(([k, v]) => `<div><span class="small">${k}</span><b>${v}</b></div>`).join('')}</div>` : ''}
     ${!x.full ? '<p class="small" style="text-align:center">Подробности видят члены общих банд.</p>' : ''}
     ${x.me ? '<button class="btn ghost" data-act="open" data-v="profile">Редактировать мой профиль</button>'
-      : `<div class="row">${x.canDm ? `<button class="btn grow" data-act="dm-open" data-id="${x.id}">chat Написать</button>` : '<span class="small grow">Личку принимает не от всех</span>'}${x.full ? `<button class="btn ghost grow" data-act="pcall-open" data-id="${x.id}">megaphone Позвать</button>` : ''}</div>`}
+      : `<button class="btn thx-btn" data-act="thx-open" data-id="${x.id}" data-nick="${esc(x.nick)}">hand Сказать спасибо</button>
+        <div class="row">${x.canDm ? `<button class="btn grow" data-act="dm-open" data-id="${x.id}">chat Написать</button>` : '<span class="small grow">Личку принимает не от всех</span>'}${x.full ? `<button class="btn ghost grow" data-act="pcall-open" data-id="${x.id}">megaphone Позвать</button>` : ''}</div>`}
   </div>`;
 }
 
@@ -5399,6 +5415,16 @@ const actions = {
     const nick = S.nickConfirm; S.nickConfirm = null;
     const r = await post('/api/me/nick', { nick }); await loadMe(); toast(`Теперь ты ${r.nick}`);
   }),
+  'thx-open': (el) => run(async () => {
+    S.thx = { id: Number(el.dataset.id), nick: el.dataset.nick }; S.thxLeft = null; S.sheet = 'thanks-person'; render();
+    S.thxLeft = (await get('/api/thanks/left')).left; render();
+  }),
+  'thx-reason'(el) { const i = $('#thx-text'); if (i) { i.value = el.dataset.v === 'просто так' ? 'Просто так' : el.dataset.v[0].toUpperCase() + el.dataset.v.slice(1); i.focus(); } },
+  'thx-send': () => run(async () => {
+    const r = await post('/api/thanks', { to: S.thx.id, text: ($('#thx-text') || {}).value || '' });
+    toast(`Спасибо отправлено: ${S.thx.nick}. Осталось ${r.left} на сегодня`);
+    S.sheet = null; S.thx = null; render();
+  }),
   'guide-toggle'(el) { S.guideOpen = S.guideOpen === el.dataset.v ? null : el.dataset.v; render(); },
   'guide-go'(el) {
     const g = GUIDE.find((x) => x.id === el.dataset.v);
@@ -5533,7 +5559,7 @@ document.addEventListener('change', (e) => {
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.id) {
-    const map = { 'gfind-q': 'gang-find-go', 'find-q': 'find-go', email: 'login-submit', code: 'code-submit', nick: 'nick-submit', 'chat-text': 'chat-send', 'thanks-text': 'thanks-send', 'lunch-place': 'lunch-create', 'dm-text': 'dm-send', 'crew-nick': 'crew-add' };
+    const map = { 'gfind-q': 'gang-find-go', 'find-q': 'find-go', email: 'login-submit', code: 'code-submit', nick: 'nick-submit', 'chat-text': 'chat-send', 'thanks-text': 'thanks-send', 'thx-text': 'thx-send', 'lunch-place': 'lunch-create', 'dm-text': 'dm-send', 'crew-nick': 'crew-add' };
     if (map[e.target.id]) { e.preventDefault(); actions[map[e.target.id]](); }
     else if (e.target.id && e.target.id.startsWith('poll-add-')) { e.preventDefault(); actions['poll-add']({ dataset: { id: e.target.id.slice(9) } }); }
   }

@@ -221,6 +221,23 @@ function migrate(db) {
   );
   CREATE TABLE IF NOT EXISTS gifts (from_id INTEGER NOT NULL, to_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, day TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (from_id, to_id, day));
   `);
+  // Спасибо теперь можно сказать любому коллеге, не только из своей банды: gang_id становится необязательным (разовая перестройка таблицы)
+  if ((db.prepare('PRAGMA table_info(thanks)').all().find((c) => c.name === 'gang_id') || {}).notnull) {
+    db.exec(`BEGIN;
+      CREATE TABLE thanks_new (
+        id INTEGER PRIMARY KEY,
+        gang_id INTEGER REFERENCES gangs(id) ON DELETE CASCADE,
+        from_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        to_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        text TEXT, day TEXT NOT NULL, at INTEGER NOT NULL
+      );
+      INSERT INTO thanks_new SELECT id, gang_id, from_id, to_id, text, day, at FROM thanks;
+      DROP TABLE thanks;
+      ALTER TABLE thanks_new RENAME TO thanks;
+      CREATE INDEX IF NOT EXISTS thanks_gang_at ON thanks(gang_id, at);
+      COMMIT;`);
+  }
+
 }
 
 function register(ctx) {
@@ -563,11 +580,18 @@ function register(ctx) {
   // ---------- Спасибо ----------
   const thanksLeft = (uid) => THANKS_PER_DAY - q('SELECT COUNT(*) AS n FROM thanks WHERE from_id = ? AND day = ?').get(uid, today()).n;
 
+  route('GET', '/api/thanks/left', async (req) => ({ left: thanksLeft(requireUser(req).id) }));
+
+  // Спасибо — в банде или любому коллеге из его карточки и лички. Общая банда подставляется сама, если есть
   route('POST', '/api/thanks', async (req, body) => {
     const u = requireUser(req);
-    const gangId = Number(body.gang);
     const toId = Number(body.to);
-    if (!isMember(gangId, u.id) || !isMember(gangId, toId)) throw bad('Спасибо можно сказать только своим — тем, кто с тобой в банде.');
+    const to = q('SELECT id FROM users WHERE id = ? AND nick IS NOT NULL').get(toId);
+    if (!to) throw bad('Коллега не найден.');
+    let gangId = body.gang ? Number(body.gang) : null;
+    if (gangId && !(isMember(gangId, u.id) && isMember(gangId, toId))) throw bad('Спасибо в банде можно сказать только тем, кто в ней.');
+    if (!gangId) gangId = (q('SELECT a.gang_id FROM gang_members a JOIN gang_members b ON b.gang_id = a.gang_id WHERE a.user_id = ? AND b.user_id = ? LIMIT 1').get(u.id, toId) || {}).gang_id || null;
+    if (q('SELECT 1 FROM crew_blocks WHERE user_id = ? AND blocked_id = ?').get(toId, u.id)) throw bad('Этому человеку сейчас нельзя сказать спасибо.');
     if (toId === u.id) throw bad('Себе спасибо не говорят — только другим.');
     if (thanksLeft(u.id) <= 0) throw bad(`Не больше ${THANKS_PER_DAY} спасибо в день — так они ценнее.`);
     const text = U.cleanText(body.text, 80) || null;
@@ -579,7 +603,7 @@ function register(ctx) {
     completeQuest(u.id, 'thanks');
     if (bdayIdsToday(u.id).has(toId)) completeQuest(u.id, 'bday');
     checkAchievements(u.id); checkAchievements(toId);
-    fireAndForget(notify([toId], { title: 'Тебе спасибо!', body: `${u.nick}: ${text || 'спасибо за помощь'}${got ? ' · +1 зерно' : ''}`, url: `/#gang/${gangId}`, tag: `thanks-${u.id}` }));
+    fireAndForget(notify([toId], { title: 'Тебе спасибо!', body: `${u.nick}: ${text || 'спасибо за помощь'}${got ? ' · +1 зерно' : ''}`, url: gangId ? `/#gang/${gangId}` : `/#crew/${u.id}`, tag: `thanks-${u.id}` }));
     return { ok: true, left: thanksLeft(u.id) };
   });
 
