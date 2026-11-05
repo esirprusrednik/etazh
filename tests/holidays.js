@@ -144,6 +144,7 @@ function startServer(day) {
         targets.push(w.target.id);
       }
       assert.equal(new Set(targets).size, 3, 'у каждого ровно один Санта');
+      assert.equal((await A.get(`/api/gangs/${g.id}/santa`)).json.budget, 500);
       const ib = (await B.get('/api/inbox')).json.items;
       assert.ok(ib.some((x) => x.kind === 'santa' && /Подарок для/.test(x.title)), 'после жеребьёвки — напоминание о подарке');
       const d = (await D.get(`/api/gangs/${g.id}/santa`)).json;
@@ -188,7 +189,7 @@ function startServer(day) {
       assert.equal((await A.post(`/api/gangs/${g.id}/messages`, { type: 'meme', kind: 'monday', opt: 'calm' })).status, 400, 'в чат банды — только праздничные');
     });
 
-    await step('Санта после 16 декабря: запись закрыта', async () => {
+    await step('Санта после 10 декабря: запись закрыта', async () => {
       const v = (await A.get(`/api/gangs/${g.id}/santa`)).json;
       assert.equal(v.regOpen, false);
       assert.equal((await A.post(`/api/gangs/${g.id}/santa/join`, { wish: '' })).status, 400);

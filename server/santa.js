@@ -1,11 +1,13 @@
 // Тайный Санта банды.
 // С 1 ноября любой член банды записывается и пишет пожелание (что любит, чего не надо дарить).
-// 16 декабря — автоматическая жеребьёвка (владелец может провести раньше, если записались трое и больше).
+// 10 декабря — автоматическая жеребьёвка (владелец может провести раньше, если записались трое и больше).
 // Каждый видит только своего подопечного и его пожелание; кто дарит ему самому — не видит никто.
 // Подарки вручают на встрече банды; «Подарок вручён» отмечает дарящий. Карточка видна до 15 января.
 
 const WISH_MAX = 200;
 const MIN_PEOPLE = 3;
+const BUDGET = 500; // потолок цены подарка, ₽ — чтобы никому не было неловко
+// Чётность не важна: дарим по кругу (A→B→C→A), при любом числе от трёх у каждого ровно один даритель и один подопечный
 
 function register(ctx) {
   const { db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, onEvent } = ctx;
@@ -37,7 +39,7 @@ function register(ctx) {
     if (m === 1 && d <= 15) return { year: y - 1, visible: true };
     return { year: y, visible: false };
   }
-  const drawDay = (year) => `${year}-12-16`;
+  const drawDay = (year) => `${year}-12-10`;
   const row = (gid, year) => q('SELECT * FROM santa WHERE gang_id = ? AND year = ?').get(gid, year);
   const ensure = (gid, year) => { q('INSERT OR IGNORE INTO santa (gang_id, year) VALUES (?, ?)').run(gid, year); return row(gid, year); };
   const chat = (gid, uid, text) => q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(gid, uid, 'text', text, U.now());
@@ -64,7 +66,7 @@ function register(ctx) {
     a.forEach((uid, i) => set.run(a[(i + 1) % a.length], gid, year, uid));
     q("UPDATE santa SET status = 'drawn', drawn_at = ? WHERE gang_id = ? AND year = ?").run(U.now(), gid, year);
     const g = q('SELECT owner_id FROM gangs WHERE id = ?').get(gid);
-    chat(gid, g ? g.owner_id : null, `Тайный Санта: жеребьёвка прошла, участников — ${a.length}. Открой карточку банды — там твой подопечный и его пожелание`);
+    chat(gid, g ? g.owner_id : null, `Тайный Санта: жеребьёвка прошла, участников — ${a.length}. Открой карточку банды — там твой подопечный и его пожелание. Подарок — до ${BUDGET} ₽`);
     fireAndForget(notify(a, { title: 'Тайный Санта', body: 'Жеребьёвка прошла — узнай, кому даришь', url: `/#gang/${gid}`, tag: `santa-${gid}` }));
     return true;
   }
@@ -85,7 +87,7 @@ function register(ctx) {
     return {
       visible: s.visible, year: s.year, status: r.status, drawDay: drawDay(s.year),
       regOpen: s.visible && r.status === 'open' && today < drawDay(s.year),
-      count, gifted, min: MIN_PEOPLE, joined: !!me, wish: me ? me.wish : '', target, myGifted: !!(me && me.gifted_at),
+      count, gifted, min: MIN_PEOPLE, budget: BUDGET, joined: !!me, wish: me ? me.wish : '', target, myGifted: !!(me && me.gifted_at),
       canDraw: g.owner_id === u.id && r.status === 'open' && count >= MIN_PEOPLE
     };
   }
@@ -140,7 +142,7 @@ function register(ctx) {
     return view(u, g);
   });
 
-  // 16 декабря: жеребьёвка во всех бандах, где записались трое и больше; где меньше — отменяем с объяснением
+  // 10 декабря: жеребьёвка во всех бандах, где записались трое и больше; где меньше — отменяем с объяснением
   function tick() {
     const s = season();
     // Пожелания и пары прошлых сезонов не храним: после 15 января всё стирается

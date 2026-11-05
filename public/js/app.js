@@ -1638,15 +1638,16 @@ function renderSanta() {
   if (s.status === 'drawn') {
     body = !s.joined ? `<p class="sub">Жеребьёвка прошла без тебя: участников ${s.count}, подарки вручены ${s.gifted}.</p>`
       : `<div class="santa-target"><span class="small">Ты даришь</span><b>${esc(s.target ? s.target.nick : '—')}</b>
-          ${s.target && s.target.wish ? `<p>«${esc(s.target.wish)}»</p>` : '<p class="small">Пожелания нет — придётся угадывать.</p>'}</div>
+          ${s.target && s.target.wish ? `<p>«${esc(s.target.wish)}»</p>` : '<p class="small">Пожелания нет — придётся угадывать.</p>'}<span class="small">Бюджет — до ${s.budget || 500} ₽</span></div>
         ${s.myGifted ? `<div class="adv-done">${ico('check', 16)} Подарок вручён</div>` : '<button class="btn" data-act="santa-gifted">Подарок вручён</button>'}
         <p class="small" style="margin:0">Вручено ${s.gifted} из ${s.count}. Кто дарит тебе — секрет. Видно его только в момент вручения.</p>`;
   } else if (s.joined) {
-    body = `<p class="sub">Ты участвуешь. Записалось ${s.count}, жеребьёвка ${dd}${s.count < s.min ? `, нужно хотя бы ${s.min}` : ''}.</p>
+    body = `<p class="sub">Ты участвуешь. Записалось ${s.count}, жеребьёвка ${dd}${s.count < s.min ? `, нужно хотя бы ${s.min}` : ''}. Подарок — до ${s.budget || 500} ₽.</p>
       <label class="field">Пожелание для своего Санты<textarea id="santa-wish" maxlength="200" rows="2" placeholder="Что любишь и чего дарить не надо">${esc(s.wish)}</textarea></label>
       <div class="row" style="justify-content:space-between"><button class="btn ghost small" data-act="santa-wish">Сохранить</button><button class="linkbtn" data-act="santa-leave">Не участвую</button></div>${draw}`;
   } else if (s.regOpen) {
     body = `<p class="sub">Каждый тайно готовит подарок одному человеку из банды. Запишись и напиши, что любишь. ${dd} пройдёт жеребьёвка, и каждый узнает, кому дарит. Записалось: ${s.count}.</p>
+      <div class="santa-rule">Подарок — <b>до ${s.budget || 500} ₽</b>. Дороже не надо: смысл во внимании, а не в цене</div>
       <label class="field">Пожелание<textarea id="santa-wish" maxlength="200" rows="2" placeholder="Люблю чай и настолки, сладкое не дарите"></textarea></label>
       <button class="btn" data-act="santa-join">Участвую</button>${draw}`;
   } else return '';
