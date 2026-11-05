@@ -110,7 +110,37 @@ function crestPub(row) {
   return { crest, area: row.area || null, interests, style };
 }
 
-module.exports = {
+// ---------- Шифрование текста переписки в базе (AES-256-GCM) ----------
+// Ключ — MSG_KEY из .env или выводится из EMAIL_PEPPER (HKDF). В базе и бэкапах его нет:
+// утёк файл базы — переписку не прочитать. Сервер при этом видит текст (модерация, пуши работают).
+// Формат: «e1:» + base64url(iv[12] | tag[16] | шифротекст). Без префикса — старый открытый текст.
+let msgKey = null;
+function key() {
+  if (msgKey) return msgKey;
+  const raw = process.env.MSG_KEY;
+  msgKey = raw && raw.length >= 32
+    ? crypto.createHash('sha256').update(raw).digest()
+    : Buffer.from(crypto.hkdfSync('sha256', config.emailPepper || 'dev-pepper', 'etazh', 'etazh-msg-v1', 32));
+  return msgKey;
+}
+function seal(text) {
+  if (text === null || text === undefined || text === '') return text;
+  const iv = crypto.randomBytes(12);
+  const c = crypto.createCipheriv('aes-256-gcm', key(), iv);
+  const ct = Buffer.concat([c.update(String(text), 'utf8'), c.final()]);
+  return 'e1:' + Buffer.concat([iv, c.getAuthTag(), ct]).toString('base64url');
+}
+function unseal(v) {
+  if (typeof v !== 'string' || !v.startsWith('e1:')) return v;
+  try {
+    const b = Buffer.from(v.slice(3), 'base64url');
+    const d = crypto.createDecipheriv('aes-256-gcm', key(), b.subarray(0, 12));
+    d.setAuthTag(b.subarray(12, 28));
+    return Buffer.concat([d.update(b.subarray(28)), d.final()]).toString('utf8');
+  } catch { return '[не удалось расшифровать]'; }
+}
+
+module.exports = { seal, unseal,
   fem, g, crestPub,
   now, msk, isAfterCheckinCutoff, isQuietHour,
   b64url, fromB64url, randomToken, sha256, hashEmail, normalizeEmail, emailDomainAllowed, shortCode,

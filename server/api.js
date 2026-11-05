@@ -1176,7 +1176,7 @@ function createApi(db) {
         const def = m.type === 'call' ? CALLS[m.kind] : null;
         return {
           id: m.id, type: m.type, kind: m.kind, author: m.author || 'удалённый аккаунт', mine, at: m.at, time: U.msk(m.at).hhmm,
-          toNick: m.to_nick, toMe: m.to_user_id === u.id, opt: m.opt, text: m.type === 'voice' || m.type === 'meme' ? null : m.text,
+          toNick: m.to_nick, toMe: m.to_user_id === u.id, opt: m.opt, text: m.type === 'voice' || m.type === 'meme' ? null : U.unseal(m.text),
           voice: m.type === 'voice' ? { dur: Number(m.opt), ...(voice.info(m.text) || { gone: true }) } : undefined,
           look: m.type === 'meme' ? JSON.parse(m.text || '{}') : undefined,
           callText: def ? def.verb : null, replies: rs,
@@ -1212,7 +1212,7 @@ function createApi(db) {
       if (!text) throw bad('Пустое сообщение.');
       const prob = U.moderationProblem(text, { allowAt: true });
       if (prob) throw bad(prob);
-      q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(g.id, u.id, 'text', text, U.now());
+      q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(g.id, u.id, 'text', U.seal(text), U.now());
       if (features) features.onEvent('text', u.id);
       return { ok: true };
     }
@@ -1235,7 +1235,7 @@ function createApi(db) {
       if (prob) throw bad(prob);
     }
     q('INSERT INTO messages (gang_id, user_id, type, kind, to_user_id, opt, text, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(g.id, u.id, 'call', body.kind, toId, opt, text, U.now());
+      .run(g.id, u.id, 'call', body.kind, toId, opt, U.seal(text), U.now());
     if (features) features.onEvent('call', u.id);
     // Текст пуша нейтральный: без названий офисов и подробностей
     const recipients = toId ? [toId] : gangMembers(g.id).map((m) => m.id).filter((id) => id !== u.id);
@@ -1441,8 +1441,8 @@ function createApi(db) {
     const preview = (r) => {
       if (r.object_type === 'board') { const b = q('SELECT text, hidden FROM board_posts WHERE id = ?').get(r.object_id); return b ? { text: `[доска] ${b.text}`, hidden: !!b.hidden } : null; }
       if (r.object_type === 'gang') { const g = q('SELECT name, motto, hidden FROM gangs WHERE id = ?').get(r.object_id); return g ? { text: `${g.name}${g.motto ? ' — «' + g.motto + '»' : ''}`, hidden: !!g.hidden } : null; }
-      if (r.object_type === 'dm') { const m = q('SELECT type, text, kind, opt, hidden FROM dms WHERE id = ?').get(r.object_id); return m ? { text: `[личное] ${m.type === 'voice' ? VOICE_MOD : m.text || `${m.kind} ${m.opt || ''}`}`, hidden: m.hidden === 1 } : null; }
-      if (r.object_type === 'message') { const m = q('SELECT type, text, opt, kind, hidden FROM messages WHERE id = ?').get(r.object_id); return m ? { text: m.type === 'voice' ? VOICE_MOD : m.text || `${m.kind} ${m.opt || ''}`, hidden: !!m.hidden } : null; }
+      if (r.object_type === 'dm') { const m = q('SELECT type, text, kind, opt, hidden FROM dms WHERE id = ?').get(r.object_id); if (m && m.type !== 'voice' && m.type !== 'meme') m.text = U.unseal(m.text); return m ? { text: `[личное] ${m.type === 'voice' ? VOICE_MOD : m.text || `${m.kind} ${m.opt || ''}`}`, hidden: m.hidden === 1 } : null; }
+      if (r.object_type === 'message') { const m = q('SELECT type, text, opt, kind, hidden FROM messages WHERE id = ?').get(r.object_id); if (m && m.type !== 'voice' && m.type !== 'meme') m.text = U.unseal(m.text); return m ? { text: m.type === 'voice' ? VOICE_MOD : m.text || `${m.kind} ${m.opt || ''}`, hidden: !!m.hidden } : null; }
       const s = q('SELECT type, zone, comment, hidden FROM signals WHERE id = ?').get(r.object_id);
       return s ? { text: `${s.type} ${s.zone || ''} ${s.comment || ''}`, hidden: !!s.hidden } : null;
     };
@@ -1522,6 +1522,16 @@ function createApi(db) {
   // ---------- «Этаж» пишет сам: живая сводка и один утренний пуш ----------
   inbox = require('./inbox').register({ db, q, route, requireUser, U, notify, fireAndForget, myGangs, readProfile, weekdayName, features, blitz, advent, santa, duels, gevents, polls, weather });
   feedback = require('./feedback').register({ db, q, route, requireUser, requireAdmin, bad, U, addBeans, notify, fireAndForget, HttpError, BUILD });
+
+  // Разово шифруем старую переписку, лежащую в базе открытым текстом (повторный запуск ничего не меняет)
+  try {
+    for (const t of ['messages', 'dms']) {
+      const rows = q(`SELECT id, text FROM ${t} WHERE type IN ('text', 'call') AND text IS NOT NULL AND text != '' AND text NOT LIKE 'e1:%'`).all();
+      if (!rows.length) continue;
+      const up = q(`UPDATE ${t} SET text = ? WHERE id = ?`);
+      db.exec('BEGIN'); for (const r of rows) up.run(U.seal(r.text), r.id); db.exec('COMMIT');
+    }
+  } catch (e) { try { db.exec('ROLLBACK'); } catch {} console.error('seal migrate', e.message); }
 
   // ---------- Обработчик ----------
   async function handle(req, res, pathname, query) {

@@ -133,7 +133,7 @@ function register(ctx) {
     if (m.type === 'call') return (CALLS[m.kind] || {}).verb || 'зов';
     if (m.type === 'voice') return `Голосовое 0:${String(m.opt || 0).padStart(2, '0')}`;
     if (m.type === 'meme') return 'мем: «' + ((MEMES.find((x) => x.id === m.kind) || {}).caption || '') + '»';
-    return m.text;
+    return U.unseal(m.text);
   }
 
   // ---------- Мои люди: все из моих банд и подельники, одним списком ----------
@@ -177,7 +177,7 @@ function register(ctx) {
         polls: pollsUnvoted ? pollsUnvoted(u.id, g.id) : 0,
         ...(gangSummary ? gangSummary(g.id, u.id) : {}), motto: g.motto || '',
         lastTime: last ? U.msk(last.at).hhmm : null,
-        last: last ? { mine: last.user_id === u.id, who: last.nick, text: last.type === 'call' ? (CALLS[last.kind] || {}).verb || 'зов' : last.type === 'voice' || last.type === 'meme' ? preview(last) : last.text } : null
+        last: last ? { mine: last.user_id === u.id, who: last.nick, text: last.type === 'call' ? (CALLS[last.kind] || {}).verb || 'зов' : last.type === 'voice' || last.type === 'meme' ? preview(last) : U.unseal(last.text) } : null
       });
     }
     const people = myPeople(u.id);
@@ -386,7 +386,7 @@ function register(ctx) {
         return {
           id: m.id, type: m.type, kind: m.kind, mine, at: m.at,
           time: d.day === today ? d.hhmm : `${d.day.slice(8, 10)}.${d.day.slice(5, 7)} ${d.hhmm}`,
-          text: m.type === 'meme' || m.type === 'voice' ? null : m.text, look: m.type === 'meme' ? JSON.parse(m.text || '{}') : undefined,
+          text: m.type === 'meme' || m.type === 'voice' ? null : U.unseal(m.text), look: m.type === 'meme' ? JSON.parse(m.text || '{}') : undefined,
           opt: m.opt, callText: def ? def.verb : null, reply: m.reply,
           voice: m.type === 'voice' ? { dur: Number(m.opt), ...(voice.info(m.text) || { gone: true }) } : undefined,
           read: mine ? !!m.read_at : undefined,
@@ -420,7 +420,7 @@ function register(ctx) {
       if (!text) throw bad('Пустое сообщение.');
       const prob = U.moderationProblem(text, { allowAt: true });
       if (prob) throw bad(prob);
-      ins.run(lo, hi, u.id, f.id, 'text', null, null, text, U.now());
+      ins.run(lo, hi, u.id, f.id, 'text', null, null, U.seal(text), U.now());
       if (onEvent) onEvent('dm', u.id, { to: f.id });
       // Текст в пуш не кладём: уведомление видно на заблокированном экране
       fireAndForget(notify([f.id], { title: u.nick, body: 'Личное сообщение', url: `/#crew/${u.id}`, tag: `dm-${u.id}` }));
@@ -450,7 +450,7 @@ function register(ctx) {
       const prob = text && U.moderationProblem(text);
       if (prob) throw bad(prob);
     }
-    ins.run(lo, hi, u.id, f.id, 'call', body.kind, opt, text, U.now());
+    ins.run(lo, hi, u.id, f.id, 'call', body.kind, opt, U.seal(text), U.now());
     if (onEvent) onEvent('dm', u.id, { to: f.id, call: true });
     fireAndForget(notify([f.id], { title: u.nick, body: `${def.verb}${opt ? ' · ' + opt.toLowerCase() : ''}`, url: `/#crew/${u.id}`, tag: `dm-${u.id}` }));
     return { ok: true, quiet: U.isQuietHour() };

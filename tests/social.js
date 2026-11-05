@@ -49,7 +49,7 @@ function startServer(day, extra = {}) {
     }
   }
   const ready = (async () => { for (let i = 0; i < 150; i++) { try { if ((await fetch(BASE + "/healthz")).ok) return; } catch {} await new Promise((r) => setTimeout(r, 100)); } throw new Error('server did not start\n' + log); })();
-  return { Client, ready, stop: () => proc.kill(), log: () => log };
+  return { Client, ready, stop: () => proc.kill(), log: () => log, dir };
 }
 
 (async () => {
@@ -126,6 +126,18 @@ function startServer(day, extra = {}) {
       assert.equal((await D.post('/api/me/profile', { profile: { lastName: '' } })).status, 400, 'стереть фамилию нельзя');
       assert.equal((await D.get(`/api/users/${B.id}`)).json.name, 'Борис Петров');
       assert.equal((await D.get('/api/state')).json.nameLock, null);
+    });
+
+    await step('переписка в базе зашифрована, а в приложении читается', async () => {
+      await B.post(`/api/gangs/${gb.id}/messages`, { type: 'text', text: 'СекретнаяФраза42 в чате' });
+      await B.post(`/api/crew/${D.id}/messages`, { type: 'text', text: 'ЛичнаяФраза77 в личке' });
+      const chat = (await D.get(`/api/gangs/${gb.id}`)).json.messages;
+      assert.ok(chat.some((m) => m.text === 'СекретнаяФраза42 в чате'));
+      const dm = (await D.get(`/api/crew/${B.id}`)).json;
+      assert.ok(JSON.stringify(dm).includes('ЛичнаяФраза77'), 'получатель читает');
+      await new Promise((r) => setTimeout(r, 300));
+      const raw = fs.readdirSync(sv.dir).map((f) => fs.readFileSync(path.join(sv.dir, f)).toString('utf8')).join('');
+      assert.ok(!raw.includes('СекретнаяФраза42') && !raw.includes('ЛичнаяФраза77'), 'в файлах базы текста нет');
     });
 
     await step('доска: объявление, «я тоже» с отметкой автору, снять может только автор, срок', async () => {
