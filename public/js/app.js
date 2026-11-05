@@ -2267,7 +2267,7 @@ function renderDuelsCard() {
   const battles = (S.battles || []).filter((x) => x.status !== 'done');
   const nickOf = (id) => ((S.people || []).find((p) => p.id === id) || (S.crew && S.crew.list.find((p) => p.id === id)) || {}).nick || 'соперник';
   const waiting = items.filter((d) => d.myTurn).length + battles.filter((x) => x.myTurn).length;
-  const games = [['duel-pick', 'rps', rpsDuo(), 'Камень, ножницы, бумага'], ['duel-pick', 'dice', 'dice', 'Кости'], ['duel-pick', 'ttt', 'xcircle', 'Крестики-нолики'], ['open', 'battle-pick', 'anchor', 'Морской бой']];
+  const games = [['duel-pick', 'rps', rpsDuo(), 'Камень, ножницы, бумага'], ['duel-pick', 'dice', 'dice', 'Кости'], ['duel-pick', 'ttt', 'xcircle', 'Крестики-нолики'], ['open', 'battle-pick', 'anchor', 'Морской бой']];
   return `<section class="card duels-card"><div class="chats-head"><h3>game Игры со своими</h3><span class="small">${waiting ? `${waiting} ${plural(waiting, 'ждёт', 'ждут', 'ждут')} твоего хода` : 'победа +2 зерна'}</span></div>
     <div class="duel-new n4">${games.map(([act, g, e, t]) => `<button class="duel-start" data-act="${act}" data-v="${g}"><span>${e}</span><b>${hy(t)}</b></button>`).join('')}</div>
     ${items.length || battles.length ? '' : '<p class="small" style="margin:0">Выбери игру и соперника. В дуэлях можно на ставку 5 или 10 зёрен — победитель забирает обе. Морской бой — с расстановкой, быстрый или без спешки.</p>'}
