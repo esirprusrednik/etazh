@@ -1,4 +1,4 @@
-// Морской бой для подельников: пошагово, без лимита времени на ход.
+// Морской бой один на один (с любым, кому можно написать): пошагово, без лимита времени на ход.
 // Поле 10×10, флот 4+3+3+2+2+2+1+1+1+1, корабли не касаются даже углами.
 // Попал — стреляешь ещё раз. Потопил — клетки вокруг корабля открываются сами.
 // Чужой флот клиенту не отдаётся, пока игра идёт: только результаты выстрелов.
@@ -78,7 +78,7 @@ const sunkShips = (ships, shots) => {
 };
 
 function register(ctx) {
-  const { db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, onEvent, publicLook, addBeans, spendBeans } = ctx;
+  const { db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, onEvent, publicLook, addBeans, spendBeans, canDm } = ctx;
 
   db.exec(`
   CREATE TABLE IF NOT EXISTS battles (
@@ -226,7 +226,10 @@ function register(ctx) {
     const u = requireUser(req);
     const to = Number(body.to);
     if (!to || to === u.id) throw bad('С кем играем?');
-    if (!areCrew(u.id, to)) throw bad('Морской бой — с членами твоих банд.');
+    // Как дуэли: с любым, кому можно написать лично (не закрыл личку и не заблокировал)
+    const rival = q('SELECT * FROM users WHERE id = ? AND nick IS NOT NULL').get(to);
+    if (!rival) throw bad('С кем играем?');
+    if (canDm ? !canDm(u, rival) : !areCrew(u.id, to)) throw bad('Этому человеку сейчас нельзя написать — значит, и вызвать нельзя.');
     const ex = q(`SELECT id FROM battles WHERE status != 'done' AND ((a = ? AND b = ?) OR (a = ? AND b = ?))`).get(u.id, to, to, u.id);
     if (ex) return { id: ex.id, existing: true };
     const active = q("SELECT COUNT(*) AS n FROM battles WHERE status != 'done' AND (a = ? OR b = ?)").get(u.id, u.id).n;

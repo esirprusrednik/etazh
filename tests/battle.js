@@ -83,8 +83,10 @@ let winnerBeans = 0;
   const c = await new Client().login('cat@mts.ru', 'чужой_кот');
 
   let id;
-  await step('вызов: только подельнику, одна партия на пару', async () => {
-    assert.equal((await a.post('/api/battle', { to: b.id })).status, 400);
+  await step('вызов: любому, кто принимает личку; одна партия на пару', async () => {
+    await b.post('/api/me/profile', { profile: { dmFrom: 'none' } });
+    assert.equal((await a.post('/api/battle', { to: b.id })).status, 400, 'личка закрыта — вызвать нельзя');
+    await b.post('/api/me/profile', { profile: { dmFrom: 'all' } });
     await a.post('/api/crew/add', { nick: 'ночной_филин' });
     await b.post(`/api/crew/${a.id}/accept`);
     id = (await a.post('/api/battle', { to: b.id })).json.id;

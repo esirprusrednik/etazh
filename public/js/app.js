@@ -2324,8 +2324,8 @@ function renderDuel(d) {
 }
 function renderDuelsBox(f) {
   const items = S.duelsWith || [];
-  // Морской бой — с подельниками и своей бандой; если партия уже идёт, её плашка выше, а плитку не показываем
-  const sea = (f.crew || (S.people || []).some((p) => p.id === f.id)) && !S.battles.some((b) => b.oppId === f.id && b.status !== 'done');
+  // Если партия в морской бой уже идёт, её плашка выше, а плитку не показываем
+  const sea = !S.battles.some((b) => b.oppId === f.id && b.status !== 'done');
   return `<section class="card duels">
     <div class="chats-head"><h3>game Сыграть</h3><span class="small">победа +2 зерна</span></div>
     <div class="duel-stake"><span class="small">Ставка:</span>${[0, 5, 10].map((x) => `<button class="chip ${(S.duelStake || 0) === x ? 'on' : ''}" data-act="duel-stake" data-v="${x}">${x ? x + ' зёрен' : 'без ставки'}</button>`).join('')}</div>
@@ -3282,7 +3282,7 @@ function renderSheet() {
       <div class="duel-stake"><span class="small">Ставка:</span>${[0, 5, 10].map((x) => `<button class="chip ${(S.duelStake || 0) === x ? 'on' : ''}" data-act="duel-stake" data-v="${x}">${x ? x + ' зёрен' : 'без ставки'}</button>`).join('')}</div>
       ${(S.people || []).length ? (S.people || []).map((p) => `<button class="chat-row" data-act="duel-go" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${p.crew ? '<span class="fav-star">★</span> ' : ''}${esc(p.nick)}</span><span class="where">${esc(whereText(p)[0])}</span></span><span aria-hidden="true">swords</span></button>`).join('') : '<p class="sub">Пока некого вызвать: найди своих по нику или вступи в банду.</p>'}
       <button class="find-bar light" data-act="find-open">${ico('search', 18)}<span>Найти соперника по нику</span></button>
-      <p class="small" style="margin:0">${S.duelGame === 'sea' ? 'Морской бой — с людьми из твоей банды и подельниками. Соперник платит ставку, когда нажимает «В бой»; откажется — зёрна вернутся.' : 'Вызвать можно любого, кому можно написать лично. Дуэль появится у вас в личке.'}</p>`);
+      <p class="small" style="margin:0">${S.duelGame === 'sea' ? 'Вызвать можно любого, кому можно написать лично. Соперник платит ставку, когда нажимает «В бой»; откажется — зёрна вернутся.' : 'Вызвать можно любого, кому можно написать лично. Дуэль появится у вас в личке.'}</p>`);
     case 'battle-pick': return sheetWrap('С кем сыграть?', (S.people || []).length ? (S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${esc(p.nick)}</span><span class="where">${esc(whereText(p)[0])}</span></span><span aria-hidden="true">›</span></button>`).join('') + '<p class="small">Откроется переписка — там выбери «Без спешки» или «Быстрая».</p>' : '<p class="sub">Сначала сколоти банду и позови в неё своих.</p>');
     case 'whatsnew': return sheetWrap('Что поменялось', `<div class="wn">
       <div class="wn-i"><span>room</span><div><b>Рядом</b><p>Главный экран: где ты сегодня и все твои люди одним списком — кто в офисе, кто дома, кто в отпуске.</p></div></div>
