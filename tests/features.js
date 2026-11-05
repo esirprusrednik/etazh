@@ -193,8 +193,6 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     await b.post('/api/me/profile', { profile: { firstName: 'Борис' } });
     const gm = (await b.get(`/api/gangs/${g.id}`)).json.members.find((m) => m.id === a.id);
     assert.equal(gm.name, 'Анна Петрова');
-    await a.post('/api/me/profile', { profile: { nameVis: 'hidden' } });
-    assert.equal((await b.get(`/api/gangs/${g.id}`)).json.members.find((m) => m.id === a.id).name, '');
     await a.post('/api/me/profile', { look: { face: 'heart', eyes: '#3A7BD5', hairStyle: 'afro' } });
     const look = (await a.get('/api/me')).json.user.look;
     assert.equal(look.face, 'heart'); assert.equal(look.hairStyle, 'afro');
@@ -206,7 +204,10 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.ok(full.full); assert.equal(full.about, 'Люблю настолки'); assert.equal(full.name, 'Борис'); assert.ok(full.gangs.length);
     const z = await new Client().login('zoe@mts.ru', 'чужой_кот');
     const part = (await z.get(`/api/users/${b.id}`)).json;
-    assert.ok(!part.full); assert.equal(part.about, undefined); assert.equal(part.name, undefined);
+    assert.ok(!part.full); assert.equal(part.about, undefined);
+    assert.equal(part.name, '', 'у самого смотрящего нет имени — чужие имена скрыты');
+    await z.post('/api/me/profile', { profile: { firstName: 'Зоя', lastName: 'Котова' } });
+    assert.equal((await z.get(`/api/users/${b.id}`)).json.name, 'Борис', 'имя видно и вне банды — чтобы можно было общаться');
     assert.equal((await z.get('/api/users/99999')).status, 404);
   });
 

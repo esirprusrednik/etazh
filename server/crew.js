@@ -118,7 +118,7 @@ function register(ctx) {
     return f;
   }
   // Кто не в банде и не подельник, видит в шапке переписки только ник и аватар — где он, не видно
-  const headerOf = (u, f) => (canTalk(u.id, f.id) ? memberStatus(f) : { id: f.id, nick: f.nick, look: publicLook(f), where: null });
+  const headerOf = (u, f) => (canTalk(u.id, f.id) ? memberStatus(f) : { id: f.id, nick: f.nick, name: memberStatus(f).name, look: publicLook(f), where: null });
 
   // Переписку удаляем у обоих, кроме сообщений с открытой жалобой: их ещё должен увидеть модератор
   // Оставленные для модератора помечаем hidden = 2: собеседники их больше не видят

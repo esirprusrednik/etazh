@@ -174,9 +174,7 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     r = (await z.get('/api/search?q=' + encodeURIComponent('boris@mts.ru'))).json.items;
     assert.equal(r.length, 1); assert.equal(r[0].nick, 'ночной_филин');
     assert.equal((await z.get('/api/search?q=' + encodeURIComponent('bori@mts.ru'))).json.items.length, 0, 'почта — только точно');
-    await a.post('/api/me/profile', { profile: { firstName: 'Анна', lastName: 'Петрова', nameVis: 'gang' } });
-    assert.equal((await z.get('/api/search?q=' + encodeURIComponent('Петрова'))).json.items.length, 0, 'имя скрыто — по имени не найти');
-    await a.post('/api/me/profile', { profile: { nameVis: 'all' } });
+    await a.post('/api/me/profile', { profile: { firstName: 'Анна', lastName: 'Петрова' } });
     assert.equal((await z.get('/api/search?q=' + encodeURIComponent('Петрова'))).json.items.length, 0, 'ищущий без своего имени по имени не ищет');
     await z.post('/api/me/profile', { profile: { firstName: 'Зоя' } });
     assert.equal((await z.get('/api/search?q=' + encodeURIComponent('Петрова'))).json.items.length, 1);

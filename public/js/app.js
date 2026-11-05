@@ -1227,7 +1227,6 @@ function renderLogin() {
 // Обязательный шаг: имя и фамилия. Регистр правим сами — «иВАН петров» станет «Иван Петров»
 function renderNameStep() {
   const p = S.me.profile || {};
-  const vis = S.nameVisDraft || p.nameVis || 'gang';
   return `<div class="onb">
     <div class="logo">Этаж<span>.</span></div>
     <div class="card">
@@ -1235,10 +1234,9 @@ function renderNameStep() {
       <p class="sub">Ник — ${esc(S.me.nick)} — остаётся, а имя и фамилия нужны, чтобы коллеги понимали, с кем общаются. Регистр поправим сами.</p>
       <label class="field">Имя<input id="n-first" maxlength="30" autocomplete="given-name" value="${esc(p.firstName || '')}" placeholder="Анна"></label>
       <label class="field">Фамилия<input id="n-last" maxlength="30" autocomplete="family-name" value="${esc(p.lastName || '')}" placeholder="Петрова"></label>
-      <div class="field">Кто видит<div class="chips">${[['all', 'Все коллеги'], ['gang', 'Моя банда и подельники'], ['hidden', 'Никто']].map(([k, t]) => `<button class="chip ${vis === k ? 'on' : ''}" data-act="namevis-pick" data-v="${k}">${t}</button>`).join('')}</div></div>
       ${S.error ? `<div class="note warn">${esc(S.error)}</div>` : ''}
       <button class="btn" data-act="name-step-save">Дальше</button>
-      <p class="small" style="margin:0">Имена коллег ты тоже увидишь — те, что они разрешили показывать. Поменять можно в профиле.</p>
+      <p class="small" style="margin:0">Имя и фамилию видят все коллеги в Этаже — так проще писать в личку, звать на кофе и знакомиться. Исправить можно в профиле.</p>
     </div></div>`;
 }
 const nameCase = (v) => String(v || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('ru').replace(/(^|[\s-])([a-zа-яё])/g, (m, sep, ch) => sep + ch.toLocaleUpperCase('ru'));
@@ -1496,7 +1494,7 @@ function renderMatch() {
   if (!m.on) {
     return `<section class="card match"><div class="card-title">where Совпадаем</div>
       <p class="sub" style="margin:0">Кто из коллег — не только из банды — в какие дни в офисе, а кто дома. Можно позвать на обед, кофе или созвониться.</p>
-      <p class="small" style="margin:0">Видят только те, кто сам открыл свои дни. ${m.count ? `Уже открыли: <b>${m.count}</b>.` : 'Будь первым.'} Показываем ник, аватар, офис на день и общие интересы — без имён.</p>
+      <p class="small" style="margin:0">Видят только те, кто сам открыл свои дни. ${m.count ? `Уже открыли: <b>${m.count}</b>.` : 'Будь первым.'} Показываем ник, имя, аватар, офис на день и общие интересы.</p>
       <button class="btn" data-act="match-on">Открыть свои дни и посмотреть</button></section>`;
   }
   if (m.locked) {
@@ -1509,7 +1507,7 @@ function renderMatch() {
   const chips = `<div class="match-days">${m.days.map((x, k) => `<button class="mday ${k === i ? 'on' : ''} ${x.holiday ? 'off' : ''}" data-act="match-day" data-v="${k}"><b>${esc(x.label.split(' ')[0])}</b><span>${esc(x.label.split(' ')[1] || '')}</span><i>${x.holiday ? '—' : (x.offices ? `${ICONS.office ? ico('office', 11) : ''}${x.offices.reduce((a, o) => a + o.n, 0)}` : '')}</i></button>`).join('')}</div>`;
   if (d.holiday) return `<section class="card match"><div class="card-title">where Совпадаем</div>${chips}<p class="sub" style="margin:0">${esc(d.holiday)} — выходной.</p></section>`;
   const meLine = d.me === 'office' ? 'ты в офисе' : d.me === 'home' ? 'ты из дома' : d.me === 'vacation' ? 'ты в отпуске' : 'твой план не указан';
-  const strip = (ps) => `<div class="match-strip">${ps.slice(0, 14).map((p) => `<span class="mp ${p.mate ? 'mate' : ''} ${p.common.length ? 'common' : ''}">${tap(p.id, avatar(p.look, 38))}<span>${esc(p.nick)}</span></span>`).join('')}${ps.length > 14 ? `<span class="mp more">+${ps.length - 14}</span>` : ''}</div>`;
+  const strip = (ps) => `<div class="match-strip">${ps.slice(0, 14).map((p) => `<span class="mp ${p.mate ? 'mate' : ''} ${p.common.length ? 'common' : ''}" title="${esc(p.name || p.nick)}">${tap(p.id, avatar(p.look, 38))}<span>${esc(p.name ? p.name.split(' ')[0] : p.nick)}</span></span>`).join('')}${ps.length > 14 ? `<span class="mp more">+${ps.length - 14}</span>` : ''}</div>`;
   const commons = (ps) => { const c = ps.filter((p) => p.common.length && !p.mate).slice(0, 3); return c.length ? `<div class="match-common">star ${c.map((p) => `<button class="linkbtn" data-act="person" data-id="${p.id}">${esc(p.nick)}</button> — ${esc(p.common.slice(0, 2).join(', '))}`).join('; ')}</div>` : ''; };
   const group = (title, n, ps, mine) => `<div class="match-group ${mine ? 'mine' : ''}"><div class="row" style="justify-content:space-between"><b>${title}</b><span class="small">${n} ${plural(n, 'человек', 'человека', 'человек')}</span></div>${strip(ps)}${commons(ps)}</div>`;
   const body = (d.offices.length || d.home.n)
@@ -1529,7 +1527,7 @@ function renderBoardCard() {
   const items = b.items.filter((x) => !mine || !x.office || x.office.id === home);
   const row = (x) => `<div class="bpost k-${x.kind}">
     <div class="row" style="gap:10px;align-items:flex-start">${tap(x.author.id, avatar(x.author.look, 36))}
-      <div class="grow" style="min-width:0"><div class="bp-head"><b>${esc(x.author.nick)}</b><span class="bp-kind">${ico(x.icon, 14)} ${esc(x.kindName)}</span></div>
+      <div class="grow" style="min-width:0"><div class="bp-head"><b>${esc(x.author.nick)}</b>${x.author.name ? `<span class="small">${esc(x.author.name)}</span>` : ''}<span class="bp-kind">${ico(x.icon, 14)} ${esc(x.kindName)}</span></div>
         <div class="bp-text">${esc(x.text)}</div>
         <div class="small">до ${ddmm(x.until)}${x.office ? ` · ${esc(x.office.name)}` : ' · весь Этаж'}${x.mine && x.fans && x.fans.length ? ` · откликнулись: ${x.fans.map((f) => `<button class="linkbtn" data-act="dm-open" data-id="${f.id}">${esc(f.nick)}</button>`).join(', ')}` : ''}</div></div></div>
     <div class="row bp-acts">${x.mine ? `<button class="linkbtn" data-act="board-remove" data-id="${x.id}">Снять</button>` : `<button class="chip ${x.iMetoo ? 'on' : ''}" data-act="board-metoo" data-id="${x.id}">${x.iMetoo ? 'check ' : ''}Я тоже${x.metoo ? ' · ' + x.metoo : ''}</button><button class="chip" data-act="dm-open" data-id="${x.author.id}">Написать</button><button class="linkbtn bp-rep" data-act="report" data-type="board" data-id="${x.id}" aria-label="Пожаловаться">⚑</button>`}${x.mine && x.metoo ? `<span class="small">«я тоже» · ${x.metoo}</span>` : ''}</div></div>`;
@@ -4040,7 +4038,6 @@ function renderAvatarEditor() {
 
 const MOUTH_NAMES = { smile: 'Улыбка', grin: 'До ушей', smirk: 'Ухмылка', neutral: 'Серьёзный', sad: 'Грустный', wow: 'Удивлён' };
 const BEARD_NAMES = { none: 'Нет', stubble: 'Щетина', beard: 'Борода', mustache: 'Усы', goatee: 'Эспаньолка' };
-const VIS_NAMES = { all: 'Всем', gang: 'Членам моих банд', hidden: 'Никому' };
 function section(id, title, summary, body, opts = {}) {
   const open = S.sec.has(id);
   return `<section class="psec ${open ? 'open' : ''}">
@@ -4105,8 +4102,7 @@ function renderProfile() {
       <label class="field grow">Имя<input id="p-first" maxlength="30" value="${esc(p.firstName)}" autocomplete="given-name"></label>
       <label class="field grow">Фамилия<input id="p-last" maxlength="30" value="${esc(p.lastName)}" autocomplete="family-name"></label>
     </div>
-    <div class="field">Кто видит имя и фамилию<div class="chips">${Object.entries(VIS_NAMES).map(([k, l]) => `<button class="chip ${p.nameVis === k ? 'on' : ''}" data-act="name-vis" data-v="${k}">${l}</button>`).join('')}</div>
-      <span class="small" style="font-weight:600">${p.nameVis === 'all' ? 'Увидят и те, кто не в твоих бандах, например пара в случайном кофе.' : p.nameVis === 'gang' ? 'Видят члены твоих банд. Остальные — только ник.' : 'Все видят только ник.'}</span></div>
+    <p class="small" style="margin:0">Имя и фамилию видят все коллеги в Этаже.</p>
     <button class="btn ghost" data-act="name-save">Сохранить имя</button>`;
 
   const workBody = `
@@ -4134,7 +4130,7 @@ function renderProfile() {
   const privBody = `
     <label class="check"><input type="checkbox" data-act="toggle" data-k="shareOffice" ${me.shareOffice ? 'checked' : ''}> <span>Показывать банде, где я: офис, дома или в отпуске</span></label>
     <label class="check"><input type="checkbox" data-act="toggle" data-k="quiet" ${me.quiet ? 'checked' : ''}> <span>Тихие часы 19:00–09:00 — не присылать зовы</span></label>
-    <label class="check"><input type="checkbox" data-act="match-toggle" ${p.matchShow ? 'checked' : ''}> <span>«Совпадаем»: показывать коллегам, в какие дни я в офисе и дома (ник, аватар, офис, общие интересы)</span></label>
+    <label class="check"><input type="checkbox" data-act="match-toggle" ${p.matchShow ? 'checked' : ''}> <span>«Совпадаем»: показывать коллегам, в какие дни я в офисе и дома (ник, имя, офис, общие интересы)</span></label>
     <label class="check"><input type="checkbox" data-act="weather-toggle" ${p.weather !== false ? 'checked' : ''}> <span>Погода на завтра: вечером накануне офисного дня — пуш, если ждёт дождь, снег, мороз или жара</span></label>
     <label class="check"><input type="checkbox" data-act="digest-toggle" ${p.digest !== false ? 'checked' : ''}> <span>Утренняя сводка: один пуш в рабочий день около 11:30, если есть дела и ты ещё не заходил${meG('', 'а')}</span></label>
     <label class="check"><input type="checkbox" data-act="findable-toggle" ${p.findable !== false ? 'checked' : ''}> <span>Меня можно найти по нику и рабочей почте — и позвать в банду</span></label>
@@ -4165,7 +4161,7 @@ function renderProfile() {
       <div class="small">${me.beans} ${plural(me.beans, 'зерно', 'зерна', 'зёрен')}</div></div></div>
     ${renderCompletion(true)}
     ${section('look', 'Внешность', `${OUTFIT_NAMES[look.outfit] || 'Худи'} · ${(HAIR_NAMES[look.hairStyle] || '').toLowerCase()}${look.prop && look.prop !== 'none' ? ' · ' + (PROP_NAMES[look.prop] || '').toLowerCase() : ''}`, lookBody)}
-    ${section('name', 'Ник, имя и фамилия', name ? `${esc(name)} · видят: ${VIS_NAMES[p.nameVis].toLowerCase()}` : 'Имя не указано', nameBody)}
+    ${section('name', 'Ник, имя и фамилия', name ? `${esc(name)}` : 'Имя не указано', nameBody)}
     ${section('ach', 'Ачивки', got == null ? '' : `${got} из ${S.fx.achievements.length}`, renderAchievements())}
     ${section('work', 'Работа', `${office || 'офис не указан'} · ${plan}`, workBody)}
     ${section('vac', 'Отпуска', p.vacations.length ? p.vacations.map((v) => `${ddmm(v.from)}–${ddmm(v.to)}`).join(', ') : 'не запланированы', vacBody)}
@@ -5154,19 +5150,17 @@ const actions = {
   },
   'compl-hide'() { store.set('complHideUntil', Date.now() + 7 * 864e5); render(); },
   sec(el) { const v = el.dataset.v; if (S.sec.has(v)) S.sec.delete(v); else S.sec.add(v); render(); },
-  'name-vis': (el) => run(async () => { await post('/api/me/profile', { profile: { nameVis: el.dataset.v } }); await loadMe(); }),
   'name-save': () => run(async () => {
     const f = nameCase($('#p-first').value), l = nameCase($('#p-last').value);
     if (!f || !l) throw new Error('Имя и фамилия обязательны.');
     await post('/api/me/profile', { profile: { firstName: f, lastName: l } }); await loadMe(); toast('Сохранено');
   }),
-  'namevis-pick'(el) { const f = $('#n-first'), l = $('#n-last'); S.nameDraft = { f: f ? f.value : '', l: l ? l.value : '' }; S.nameVisDraft = el.dataset.v; render(); if (S.nameDraft) { const a = $('#n-first'), b = $('#n-last'); if (a) a.value = S.nameDraft.f; if (b) b.value = S.nameDraft.l; } },
   'name-step-save': () => run(async () => {
     const f = nameCase($('#n-first').value), l = nameCase($('#n-last').value);
     if (!f || !l) { S.error = 'Нужны и имя, и фамилия.'; return; }
     S.error = '';
-    await post('/api/me/profile', { profile: { firstName: f, lastName: l, nameVis: S.nameVisDraft || (S.me.profile && S.me.profile.nameVis) || 'gang' } });
-    await loadMe(); S.nameVisDraft = null; S.nameDraft = null; toast(`Приятно познакомиться, ${f}!`); sfx('confirm');
+    await post('/api/me/profile', { profile: { firstName: f, lastName: l } });
+    await loadMe(); S.nameDraft = null; toast(`Приятно познакомиться, ${f}!`); sfx('confirm');
     try { await refresh({ all: true }); } catch {}
   }),
   'nick-change'() {

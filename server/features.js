@@ -100,7 +100,7 @@ const ACH = [
   // ---- Скрытность: секретные и шуточные ----
   A('stealth', 'st_hide', 'common', 'Агент 007', 'Скрыть от банды, где ты работаешь', 'st_hide', 1, { secret: true }),
   A('stealth', 'st_unfindable', 'common', 'Партизан', 'Выключить поиск по себе', 'st_unfindable', 1, { secret: true }),
-  A('stealth', 'st_incognito', 'common', 'Инкогнито', 'Указать имя — и никому его не показывать', 'st_incognito', 1, { secret: true }),
+  A('stealth', 'st_incognito', 'common', 'Инкогнито', 'Закрыть личку от всех', 'st_incognito', 1, { secret: true }),
   A('stealth', 'st_night', 'common', 'Полуночник', 'Заглянуть в Этаж между полуночью и пятью утра', 'st_night', 1, { secret: true }),
   A('stealth', 'st_ghost', 'rare', 'Призрак офиса', 'Отметиться в офисе и уйти меньше чем через час', 'st_ghost', 1, { secret: true }),
   A('stealth', 'st_slack', 'rare', 'Чистосердечное', 'Трижды честно признаться, что отлыниваешь', 'st_slack', 3, { secret: true }),
@@ -428,7 +428,7 @@ function register(ctx) {
         const p = readProfile(u.profile);
         if (!u.share_office) flag(uid, 'st_hide');
         if (p.findable === false) flag(uid, 'st_unfindable');
-        if (p.nameVis === 'hidden' && (p.firstName || p.lastName)) flag(uid, 'st_incognito');
+        if (p.dmFrom === 'none') flag(uid, 'st_incognito');
         if (data.look) flag(uid, 'looks');
         if (data.slack) bump(uid, 'st_slack');
       }
@@ -919,7 +919,7 @@ function register(ctx) {
 
   // ---------- «Совпадаем»: кто из коллег (не только банды) в какие дни в каком офисе и дома ----------
   // Видят только те, кто сам открыл свои дни (взаимность): profile.matchShow. Показываем ник, аватар,
-  // офис на этот день и общие интересы — без имён и без точного времени.
+  // имя, офис на этот день и общие интересы — без точного времени.
   const MATCH_PER_GROUP = 40;
   route('GET', '/api/match', async (req) => {
     const u = requireUser(req);
@@ -947,7 +947,7 @@ function register(ctx) {
         const cell = cellFor(prof, r.id, d.day);
         if (cell !== 'office' && cell !== 'home') continue;
         const common = (prof.tags || []).filter((t) => myTags.has(String(t).toLowerCase()));
-        const p = { id: r.id, nick: r.nick, look: lookOf(r), common, mate: mates.has(r.id) };
+        const p = { id: r.id, nick: r.nick, name: fullName(prof, 'all'), look: lookOf(r), common, mate: mates.has(r.id) };
         if (cell === 'home') { home.push(p); continue; }
         const ci = d.today ? activeCheckin(r.id) : null;
         const oid = (ci && ci.office_id) || prof.home || 'unknown';

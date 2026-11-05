@@ -115,7 +115,7 @@ function startServer(day, extra = {}) {
     });
 
     await step('взаимность имён: без своего имени чужих не видно', async () => {
-      await B.post('/api/me/profile', { profile: { firstName: 'Борис', lastName: 'Петров', nameVis: 'all' } });
+      await B.post('/api/me/profile', { profile: { firstName: 'Борис', lastName: 'Петров' } });
       const cardD = (await D.get(`/api/users/${B.id}`)).json;
       assert.equal(cardD.name || '', '', 'D без имени — имя B скрыто');
       assert.ok((await D.get('/api/state')).json.nameLock.named >= 1);

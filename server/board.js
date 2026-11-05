@@ -15,7 +15,7 @@ const MAX_DAYS = 14;
 const PER_DAY = 5;
 
 function register(ctx) {
-  const { db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, officeById, publicLook } = ctx;
+  const { db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, officeById, publicLook, fullName } = ctx;
 
   db.exec(`
   CREATE TABLE IF NOT EXISTS board_posts (
@@ -36,14 +36,15 @@ function register(ctx) {
   const addDays = (day, n) => new Date(Date.parse(day + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
 
   function view(p, uid) {
-    const who = q('SELECT nick, look FROM users WHERE id = ?').get(p.user_id) || { nick: 'удалённый аккаунт', look: '{}' };
+    const who = q('SELECT nick, look, profile FROM users WHERE id = ?').get(p.user_id) || { nick: 'удалённый аккаунт', look: '{}', profile: '{}' };
+    const wp = (() => { try { return JSON.parse(who.profile || '{}'); } catch { return {}; } })();
     const me = q('SELECT 1 FROM board_metoo WHERE post_id = ? AND user_id = ?').get(p.id, uid);
     const fans = p.user_id === uid ? q('SELECT u.id, u.nick FROM board_metoo m JOIN users u ON u.id = m.user_id WHERE m.post_id = ? ORDER BY m.at').all(p.id) : null;
     const o = p.office_id ? officeById(p.office_id) : null;
     return {
       id: p.id, kind: p.kind, kindName: (KINDS[p.kind] || KINDS.other).name, icon: (KINDS[p.kind] || KINDS.other).icon,
       text: p.text, until: p.until, office: o ? { id: o.id, name: o.name } : null,
-      author: { id: p.user_id, nick: who.nick, look: publicLook ? publicLook(who) : {} }, mine: p.user_id === uid,
+      author: { id: p.user_id, nick: who.nick, name: fullName ? fullName(wp, 'all') : '', look: publicLook ? publicLook(who) : {} }, mine: p.user_id === uid,
       metoo: q('SELECT COUNT(*) AS n FROM board_metoo WHERE post_id = ?').get(p.id).n, iMetoo: !!me, fans, at: p.at
     };
   }

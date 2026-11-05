@@ -135,8 +135,7 @@ function nameCase(v) {
 function fullName(prof, scope) {
   const v = viewerCtx.getStore();
   if (v && v.noName) return '';
-  const vis = prof.nameVis || 'gang';
-  if (vis === 'hidden' || (vis === 'gang' && scope !== 'gang')) return '';
+  // Имя видно всем коллегам: без него не получится общаться за пределами банды (личка, кофе, доска)
   return [prof.firstName, prof.lastName].filter(Boolean).join(' ');
 }
 
@@ -653,7 +652,7 @@ function createApi(db) {
         if (prob) throw bad(prob);
         prof[k] = v;
       }
-      if (p.nameVis !== undefined) { if (!['all', 'gang', 'hidden'].includes(p.nameVis)) throw bad('Неизвестная видимость.'); prof.nameVis = p.nameVis; }
+      // nameVis больше не используется: имя видно всем коллегам
       if (p.coffee !== undefined) prof.coffee = !!p.coffee;
       if (p.digest !== undefined) prof.digest = !!p.digest;
       if (p.matchShow !== undefined) prof.matchShow = !!p.matchShow;
@@ -713,7 +712,7 @@ function createApi(db) {
       nameLock: hasOwnName(u.profile) ? null : (() => {
         const ids = new Set(); gangs.forEach((g) => gangMembers(g.id).forEach((m) => { if (m.id !== u.id) ids.add(m.id); }));
         const rows = [...ids].map((id) => q('SELECT profile FROM users WHERE id = ?').get(id)).filter(Boolean).map((r) => readProfile(r.profile));
-        const named = rows.filter((p) => hasOwnName(p) && (p.nameVis || 'gang') !== 'hidden').length;
+        const named = rows.filter((p) => hasOwnName(p)).length;
         return named ? { named, total: rows.length } : null;
       })(),
       nextVacation: (() => { const v = u.profile.vacations.filter((x) => x.from > U.msk().day).sort((a, b) => (a.from < b.from ? -1 : 1))[0]; return v ? vacRest(v, U.msk().day, U.isAfterCheckinCutoff()) : null; })(),
@@ -1038,7 +1037,7 @@ function createApi(db) {
       rows = all.filter((r) => {
         if (r.nick.toLocaleLowerCase('ru').includes(needle)) return true;
         const p = readProfile(r.profile);
-        if (p.nameVis !== 'all' || !hasOwnName(u.profile)) return false; // по имени ищет тот, кто сам указал имя
+        if (!hasOwnName(u.profile)) return false; // по имени ищет тот, кто сам указал имя
         return [p.firstName, p.lastName].filter(Boolean).join(' ').toLocaleLowerCase('ru').includes(needle);
       });
     }
@@ -1136,7 +1135,7 @@ function createApi(db) {
     const close = me || sharedGangs.length > 0 || crewMate;
     const prof = readProfile(t.profile);
     const look = { ...DEFAULT_LOOK, ...JSON.parse(t.look || '{}') };
-    const card = { id: t.id, nick: t.nick, me, look, status: statusName(look.status), full: close || coffeeMate, canDm: !me && crew ? crew.canDm(u, t) : false };
+    const card = { id: t.id, nick: t.nick, name: me ? '' : fullName(prof, 'all'), me, look, status: statusName(look.status), full: close || coffeeMate, canDm: !me && crew ? crew.canDm(u, t) : false };
     if (!card.full) return card;
     const st = memberStatus(t);
     return {
@@ -1517,7 +1516,7 @@ function createApi(db) {
   league = require('./league').register({ db, q, route, requireUser, U, addBeans, notify, fireAndForget });
   tourney = require('./tourney').register({ db, q, route, requireUser, requireAdmin, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, gangwar, league });
   // ---------- Доска объявлений на весь «Этаж» ----------
-  board = require('./board').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, officeById, publicLook });
+  board = require('./board').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, officeById, publicLook, fullName });
   // ---------- Погода на завтра: вечером накануне офисного дня ----------
   weather = require('./weather').register({ db, q, U, notify, fireAndForget, readProfile, weekdayName, features });
   // ---------- «Этаж» пишет сам: живая сводка и один утренний пуш ----------
