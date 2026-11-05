@@ -1,5 +1,6 @@
 // Клиент «Этажа»: без фреймворков, рендер строками + делегирование событий (CSP запрещает inline-обработчики).
 import { officeSvg } from './building.js';
+import { GUIDE } from './guide.js';
 import { crestSvg, crestOf, autoCrest, randomCrest, CREST_PARTS, TINCTURES, TINCTURE_NAMES, SHAPE_NAMES, DIV_NAMES, CHARGE_NAMES, TOP_NAMES } from './crest.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -1306,6 +1307,7 @@ function aboutHtml({ cta = true } = {}) {
     <div class="about-grid">${ABOUT_TILES.map(([e, t, d]) => `<div class="about-tile"><span class="about-emo" aria-hidden="true">${e}</span><b>${t}</b><span>${d}</span></div>`).join('')}</div>
     <div class="about-not"><b>Чего Этаж не делает</b>
       <span>Не следит: никакой геолокации — только твоя кнопка «я в офисе», и её можно скрыть. Не хранит почту — только зашифрованный отпечаток. Не для начальства: это не табель, а кофе-машина с интерфейсом.</span></div>
+    ${S.me ? `<button class="fb-entry" data-act="open" data-v="guide"><span class="grow"><b>Как тут всё устроено</b><span class="small">Каждая вкладка и меню: что нажимать и зачем</span></span><span class="chev" aria-hidden="true">›</span></button>` : ''}
     ${S.me ? '<button class="linkbtn" data-act="open" data-v="changes">Что нового — по дням →</button>' : '<a class="linkbtn" href="/changelog.html" target="_blank" rel="noopener">Что нового — по дням →</a>'}
     ${cta ? '<button class="btn" data-act="about-ok">Понятно, погнали</button>' : ''}
   </div>`;
@@ -1641,6 +1643,19 @@ function renderMatch() {
   </section>`;
 }
 // ----- «Кто знает?»: поиск коллег по темам «Спроси меня про» и «Чем занимаюсь» -----
+// Туториал «Как тут всё устроено»: раздел на вкладку или меню, пункты раскрываются, «Показать» ведёт туда
+function guideHtml() {
+  const open = S.guideOpen || null;
+  return `<div class="guide">
+    <p class="sub" style="margin:0">Нажми на раздел — расскажем, что там нажимать и зачем. «Показать» откроет это место в приложении.</p>
+    <button class="btn ghost" data-act="guide-tour">${ico('spark', 18)} Пройти короткий тур с подсказками</button>
+    ${GUIDE.map((g) => `<section class="guide-sec ${open === g.id ? 'on' : ''}">
+      <button class="guide-head" data-act="guide-toggle" data-v="${g.id}" aria-expanded="${open === g.id}"><span class="guide-ico">${ico(g.icon, 20)}</span><span class="grow"><b>${esc(g.title)}</b><span class="small">${esc(g.lead)}</span></span><span class="chev" aria-hidden="true">${open === g.id ? '−' : '+'}</span></button>
+      ${open === g.id ? `<dl class="guide-items">${g.items.map(([t, d]) => `<dt>${esc(t)}</dt><dd>${esc(d)}</dd>`).join('')}</dl>
+        ${g.go ? `<button class="btn small" data-act="guide-go" data-v="${g.id}">Показать</button>` : ''}` : ''}
+    </section>`).join('')}
+  </div>`;
+}
 // «Что нового»: журнал изменений по дням (public/changelog.json)
 async function loadChanges() { try { const r = await fetch('/changelog.json', { cache: 'no-cache' }); if (r.ok) S.changes = await r.json(); } catch {} }
 const changesFresh = () => !!(S.changes && S.changes[0] && S.changes[0].day > (store.get('changesSeen', '') || ''));
@@ -3474,6 +3489,7 @@ function renderSheet() {
     case 'crew': return sheetWrap('Подельники', renderCrew());
     case 'stats': return sheetWrap('Этаж сегодня', renderStats());
     case 'about': store.set('aboutSeen', true); return sheetWrap('Об Этаже', aboutHtml());
+    case 'guide': return sheetWrap('Как тут всё устроено', guideHtml());
     case 'changes': if (S.changes && S.changes[0]) store.set('changesSeen', S.changes[0].day); return sheetWrap('Что нового', changesHtml());
     case 'crest': return sheetWrap('Герб банды', renderCrestEditor());
     case 'gang-switch': return sheetWrap('Перейти в другую банду?', renderGangSwitch());
@@ -4343,6 +4359,7 @@ function renderProfile() {
     ${section('about', 'О себе', [p.about && esc(p.about), p.bday && 'ДР ' + esc(p.bday)].filter(Boolean).join(' · ') || 'интересы, пара слов, день рождения', aboutBody)}
     ${section('priv', 'Приватность, звук и уведомления', `${me.shareOffice ? 'банда видит, где я' : 'где я — скрыто'}${me.quiet ? ' · тихие часы' : ''} · ${soundVol() ? 'звук ' + soundVol() + '%' : 'без звука'}`, privBody)}
     <button class="fb-entry about-entry" data-act="open" data-v="about"><span class="grow"><b>Об Этаже</b><span class="small">Зачем он и что тут есть — коротко и без канцелярита</span></span><span class="chev" aria-hidden="true">›</span></button>
+    <button class="fb-entry" data-act="open" data-v="guide"><span class="grow"><b>Как тут всё устроено</b><span class="small">Каждая вкладка и меню: что нажимать и зачем</span></span><span class="chev" aria-hidden="true">›</span></button>
     <button class="fb-entry" data-act="open" data-v="changes"><span class="grow"><b>Что нового</b><span class="small">${S.changes && S.changes[0] ? 'Последнее обновление — ' + esc(ddmm(S.changes[0].day)) : 'Что добавили и починили — по дням'}</span></span>${changesFresh() ? '<span class="fb-count">новое</span>' : '<span class="chev" aria-hidden="true">›</span>'}</button>
     <button class="fb-entry" data-act="open" data-v="feedback"><span class="grow"><b>Есть идея или нашёл ошибку?</b><span class="small">Напиши — ответим. За принятую идею +10 зёрен</span></span>${(S.state && S.state.badges && S.state.badges.feedback) ? `<span class="fb-count">${S.state.badges.feedback}</span>` : '<span class="chev" aria-hidden="true">›</span>'}</button>
     ${me.isAdmin ? '<a class="btn violet" style="display:flex;align-items:center;justify-content:center;text-decoration:none" href="/admin.html">Модерация</a>' : ''}
@@ -5382,6 +5399,14 @@ const actions = {
     const nick = S.nickConfirm; S.nickConfirm = null;
     const r = await post('/api/me/nick', { nick }); await loadMe(); toast(`Теперь ты ${r.nick}`);
   }),
+  'guide-toggle'(el) { S.guideOpen = S.guideOpen === el.dataset.v ? null : el.dataset.v; render(); },
+  'guide-go'(el) {
+    const g = GUIDE.find((x) => x.id === el.dataset.v);
+    if (!g || !g.go) return;
+    if (g.go.sheet) { actions.open({ dataset: { v: g.go.sheet } }); return; }
+    S.sheet = null; S.tab = g.go.tab; S.chatGang = false; S.dm = null; S.battle = null; render(); window.scrollTo(0, 0); run(() => refresh());
+  },
+  'guide-tour'() { S.sheet = null; S.tab = 'near'; S.coach = 1; S.coachStart = 1; render(); window.scrollTo(0, 0); },
   'work-save': () => run(async () => { await post('/api/me/profile', { profile: { role: $('#p-role').value, askMe: $('#p-ask').value } }); await loadMe(); loadExperts((S.experts && S.experts.q) || '').then(render); toast('Сохранено — теперь тебя можно найти по темам'); }),
   'prof-save': () => run(async () => { await post('/api/me/profile', { profile: { about: $('#p-about').value, bday: $('#p-bday').value } }); await loadMe(); toast('Сохранено'); }),
   toggle: (el) => run(async () => { await post('/api/me/profile', { [el.dataset.k]: el.checked }); await loadMe(); await loadState(); }),

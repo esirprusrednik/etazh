@@ -1518,3 +1518,15 @@ button.chip.ask-chip { cursor: pointer; }
 .install-blocked { margin-top: 10px; background: var(--s1); border-radius: 14px; padding: 10px 12px; }
 .install-blocked summary { font-weight: 700; cursor: pointer; }
 .install-blocked .ol { margin-top: 6px; }
+.guide { display: grid; gap: 10px; }
+.guide-sec { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.guide-sec.on { border-color: var(--pri-bg, var(--line)); }
+.guide-head { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: none; border: 0; color: var(--ink); font: inherit; padding: 12px 14px; cursor: pointer; }
+.guide-head b { display: block; font-size: 16px; }
+.guide-head .chev { font-size: 22px; color: var(--muted); width: 18px; text-align: center; }
+.guide-ico { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: var(--tint-v); color: var(--tint-v-fg); flex: none; }
+.guide-items { margin: 0; padding: 0 14px 4px 64px; display: grid; gap: 2px; }
+.guide-items dt { font-weight: 800; font-size: 14px; margin-top: 8px; }
+.guide-items dd { margin: 0; font-size: 14px; line-height: 1.4; color: var(--muted); }
+.guide-sec .btn.small { margin: 8px 14px 14px 64px; }
+@media (max-width: 360px) { .guide-items { padding-left: 14px; } .guide-sec .btn.small { margin-left: 14px; } }

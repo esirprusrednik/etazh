@@ -23,6 +23,7 @@ public/js/app.js
 public/js/changelog.js
 public/js/building.js
 public/js/crest.js
+public/js/guide.js
 public/js/theme.js
 public/fonts/onest.woff
 public/fonts/unbounded.woff
