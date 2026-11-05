@@ -221,6 +221,7 @@ function createApi(db) {
   let weather = null;
   let secret = null;
   let friday = null;
+  let wave = null;
   let advent = null;
   let battle = null;
   let quiz = null;
@@ -1565,10 +1566,12 @@ function createApi(db) {
   secret = require('./secret').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, canDm: (u, t) => (crew ? crew.canDm(u, t) : true) });
   // ---------- Пятничная пятиминутка банды ----------
   friday = require('./friday').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, readProfile });
+  // ---------- «Волна» как на стадионе: клич банде раз в неделю ----------
+  wave = require('./wave').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, publicLook, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   // ---------- Погода на завтра: вечером накануне офисного дня ----------
   weather = require('./weather').register({ db, q, U, notify, fireAndForget, readProfile, weekdayName, features });
   // ---------- «Этаж» пишет сам: живая сводка и один утренний пуш ----------
-  inbox = require('./inbox').register({ db, q, route, requireUser, U, notify, fireAndForget, myGangs, readProfile, weekdayName, features, blitz, advent, santa, duels, gevents, polls, weather, friday });
+  inbox = require('./inbox').register({ db, q, route, requireUser, U, notify, fireAndForget, myGangs, readProfile, weekdayName, features, blitz, advent, santa, duels, gevents, polls, weather, friday, wave });
   feedback = require('./feedback').register({ db, q, route, requireUser, requireAdmin, bad, U, addBeans, notify, fireAndForget, HttpError, BUILD });
 
   // Разово шифруем старую переписку, лежащую в базе открытым текстом (повторный запуск ничего не меняет)
@@ -1643,6 +1646,7 @@ function createApi(db) {
     if (board) board.cleanup();
     if (secret) secret.cleanup();
     if (friday) friday.cleanup();
+    if (wave) wave.cleanup();
     if (feedback) feedback.cleanup();
     if (polls) polls.cleanup();
     if (gevents) gevents.cleanup();

@@ -54,6 +54,7 @@ function register(ctx) {
       }
     } catch {}
     // Пятничная пятиминутка: не ответил на этой неделе
+    if (ctx.wave) for (const x of ctx.wave.pending(uid, myGangs(uid))) out.push({ id: `wave-${x.wave.id}`, kind: 'wave', icon: 'hand', push: false, title: `Волна в «${x.gang.name}» — вставай!`, text: `Осталось ${Math.max(1, Math.ceil((x.wave.ends_at - U.now()) / 60e3))} мин. Трибуна ждёт`, go: { act: 'wave-open', id: x.gang.id } });
     if (ctx.friday) for (const x of ctx.friday.pending(uid, myGangs(uid))) out.push({ id: `friday-${x.gang.id}-${x.week}`, kind: 'friday', icon: 'chat', push: false, title: `Пятиминутка «${x.gang.name}»`, text: 'Три вопроса о неделе, ответ — одна строка. +3 зерна', go: { act: 'gang-open', id: x.gang.id, to: '.friday' } });
     // Блиц: не начат или не доигран
     const set = blitz && blitz.activeSet();

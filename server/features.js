@@ -88,6 +88,9 @@ const ACH = [
   A('social', 'thanks3', 'common', 'Приятно', 'Получить 3 спасибо', 'thanks_got', 3, { series: 'thanks' }),
   A('social', 'thanks10', 'rare', 'Душа банды', 'Получить 10 спасибо', 'thanks_got', 10, { series: 'thanks' }),
   A('social', 'thanks50', 'legendary', 'Легенда банды', 'Получить 50 спасибо', 'thanks_got', 50, { series: 'thanks' }),
+  A('social', 'wave1', 'common', 'Ла-ола', 'Встать в волну банды', 'waves', 1, { series: 'waves' }),
+  A('social', 'wave10', 'rare', 'Завсегдатай трибун', 'Встать в 10 волн', 'waves', 10, { series: 'waves' }),
+  A('social', 'wave_full', 'legendary', 'Дирижёр стадиона', 'Запустить волну, в которую встала вся банда', 'wave_full', 1),
   A('social', 'thanks_people5', 'rare', 'Щедрая душа', 'Сказать спасибо пятерым разным людям', 'thanks_people', 5),
   A('social', 'gangs3', 'rare', 'Многостаночник', 'Состоять в трёх бандах', 'gangs', 3),
   A('social', 'recruit1', 'common', 'Вербовщик', 'Позвать человека в банду — и он вступил', 'recruits', 1, { series: 'recruits' }),
@@ -303,7 +306,7 @@ function register(ctx) {
     'day_streak', 'active_days', 'quest_all', 'polls', 'poll_votes', 'blitz', 'blitz_best', 'early', 'dm_people', 'thanks_people', 'recruits', 'big_lunch',
     'st_hide', 'st_unfindable', 'st_incognito', 'st_night', 'st_ghost', 'st_slack', 'st_lone',
     'duels_started', 'duel_wins', 'duel_wins_rps', 'duel_wins_dice', 'duel_wins_ttt', 'duel_rivals', 'duel_streak_best', 'duel_pots', 'duel_comeback', 'duel_sixes', 'duel_snake',
-    'duel_resign', 'duel_resign_lead', 'duel_declined', 'duel_lost3', 'duel_ttt_draw'];
+    'duel_resign', 'duel_resign_lead', 'duel_declined', 'duel_lost3', 'duel_ttt_draw', 'waves', 'wave_full'];
   function countersOf(uid, u) {
     const c = Object.fromEntries(COUNTER_KEYS.map((k) => [k, 0]));
     for (const r of q('SELECT key, n FROM counters WHERE user_id = ?').all(uid)) if (r.key in c) c[r.key] = r.n;
@@ -439,6 +442,8 @@ function register(ctx) {
       if (type === 'poll_vote') { bump(uid, 'poll_votes'); completeQuest(uid, 'vote'); }
       if (type === 'battle_start') { bump(uid, 'battles'); completeQuest(uid, 'sea'); }
       if (type === 'recruit') bump(uid, 'recruits');
+      if (type === 'wave_join') bump(uid, 'waves');
+      if (type === 'wave_full') bump(uid, 'wave_full');
       if (type === 'checkout' && data.since && U.now() - data.since < 3600e3) flag(uid, 'st_ghost');
       if (type === 'profile') {
         const u = q('SELECT share_office, profile FROM users WHERE id = ?').get(uid);

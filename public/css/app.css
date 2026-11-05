@@ -1532,3 +1532,53 @@ button.chip.ask-chip { cursor: pointer; }
 @media (max-width: 360px) { .guide-items { padding-left: 14px; } .guide-sec .btn.small { margin-left: 14px; } }
 .thx-btn { width: 100%; background: var(--tint-y); color: var(--tint-y-fg); box-shadow: none; }
 .thx-sheet { display: grid; gap: 12px; }
+/* ----- Волна как на стадионе ----- */
+.wave { display: grid; gap: 10px; }
+.wave.live { background: linear-gradient(160deg, var(--tint-b), var(--card) 70%); border: 2px solid var(--tint-b-fg); }
+.wave-timer { font-weight: 900; font-variant-numeric: tabular-nums; font-size: 18px; color: var(--tint-b-fg); }
+.wave-timer.hot { color: #E5484D; animation: wavepulse 1s ease-in-out infinite; }
+@keyframes wavepulse { 50% { transform: scale(1.12); } }
+.stands { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px 6px; padding: 22px 8px 10px; border-radius: 16px;
+  background: linear-gradient(180deg, var(--tint-v), var(--tint-b)); }
+.fan::after { content: ""; position: absolute; bottom: -7px; left: 0; right: 0; height: 7px; border-radius: 4px; background: rgba(43,79,176,.22); }
+.fan.up::after { animation: none; }
+.fan { position: relative; display: inline-grid; place-items: center; width: 42px; height: 46px; }
+.fan > svg, .fan > .ava, .fan > span:not(.fan-arms) { position: relative; z-index: 1; }
+.fan:not(.up) > :not(.fan-arms) { filter: grayscale(.85); opacity: .5; }
+.fan.me { outline: 2px dashed var(--tint-y-fg); outline-offset: 2px; border-radius: 50%; }
+.fan-arms { position: absolute; left: 50%; top: 2px; width: 40px; height: 22px; transform: translateX(-50%) translateY(8px); opacity: 0; pointer-events: none; }
+.fan-arms::before, .fan-arms::after { content: ""; position: absolute; bottom: 0; width: 7px; height: 22px; border-radius: 6px 6px 3px 3px; background: #F2C29B; box-shadow: inset 0 -6px 0 var(--tint-b-fg); }
+.fan-arms::before { left: 3px; transform: rotate(-24deg); transform-origin: bottom center; }
+.fan-arms::after { right: 3px; transform: rotate(24deg); transform-origin: bottom center; }
+.fan.up { animation: fanjump 2.8s ease-in-out infinite; animation-delay: calc(var(--i) * .16s); }
+.fan.up .fan-arms { animation: armsup 2.8s ease-in-out infinite; animation-delay: calc(var(--i) * .16s); }
+@keyframes fanjump { 0%, 24%, 100% { transform: translateY(0); } 9% { transform: translateY(-14px) scale(1.06); } }
+@keyframes armsup { 0%, 24%, 100% { opacity: 0; transform: translateX(-50%) translateY(10px); } 5%, 15% { opacity: 1; transform: translateX(-50%) translateY(-12px); } }
+.wave-bar { position: relative; height: 26px; border-radius: 999px; background: var(--s1); overflow: hidden; }
+.wave-bar i { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: linear-gradient(90deg, #4F8BFF, #8B5CF6, #FFC93C); transition: width .6s ease; }
+.wave-bar span { position: relative; display: block; text-align: center; line-height: 26px; font-size: 13px; font-weight: 800; color: var(--ink); }
+.btn.wave-go { width: 100%; font-size: 17px; background: linear-gradient(90deg, #4F8BFF, #8B5CF6); color: #fff; animation: wavego 1.6s ease-in-out infinite; }
+@keyframes wavego { 50% { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(79,139,255,.45); } }
+.wave.idle .row { align-items: center; gap: 10px; }
+.wave-last { display: flex; gap: 8px; align-items: center; font-weight: 700; font-size: 14px; padding: 8px 10px; border-radius: 12px; background: var(--s1); }
+.wave-last.full, .wave-last.ok { background: var(--good-bg); color: var(--good-fg); }
+.wave-launch { display: grid; gap: 12px; }
+.demo-stands { gap: 10px 4px; padding-top: 26px; }
+.fan.demo { width: 30px; height: 34px; }
+.demo-head { width: 26px; height: 26px; border-radius: 50%; background: var(--c, #FFC93C); box-shadow: inset 0 -5px 0 rgba(0,0,0,.15); display: block; }
+.push-preview { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 16px; background: var(--s1); font-size: 14px; line-height: 1.35; }
+.push-preview b { display: block; font-size: 13px; }
+.pp-ico { width: 30px; height: 30px; border-radius: 8px; background: #FFC93C; color: #1A2547; font-weight: 900; display: grid; place-items: center; flex: none; }
+/* Волна через весь экран */
+.wave-sweep { position: fixed; inset: 0; z-index: 1000; pointer-events: none; display: flex; flex-direction: column; justify-content: flex-end; animation: sweepfade 2.6s ease forwards;
+  background: linear-gradient(0deg, rgba(79,139,255,.42), rgba(139,92,246,.18) 45%, transparent 70%); }
+.sw-row { display: flex; justify-content: space-around; align-items: flex-end; padding: 0 6px 30vh; }
+.sw-fan { position: relative; display: inline-grid; place-items: center; transform: translateY(80px); animation: swjump 1.1s cubic-bezier(.3,.7,.4,1) both; animation-delay: calc(var(--i) * .07s); }
+.sw-fan .fan-arms { opacity: 1; transform: translateX(-50%) translateY(-10px); }
+.sw-fan .demo-head { width: 24px; height: 24px; }
+.sw-title { position: absolute; left: 0; right: 0; top: 26%; text-align: center; font-family: Unbounded, Onest, sans-serif; font-weight: 900; font-size: 46px; color: #fff;
+  text-shadow: 0 4px 0 #2B4FB0, 0 10px 30px rgba(0,0,0,.35); animation: swtitle 1.6s cubic-bezier(.2,1.4,.4,1) both; animation-delay: .25s; letter-spacing: .02em; }
+@keyframes swjump { 0% { transform: translateY(80px); } 45% { transform: translateY(-36px); } 100% { transform: translateY(80px); } }
+@keyframes swtitle { 0% { transform: scale(.3) rotate(-8deg); opacity: 0; } 30% { transform: scale(1.1) rotate(2deg); opacity: 1; } 80% { opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
+@keyframes sweepfade { 0% { opacity: 0; } 10%, 75% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .fan.up, .fan.up .fan-arms, .btn.wave-go, .sw-fan { animation: none; } .fan.up .fan-arms { opacity: 1; transform: translateX(-50%) translateY(-12px); } }
