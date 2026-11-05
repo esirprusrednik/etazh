@@ -214,7 +214,7 @@ function register(ctx) {
       items: rows.map((g) => {
         const s = side(g, u.id);
         return {
-          id: g.id, status: g.status, oppId: g[other(s)], mode: g.mode || 'calm', stake: g.stake || 0,
+          id: g.id, status: g.status, oppId: g[other(s)], mode: g.mode || 'calm', stake: g.stake || 0, challenger: s === 'a',
           myTurn: (g.status === 'play' && g.turn === u.id) || (g.status === 'setup' && !g[s + '_ready']),
           winner: g.status === 'done' ? (g.winner === u.id ? 'me' : 'opp') : null
         };

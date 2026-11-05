@@ -2324,11 +2324,14 @@ function renderDuel(d) {
 }
 function renderDuelsBox(f) {
   const items = S.duelsWith || [];
+  // Морской бой — с подельниками и своей бандой; если партия уже идёт, её плашка выше, а плитку не показываем
+  const sea = (f.crew || (S.people || []).some((p) => p.id === f.id)) && !S.battles.some((b) => b.oppId === f.id && b.status !== 'done');
   return `<section class="card duels">
-    <div class="chats-head"><h3>game Дуэль</h3><span class="small">победа +2 зерна</span></div>
+    <div class="chats-head"><h3>game Сыграть</h3><span class="small">победа +2 зерна</span></div>
     <div class="duel-stake"><span class="small">Ставка:</span>${[0, 5, 10].map((x) => `<button class="chip ${(S.duelStake || 0) === x ? 'on' : ''}" data-act="duel-stake" data-v="${x}">${x ? x + ' зёрен' : 'без ставки'}</button>`).join('')}</div>
-    <div class="duel-new">${[['rps', rpsDuo(), 'Камень, ножницы, бумага'], ['dice', 'dice', 'Кости'], ['ttt', 'xcircle', 'Крестики-нолики']].map(([g, e, t]) => `<button class="duel-start" data-act="duel-new" data-to="${f.id}" data-v="${g}"><span>${e}</span><b>${t}</b></button>`).join('')}</div>
-    ${hint('duel-rules', 'Правила дуэлей и ставок', `<ul class="ol"><li><b>Камень, ножницы, бумага</b> и <b>кости</b> — до двух побед. В камне-ножницах-бумаге ход соперника скрыт, пока не сходишь сам. Кости бросает сервер — подкрутить нельзя.</li><li><b>Крестики-нолики</b> — кто вызвал, ходит крестиками первым.</li><li><b>Ставка</b> 5 или 10 зёрен: вызвавший платит сразу, соперник — своим первым ходом. Не хочешь — откажись до хода, ничего не потеряешь. Победитель забирает обе ставки, ничья — возврат.</li><li>Победа без ставки — +2 зерна (до 3 раз в день). Брошенная на 3 дня дуэль закрывается, ставки возвращаются.</li></ul>`)}
+    <div class="duel-new ${sea ? 'n4' : ''}">${[['rps', rpsDuo(), 'Камень, ножницы, бумага'], ['dice', 'dice', 'Кости'], ['ttt', 'xcircle', 'Крестики-нолики'], ...(sea ? [['sea', 'anchor', 'Морской бой']] : [])].map(([g, e, t]) => `<button class="duel-start ${g === 'sea' && S.dmSea ? 'on' : ''}" data-act="${g === 'sea' ? 'dm-sea' : 'duel-new'}" data-to="${f.id}" data-v="${g}"><span>${e}</span><b>${hy(t)}</b></button>`).join('')}</div>
+    ${sea && S.dmSea ? `<div class="sea-modes"><button class="bi-mode" data-act="battle-new" data-id="${f.id}" data-mode="calm" data-stake="${S.duelStake || 0}">Без спешки<small>ходите, когда удобно</small></button><button class="bi-mode fast" data-act="battle-new" data-id="${f.id}" data-mode="fast" data-stake="${S.duelStake || 0}">bolt Быстрая<small>по 1,5 мин у каждого</small></button></div>` : ''}
+    ${hint('duel-rules', 'Правила дуэлей и ставок', `<ul class="ol"><li><b>Камень, ножницы, бумага</b> и <b>кости</b> — до двух побед. В камне-ножницах-бумаге ход соперника скрыт, пока не сходишь сам. Кости бросает сервер — подкрутить нельзя.</li><li><b>Крестики-нолики</b> — кто вызвал, ходит крестиками первым.</li><li><b>Ставка</b> 5 или 10 зёрен: вызвавший платит сразу, соперник — своим первым ходом. Не хочешь — откажись до хода, ничего не потеряешь. Победитель забирает обе ставки, ничья — возврат. В <b>морском бою</b> соперник платит, когда нажимает «В бой»; отказ до начала — возврат обоим.</li><li>Победа без ставки — +2 зерна (до 3 раз в день). Брошенная на 3 дня дуэль закрывается, ставки возвращаются.</li></ul>`)}
     ${items.map(renderDuel).join('')}
   </section>`;
 }
@@ -2836,7 +2839,7 @@ function renderDm() {
     ${shut ? `<div class="note dm-shut">lock ${esc(shut)}</div>` : ''}
     ${shut ? '' : `<div class="chips">${v.calls.map((k) => `<button class="chip" data-act="dm-call-open" data-kind="${k}">${esc(S.cat.calls[k].label)}</button>`).join('')}<button class="chip meme-chip" data-act="meme-open" data-to="${f.id}">image Мем</button></div>`}
   </section>
-  ${f.crew && !shut ? renderBattleInvite(f) : ''}
+  ${!shut ? renderBattleInvite(f) : ''}
   ${shut ? '' : renderDuelsBox(f)}
   ${shut && !v.messages.length ? '' : `<section class="card">
     <div class="chat" id="dm-chat">${msgs}</div>
@@ -2856,15 +2859,12 @@ function renderDm() {
 function renderBattleInvite(f) {
   const g = S.battles.find((b) => b.oppId === f.id && b.status !== 'done');
   const label = !g ? 'Вызвать на морской бой'
-    : g.status === 'setup' ? (g.myTurn ? 'Расставь флот — тебя вызвали' : 'Партия: ждём соперника')
+    : g.status === 'setup' ? (g.myTurn ? (g.challenger ? 'Расставь флот — вызов отправлен' : 'Расставь флот — тебя вызвали') : 'Партия: ждём соперника')
     : g.myTurn ? 'Твой ход в морском бою!' : 'Партия идёт: ход соперника';
-  if (!g) {
-    return `<div class="battle-invite pick"><span class="bi-ico" aria-hidden="true">anchor</span><span class="grow"><b>Морской бой</b>
-      <span class="bi-modes"><button class="bi-mode" data-act="battle-new" data-id="${f.id}" data-mode="calm">Без спешки<small>ходите, когда удобно</small></button>
-      <button class="bi-mode fast" data-act="battle-new" data-id="${f.id}" data-mode="fast">bolt Быстрая<small>по 1,5 мин у каждого</small></button></span></span></div>`;
-  }
+  if (!g) return '';
+
   return `<button class="battle-invite ${g.myTurn ? 'hot' : ''}" data-act="battle-open" data-id="${g.id}">
-    <span class="bi-ico" aria-hidden="true">${g.mode === 'fast' ? 'bolt' : 'anchor'}</span><span class="grow"><b>${label}</b><span class="small">${g.mode === 'fast' ? 'Быстрая партия · ' : ''}Нажми, чтобы открыть поле</span></span><span aria-hidden="true">›</span>
+    <span class="bi-ico" aria-hidden="true">${g.mode === 'fast' ? 'bolt' : 'anchor'}</span><span class="grow"><b>${label}</b><span class="small">${g.mode === 'fast' ? 'Быстрая партия · ' : ''}${g.stake ? `ставка ${g.stake} · ` : ''}Нажми, чтобы открыть поле</span></span><span aria-hidden="true">›</span>
   </button>`;
 }
 
@@ -4354,6 +4354,7 @@ const actions = {
     if (S.duelStake) loadMe().catch(() => {});
     sfx(r.existing ? 'open' : 'fanfare'); toast(r.existing ? 'Эта дуэль уже идёт' : 'Вызов брошен!'); await loadDuels(S.dm);
   }),
+  'dm-sea'() { S.dmSea = !S.dmSea; sfx('pick'); render(); },
   'duel-pick'(el) { S.duelGame = el.dataset.v; S.sheet = 'duel-pick'; S.lastSheet = null; render(); },
   'sea-mode'(el) { S.seaMode = el.dataset.v; sfx('pick'); render(); },
   'duel-go': (el) => run(async () => {
