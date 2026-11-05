@@ -1281,3 +1281,47 @@ a { color: var(--link); }
 
 /* Подтверждение «нажми ещё раз» — сверху, под шапкой: внизу оно закрывало кнопку, которую надо нажать */
 .toast.top { bottom: auto; top: calc(96px + env(safe-area-inset-top)); }
+
+/* Игры: быстрые иконки наверху — случайный кофе, ачивки, Лавка */
+.g-quick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 0 12px; }
+.gq { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 4px 10px; border: 1px solid var(--card-bd); border-radius: 18px; background: var(--card); box-shadow: var(--card-sh); color: var(--ink); font: inherit; cursor: pointer; min-width: 0; }
+.gq:active { transform: translateY(1px); }
+.gq-ico { position: relative; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; margin-bottom: 4px; overflow: visible; }
+.gq-ico > svg:not(.ei) { border-radius: 50%; }
+.gq.coffee .gq-ico { background: var(--tint-y); color: var(--tint-y-fg); }
+.gq.ach .gq-ico { background: var(--tint-v); color: var(--tint-v-fg); }
+.gq.shop .gq-ico { background: var(--tint-g); color: var(--tint-g-fg); }
+.gq b { font-size: 13px; font-weight: 700; line-height: 1.15; text-align: center; }
+.gq > span:last-child { font-size: 12px; color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gq-dot { position: absolute; top: 0; right: 0; width: 12px; height: 12px; border-radius: 50%; background: var(--red, #E5484D); border: 2px solid var(--card); }
+.g-group { margin: 18px 4px 8px; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.coffee-sheet .card { box-shadow: none; border: 0; padding: 0; margin: 0 0 10px; background: none; }
+
+/* Задания дня: значки с подписью, по нажатию — текст и кнопка «Сделать» */
+.qi-row { display: flex; gap: 6px; margin-top: 12px; justify-content: space-between; }
+.qi { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 0; border: 0; background: none; font: inherit; color: var(--ink); cursor: pointer; }
+.qi-c { position: relative; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; background: var(--s1); color: var(--ink); border: 2px dashed var(--line); transition: transform .15s; }
+.qi:active .qi-c { transform: scale(.94); }
+.qi.on .qi-c { border: 2px solid var(--ink); }
+.qi.done .qi-c { background: var(--tint-g); color: var(--tint-g-fg); border: 2px solid transparent; }
+.qi.bonus:not(.done) .qi-c { background: var(--tint-y); color: var(--tint-y-fg); border-color: transparent; }
+.qi.on.done .qi-c, .qi.on.bonus .qi-c { border-color: currentColor; }
+.qi-ok { position: absolute; right: -3px; bottom: -3px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--green); color: #fff; border: 2px solid var(--card); font-style: normal; font-size: 11px; }
+.qi-ok.star { background: #F4C64E; color: #5A3B00; }
+.qi-l { font-size: 11.5px; font-weight: 600; line-height: 1.15; text-align: center; color: var(--muted); max-width: 100%; overflow-wrap: anywhere; hyphens: manual; }
+.qi.done .qi-l { color: var(--tint-g-fg); }
+.qi-more { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 10px 12px; border-radius: 14px; background: var(--s1); }
+.qi-more .grow { display: grid; gap: 2px; min-width: 0; }
+.qi-more b { font-size: 14px; line-height: 1.25; }
+.qi-bar { height: 4px; border-radius: 2px; background: var(--s2); margin-top: 12px; overflow: hidden; }
+.qi-bar i { display: block; height: 100%; background: var(--green); border-radius: 2px; }
+
+/* Игры со своими: 4 плитки, морской бой рядом с дуэлями */
+.duel-new.n4 { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.duel-new.n4 .duel-start b { font-size: 11.5px; padding: 0 2px; }
+.duel-start:nth-child(4) span { color: #2563C9; }
+:root[data-theme="dark"] .duel-start:nth-child(4) span { color: #7FB0FF; }
+.duel-ico { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--tint-b); color: var(--tint-b-fg); flex: none; }
+.qi-more .btn { white-space: nowrap; flex: none; }
+.coffee-sheet .card-title { display: none; }
+.card.blitz { border: 2px solid var(--gold); }

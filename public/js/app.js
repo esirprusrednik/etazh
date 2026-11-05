@@ -1627,30 +1627,40 @@ function renderSanta() {
 }
 
 function renderGames() {
-  const f = S.fx;
-  const got = f ? f.achievements.filter((a) => a.got).length : 0;
-  const active = (S.battles || []).filter((b) => b.status !== 'done');
-  const nickOf = (id) => ((S.people || []).find((p) => p.id === id) || (S.crew && S.crew.list.find((p) => p.id === id)) || {}).nick || 'соперник';
-  const battle = `<section class="card games-sea">
-    <div class="row" style="justify-content:space-between"><span class="card-title">anchor Морской бой</span><span class="small">по 1 на 1</span></div>
-    ${active.length ? active.map((b) => `<button class="chat-row" data-act="battle-go" data-id="${b.id}" data-opp="${b.oppId}"><span class="grow"><span class="chat-title">${esc(nickOf(b.oppId))}</span><span class="where">${b.mode === 'fast' ? 'bolt быстрая · ' : ''}${b.status === 'setup' ? 'расстановка' : b.myTurn ? 'твой ход!' : 'ход соперника'}</span></span>${b.myTurn ? '<span class="crew-badge">!</span>' : ''}</button>`).join('') : '<p class="small" style="margin:0">Нет активных партий.</p>'}
-    <button class="btn small" data-act="open" data-v="battle-pick">Вызвать на бой</button>
-  </section>`;
+  const gangChips = S.me.gangs.length > 1 ? `<div class="chips dark">${S.me.gangs.map((g) => `<button class="chip ${g.id === S.activeGang ? 'on' : ''}" data-act="gang-select" data-v="${g.id}">${esc(g.name)}</button>`).join('')}</div>` : '';
+  const group = (title) => `<div class="g-group">${title}</div>`;
   return `${pageHead('Игры', 'Задания, квизы и бои со своими. За всё дают зёрна, их тратят в Лавке')}
+    ${renderGamesQuick()}
     ${renderAdvent()}
-    ${renderDuelsCard()}
-    ${renderLeagueCard()}
-    ${renderTourCard()}
     ${renderQuests()}
     ${renderBlitzCard()}
+    ${group('Один на один')}
+    ${renderDuelsCard()}
+    ${S.quiz && S.quiz.length || S.guess ? group('Про своих') : ''}
     ${renderQuiz()}
-    ${S.me.gangs.length > 1 ? `<div class="chips dark">${S.me.gangs.map((g) => `<button class="chip ${g.id === S.activeGang ? 'on' : ''}" data-act="gang-select" data-v="${g.id}">${esc(g.name)}</button>`).join('')}</div>` : ''}
+    ${gangChips}
     ${renderGuess()}
-    ${battle}
-    ${renderCoffee()}
-    ${renderCompletion()}
-    <section class="card"><div class="row" style="justify-content:space-between"><span class="card-title">medal Ачивки</span><span class="small">${got} из ${f ? f.achievements.length : 0}</span></div>
-      <div class="row"><button class="btn small ghost grow" data-act="open-sec" data-v="ach">Мои ачивки</button><button class="btn small grow" data-act="open" data-v="shop">cart Лавка</button></div></section>`;
+    ${group('Банды')}
+    ${renderLeagueCard()}
+    ${renderTourCard()}
+    ${renderCompletion()}`;
+}
+// Быстрые иконки наверху «Игр»: случайный кофе, ачивки и Лавка — всегда на виду
+function renderGamesQuick() {
+  const f = S.fx;
+  const c = f && f.coffee;
+  const p = c && c.pair;
+  const coffeeSub = !c ? '' : !c.optIn ? 'знакомства' : !p ? 'пара в пн' : esc(p.partner.nick);
+  const coffeeHot = !!(c && ((p && p.canReply) || (p && !p.ping)));
+  const got = f ? f.achievements.filter((a) => a.got).length : 0;
+  const tile = (act, v, icon, title, sub, hot, cls) => `<button class="gq ${cls}" data-act="${act}" data-v="${v}">
+    <span class="gq-ico">${p && cls === 'coffee' ? avatar(p.partner.look, 40) : ico(icon, 22)}${hot ? '<i class="gq-dot" aria-label="ждёт ответа"></i>' : ''}</span>
+    <b>${title}</b><span>${sub}</span></button>`;
+  return `<div class="g-quick">
+    ${tile('open', 'coffee', 'coffee', 'Случайный кофе', coffeeSub, coffeeHot, 'coffee')}
+    ${tile('open-sec', 'ach', 'medal', 'Ачивки', f ? `${got} из ${f.achievements.length}` : '', false, 'ach')}
+    ${tile('open', 'shop', 'cart', 'Лавка', `${S.me.beans} зёрен`, false, 'shop')}
+  </div>`;
 }
 
 function renderOffice() {
@@ -2227,9 +2237,14 @@ function renderDuelsBox(f) {
 }
 function renderDuelsCard() {
   const items = (S.duels || []).filter((d) => d.status === 'play');
-  return `<section class="card duels-card"><div class="chats-head"><h3>game Дуэли один на один</h3><span class="small">${items.length ? `${items.filter((d) => d.myTurn).length} ждут тебя` : 'победа +2 зерна'}</span></div>
-    <div class="duel-new">${[['rps', rpsDuo(), 'Камень, ножницы, бумага'], ['dice', 'dice', 'Кости'], ['ttt', 'xcircle', 'Крестики-нолики']].map(([g, e, t]) => `<button class="duel-start" data-act="duel-pick" data-v="${g}"><span>${e}</span><b>${t}</b></button>`).join('')}</div>
-    ${items.length ? '' : '<p class="small" style="margin:0">Выбери игру и соперника. Можно на ставку 5 или 10 зёрен — победитель забирает обе.</p>'}
+  const battles = (S.battles || []).filter((x) => x.status !== 'done');
+  const nickOf = (id) => ((S.people || []).find((p) => p.id === id) || (S.crew && S.crew.list.find((p) => p.id === id)) || {}).nick || 'соперник';
+  const waiting = items.filter((d) => d.myTurn).length + battles.filter((x) => x.myTurn).length;
+  const games = [['duel-pick', 'rps', rpsDuo(), 'Камень, ножницы, бумага'], ['duel-pick', 'dice', 'dice', 'Кости'], ['duel-pick', 'ttt', 'xcircle', 'Крестики-нолики'], ['open', 'battle-pick', 'anchor', 'Морской бой']];
+  return `<section class="card duels-card"><div class="chats-head"><h3>game Игры со своими</h3><span class="small">${waiting ? `${waiting} ${plural(waiting, 'ждёт', 'ждут', 'ждут')} твоего хода` : 'победа +2 зерна'}</span></div>
+    <div class="duel-new n4">${games.map(([act, g, e, t]) => `<button class="duel-start" data-act="${act}" data-v="${g}"><span>${e}</span><b>${hy(t)}</b></button>`).join('')}</div>
+    ${items.length || battles.length ? '' : '<p class="small" style="margin:0">Выбери игру и соперника. В дуэлях можно на ставку 5 или 10 зёрен — победитель забирает обе. Морской бой — с расстановкой, быстрый или без спешки.</p>'}
+    ${battles.map((x) => `<button class="chat-row" data-act="battle-go" data-id="${x.id}" data-opp="${x.oppId}"><span class="duel-ico">anchor</span><span class="grow"><span class="chat-title">${esc(nickOf(x.oppId))}</span><span class="where">Морской бой · ${x.mode === 'fast' ? 'быстрая · ' : ''}${x.status === 'setup' ? 'расстановка' : x.myTurn ? 'твой ход!' : 'ход соперника'}</span></span>${x.myTurn ? '<span class="crew-badge">!</span>' : ''}</button>`).join('')}
     ${items.map((d) => `<button class="chat-row" data-act="dm-open" data-id="${d.opp.id}">${avatar(d.opp.look, 32)}<span class="grow"><span class="chat-title">${esc(d.opp.nick)}</span><span class="where">${{ rps: 'rock Камень, ножницы, бумага', dice: 'dice Кости', ttt: 'x Крестики-нолики' }[d.game]}${d.score ? ` · ${d.score.me}:${d.score.opp}` : ''}</span></span>${d.myTurn ? '<span class="crew-badge">!</span>' : ''}</button>`).join('')}</section>`;
 }
 
@@ -2949,16 +2964,25 @@ function renderFeed() {
 }
 
 // ----- Новые блоки: задания, обед, кофе, дни рождения, неделя, спасибо -----
+// Иконка и короткая подпись для каждого задания дня
+const QUEST_ICON = { where: ['where', 'Отметься'], join: ['flag', 'Банда'], chat: ['chat', 'Чат банды'], call: ['coffee', 'Позови'], reply: ['megaphone', 'Ответь'],
+  thanks: ['hand', 'Спасибо'], dm: ['mail', 'Личка'], meme: ['image', 'Мем'], vote: ['vote', 'Опрос'], guess: ['help', 'Кто из наших'], quiz: ['bulb', 'Квиз'],
+  sea: ['anchor', 'Морской бой'], food: ['lunch', 'Обед'], bday: ['cake', 'Именинник'] };
 function renderQuests() {
   const f = S.fx;
   if (!f) return '';
-  const done = f.quests.items.filter((x) => x.done).length;
+  const all = [...f.quests.items, ...(f.quests.extra || []).map((x) => ({ ...x, bonus: true }))];
+  const done = f.quests.items.filter((x) => x.done).length, total = f.quests.items.length;
+  const open = all.find((x) => x.id === S.questOpen);
   return `<section class="card quests">
-    <div class="row" style="justify-content:space-between"><span class="card-title">Задания дня</span><span class="small">${done}/${f.quests.items.length} · +${f.quests.reward} за каждое, +${f.quests.bonus} за все</span></div>
-    <div class="quest-row n${f.quests.items.length}">${f.quests.items.map((x) => `<button class="quest ${x.done ? 'done' : ''}" data-act="quest-go" data-v="${esc(x.go || '')}" ${x.done ? 'disabled' : ''}><span class="qmark" aria-hidden="true">${x.done ? '✓' : ''}</span><span>${esc(x.name)}</span></button>`).join('')}</div>
-    ${(f.quests.extra || []).length ? `<div class="eyebrow" style="margin-top:12px">Бонус дня · +${f.quests.reward} за каждое</div>
-    <div class="quest-row bonus">${f.quests.extra.map((x) => `<button class="quest bonus ${x.done ? 'done' : ''}" data-act="quest-go" data-v="${esc(x.go)}" ${x.done ? 'disabled' : ''}><span class="qmark" aria-hidden="true">${x.done ? '✓' : '★'}</span><span>${esc(x.name)}</span></button>`).join('')}</div>` : ''}
-    <p class="small" style="margin:8px 0 0">Каждый день набор новый. Нажми на задание — откроется место, где его выполнить.</p>
+    <div class="row" style="justify-content:space-between"><span class="card-title">Задания дня</span><span class="small">${done === total ? `все готовы · +${f.quests.bonus} бонус` : `${done} из ${total} · +${f.quests.reward} за каждое`}</span></div>
+    <div class="qi-row">${all.map((x) => {
+      const [icon, label] = QUEST_ICON[x.id] || ['star', x.name];
+      return `<button class="qi ${x.done ? 'done' : ''} ${x.bonus ? 'bonus' : ''} ${open && open.id === x.id ? 'on' : ''}" data-act="quest-open" data-v="${x.id}" aria-expanded="${open && open.id === x.id}" aria-label="${esc(x.name)}${x.done ? ', выполнено' : ''}">
+        <span class="qi-c">${ico(icon, 22)}${x.done ? `<i class="qi-ok">${ico('check', 12)}</i>` : x.bonus ? '<i class="qi-ok star">★</i>' : ''}</span><span class="qi-l">${hy(label)}</span></button>`;
+    }).join('')}</div>
+    ${open ? `<div class="qi-more"><div class="grow"><b>${esc(open.name)}</b><span class="small">${open.done ? 'Готово' : `+${f.quests.reward} зерна${open.bonus ? ' · бонусное, в «все задания» не входит' : ''}`}</span></div>${open.done ? '' : `<button class="btn small" data-act="quest-go" data-v="${esc(open.go || '')}" data-q="${open.id}">Сделать →</button>`}</div>`
+      : `<div class="qi-bar"><i style="width:${Math.round(done / Math.max(1, total) * 100)}%"></i></div>`}
   </section>`;
 }
 
@@ -3169,6 +3193,7 @@ function renderSheet() {
     case 'avatar': return sheetWrap(S.avaMode === 'vacation' ? 'Образ для отпуска' : 'Конструктор', renderAvatarEditor());
     case 'meme': return sheetWrap('Мем-открытка', renderMemeMaker());
     case 'shop': return sheetWrap('Лавка', renderShop());
+    case 'coffee': return sheetWrap('Случайный кофе', `<div class="coffee-sheet">${renderCoffee()}</div><p class="small">Раз в неделю, в понедельник в 10:00, знакомим с коллегой из твоего офиса, который не в твоих бандах. Договориться о времени можно прямо здесь — кнопками.</p>${S.fx && S.fx.coffee && S.fx.coffee.optIn ? '<button class="linkbtn" data-act="coffee-off">Больше не участвовать</button>' : ''}`);
     case 'install': return sheetWrap('Установи на телефон', renderInstall());
     case 'compose': return sheetWrap(S.cat.calls[S.compose.kind].label, renderCompose());
     case 'signal': return sheetWrap('Сигнал офиса', renderSignal());
@@ -4635,8 +4660,12 @@ const actions = {
     S.polls = (S.polls || []).map((p) => (p.id === r.poll.id ? r.poll : p));
   }),
   // Плитка задания дня ведёт туда, где его можно выполнить
+  'quest-open'(el) { S.questOpen = S.questOpen === el.dataset.v ? null : el.dataset.v; render(); },
   'quest-go'(el) {
     const go = el.dataset.v;
+    const qAnchor = { guess: '.guess', quiz: '.quiz', sea: '.duels-card' }[el.dataset.q];
+    S.questOpen = null;
+    if (qAnchor && go === 'games') { render(); requestAnimationFrame(() => { const t = document.querySelector(qAnchor); if (t) t.scrollIntoView({ block: 'center', behavior: 'smooth' }); }); return; }
     S.sheet = null;
     const firstGang = S.activeGang || (S.me.gangs[0] || {}).id;
     if (go === 'near') { S.tab = 'near'; tabSound('near'); }
@@ -4795,6 +4824,10 @@ const actions = {
   'lunch-join': (el) => run(async () => { await post(`/api/lunch/${el.dataset.id}/join`); toast('Приятного аппетита!'); await loadFeatures(); }),
   'lunch-leave': (el) => run(async () => { await post(`/api/lunch/${el.dataset.id}/leave`); await loadFeatures(); }),
   'lunch-cancel': (el) => run(async () => { await post(`/api/lunch/${el.dataset.id}/cancel`); await loadFeatures(); }),
+  'coffee-off': () => run(async () => {
+    if (!confirmInline('coffee-off', 'Нажми ещё раз — больше не будем подбирать пару')) return;
+    await post('/api/me/profile', { profile: { coffee: false } }); toast('Случайный кофе выключен'); await Promise.all([loadMe(), loadFeatures()]);
+  }),
   'coffee-on': () => run(async () => { await post('/api/me/profile', { profile: { coffee: true } }); toast('Готово! Пару подберём в понедельник'); await Promise.all([loadMe(), loadFeatures()]); }),
   'coffee-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { coffee: el.checked } }); await Promise.all([loadMe(), loadFeatures()]); }),
   'coffee-ping': (el) => run(async () => { await post('/api/coffee/ping', { opt: el.dataset.v }); toast('Предложение отправлено'); await loadFeatures(); }),
