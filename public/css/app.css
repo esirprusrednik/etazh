@@ -1325,3 +1325,19 @@ a { color: var(--link); }
 .qi-more .btn { white-space: nowrap; flex: none; }
 .coffee-sheet .card-title { display: none; }
 .card.blitz { border: 2px solid var(--gold); }
+
+/* «Этаж» пишет сам: строка в чатах и шторка со сводкой */
+.inbox-row { margin: 0 0 12px; background: var(--card); border: 1px solid var(--card-bd); border-radius: 18px; padding: 10px 12px; box-shadow: var(--card-sh); width: 100%; }
+.inbox-ava { flex: none; width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(160deg, #FFD84D, #F4B400); color: #1E2440; font-family: var(--font-display); font-weight: 800; font-size: 19px; }
+.inbox-ava i { font-style: normal; color: #E5484D; }
+.inbox { display: grid; gap: 8px; }
+.inbox-msg { justify-self: start; max-width: 90%; padding: 10px 14px; border-radius: 18px 18px 18px 6px; background: var(--s1); font-size: 15px; line-height: 1.35; }
+.inbox-item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; border: 1px solid var(--card-bd); border-radius: 16px; background: var(--card); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.inbox-item .grow { display: grid; gap: 2px; }
+.inbox-item b { font-size: 15px; font-weight: 700; line-height: 1.25; }
+.inbox-item > span:last-child { color: var(--muted); font-size: 20px; }
+.inbox-ico { flex: none; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: var(--tint-b); color: var(--tint-b-fg); }
+.k-blitz .inbox-ico, .k-advent .inbox-ico { background: var(--tint-y); color: var(--tint-y-fg); }
+.k-battle .inbox-ico, .k-duel .inbox-ico { background: var(--tint-v); color: var(--tint-v-fg); }
+.k-santa .inbox-ico { background: var(--tint-r); color: var(--tint-r-fg); }
+.k-coffee .inbox-ico, .k-quests .inbox-ico { background: var(--tint-g); color: var(--tint-g-fg); }

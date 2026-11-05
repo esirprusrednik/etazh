@@ -992,6 +992,11 @@ async function loadSanta() {
   if (!S.activeGang) { S.santa = null; return; }
   try { S.santa = await get(`/api/gangs/${S.activeGang}/santa`); } catch { S.santa = null; }
 }
+// «Этаж» пишет сам: живая сводка дел. Новые пункты (ещё не виденные) — счётчик на вкладке «Чаты»
+async function loadInbox() { try { S.inbox = (await get('/api/inbox')).items; } catch { S.inbox = S.inbox || []; } }
+const inboxSeen = () => { try { return new Set(store.get('inboxSeen', [])); } catch { return new Set(); } };
+const inboxNew = () => { const seen = inboxSeen(); return (S.inbox || []).filter((x) => !seen.has(x.id)).length; };
+function markInboxSeen() { try { store.set('inboxSeen', (S.inbox || []).map((x) => x.id)); } catch {} }
 async function loadAdvent() { try { S.advent = await get('/api/advent'); } catch { S.advent = null; } }
 async function loadGEvents() {
   if (!S.activeGang) { S.gev = null; return; }
@@ -1100,7 +1105,7 @@ async function loadChats() {
 async function refresh({ all = false } = {}) {
   if (!S.me || !S.me.nick) return;
   const t = S.tab;
-  const jobs = [loadState()];
+  const jobs = [loadState(), loadInbox()];
   if (all || t === 'near') jobs.push(loadPeople());
   if (all || t === 'near' || t === 'office' || t === 'games') jobs.push(loadFeatures());
   if (all || t === 'near' || t === 'games') jobs.push(loadAdvent());
@@ -1295,7 +1300,7 @@ function renderApp() {
       ${S.tab === 'near' ? renderNear() : S.tab === 'chats' ? renderChats() : S.tab === 'office' ? renderOfficeTab() : renderGames()}
     </main>
     <nav class="tabs"><div class="in">
-      ${tabBtn('near', 'Рядом', 0)}${tabBtn('chats', 'Чаты', (b.chat || 0) + (b.crew || 0) + (b.invites || 0) + (b.polls || 0) + (b.gangRequests || 0))}${tabBtn('office', 'Офис', 0)}${tabBtn('games', 'Игры', (b.duels || 0) + (S.quiz || []).filter((z) => !z.answered).length + (S.battles || []).filter((x) => x.myTurn && x.status !== 'done').length)}
+      ${tabBtn('near', 'Рядом', 0)}${tabBtn('chats', 'Чаты', inboxNew() + (b.chat || 0) + (b.crew || 0) + (b.invites || 0) + (b.polls || 0) + (b.gangRequests || 0))}${tabBtn('office', 'Офис', 0)}${tabBtn('games', 'Игры', (b.duels || 0) + (S.quiz || []).filter((z) => !z.answered).length + (S.battles || []).filter((x) => x.myTurn && x.status !== 'done').length)}
     </div></nav>
   </div>
   ${S.sheet ? renderSheet() : ''}`;
@@ -1506,6 +1511,27 @@ function renderMyGang(gangs, seenG) {
     ${gangs.map(card).join('')}</section>`;
 }
 
+// Строка «Этаж» первой в чатах: что ждёт тебя сейчас
+function renderInboxRow() {
+  const items = S.inbox || [];
+  const n = inboxNew();
+  const line = items.length ? items[0].title + (items.length > 1 ? ` и ещё ${items.length - 1}` : '') : 'Всё сделано. Можно и поработать';
+  return `<button class="chat-row inbox-row" data-act="inbox-open"><span class="inbox-ava" aria-hidden="true">Э<i>.</i></span>
+    <span class="grow" style="min-width:0"><span class="chat-title">Этаж <span class="small">· что ждёт тебя</span></span><span class="where ellipsis ${n ? 'unread' : ''}">${esc(line)}</span></span>
+    <span class="crew-side">${n ? `<span class="crew-badge">${n > 9 ? '9+' : n}</span>` : items.length ? `<span class="small">${items.length}</span>` : ''}</span></button>`;
+}
+function renderInbox() {
+  const items = S.inbox || [];
+  const h = S.state && S.state.msk ? Number(S.state.msk.slice(0, 2)) : new Date().getHours();
+  const hi = h < 12 ? 'Доброе утро' : h < 17 ? 'Привет' : 'Добрый вечер';
+  const intro = items.length ? `${hi}! Вот что тебя ждёт. Пункт пропадёт сам, как только сделаешь.` : `${hi}! Всё сделано: ни ходов, ни заданий, ни блица. Можно и поработать.`;
+  return `<div class="inbox">
+    <div class="inbox-msg">${esc(intro)}</div>
+    ${items.map((x) => `<button class="inbox-item k-${x.kind}" data-act="inbox-go" data-go='${esc(JSON.stringify(x.go))}'><span class="inbox-ico">${ico(x.icon, 20)}</span>
+      <span class="grow" style="min-width:0"><b>${esc(x.title)}</b>${x.text ? `<span class="small">${esc(x.text)}</span>` : ''}</span><span aria-hidden="true">›</span></button>`).join('')}
+    <p class="small" style="margin:6px 2px 0">Раз в рабочий день, около 11:30, пришлю короткую сводку пушем — только если ты ещё не заходил${meG('', 'а')} и есть что-то кроме заданий дня. Отключается в профиле → «Приватность».</p>
+  </div>`;
+}
 function renderChats() {
   if (S.dm) return S.battle ? renderBattle() : renderDm();
   if (S.chatGang) return `<button class="linkbtn back" data-act="chats-back">‹ Все чаты</button>${renderGang()}`;
@@ -1543,6 +1569,7 @@ function renderChats() {
   const dmList = dms.length ? dms.map(row).join('')
     : '<p class="sub chats-empty">Голуби скучают. Напиши кому-нибудь — лично можно любому, кто не закрыл личку: найди по нику или открой карточку человека.</p>';
   return `${pageHead('Чаты', 'Моя банда и личка')}
+    ${renderInboxRow()}
     ${findBar()}
     ${(S.invites || []).length ? `<section class="card"><h3>Тебя зовут в банду</h3>${S.invites.map((i) => `<div class="person2">${gangBadge(i.gang, 38)}
       <div class="grow" style="min-width:0"><div style="font-weight:900">${esc(i.gang.name)}</div><div class="where">${i.gang.members} ${plural(i.gang.members, 'человек', 'человека', 'человек')} · зовёт ${esc(i.from)}</div></div>
@@ -3193,6 +3220,7 @@ function renderSheet() {
     case 'avatar': return sheetWrap(S.avaMode === 'vacation' ? 'Образ для отпуска' : 'Конструктор', renderAvatarEditor());
     case 'meme': return sheetWrap('Мем-открытка', renderMemeMaker());
     case 'shop': return sheetWrap('Лавка', renderShop());
+    case 'inbox': return sheetWrap('Этаж', renderInbox());
     case 'coffee': return sheetWrap('Случайный кофе', `<div class="coffee-sheet">${renderCoffee()}</div><p class="small">Раз в неделю, в понедельник в 10:00, знакомим с коллегой из твоего офиса, который не в твоих бандах. Договориться о времени можно прямо здесь — кнопками.</p>${S.fx && S.fx.coffee && S.fx.coffee.optIn ? '<button class="linkbtn" data-act="coffee-off">Больше не участвовать</button>' : ''}`);
     case 'install': return sheetWrap('Установи на телефон', renderInstall());
     case 'compose': return sheetWrap(S.cat.calls[S.compose.kind].label, renderCompose());
@@ -3630,7 +3658,7 @@ const FEEL_SELF = new Set(['tr-buy', 'tr-vote', 'tr-equip', 'duel-go', 'war-bet'
 const FEEL = {
   open: 'open', 'open-sec': 'open', person: 'open', 'find-open': 'open', 'poll-new': 'open', 'gev-new': 'open', 'ava-open': 'open', 'ava-open-vac': 'open', 'vac-party': 'open', 'meme-open': 'open', 'pcall-open': 'open',
   'call-open': 'open', 'dm-call-open': 'open', 'battle-new': 'open', 'crew-share': 'open',
-  'gang-open': 'open', 'dm-open': 'open', 'battle-open': 'open',
+  'gang-open': 'open', 'dm-open': 'open', 'battle-open': 'open', 'inbox-open': 'open', 'inbox-go': 'open', 'quest-go': 'open',
   close: 'close', 'close-bg': 'close', 'chats-back': 'close', 'dm-back': 'close', 'battle-back': 'close', 'onb-back': 'close', 'nick-no': 'close', 'food-cancel': 'close', 'feed-close': 'close', 'coach-skip': 'close',
   'poll-vote': 'vote', vote: 'vote', 'quiz-pick': 'vote', 'guess-pick': 'vote', 'food-pick': 'vote', reply: 'vote', 'dm-reply': 'vote', 'coffee-reply': 'vote', bemote: 'vote',
   buy: 'confirm', 'ava-buy': 'confirm', equip: 'confirm', 'invite-accept': 'confirm', 'crew-accept': 'confirm', 'nick-yes': 'confirm', checkin: 'confirm', 'canteen-in': 'confirm',
@@ -3970,6 +3998,7 @@ function renderProfile() {
   const privBody = `
     <label class="check"><input type="checkbox" data-act="toggle" data-k="shareOffice" ${me.shareOffice ? 'checked' : ''}> <span>Показывать банде, где я: офис, дома или в отпуске</span></label>
     <label class="check"><input type="checkbox" data-act="toggle" data-k="quiet" ${me.quiet ? 'checked' : ''}> <span>Тихие часы 19:00–09:00 — не присылать зовы</span></label>
+    <label class="check"><input type="checkbox" data-act="digest-toggle" ${p.digest !== false ? 'checked' : ''}> <span>Утренняя сводка: один пуш в рабочий день около 11:30, если есть дела и ты ещё не заходил${meG('', 'а')}</span></label>
     <label class="check"><input type="checkbox" data-act="findable-toggle" ${p.findable !== false ? 'checked' : ''}> <span>Меня можно найти по нику и рабочей почте — и позвать в банду</span></label>
     <div class="field">Кто может писать мне в личку<div class="chips">${[['all', 'Все'], ['gang', 'Моя банда'], ['none', 'Никто']].map(([k, t]) => `<button class="chip ${(p.dmFrom || 'all') === k ? 'on' : ''}" data-act="dm-from" data-v="${k}">${t}</button>`).join('')}</div>
       <span class="small" style="font-weight:600">Подельники (избранные) могут писать всегда. Уже начатые переписки ограничение не обрывает — их закрывают крестиком.</span></div>
@@ -4660,6 +4689,17 @@ const actions = {
     S.polls = (S.polls || []).map((p) => (p.id === r.poll.id ? r.poll : p));
   }),
   // Плитка задания дня ведёт туда, где его можно выполнить
+  'inbox-open': () => run(async () => { S.sheet = 'inbox'; S.lastSheet = null; render(); await loadInbox(); markInboxSeen(); }),
+  async 'inbox-go'(el) {
+    let g = {};
+    try { g = JSON.parse(el.dataset.go || '{}'); } catch {}
+    S.sheet = null;
+    const fake = { dataset: { v: g.v, id: g.id, opp: g.opp }, classList: { contains: () => false } };
+    if (g.act === 'tab') { S.tab = g.v; S.chatGang = false; S.dm = null; S.battle = null; render(); await run(() => refresh()); }
+    else if (actions[g.act]) await actions[g.act](fake);
+    if (g.to) requestAnimationFrame(() => setTimeout(() => { const t = document.querySelector(g.to); if (t) t.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 150));
+  },
+  'digest-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { digest: el.checked } }); await loadMe(); toast(el.checked ? 'Утренняя сводка включена' : 'Утреннюю сводку больше не пришлю'); }),
   'quest-open'(el) { S.questOpen = S.questOpen === el.dataset.v ? null : el.dataset.v; render(); },
   'quest-go'(el) {
     const go = el.dataset.v;
@@ -5123,6 +5163,7 @@ function applyHash(hash) {
   if (hash.startsWith('#crew/')) { S.tab = 'chats'; S.dm = Number(hash.slice(6)) || null; }
   if (hash.startsWith('#battle/')) { S.tab = 'chats'; S.battle = Number(hash.slice(8)) || null; }
   if (hash === '#league') S.tab = 'games';
+  if (hash === '#inbox') { S.tab = 'chats'; S.chatGang = false; S.dm = null; S.sheet = 'inbox'; }
 }
 
 // Открытое приложение: пуш меняет только хэш, страница не перезагружается — разбираем его здесь
@@ -5133,6 +5174,7 @@ window.addEventListener('hashchange', async () => {
   history.replaceState(null, '', location.pathname + location.search);
   if (hash === '#feedback') { S.sheet = 'feedback'; render(); await run(loadFeedback); return; }
   if (hash === '#league') { S.sheet = 'league'; render(); await run(() => loadLeague('W')); return; }
+  if (hash === '#inbox') { render(); await run(loadInbox); markInboxSeen(); return; }
   S.sheet = null;
   try { await refresh(); } catch {}
   render();

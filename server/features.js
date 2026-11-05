@@ -902,7 +902,14 @@ function register(ctx) {
     tick();
   }
 
-  return { onEvent, cleanup, tick, pairNow };
+  // Для сводки «Этажа»: сколько заданий дня осталось, пара на кофе, заходил ли сегодня
+  function questSummary(uid) {
+    const done = new Set(q('SELECT quest FROM quests_done WHERE user_id = ? AND day = ?').all(uid, today()).map((r) => r.quest));
+    const list = questsFor(uid);
+    return { total: list.length, left: list.filter((id) => !done.has(id)).length };
+  }
+  const activeToday = (uid) => counter(uid, 'last_active') >= Number(today().replace(/-/g, ''));
+  return { onEvent, cleanup, tick, pairNow, questSummary, myPair, activeToday };
 }
 
 module.exports = { register, ACH, QUESTS };

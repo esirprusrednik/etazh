@@ -49,7 +49,7 @@ function startServer(day) {
       return this;
     }
   }
-  const ready = (async () => { for (let i = 0; i < 50; i++) { try { if ((await fetch(BASE + '/healthz')).ok) return; } catch {} await new Promise((r) => setTimeout(r, 100)); } throw new Error('server did not start\n' + log); })();
+  const ready = (async () => { for (let i = 0; i < 150; i++) { try { if ((await fetch(BASE + "/healthz")).ok) return; } catch {} await new Promise((r) => setTimeout(r, 100)); } throw new Error('server did not start\n' + log); })();
   return { Client, ready, stop: () => proc.kill(), log: () => log };
 }
 
@@ -77,6 +77,14 @@ function startServer(day) {
     const g = (await A.post('/api/gangs', { name: 'Ёлка', access: 'open' })).json;
     for (const x of [B, C, D]) await x.post(`/api/gangs/${g.id}/apply`);
 
+    await step('сводка «Этажа»: адвент, Санта и задания дня', async () => {
+      const it = (await A.get('/api/inbox')).json.items;
+      const kinds = it.map((x) => x.kind);
+      assert.ok(kinds.includes('advent') && kinds.includes('santa') && kinds.includes('quests'), kinds.join(','));
+      assert.ok(it.find((x) => x.kind === 'santa').go.act === 'gang-open');
+      assert.equal(it.find((x) => x.kind === 'quests').push, false, 'задания дня сами по себе пуш не заслуживают');
+    });
+
     await step('адвент: окошко открывается только после задания, +2 зерна', async () => {
       const v = (await A.get('/api/advent')).json;
       assert.equal(v.active, true);
@@ -95,6 +103,10 @@ function startServer(day) {
       const again = await A.post('/api/advent/open');
       assert.equal(again.json.already, true);
       assert.equal((await A.get('/api/me')).json.user.beans, before + 2, 'второй раз зёрен нет');
+    });
+
+    await step('сводка: открытое окошко исчезает', async () => {
+      assert.ok(!(await A.get('/api/inbox')).json.items.some((x) => x.kind === 'advent'));
     });
 
     await step('сезонные вещи: до Нового года свитер не виден и не продаётся', async () => {
@@ -132,6 +144,8 @@ function startServer(day) {
         targets.push(w.target.id);
       }
       assert.equal(new Set(targets).size, 3, 'у каждого ровно один Санта');
+      const ib = (await B.get('/api/inbox')).json.items;
+      assert.ok(ib.some((x) => x.kind === 'santa' && /Подарок для/.test(x.title)), 'после жеребьёвки — напоминание о подарке');
       const d = (await D.get(`/api/gangs/${g.id}/santa`)).json;
       assert.equal(d.target, null); assert.equal(d.joined, false);
       assert.equal((await D.post(`/api/gangs/${g.id}/santa/join`, { wish: 'х' })).status, 400, 'после жеребьёвки не записаться');

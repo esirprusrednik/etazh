@@ -205,6 +205,7 @@ function createApi(db) {
   let crew = null;
   let voice = null;
   let santa = null;
+  let inbox = null;
   let advent = null;
   let battle = null;
   let quiz = null;
@@ -635,6 +636,7 @@ function createApi(db) {
       }
       if (p.nameVis !== undefined) { if (!['all', 'gang', 'hidden'].includes(p.nameVis)) throw bad('Неизвестная видимость.'); prof.nameVis = p.nameVis; }
       if (p.coffee !== undefined) prof.coffee = !!p.coffee;
+      if (p.digest !== undefined) prof.digest = !!p.digest;
       if (p.findable !== undefined) prof.findable = !!p.findable;
       if (['all', 'gang', 'none'].includes(p.dmFrom)) prof.dmFrom = p.dmFrom;
     }
@@ -1485,6 +1487,8 @@ function createApi(db) {
   gangwar = require('./gangwar').register({ db, q, route, requireUser, requireAdmin, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, spendBeans, battle, publicLook });
   league = require('./league').register({ db, q, route, requireUser, U, addBeans, notify, fireAndForget });
   tourney = require('./tourney').register({ db, q, route, requireUser, requireAdmin, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, gangwar, league });
+  // ---------- «Этаж» пишет сам: живая сводка и один утренний пуш ----------
+  inbox = require('./inbox').register({ db, q, route, requireUser, U, notify, fireAndForget, myGangs, readProfile, weekdayName, features, blitz, advent, santa, duels });
   feedback = require('./feedback').register({ db, q, route, requireUser, requireAdmin, bad, U, addBeans, notify, fireAndForget, HttpError, BUILD });
 
   // ---------- Обработчик ----------
