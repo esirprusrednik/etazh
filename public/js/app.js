@@ -1645,7 +1645,8 @@ function renderExperts() {
         <div class="chips">${p.allTags.map((t) => `<span class="chip ask-chip ${p.tags.includes(t) ? 'on' : ''}">${esc(t)}</span>`).join('')}</div>
         <div class="small">${p.office ? esc(p.office) : 'офис не указан'}${p.officeDay ? ` · в офисе ${esc(p.officeDay)}` : ''}</div></div>
       <button class="btn small ghost" data-act="dm-open" data-id="${p.id}" aria-label="Написать ${esc(p.nick)}">chat</button></div>`).join('') : `<p class="small" style="margin:0">Пока никто не указал «${esc(x.q)}» в своих темах. Спроси на доске — вопрос увидят те, у кого такая тема.</p>`) : '';
-  const mineEmpty = !(x.mine && x.mine.askMe && x.mine.askMe.length);
+  const mp = (S.me && S.me.profile) || {};
+  const mineEmpty = !((mp.askMe && mp.askMe.length) || mp.role);
   return `<section class="card experts"><div class="chats-head"><h3>help Кто знает?</h3><span class="small">кто за что отвечает</span></div>
     <div class="row"><label class="field grow" style="gap:0"><span class="hidden">Тема</span><input id="ex-q" maxlength="40" value="${esc(x.q || '')}" placeholder="парковка, Jira, тарифы B2B…" enterkeyhint="search"></label><button class="btn" data-act="ex-find" aria-label="Найти">search</button></div>
     ${!x.q && x.popular.length ? `<div class="chips">${x.popular.map((t) => `<button class="chip ask-chip" data-act="ex-tag" data-v="${esc(t)}">${esc(t)}</button>`).join('')}</div>` : ''}
@@ -5349,7 +5350,7 @@ const actions = {
     const nick = S.nickConfirm; S.nickConfirm = null;
     const r = await post('/api/me/nick', { nick }); await loadMe(); toast(`Теперь ты ${r.nick}`);
   }),
-  'work-save': () => run(async () => { await post('/api/me/profile', { profile: { role: $('#p-role').value, askMe: $('#p-ask').value } }); await loadMe(); toast('Сохранено — теперь тебя можно найти по темам'); }),
+  'work-save': () => run(async () => { await post('/api/me/profile', { profile: { role: $('#p-role').value, askMe: $('#p-ask').value } }); await loadMe(); loadExperts((S.experts && S.experts.q) || '').then(render); toast('Сохранено — теперь тебя можно найти по темам'); }),
   'prof-save': () => run(async () => { await post('/api/me/profile', { profile: { about: $('#p-about').value, bday: $('#p-bday').value } }); await loadMe(); toast('Сохранено'); }),
   toggle: (el) => run(async () => { await post('/api/me/profile', { [el.dataset.k]: el.checked }); await loadMe(); await loadState(); }),
   'push-enable': () => run(enablePush),

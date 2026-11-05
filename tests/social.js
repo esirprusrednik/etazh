@@ -166,6 +166,7 @@ function startServer(day, extra = {}) {
       assert.equal(r.items[0].nick, 'другой_отдел'); assert.deepEqual(r.items[0].tags, ['Парковка']);
       assert.ok((await A.get('/api/experts?q=' + encodeURIComponent('тариф'))).json.items.length === 1, 'и по «Чем занимаюсь»');
       assert.ok((await A.get('/api/experts')).json.popular.includes('Парковка'));
+      assert.deepEqual((await B.get('/api/experts')).json.mine.askMe, ['Парковка', 'Jira'], 'свои темы видны — плашка «Заполнить» пропадает');
       await A.post('/api/board', { kind: 'ask', text: 'Где взять гостевой пропуск на парковку?', until: '2026-11-12' });
       const ib = (await B.get('/api/inbox')).json.items;
       assert.ok(ib.some((x) => x.kind === 'ask' && /Парковка|парковка/.test(x.title)), JSON.stringify(ib.map((x) => x.title)));
