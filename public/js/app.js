@@ -858,6 +858,7 @@ const tap = (id, html) => `<button class="ava-btn" data-act="person" data-id="${
 const BEAN = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><ellipse cx="12" cy="12" rx="6" ry="9" transform="rotate(30 12 12)"/><path d="M9 6c3 3 3 9 6 12"/></svg>';
 const FLAME = '<svg width="13" height="13" viewBox="0 0 24 24" fill="#FF8A3D" aria-hidden="true"><path d="M12 2c1 4 5 5.5 5 11a5 5 0 0 1-10 0c0-2.5 1.2-4 2.5-5.2.2 1.7 1 2.7 2 3.2C11 8.5 11 5.5 12 2z"/></svg>';
 const ICONS = {
+  pencil: 'M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z',
   rain: 'M16 13v6M8 13v6M12 15v6M20 16.6A5 5 0 0 0 18 7h-1.3A8 8 0 1 0 4 15.3',
   snow: 'M20 17.6A5 5 0 0 0 18 8h-1.3A8 8 0 1 0 4 16.3M8 16h.01M8 20h.01M12 18h.01M12 22h.01M16 16h.01M16 20h.01',
   wind: 'M9.6 4.6A2 2 0 1 1 11 8H2M12.6 19.4A2 2 0 1 0 14 16H2M17.5 8a2.5 2.5 0 1 1 2 4H2',
@@ -1704,7 +1705,7 @@ function renderSanta() {
   if (!s || !s.visible) return '';
   if (s.status === 'cancelled') return s.joined ? '<section class="card santa"><span class="card-title">gift Тайный Санта</span><p class="sub">В этом году не состоялся: записалось меньше трёх человек.</p></section>' : '';
   const dd = dayHuman(s.drawDay);
-  const draw = s.canDraw ? '<button class="btn ghost" data-act="santa-draw">Провести жеребьёвку сейчас</button>' : '';
+  const draw = s.canDraw ? `<button class="btn btn-santa-draw" data-act="santa-draw">${ico('dice', 18)} Провести жеребьёвку сейчас</button><span class="small" style="text-align:center">Ты владелец банды — можно не ждать ${dd}</span>` : '';
   let body;
   if (s.status === 'drawn') {
     body = !s.joined ? `<p class="sub">Жеребьёвка прошла без тебя: участников ${s.count}, подарки вручены ${s.gifted}.</p>`
@@ -1715,12 +1716,13 @@ function renderSanta() {
   } else if (s.joined) {
     const wishBox = S.santaEdit
       ? `<label class="field">Пожелание для своего Санты<textarea id="santa-wish" maxlength="200" rows="2" placeholder="Что любишь и чего дарить не надо">${esc(s.wish)}</textarea></label>
-        <div class="row" style="gap:8px"><button class="btn small grow" data-act="santa-wish">Сохранить</button><button class="btn ghost small" data-act="santa-edit">Отмена</button></div>`
+        <div class="row" style="gap:8px"><button class="btn small grow" data-act="santa-wish">Сохранить</button><button class="linkbtn santa-quiet" data-act="santa-edit">Отмена</button></div>`
       : `<div class="santa-wish"><span class="small">Твоё пожелание</span><p>${s.wish ? `«${esc(s.wish)}»` : '<span class="small">Пока пусто — Санте придётся угадывать</span>'}</p>
-        <button class="btn ghost small" data-act="santa-edit">${s.wish ? 'Редактировать пожелание' : 'Написать пожелание'}</button></div>`;
+        <button class="btn small btn-santa-edit" data-act="santa-edit">${ico('pencil', 16)} ${s.wish ? 'Редактировать пожелание' : 'Написать пожелание'}</button></div>`;
     body = `<p class="sub">Ты участвуешь. Записалось ${s.count}, жеребьёвка ${dd}${s.count < s.min ? `, нужно хотя бы ${s.min}` : ''}. Подарок — до ${s.budget || 500} ₽.</p>
       ${wishBox}
-      <div class="row" style="justify-content:flex-end"><button class="linkbtn" data-act="santa-leave">Не участвую</button></div>${draw}`;
+      ${draw}
+      <div class="row" style="justify-content:center"><button class="linkbtn santa-quiet" data-act="santa-leave">${ico('x', 14)} Не участвую</button></div>`;
   } else if (s.regOpen) {
     body = `<p class="sub">Каждый тайно готовит подарок одному человеку из банды. Запишись и напиши, что любишь. ${dd} пройдёт жеребьёвка, и каждый узнает, кому дарит. Записалось: ${s.count}.</p>
       <div class="santa-rule">Подарок — <b>до ${s.budget || 500} ₽</b>. Дороже не надо: смысл во внимании, а не в цене</div>
