@@ -1515,3 +1515,6 @@ button.chip.ask-chip { cursor: pointer; }
 .gh-cols i { font-style: normal; font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 .gh-cols > div:first-child span::before { content: "✓ "; color: #2E9E5B; font-weight: 800; }
 .gh-cols > div:last-child span::before { content: "✕ "; color: #E5484D; font-weight: 800; }
+.install-blocked { margin-top: 10px; background: var(--s1); border-radius: 14px; padding: 10px 12px; }
+.install-blocked summary { font-weight: 700; cursor: pointer; }
+.install-blocked .ol { margin-top: 6px; }

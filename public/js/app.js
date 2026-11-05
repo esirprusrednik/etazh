@@ -951,6 +951,11 @@ const plural = (n, a, b, c) => { const m10 = n % 10, m100 = n % 100; return m10 
 
 // ---------- Платформа ----------
 const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+// Samsung Internet, Яндекс Браузер, MIUI и Huawei ставят сайт как собственный APK под старый Android —
+// Play Защита блокирует его как «подозрительное приложение». Устанавливать нужно из Chrome: он делает WebAPK, подписанный Google
+const wrapBrowser = () => { const ua = navigator.userAgent; if (!/android/i.test(ua)) return null;
+  return /SamsungBrowser/i.test(ua) ? 'Samsung Internet' : /YaBrowser|YaApp|YaSearchBrowser/i.test(ua) ? 'Яндекс Браузер' : /MiuiBrowser|XiaoMi/i.test(ua) ? 'браузер Xiaomi' : /HuaweiBrowser/i.test(ua) ? 'браузер Huawei' : null; };
+const chromeIntent = () => `intent://${location.host}/#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent('https://play.google.com/store/apps/details?id=com.android.chrome')};end`;
 const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 let deferredInstall = null;
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstall = e; render(); });
@@ -1438,7 +1443,7 @@ function renderApp() {
     ${S.newBuild ? '<button class="upd-bar" data-act="reload">spark Вышло обновление — нажми, чтобы обновить</button>' : ''}
     <main>
       ${showBanner ? `<div class="banner">
-        <div class="grow"><div style="font-weight:900;font-size:15px">Установи на телефон</div><div style="font-size:12px;font-weight:600">Иконка на экране — и придут зовы банды</div></div>
+        <div class="grow"><div style="font-weight:900;font-size:15px">Установи на телефон</div><div style="font-size:12px;font-weight:600">${wrapBrowser() ? 'Лучше через Chrome — так телефон не ругается' : 'Иконка на экране — и придут зовы банды'}</div></div>
         <button class="btn small blue" data-act="open" data-v="install">Как?</button>
         <button class="x" style="background:none" data-act="install-hide" aria-label="Скрыть на сутки">×</button>
       </div>` : ''}
@@ -3572,14 +3577,22 @@ function renderSignal() {
 }
 
 function renderInstall() {
-  const ios = isIOS();
+  const ios = isIOS(), wrap = wrapBrowser();
+  const blocked = `<details class="install-blocked"><summary>Телефон пишет «Подозрительное приложение заблокировано»?</summary>
+      <p class="small">Так Play Защита реагирует на Этаж, установленный из Samsung Internet, Яндекс Браузера или браузера Xiaomi: они упаковывают сайт в свою «обёртку» под старую версию Android. С самим Этажем всё в порядке.</p>
+      <ol class="ol"><li>Удали заблокированную иконку Этажа.</li><li>Открой ${esc(location.host)} в Chrome.</li><li>Меню ⋮ → «Установить приложение».</li><li>Войди по почте — банда, зёрна и переписка на месте.</li></ol></details>`;
+  if (wrap && !isStandalone()) return `
+    <div class="note warn">Ты в браузере «${esc(wrap)}». Если установить Этаж отсюда, Play Защита может заблокировать его как «подозрительное приложение». Установи из Chrome — там всё проходит без предупреждений.</div>
+    <a class="btn wide" style="display:flex;align-items:center;justify-content:center;text-decoration:none" href="${chromeIntent()}">Открыть в Chrome</a>
+    <ol class="ol"><li>Нажми «Открыть в Chrome».</li><li>В Chrome: меню ⋮ → «Установить приложение».</li><li>Войди по почте и включи уведомления в профиле.</li></ol>
+    ${blocked}`;
   return `
     ${isStandalone() ? '<div class="note good">Приложение уже установлено.</div>' : ''}
     ${deferredInstall ? '<button class="btn wide" data-act="install-native">Установить</button>' : ''}
     <h3>${ios ? 'iPhone (Safari)' : 'Android (Chrome)'}</h3>
     ${ios ? `<ol class="ol"><li>Открой этот сайт в Safari.</li><li>Нажми «Поделиться» внизу экрана.</li><li>Выбери «На экран “Домой”».</li><li>Открой Этаж с иконки и включи уведомления в профиле.</li></ol>
       <p class="small">Уведомления на iPhone работают с iOS 16.4 и только из установленного приложения.</p>`
-      : `<ol class="ol"><li>Открой меню браузера ⋮.</li><li>Выбери «Установить приложение» или «Добавить на главный экран».</li><li>Открой Этаж с иконки и включи уведомления в профиле.</li></ol>`}
+      : `<ol class="ol"><li>Открой сайт в Chrome — из Samsung Internet и Яндекс Браузера Play Защита может заблокировать установку.</li><li>Меню ⋮ → «Установить приложение».</li><li>Открой Этаж с иконки и включи уведомления в профиле.</li></ol>${blocked}`}
     <h3>${ios ? 'Android' : 'iPhone'}</h3>
     <p class="sub">${ios ? 'Chrome → меню ⋮ → «Установить приложение».' : 'Safari → «Поделиться» → «На экран “Домой”».'}</p>`;
 }
