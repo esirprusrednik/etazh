@@ -127,6 +127,11 @@ const weekdayName = (day) => HOL.workdayName(day);
 const { AsyncLocalStorage } = require('node:async_hooks');
 const viewerCtx = new AsyncLocalStorage();
 const hasOwnName = (prof) => !!String((prof && prof.firstName) || '').trim();
+// Регистр имени: «иВАН» → «Иван», «римский-корсаков» → «Римский-Корсаков», «анна мария» → «Анна Мария»
+function nameCase(v) {
+  return String(v || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('ru')
+    .replace(/(^|[\s-])([a-zа-яё])/g, (m, sep, ch) => sep + ch.toLocaleUpperCase('ru'));
+}
 function fullName(prof, scope) {
   const v = viewerCtx.getStore();
   if (v && v.noName) return '';
@@ -639,7 +644,10 @@ function createApi(db) {
       if (p.showBday !== undefined) prof.showBday = !!p.showBday;
       for (const k of ['firstName', 'lastName']) {
         if (p[k] === undefined) continue;
-        const v = U.cleanText(p[k], 30);
+        const v = nameCase(U.cleanText(p[k], 30));
+        // Имя и фамилия обязательны: заполненные стереть нельзя, только заменить
+        if (!v && prof[k]) throw bad(k === 'firstName' ? 'Имя обязательно.' : 'Фамилия обязательна.');
+        if (v && v.replace(/[^a-zA-Zа-яА-ЯёЁ]/g, '').length < 2) throw bad(k === 'firstName' ? 'Имя — хотя бы две буквы.' : 'Фамилия — хотя бы две буквы.');
         if (v && !/^[a-zA-Zа-яА-ЯёЁ][a-zA-Zа-яА-ЯёЁ' -]{0,29}$/.test(v)) throw bad('В имени и фамилии — только буквы, дефис и пробел.');
         const prob = v && U.moderationProblem(v);
         if (prob) throw bad(prob);
@@ -1603,4 +1611,4 @@ function readJson(req, limit = 64 * 1024) {
   });
 }
 
-module.exports = { createApi, HttpError };
+module.exports = { nameCase, createApi, HttpError };

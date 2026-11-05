@@ -120,7 +120,10 @@ function startServer(day, extra = {}) {
       assert.equal(cardD.name || '', '', 'D без имени — имя B скрыто');
       assert.ok((await D.get('/api/state')).json.nameLock.named >= 1);
       assert.equal(((await D.get('/api/search?q=' + encodeURIComponent('Борис'))).json.items || []).length, 0, 'по имени не ищет');
-      await D.post('/api/me/profile', { profile: { firstName: 'Дина' } });
+      await D.post('/api/me/profile', { profile: { firstName: 'дИНА', lastName: 'римская-КОРСАКОВА' } });
+      const me = (await D.get('/api/me')).json.user.profile;
+      assert.equal(me.firstName, 'Дина'); assert.equal(me.lastName, 'Римская-Корсакова', 'регистр правим сами');
+      assert.equal((await D.post('/api/me/profile', { profile: { lastName: '' } })).status, 400, 'стереть фамилию нельзя');
       assert.equal((await D.get(`/api/users/${B.id}`)).json.name, 'Борис Петров');
       assert.equal((await D.get('/api/state')).json.nameLock, null);
     });

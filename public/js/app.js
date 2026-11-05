@@ -1156,6 +1156,7 @@ function render() {
   }
   if (!S.me) root.innerHTML = iconize(renderLogin());
   else if (!S.me.nick) root.innerHTML = iconize(renderNick());
+  else if (!(S.me.profile && S.me.profile.firstName && S.me.profile.lastName)) root.innerHTML = iconize(renderNameStep());
   else root.innerHTML = iconize(renderApp());
   window.scrollTo(0, keepScroll);
   if (S.beanFx && S.beanFx.fresh) runBeanFx();
@@ -1223,13 +1224,31 @@ function renderLogin() {
   </div>`;
 }
 
+// Обязательный шаг: имя и фамилия. Регистр правим сами — «иВАН петров» станет «Иван Петров»
+function renderNameStep() {
+  const p = S.me.profile || {};
+  const vis = S.nameVisDraft || p.nameVis || 'gang';
+  return `<div class="onb">
+    <div class="logo">Этаж<span>.</span></div>
+    <div class="card">
+      <h2>Как тебя зовут?</h2>
+      <p class="sub">Ник — ${esc(S.me.nick)} — остаётся, а имя и фамилия нужны, чтобы коллеги понимали, с кем общаются. Регистр поправим сами.</p>
+      <label class="field">Имя<input id="n-first" maxlength="30" autocomplete="given-name" value="${esc(p.firstName || '')}" placeholder="Анна"></label>
+      <label class="field">Фамилия<input id="n-last" maxlength="30" autocomplete="family-name" value="${esc(p.lastName || '')}" placeholder="Петрова"></label>
+      <div class="field">Кто видит<div class="chips">${[['all', 'Все коллеги'], ['gang', 'Моя банда и подельники'], ['hidden', 'Никто']].map(([k, t]) => `<button class="chip ${vis === k ? 'on' : ''}" data-act="namevis-pick" data-v="${k}">${t}</button>`).join('')}</div></div>
+      ${S.error ? `<div class="note warn">${esc(S.error)}</div>` : ''}
+      <button class="btn" data-act="name-step-save">Дальше</button>
+      <p class="small" style="margin:0">Имена коллег ты тоже увидишь — те, что они разрешили показывать. Поменять можно в профиле.</p>
+    </div></div>`;
+}
+const nameCase = (v) => String(v || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('ru').replace(/(^|[\s-])([a-zа-яё])/g, (m, sep, ch) => sep + ch.toLocaleUpperCase('ru'));
 function renderNick() {
   const o = S.onb;
   return `<div class="onb">
     <div class="logo">Этаж<span>.</span></div>
     <div class="card">
       <h2>Придумай никнейм</h2>
-      <p class="sub">По нему тебя узнают на Этаже. ФИО и должность оставь для почты, здесь веселее под псевдонимом.</p>
+      <p class="sub">По нему тебя узнают на Этаже. Ник — для веселья, а имя и фамилию спросим следующим шагом, чтобы коллеги понимали, с кем общаются.</p>
       <div class="nick-rules">
         <p><b>Можно почти всё:</b> гроза_дедлайнов, повелитель_кофемашины, просто_Петя. Буквы, цифры и «_», от 3 до 20 символов.</p>
         <p><b>Нельзя:</b> мат, оскорбления и шутки, над которыми смеёшься только ты. Проверка простая: такой ник не стыдно произнести вслух на планёрке.</p>
@@ -5136,7 +5155,20 @@ const actions = {
   'compl-hide'() { store.set('complHideUntil', Date.now() + 7 * 864e5); render(); },
   sec(el) { const v = el.dataset.v; if (S.sec.has(v)) S.sec.delete(v); else S.sec.add(v); render(); },
   'name-vis': (el) => run(async () => { await post('/api/me/profile', { profile: { nameVis: el.dataset.v } }); await loadMe(); }),
-  'name-save': () => run(async () => { await post('/api/me/profile', { profile: { firstName: $('#p-first').value, lastName: $('#p-last').value } }); await loadMe(); toast('Сохранено'); }),
+  'name-save': () => run(async () => {
+    const f = nameCase($('#p-first').value), l = nameCase($('#p-last').value);
+    if (!f || !l) throw new Error('Имя и фамилия обязательны.');
+    await post('/api/me/profile', { profile: { firstName: f, lastName: l } }); await loadMe(); toast('Сохранено');
+  }),
+  'namevis-pick'(el) { const f = $('#n-first'), l = $('#n-last'); S.nameDraft = { f: f ? f.value : '', l: l ? l.value : '' }; S.nameVisDraft = el.dataset.v; render(); if (S.nameDraft) { const a = $('#n-first'), b = $('#n-last'); if (a) a.value = S.nameDraft.f; if (b) b.value = S.nameDraft.l; } },
+  'name-step-save': () => run(async () => {
+    const f = nameCase($('#n-first').value), l = nameCase($('#n-last').value);
+    if (!f || !l) { S.error = 'Нужны и имя, и фамилия.'; return; }
+    S.error = '';
+    await post('/api/me/profile', { profile: { firstName: f, lastName: l, nameVis: S.nameVisDraft || (S.me.profile && S.me.profile.nameVis) || 'gang' } });
+    await loadMe(); S.nameVisDraft = null; S.nameDraft = null; toast(`Приятно познакомиться, ${f}!`); sfx('confirm');
+    try { await refresh({ all: true }); } catch {}
+  }),
   'nick-change'() {
     const nick = $('#p-nick').value.trim().replace(/^@+/, '');
     if (nick.toLowerCase() === S.me.nick.toLowerCase()) { S.error = 'Впиши новый никнейм'; render(); return; }
