@@ -184,7 +184,7 @@ function startServer(day, extra = {}) {
     });
 
     await step('волна: от трёх человек, раз в неделю, встал — зёрна, итог', async () => {
-      assert.equal((await B.post(`/api/gangs/${gb.id}/wave`)).status, 400, 'двоих мало для трибуны');
+      assert.equal((await B.post(`/api/gangs/${gb.id}/wave`)).status, 400, 'двоих мало для волны');
       const E = await new Client().login('s5@mts.ru', 'болельщик');
       await E.post(`/api/gangs/${gb.id}/apply`);
       let w = (await B.post(`/api/gangs/${gb.id}/wave`)).json;
@@ -194,13 +194,13 @@ function startServer(day, extra = {}) {
       assert.ok((await D.get('/api/inbox')).json.items.some((x) => x.kind === 'wave'), 'в сводке — «вставай»');
       const before = (await D.get('/api/me')).json.user.beans;
       w = (await D.post(`/api/waves/${w.active.id}/join`)).json;
-      assert.equal(w.beans, 2); assert.ok((await D.get('/api/me')).json.user.beans >= before + 2, '+2 за волну (и ачивка «Ла-ола» сверху)');
-      assert.ok((await D.get('/api/features')).json.achievements.find((x) => x.id === 'wave1').got, 'ачивка «Ла-ола»');
+      assert.equal(w.beans, 2); assert.ok((await D.get('/api/me')).json.user.beans >= before + 2, '+2 за волну (и ачивка «Свой» сверху)');
+      assert.ok((await D.get('/api/features')).json.achievements.find((x) => x.id === 'wave1').got, 'ачивка «Свой»');
       assert.equal((await D.post(`/api/waves/${w.active.id}/join`)).json.beans, 0, 'встать дважды — без зёрен');
       assert.equal((await A.post(`/api/waves/${w.active.id}/join`)).status, 404, 'чужая банда');
       w = (await E.post(`/api/waves/${w.active.id}/join`)).json;
       assert.equal(w.active.joined, 3);
-      assert.ok((await B.get('/api/features')).json.achievements.find((x) => x.id === 'wave_full').got, 'встала вся банда — запустившему «Дирижёр стадиона»');
+      assert.ok((await B.get('/api/features')).json.achievements.find((x) => x.id === 'wave_full').got, 'встала вся банда — запустившему «Авторитет»');
       assert.ok(!((await D.get('/api/inbox')).json.items.some((x) => x.kind === 'wave')));
       assert.match((await B.get(`/api/gangs/${gb.id}/wave`)).json.why || '', /^$|неделе/);
       assert.equal((await B.get(`/api/gangs/${gb.id}/wave`)).json.canLaunch, false, 'волна ещё идёт');
