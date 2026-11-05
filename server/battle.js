@@ -15,6 +15,8 @@ const EMOTE_GAP_MS = 2500;      // не чаще одной реакции в 2,
 // Быстрая партия: шахматные часы, у каждого полторы минуты — вся партия не дольше трёх.
 // Часы идут только в твой ход, поэтому выигрывать «на зависании» не выйдет: кто тянет, тот и проигрывает
 const FAST_MS = 90 * 1000;
+// Ставка как в дуэлях: вызвавший платит сразу, соперник — когда нажимает «В бой». Победитель забирает обе
+const STAKES = [0, 5, 10];
 
 // ---------- Чистая логика (экспортируется для тестов) ----------
 const inside = (x, y) => x >= 0 && y >= 0 && x < N && y < N;
@@ -76,7 +78,7 @@ const sunkShips = (ships, shots) => {
 };
 
 function register(ctx) {
-  const { db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, onEvent, publicLook } = ctx;
+  const { db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, onEvent, publicLook, addBeans, spendBeans } = ctx;
 
   db.exec(`
   CREATE TABLE IF NOT EXISTS battles (
@@ -109,7 +111,7 @@ function register(ctx) {
   );
   `);
 
-  for (const col of ["mode TEXT NOT NULL DEFAULT 'calm'", 'clock_a INTEGER', 'clock_b INTEGER', 'turn_started INTEGER', 'timeout INTEGER NOT NULL DEFAULT 0']) {
+  for (const col of ["mode TEXT NOT NULL DEFAULT 'calm'", 'clock_a INTEGER', 'clock_b INTEGER', 'turn_started INTEGER', 'timeout INTEGER NOT NULL DEFAULT 0', 'stake INTEGER NOT NULL DEFAULT 0', 'b_paid INTEGER NOT NULL DEFAULT 0', 'settled INTEGER NOT NULL DEFAULT 0']) {
     try { db.exec(`ALTER TABLE battles ADD COLUMN ${col}`); } catch {}
   }
 
@@ -141,6 +143,7 @@ function register(ctx) {
     const winner = g[other(who)];
     q(`UPDATE battles SET status = 'done', winner = ?, timeout = 1, clock_${who} = 0, turn = NULL, seq = seq + 1, updated_at = ? WHERE id = ? AND status = 'play'`).run(winner, U.now(), g.id);
     addWin(winner, g[who]);
+    settle(g, winner);
     const loser = userRow(g[who]);
     ping(winner, g.id, `${loser ? loser.nick : 'Соперник'} ${loser ? U.g(loser.look, 'не успел', 'не успела') : 'не успел'} — время вышло. Победа твоя!`);
     ping(g[who], g.id, 'Время вышло — партия проиграна');
@@ -157,6 +160,15 @@ function register(ctx) {
     q('INSERT INTO battle_scores (lo, hi) VALUES (?, ?) ON CONFLICT DO NOTHING').run(lo, hi);
     q(`UPDATE battle_scores SET ${winner === lo ? 'lo_wins' : 'hi_wins'} = ${winner === lo ? 'lo_wins' : 'hi_wins'} + 1 WHERE lo = ? AND hi = ?`).run(lo, hi);
   };
+  // Расчёт по ставке: победитель забирает банк; без победителя или если соперник не успел заплатить — возврат
+  function settle(g, winner) {
+    if (!g.stake || !addBeans) return 0;
+    if (q('UPDATE battles SET settled = 1 WHERE id = ? AND settled = 0').run(g.id).changes === 0) return 0; // уже рассчитались
+    if (winner && g.b_paid) return addBeans(winner, 'duel_pot', g.stake * 2);
+    addBeans(g.a, 'duel_refund', g.stake);
+    if (g.b_paid) addBeans(g.b, 'duel_refund', g.stake);
+    return 0;
+  }
   const ping = (uid, gameId, body) => fireAndForget(notify([uid], { title: 'Морской бой', body, url: `/#battle/${gameId}`, tag: `battle-${gameId}` }));
 
   function view(g, uid) {
@@ -180,6 +192,7 @@ function register(ctx) {
       winner: g.status === 'done' ? (g.winner === uid ? 'me' : 'opp') : null,
       resigned: !!g.resigned, timeout: !!g.timeout,
       mode: g.mode || 'calm',
+      stake: g.stake || 0, needPay: g.status === 'setup' && s === 'b' && g.stake > 0 && !g.b_paid, oppPaid: s === 'a' ? !!g.b_paid : true,
       clock: g.mode === 'fast' ? { me: Math.max(0, clockLeft(g, s)), opp: Math.max(0, clockLeft(g, o)), total: FAST_MS } : null,
       last: last ? { mine: last.by === uid, x: last.x, y: last.y, r: last.r } : null,
       score: score(uid, oppId),
@@ -201,7 +214,7 @@ function register(ctx) {
       items: rows.map((g) => {
         const s = side(g, u.id);
         return {
-          id: g.id, status: g.status, oppId: g[other(s)], mode: g.mode || 'calm',
+          id: g.id, status: g.status, oppId: g[other(s)], mode: g.mode || 'calm', stake: g.stake || 0,
           myTurn: (g.status === 'play' && g.turn === u.id) || (g.status === 'setup' && !g[s + '_ready']),
           winner: g.status === 'done' ? (g.winner === u.id ? 'me' : 'opp') : null
         };
@@ -220,10 +233,13 @@ function register(ctx) {
     if (active >= MAX_ACTIVE) throw bad(`Одновременно можно вести ${MAX_ACTIVE} партий. Доиграй какую-нибудь.`);
     const t = U.now();
     const mode = body.mode === 'fast' ? 'fast' : 'calm';
-    const r = q('INSERT INTO battles (a, b, status, a_ships, b_ships, created_at, updated_at, mode, clock_a, clock_b) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(u.id, to, 'setup', JSON.stringify(randomFleet()), JSON.stringify(randomFleet()), t, t, mode, FAST_MS, FAST_MS);
+    const stake = STAKES.includes(Number(body.stake)) ? Number(body.stake) : 0;
+    if (stake && !(spendBeans && spendBeans(u.id, stake, 'duel_stake'))) throw bad('Не хватает зёрен на ставку.');
+    const r = q('INSERT INTO battles (a, b, status, a_ships, b_ships, created_at, updated_at, mode, clock_a, clock_b, stake) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(u.id, to, 'setup', JSON.stringify(randomFleet()), JSON.stringify(randomFleet()), t, t, mode, FAST_MS, FAST_MS, stake);
     if (onEvent) onEvent('battle_start', u.id);
-    ping(to, Number(r.lastInsertRowid), mode === 'fast' ? `${u.nick} зовёт на быструю партию в морской бой — 3 минуты` : `${u.nick} вызывает на морской бой`);
+    const st = stake ? ` на ${stake} зёрен` : '';
+    ping(to, Number(r.lastInsertRowid), mode === 'fast' ? `${u.nick} зовёт на быструю партию в морской бой${st} — 3 минуты` : `${u.nick} вызывает на морской бой${st}`);
     return { id: Number(r.lastInsertRowid) };
   });
 
@@ -247,6 +263,10 @@ function register(ctx) {
     const g = load(params.id, u.id);
     const s = side(g, u.id), o = other(s);
     if (g.status !== 'setup') throw bad('Партия уже идёт.');
+    if (s === 'b' && g.stake && !g.b_paid) {
+      if (!(spendBeans && spendBeans(u.id, g.stake, 'duel_stake'))) throw bad(`Ставка — ${g.stake} зёрен, у тебя не хватает. Можно отказаться от партии без потерь.`);
+      q('UPDATE battles SET b_paid = 1 WHERE id = ?').run(g.id);
+    }
     q(`UPDATE battles SET ${s}_ready = 1, updated_at = ? WHERE id = ?`).run(U.now(), g.id);
     if (g[o + '_ready']) {
       const first = Math.random() < 0.5 ? g.a : g.b;
@@ -285,6 +305,7 @@ function register(ctx) {
       const clean = sunkShips(myShips, JSON.parse(g[o + '_shots'])).length === 0;
       addWin(u.id, g[o]);
       const before = q('SELECT beans FROM users WHERE id = ?').get(u.id).beans;
+      settle(g, u.id);
       if (onEvent) onEvent('sea_win', u.id, { clean, newRival });
       res.beans = q('SELECT beans FROM users WHERE id = ?').get(u.id).beans - before;
       ping(g[o], g.id, `${u.nick} ${U.g(u.look, 'потопил', 'потопила')} весь твой флот. Реванш?`);
@@ -313,6 +334,7 @@ function register(ctx) {
     if (g.status === 'done') throw bad('Партия уже закончена.');
     q("UPDATE battles SET status = 'done', winner = ?, resigned = 1, turn = NULL, seq = seq + 1, updated_at = ? WHERE id = ?").run(g[o], U.now(), g.id);
     if (g.status === 'play') addWin(g[o], u.id);
+    settle(g, g.status === 'play' ? g[o] : null); // отказ до начала — ставки возвращаются
     ping(g[o], g.id, g.status === 'play' ? `${u.nick} ${U.g(u.look, 'сдался', 'сдалась')}. Победа твоя!` : `${u.nick} ${U.g(u.look, 'отказался', 'отказалась')} от партии`);
     return view(load(g.id, u.id), u.id);
   });
@@ -320,6 +342,7 @@ function register(ctx) {
   function cleanup() {
     const t = U.now();
     q("DELETE FROM battles WHERE status = 'done' AND updated_at < ?").run(t - DONE_TTL_DAYS * 864e5);
+    for (const g of q("SELECT * FROM battles WHERE status != 'done' AND updated_at < ? AND stake > 0 AND settled = 0").all(t - IDLE_TTL_DAYS * 864e5)) settle(g, null);
     q("DELETE FROM battles WHERE status != 'done' AND updated_at < ?").run(t - IDLE_TTL_DAYS * 864e5);
   }
 

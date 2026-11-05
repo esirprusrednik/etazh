@@ -1345,3 +1345,4 @@ a { color: var(--link); }
 .k-gev .inbox-ico, .k-gev-edit .inbox-ico { background: var(--tint-b); color: var(--tint-b-fg); }
 .k-gev-cancel .inbox-ico { background: var(--tint-r); color: var(--tint-r-fg); }
 .k-poll .inbox-ico { background: var(--tint-v); color: var(--tint-v-fg); }
+.b-stake { display: flex; align-items: center; gap: 6px; margin: 6px 0 10px; padding: 8px 12px; border-radius: 12px; background: var(--tint-y); color: var(--tint-y-fg); font-size: 14px; font-weight: 600; }

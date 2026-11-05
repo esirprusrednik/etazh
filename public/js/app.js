@@ -2268,7 +2268,7 @@ function renderDuelsCard() {
   const battles = (S.battles || []).filter((x) => x.status !== 'done');
   const nickOf = (id) => ((S.people || []).find((p) => p.id === id) || (S.crew && S.crew.list.find((p) => p.id === id)) || {}).nick || 'соперник';
   const waiting = items.filter((d) => d.myTurn).length + battles.filter((x) => x.myTurn).length;
-  const games = [['duel-pick', 'rps', rpsDuo(), 'Камень, ножницы, бумага'], ['duel-pick', 'dice', 'dice', 'Кости'], ['duel-pick', 'ttt', 'xcircle', 'Крестики-нолики'], ['open', 'battle-pick', 'anchor', 'Морской бой']];
+  const games = [['duel-pick', 'rps', rpsDuo(), 'Камень, ножницы, бумага'], ['duel-pick', 'dice', 'dice', 'Кости'], ['duel-pick', 'ttt', 'xcircle', 'Крестики-нолики'], ['duel-pick', 'sea', 'anchor', 'Морской бой']];
   return `<section class="card duels-card"><div class="chats-head"><h3>game Игры со своими</h3><span class="small">${waiting ? `${waiting} ${plural(waiting, 'ждёт', 'ждут', 'ждут')} твоего хода` : 'победа +2 зерна'}</span></div>
     <div class="duel-new n4">${games.map(([act, g, e, t]) => `<button class="duel-start" data-act="${act}" data-v="${g}"><span>${e}</span><b>${hy(t)}</b></button>`).join('')}</div>
     ${items.length || battles.length ? '' : '<p class="small" style="margin:0">Выбери игру и соперника. В дуэлях можно на ставку 5 или 10 зёрен — победитель забирает обе. Морской бой — с расстановкой, быстрый или без спешки.</p>'}
@@ -2915,10 +2915,11 @@ function renderBattle() {
       <div class="sea-title">${v.ready ? 'Флот расставлен' : 'Расставь флот'}</div>
       <p class="sea-sub">${v.ready ? (v.oppReady ? 'Начинаем…' : `Ждём, пока ${esc(v.opp.nick)} расставит корабли. Придёт уведомление.`) : 'Корабли стоят случайно. Не нравится — перемешай. Готов — жми «В бой!».'}</p>
       ${renderBoard(v, 'me')}
-      ${v.ready ? '' : `<div class="row"><button class="btn ghost grow" data-act="bshuffle">dice Перемешать</button><button class="btn grow" data-act="bready">anchor В бой!</button></div>`}
+      ${v.stake ? `<div class="b-stake">${BEAN} Ставка ${v.stake} зёрен с каждого — победитель забирает ${v.stake * 2}${v.needPay ? '. Твои спишутся, когда нажмёшь «В бой»' : !v.oppPaid ? `. ${esc(v.opp.nick)} ещё не ${gw(v.opp.look, 'принял', 'приняла')} вызов` : ''}</div>` : ''}
+      ${v.ready ? '' : `<div class="row"><button class="btn ghost grow" data-act="bshuffle">dice Перемешать</button><button class="btn grow" data-act="bready">anchor ${v.needPay ? `В бой · ${v.stake} зёрен` : 'В бой!'}</button></div>`}
     </section>
     ${renderEmoteBar()}
-    <button class="linkbtn b-quit" data-act="bresign">Отказаться от партии</button>`;
+    <button class="linkbtn b-quit" data-act="bresign">Отказаться от партии${v.stake ? ' — ставки вернутся' : ''}</button>`;
   }
   const done = v.status === 'done';
   const banner = done
@@ -2940,7 +2941,7 @@ function renderBattle() {
     ${fleetBars(fleetLeft(v.myShips, v.oppShots))}
     ${renderBoard(v, 'me')}
   </section>
-  ${done ? `<button class="btn wide" data-act="battle-new" data-id="${v.opp.id}" data-mode="${v.mode}">Реванш${v.mode === 'fast' ? ' · быстрая' : ''}</button>` : '<button class="linkbtn b-quit" data-act="bresign">Сдаться</button>'}`;
+  ${done ? `<button class="btn wide" data-act="battle-new" data-id="${v.opp.id}" data-mode="${v.mode}" data-stake="${v.stake || 0}">Реванш${v.mode === 'fast' ? ' · быстрая' : ''}</button>` : '<button class="linkbtn b-quit" data-act="bresign">Сдаться</button>'}`;
 }
 
 function renderDmMsg(m, f) {
@@ -3206,11 +3207,12 @@ function renderSheet() {
     case 'dm-pick': return sheetWrap('Написать в личку', `<p class="sub" style="margin:0">Написать можно любому — если он сам не ограничил личку. Подельникам и своей банде — проще всего.</p>
       <button class="find-bar light" data-act="find-open">${ico('search', 18)}<span>Найти человека по нику или почте</span></button>
       ${(S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${p.crew ? '<span class="fav-star">★</span> ' : ''}${esc(p.nick)}</span><span class="where">${esc(p.gangs.map((g) => g.name).join(', ') || (p.crew ? 'подельник' : whereText(p)[0]))}</span></span><span aria-hidden="true">›</span></button>`).join('')}`);
-    case 'duel-pick': return sheetWrap(`${{ rps: 'rock Камень, ножницы, бумага', dice: 'dice Кости', ttt: 'x Крестики-нолики' }[S.duelGame] || 'Дуэль'}: с кем?`, `
+    case 'duel-pick': return sheetWrap(`${{ rps: 'rock Камень, ножницы, бумага', dice: 'dice Кости', ttt: 'x Крестики-нолики', sea: 'anchor Морской бой' }[S.duelGame] || 'Дуэль'}: с кем?`, `
+      ${S.duelGame === 'sea' ? `<div class="duel-stake"><span class="small">Темп:</span>${[['calm', 'Без спешки'], ['fast', 'Быстрая · 3 мин']].map(([k, t]) => `<button class="chip ${(S.seaMode || 'calm') === k ? 'on' : ''}" data-act="sea-mode" data-v="${k}">${t}</button>`).join('')}</div>` : ''}
       <div class="duel-stake"><span class="small">Ставка:</span>${[0, 5, 10].map((x) => `<button class="chip ${(S.duelStake || 0) === x ? 'on' : ''}" data-act="duel-stake" data-v="${x}">${x ? x + ' зёрен' : 'без ставки'}</button>`).join('')}</div>
       ${(S.people || []).length ? (S.people || []).map((p) => `<button class="chat-row" data-act="duel-go" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${p.crew ? '<span class="fav-star">★</span> ' : ''}${esc(p.nick)}</span><span class="where">${esc(whereText(p)[0])}</span></span><span aria-hidden="true">swords</span></button>`).join('') : '<p class="sub">Пока некого вызвать: найди своих по нику или вступи в банду.</p>'}
       <button class="find-bar light" data-act="find-open">${ico('search', 18)}<span>Найти соперника по нику</span></button>
-      <p class="small" style="margin:0">Вызвать можно любого, кому можно написать лично. Дуэль появится у вас в личке.</p>`);
+      <p class="small" style="margin:0">${S.duelGame === 'sea' ? 'Морской бой — с людьми из твоей банды и подельниками. Соперник платит ставку, когда нажимает «В бой»; откажется — зёрна вернутся.' : 'Вызвать можно любого, кому можно написать лично. Дуэль появится у вас в личке.'}</p>`);
     case 'battle-pick': return sheetWrap('С кем сыграть?', (S.people || []).length ? (S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${esc(p.nick)}</span><span class="where">${esc(whereText(p)[0])}</span></span><span aria-hidden="true">›</span></button>`).join('') + '<p class="small">Откроется переписка — там выбери «Без спешки» или «Быстрая».</p>' : '<p class="sub">Сначала сколоти банду и позови в неё своих.</p>');
     case 'whatsnew': return sheetWrap('Что поменялось', `<div class="wn">
       <div class="wn-i"><span>room</span><div><b>Рядом</b><p>Главный экран: где ты сегодня и все твои люди одним списком — кто в офисе, кто дома, кто в отпуске.</p></div></div>
@@ -4281,8 +4283,16 @@ const actions = {
     sfx(r.existing ? 'open' : 'fanfare'); toast(r.existing ? 'Эта дуэль уже идёт' : 'Вызов брошен!'); await loadDuels(S.dm);
   }),
   'duel-pick'(el) { S.duelGame = el.dataset.v; S.sheet = 'duel-pick'; S.lastSheet = null; render(); },
+  'sea-mode'(el) { S.seaMode = el.dataset.v; sfx('pick'); render(); },
   'duel-go': (el) => run(async () => {
     const to = Number(el.dataset.id);
+    if (S.duelGame === 'sea') {
+      const r = await post('/api/battle', { to, mode: S.seaMode || 'calm', stake: S.duelStake || 0 });
+      sfx(r.existing ? 'open' : 'bugle'); toast(r.existing ? 'С ним партия уже идёт — открываем' : 'Вызов отправлен. Расставь флот');
+      S.sheet = null; S.tab = 'chats'; S.chatGang = false; S.dm = to; S.battle = r.id; S.bv = null; render();
+      await Promise.all([loadBattle(), loadMe()]); window.scrollTo(0, 0);
+      return;
+    }
     const r = await post('/api/duels', { to, game: S.duelGame, stake: S.duelStake || 0 });
     sfx(r.existing ? 'open' : 'fanfare'); toast(r.existing ? 'Эта дуэль уже идёт — открываем' : 'Вызов брошен!');
     S.sheet = null; S.tab = 'chats'; S.chatGang = false; S.battle = null; S.dm = to; S.dmView = null; render();
@@ -4476,7 +4486,8 @@ const actions = {
     window.scrollTo(0, 0);
   }),
   'battle-new': (el) => run(async () => {
-    const r = await post('/api/battle', { to: Number(el.dataset.id), mode: el.dataset.mode || 'calm' });
+    const r = await post('/api/battle', { to: Number(el.dataset.id), mode: el.dataset.mode || 'calm', stake: Number(el.dataset.stake) || 0 });
+    if (Number(el.dataset.stake)) loadMe().catch(() => {});
     S.tab = 'chats'; S.chatGang = false; S.sheet = null; S.dm = S.dm || Number(el.dataset.id); S.battle = r.id; S.bv = null; await loadBattle(); window.scrollTo(0, 0);
     if (!r.existing) toast(el.dataset.mode === 'fast' ? 'Быстрая партия! Часы пойдут, когда оба нажмут «В бой»' : 'Вызов отправлен. Расставляй флот');
   }),

@@ -180,6 +180,32 @@ let winnerBeans = 0;
     assert.ok(list.length >= 1);
   });
 
+  await step('ставка: соперник платит на «В бой», победитель забирает банк, отказ — возврат', async () => {
+    const beans = async (x) => (await x.get('/api/me')).json.user.beans;
+    // отказ до начала — обе ставки возвращаются
+    const a0 = await beans(a);
+    const g1 = (await a.post('/api/battle', { to: b.id, stake: 5 })).json.id;
+    assert.equal(await beans(a), a0 - 5, 'вызвавший платит сразу');
+    const v = (await b.get(`/api/battle/${g1}`)).json;
+    assert.equal(v.stake, 5); assert.equal(v.needPay, true);
+    await b.post(`/api/battle/${g1}/resign`);
+    assert.equal(await beans(a), a0, 'отказ — ставка вернулась');
+    // партия со ставкой до победы
+    const a1 = await beans(a), b1 = await beans(b);
+    const g2 = (await a.post('/api/battle', { to: b.id, stake: 10 })).json.id;
+    await a.post(`/api/battle/${g2}/ready`);
+    await b.post(`/api/battle/${g2}/ready`);
+    assert.equal(await beans(b), b1 - 10, 'соперник платит на «В бой»');
+    let va = (await a.get(`/api/battle/${g2}`)).json;
+    const loser = va.myTurn ? b : a, winner = va.myTurn ? a : b;
+    await loser.post(`/api/battle/${g2}/resign`); // сдача в бою — банк победителю
+    const wa = await beans(a), wb = await beans(b);
+    if (winner === a) { assert.equal(wa, a1 + 10); assert.equal(wb, b1 - 10); }
+    else { assert.equal(wb, b1 + 10); assert.equal(wa, a1 - 10); }
+    await loser.post(`/api/battle/${g2}/resign`);
+    assert.equal(await beans(winner), winner === a ? wa : wb, 'повторно не выплачивается');
+  });
+
   console.log(`\nВсё прошло: ${passed} проверок`);
 })()
   .catch((e) => { console.error('\nПровал:', e.message, '\n--- лог ---\n' + log.slice(-2000)); process.exitCode = 1; })
