@@ -50,7 +50,7 @@ function register(ctx) {
         const s = santa.view(u, g);
         if (!s.visible) continue;
         if (s.regOpen && !s.joined) out.push({ id: `santa-join-${g.id}-${s.year}`, kind: 'santa', icon: 'gift', push: true, title: `Тайный Санта в «${g.name}»`, text: `Запись до ${ddmm(s.drawDay)}, ${s.count ? `уже ${s.count}` : 'пока никто — будь первым'}`, go: { act: 'gang-open', id: g.id, to: '.santa' } });
-        if (s.status === 'drawn' && s.joined && !s.myGifted && s.target) out.push({ id: `santa-gift-${g.id}-${s.year}`, kind: 'santa', icon: 'gift', push: true, title: `Подарок для ${s.target.nick}`, text: 'Когда вручишь — отметь в карточке Санты', go: { act: 'gang-open', id: g.id, to: '.santa' } });
+        if (s.status === 'drawn' && s.joined && !s.myGifted && s.target) out.push({ id: `santa-gift-${g.id}-${s.year}`, kind: 'santa', icon: 'gift', push: true, title: `Подарок для ${s.target.nick}`, text: day >= santa.remindDay(s.year) && day.slice(5, 7) === '12' ? 'До Нового года пара дней — ещё успеваешь. Вручишь — отметь в карточке' : 'Когда вручишь — отметь в карточке Санты', go: { act: 'gang-open', id: g.id, to: '.santa' } });
       }
     }
     // Случайный кофе: договориться или ответить

@@ -31,6 +31,7 @@ function register(ctx) {
     PRIMARY KEY (gang_id, year, user_id)
   );
   `);
+  try { db.exec('ALTER TABLE santa_members ADD COLUMN reminded INTEGER NOT NULL DEFAULT 0'); } catch {}
 
   // Сезон Санты: ноябрь–декабрь текущего года и январь (до 15-го) — прошлого
   function season(day = U.msk().day) {
@@ -143,8 +144,22 @@ function register(ctx) {
   });
 
   // 10 декабря: жеребьёвка во всех бандах, где записались трое и больше; где меньше — отменяем с объяснением
+  // 29 декабря, с полудня: мягкое напоминание тем, кто ещё не отметил «Подарок вручён». Один раз
+  const remindDay = (year) => `${year}-12-29`;
+  function remind(s) {
+    const now = U.msk();
+    if (now.day < remindDay(s.year) || now.hour < 12 || now.day.slice(5, 7) !== '12') return;
+    const rows = q(`SELECT m.gang_id, m.user_id, t.nick AS target FROM santa_members m JOIN santa s ON s.gang_id = m.gang_id AND s.year = m.year
+                    JOIN users t ON t.id = m.target_id WHERE m.year = ? AND s.status = 'drawn' AND m.gifted_at IS NULL AND m.reminded = 0`).all(s.year);
+    for (const r of rows) {
+      q('UPDATE santa_members SET reminded = 1 WHERE gang_id = ? AND year = ? AND user_id = ?').run(r.gang_id, s.year, r.user_id);
+      fireAndForget(notify([r.user_id], { title: 'Тайный Санта', body: `До Нового года пара дней. Если подарок для ${r.target} уже вручён — отметь в карточке, если нет — ещё успеваешь`, url: `/#gang/${r.gang_id}`, tag: `santa-remind-${r.gang_id}` }));
+    }
+  }
+
   function tick() {
     const s = season();
+    if (s.visible) remind(s);
     // Пожелания и пары прошлых сезонов не храним: после 15 января всё стирается
     q('DELETE FROM santa_members WHERE year < ?').run(s.year);
     q('DELETE FROM santa WHERE year < ?').run(s.year);
@@ -159,7 +174,7 @@ function register(ctx) {
   }
   setInterval(() => { try { tick(); } catch (e) { console.error('santa', e); } }, 10 * 60e3).unref();
 
-  return { tick, season, view };
+  return { tick, season, view, remindDay };
 }
 
 module.exports = { register };
