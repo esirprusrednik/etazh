@@ -1566,6 +1566,12 @@ function createApi(db) {
   secret = require('./secret').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, canDm: (u, t) => (crew ? crew.canDm(u, t) : true) });
   // ---------- Пятничная пятиминутка банды ----------
   friday = require('./friday').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, readProfile });
+  // ---------- «Мой стиль»: личная карточка поведения по действиям (без текстов), видит только сам человек ----------
+  {
+    const style = require('./style').register({ db, q, route, requireUser, U, publicLook, myGangs, gangMembers });
+    const orig = features.onEvent;
+    features.onEvent = (t, uid, d) => { style.track(t, uid, d); return orig(t, uid, d); };
+  }
   // ---------- «Волна» по банде: клич раз в неделю ----------
   wave = require('./wave').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, publicLook, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   // ---------- Погода на завтра: вечером накануне офисного дня ----------

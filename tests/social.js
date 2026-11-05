@@ -206,6 +206,19 @@ function startServer(day, extra = {}) {
       assert.equal((await B.get(`/api/gangs/${gb.id}/wave`)).json.canLaunch, false, 'волна ещё идёт');
     });
 
+    await step('«Мой стиль»: по действиям, без текстов, только себе', async () => {
+      await D.post(`/api/crew/${B.id}/messages`, { type: 'text', text: 'привет' });
+      await B.post(`/api/crew/${D.id}/messages`, { type: 'text', text: 'и тебе' });
+      await D.post(`/api/crew/${B.id}/messages`, { type: 'text', text: 'как дела' });
+      const st = (await D.get('/api/me/style')).json;
+      assert.ok(st.main && st.main.title, JSON.stringify(st).slice(0, 300));
+      assert.ok(st.total > 0, 'ритм по часам считается');
+      assert.ok(st.ties.some((p) => p.id === B.id), 'B — среди тех, с кем на связи');
+      assert.ok(!JSON.stringify(st).includes('как дела'), 'тексты сообщений в карточку не попадают');
+      assert.equal(st.hours.length, 16); assert.equal(st.week.length, 5);
+      assert.equal((await D.get(`/api/users/${B.id}/style`)).status, 404, 'чужой стиль не отдаётся');
+    });
+
     await step('пятиминутка: ответ, зёрна раз в неделю, чужие ответы — после своего, реакции', async () => {
       let f = (await B.get(`/api/gangs/${gb.id}/friday`)).json;
       assert.equal(f.canAnswer, true); assert.equal(f.questions.length, 3);

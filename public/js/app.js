@@ -1023,6 +1023,31 @@ async function loadFriday() {
   if (!S.activeGang) { S.friday = null; return; }
   try { S.friday = await get(`/api/gangs/${S.activeGang}/friday`); } catch { S.friday = null; }
 }
+// ----- «Мой стиль»: личная карточка по действиям — видит только сам человек, тексты не читаются -----
+function renderStyle() {
+  const s = S.style;
+  if (!s) return '<p class="sub">Собираем портрет…</p>';
+  const maxH = Math.max(1, ...s.hours.map((x) => x.n)), maxW = Math.max(1, ...s.week.map((x) => x.n));
+  const st = s.stats;
+  const num = (n, l) => `<div class="st-num"><b>${n}</b><span>${l}</span></div>`;
+  const ppl = (list, btn) => list.map((p) => `<div class="st-person">${tap(p.id, avatar(p.look, 40))}<span class="grow"><b>${esc(p.nick)}</b>${btn ? '' : `<span class="small">${p.n} ${plural(p.n, 'касание', 'касания', 'касаний')} за 2 месяца</span>`}</span>${btn ? `<button class="btn small ghost" data-act="dm-open" data-id="${p.id}">chat Написать</button>` : ''}</div>`).join('');
+  return `<div class="style">
+    <section class="st-hero"><span class="st-hero-ico">${ico(s.main.icon, 30)}</span><div><span class="small">Твой архетип</span><h2>${esc(s.main.title)}</h2><p>${esc(s.main.text)}</p>
+      ${s.traits.length ? `<div class="chips">${s.traits.map((t) => `<span class="chip on" style="cursor:default">${esc(t)}</span>`).join('')}</div>` : ''}</div></section>
+    <section class="st-block"><div class="st-h"><b>${esc(s.chrono.title)}</b>${s.busiest ? `<span class="small">самый живой день — ${esc(s.busiest)}</span>` : ''}</div>
+      <p class="small" style="margin:0">${esc(s.chrono.text)}</p>
+      <div class="st-hours" aria-label="Активность по часам">${s.hours.map((x) => `<span title="${x.h}:00 — ${x.n}"><i style="height:${Math.round((x.n / maxH) * 100)}%"></i><em>${x.h % 3 === 0 ? x.h : ''}</em></span>`).join('')}</div>
+      <div class="st-week">${s.week.map((x) => `<span><i style="width:${Math.round((x.n / maxW) * 100)}%"></i><em>${x.d}</em></span>`).join('')}</div>
+    </section>
+    ${s.replyMin != null ? `<section class="st-block st-row">${ico('bolt', 22)}<div><b>Отвечаешь в личке примерно за ${s.replyMin < 60 ? s.replyMin + ' мин' : Math.round(s.replyMin / 60) + ' ч'}</b><span class="small">${s.replyMin <= 10 ? 'Молния. С тобой легко договориться.' : s.replyMin <= 60 ? 'Нормальный темп: не висишь в телефоне, но и не теряешься.' : 'Не спешишь — и это нормально. Важное лучше звать зовом.'}</span></div></section>` : ''}
+    <section class="st-block"><div class="st-h"><b>Цифры за всё время</b></div>
+      <div class="st-nums">${num(st.msgs, 'в чатах банд')}${num(st.dms, 'в личке')}${num(st.calls, 'зовов')}${num(st.replies, 'ответов на зовы')}${num(st.thanksGiven, meG('спасибо сказал', 'спасибо сказала'))}${num(st.thanksGot, meG('спасибо получил', 'спасибо получила'))}${num(st.games, 'игр')}${num(st.checkins, 'отметок')}</div></section>
+    ${s.ties.length ? `<section class="st-block"><div class="st-h"><b>Чаще всего на связи</b></div>${ppl(s.ties)}</section>` : ''}
+    ${s.fresh.length ? `<section class="st-block"><div class="st-h"><b>Ещё не общались один на один</b><span class="small">из твоей банды</span></div>${ppl(s.fresh, true)}</section>` : ''}
+    <p class="small st-note">lock Это видишь только ты. Тексты сообщений не читаются — считаем только действия: когда, сколько и с кем.</p>
+  </div>`;
+}
+
 // ----- «Волна» по банде: клич раз в неделю, у банды 10 минут, чтобы встать -----
 const WAVE_JOINED = () => [`${meG('Встал', 'Встала')} — значит, ${meG('свой', 'своя')}`, 'Банда видит', 'Уважение', 'Красиво пошла!', 'Руки выше, банда в силе'];
 const fanHtml = (f, size = 36) => `<span class="fan ${f.up ? 'up' : ''} ${f.me ? 'me' : ''}" style="--i:${f.i ?? 0}" title="${esc(f.nick)}"><span class="fan-arms" aria-hidden="true"></span>${avatar(f.look, size)}</span>`;
@@ -3568,6 +3593,7 @@ function renderSheet() {
     case 'crew': return sheetWrap('Подельники', renderCrew());
     case 'stats': return sheetWrap('Этаж сегодня', renderStats());
     case 'about': store.set('aboutSeen', true); return sheetWrap('Об Этаже', aboutHtml());
+    case 'style': return sheetWrap('Мой стиль', renderStyle());
     case 'wave-launch': return sheetWrap('Волна по банде', renderWaveLaunch());
     case 'thanks-person': return sheetWrap('Сказать спасибо', renderThx());
     case 'guide': return sheetWrap('Как тут всё устроено', guideHtml());
@@ -4466,6 +4492,7 @@ function renderProfile() {
     ${section('vac', 'Отпуска', p.vacations.length ? p.vacations.map((v) => `${ddmm(v.from)}–${ddmm(v.to)}`).join(', ') : 'не запланированы', vacBody)}
     ${section('about', 'О себе', [p.about && esc(p.about), p.bday && 'ДР ' + esc(p.bday)].filter(Boolean).join(' · ') || 'интересы, пара слов, день рождения', aboutBody)}
     ${section('priv', 'Приватность, звук и уведомления', `${me.shareOffice ? 'банда видит, где я' : 'где я — скрыто'}${me.quiet ? ' · тихие часы' : ''} · ${soundVol() ? 'звук ' + soundVol() + '%' : 'без звука'}`, privBody)}
+    <button class="fb-entry style-entry" data-act="open" data-v="style"><span class="st-ico">spark</span><span class="grow"><b>Мой стиль</b><span class="small">Какой ты в Этаже: ритм, привычки, с кем на связи. Видишь только ты</span></span><span class="chev" aria-hidden="true">›</span></button>
     <button class="fb-entry about-entry" data-act="open" data-v="about"><span class="grow"><b>Об Этаже</b><span class="small">Зачем он и что тут есть — коротко и без канцелярита</span></span><span class="chev" aria-hidden="true">›</span></button>
     <button class="fb-entry" data-act="open" data-v="guide"><span class="grow"><b>Как тут всё устроено</b><span class="small">Каждая вкладка и меню: что нажимать и зачем</span></span><span class="chev" aria-hidden="true">›</span></button>
     <button class="fb-entry" data-act="open" data-v="changes"><span class="grow"><b>Что нового</b><span class="small">${S.changes && S.changes[0] ? 'Последнее обновление — ' + esc(ddmm(S.changes[0].day)) : 'Что добавили и починили — по дням'}</span></span>${changesFresh() ? '<span class="fb-count">новое</span>' : '<span class="chev" aria-hidden="true">›</span>'}</button>
@@ -5067,6 +5094,7 @@ const actions = {
     if (S.sheet === 'shop') { store.set('shopSeen', [...new Set([...store.get('shopSeen', []), ...((S.me && S.me.affordable) || [])])]); await run(async () => { S.shop = await get('/api/shop'); if (S.activeGang && !S.gang) await loadGang(); }); }
     if (S.sheet === 'profile' || S.sheet === 'lunch') await run(loadFeatures);
     if (S.sheet === 'feedback') await run(loadFeedback);
+    if (S.sheet === 'style') await run(async () => { S.style = await get('/api/me/style'); });
     if (S.sheet === 'crew-new' && !S.crew) await run(loadCrew);
     if ((S.sheet === 'battle-pick' || S.sheet === 'dm-pick') && !S.people) await run(loadPeople);
   },

@@ -1582,3 +1582,34 @@ button.chip.ask-chip { cursor: pointer; }
 @keyframes swtitle { 0% { transform: scale(.3) rotate(-8deg); opacity: 0; } 30% { transform: scale(1.1) rotate(2deg); opacity: 1; } 80% { opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
 @keyframes sweepfade { 0% { opacity: 0; } 10%, 75% { opacity: 1; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .fan.up, .fan.up .fan-arms, .btn.wave-go, .sw-fan { animation: none; } .fan.up .fan-arms { opacity: 1; transform: translateX(-50%) translateY(-12px); } }
+/* ----- Мой стиль ----- */
+.style-entry { border-style: solid; background: linear-gradient(120deg, var(--tint-v), var(--card) 70%); }
+.st-ico { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--tint-v-fg); color: var(--card); flex: none; }
+.style { display: grid; gap: 12px; }
+.st-hero { display: flex; gap: 14px; align-items: flex-start; padding: 16px; border-radius: 20px; background: linear-gradient(140deg, #6D3FD6, #2E5BD8); color: #fff; }
+.st-hero .small { color: rgba(255,255,255,.75); }
+.st-hero h2 { margin: 2px 0 6px; font-size: 24px; color: #fff; }
+.st-hero p { margin: 0 0 8px; line-height: 1.4; }
+.st-hero .chip.on { background: rgba(255,255,255,.18); color: #fff; border-color: transparent; }
+.st-hero-ico { width: 52px; height: 52px; border-radius: 16px; background: rgba(255,255,255,.16); display: grid; place-items: center; flex: none; }
+.st-block { display: grid; gap: 8px; padding: 14px; border-radius: 18px; background: var(--card); border: 1px solid var(--line); }
+.st-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.st-h b { font-size: 16px; }
+.st-hours { display: grid; grid-template-columns: repeat(16, 1fr); gap: 3px; height: 90px; align-items: end; padding-bottom: 16px; position: relative; }
+.st-hours span { position: relative; height: 100%; display: flex; align-items: flex-end; }
+.st-hours i { display: block; width: 100%; min-height: 3px; border-radius: 4px 4px 2px 2px; background: linear-gradient(0deg, #4F8BFF, #8B5CF6); }
+.st-hours em { position: absolute; bottom: -16px; left: 50%; transform: translateX(-50%); font-style: normal; font-size: 11px; color: var(--muted); }
+.st-week { display: grid; gap: 4px; }
+.st-week span { display: grid; grid-template-columns: 26px 1fr; align-items: center; gap: 6px; }
+.st-week em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--muted); order: -1; }
+.st-week i { display: block; height: 10px; min-width: 3px; border-radius: 6px; background: var(--tint-y-fg); opacity: .8; }
+.st-row { grid-template-columns: auto 1fr; align-items: center; }
+.st-row b { display: block; }
+.st-nums { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.st-num { display: grid; gap: 2px; text-align: center; padding: 8px 4px; border-radius: 12px; background: var(--s1); }
+.st-num b { font-size: 20px; }
+.st-num span { font-size: 11px; line-height: 1.2; color: var(--muted); }
+.st-person { display: flex; align-items: center; gap: 10px; }
+.st-person b { display: block; }
+.st-note { margin: 0; text-align: center; }
+@media (max-width: 360px) { .st-nums { grid-template-columns: repeat(2, 1fr); } }
