@@ -220,6 +220,7 @@ function createApi(db) {
   let board = null;
   let weather = null;
   let secret = null;
+  let friday = null;
   let advent = null;
   let battle = null;
   let quiz = null;
@@ -655,6 +656,22 @@ function createApi(db) {
       }
       // nameVis больше не используется: имя видно всем коллегам
       if (p.coffee !== undefined) prof.coffee = !!p.coffee;
+      // «Чем занимаюсь» и «Спроси меня про…»: по ним коллеги находят, кто за что отвечает
+      if (p.role !== undefined) {
+        const v = U.cleanText(p.role, 80);
+        const prob = v && U.moderationProblem(v);
+        if (prob) throw bad(prob);
+        prof.role = v;
+      }
+      if (p.askMe !== undefined) {
+        const list = (Array.isArray(p.askMe) ? p.askMe : String(p.askMe || '').split(','))
+          .map((x) => U.cleanText(x, 24)).filter((x) => x.length >= 2);
+        const uniq = [];
+        for (const t of list) { const c = t[0].toLocaleUpperCase('ru') + t.slice(1); if (!uniq.some((x) => x.toLocaleLowerCase('ru') === c.toLocaleLowerCase('ru'))) uniq.push(c); }
+        for (const t of uniq) { const prob = U.moderationProblem(t); if (prob) throw bad(prob); }
+        if (uniq.length > 5) throw bad('Не больше пяти тем.');
+        prof.askMe = uniq;
+      }
       if (p.digest !== undefined) prof.digest = !!p.digest;
       if (p.matchShow !== undefined) prof.matchShow = !!p.matchShow;
       if (p.weather !== undefined) prof.weather = !!p.weather;
@@ -1023,6 +1040,32 @@ function createApi(db) {
   // ---------- Поиск коллег по базе ----------
   // По нику — всех, кто не отключил поиск; по имени — только тех, кто открыл имя всем;
   // по почте — точное совпадение отпечатка (почту мы не храним, перебрать список нельзя)
+  // «Кто знает про…»: поиск по темам «Спроси меня про» и по строке «Чем занимаюсь» — на весь Этаж
+  route('GET', '/api/experts', async (req, body, query) => {
+    const u = requireUser(req);
+    rateLimit('experts:' + u.id, 60, 3600e3);
+    const raw = String(query.q || '').trim().toLocaleLowerCase('ru').slice(0, 40);
+    // «парковку» находит «Парковка»: ищем по основе без окончания
+    const needle = raw.length > 5 ? raw.slice(0, -2) : raw;
+    const rows = q("SELECT id, nick, look, profile FROM users WHERE nick IS NOT NULL AND id != ?").all(u.id).map((r) => ({ r, p: readProfile(r.profile) }));
+    // Популярные темы — подсказки для поиска
+    const count = new Map();
+    for (const { p } of rows) for (const t of p.askMe || []) { const k = t.toLocaleLowerCase('ru'); const c = count.get(k) || { t, n: 0 }; c.n++; count.set(k, c); }
+    const popular = [...count.values()].sort((a, b) => b.n - a.n).slice(0, 12).map((x) => x.t);
+    if (needle.length < 2) return { items: [], popular, mine: { role: u.profile.role || '', askMe: u.profile.askMe || [] } };
+    const day = U.msk().day;
+    const items = rows.map(({ r, p }) => {
+      const tags = (p.askMe || []).filter((t) => t.toLocaleLowerCase('ru').includes(needle));
+      const roleHit = (p.role || '').toLocaleLowerCase('ru').includes(needle);
+      if (!tags.length && !roleHit) return null;
+      // Ближайший офисный день по плану — чтобы сразу понять, когда поймать вживую
+      let officeDay = null;
+      for (let i = 0; i < 7 && !officeDay; i++) { const d = addDays(day, i); const w = weekdayName(d); if (w && p.plan[w] === 'office') officeDay = i === 0 ? 'сегодня' : i === 1 ? 'завтра' : w; }
+      return { id: r.id, nick: r.nick, name: fullName(p, 'all'), look: publicLook(r), role: p.role || '', tags, allTags: p.askMe || [], office: (officeById(p.home) || {}).name || null, officeDay, rank: tags.length * 2 + (roleHit ? 1 : 0) };
+    }).filter(Boolean).sort((a, b) => b.rank - a.rank || a.nick.localeCompare(b.nick, 'ru')).slice(0, 30);
+    return { items, popular, mine: { role: u.profile.role || '', askMe: u.profile.askMe || [] } };
+  });
+
   route('GET', '/api/search', async (req, body, query) => {
     const u = requireUser(req);
     rateLimit('search:' + u.id, 30, 3600e3);
@@ -1136,7 +1179,7 @@ function createApi(db) {
     const close = me || sharedGangs.length > 0 || crewMate;
     const prof = readProfile(t.profile);
     const look = { ...DEFAULT_LOOK, ...JSON.parse(t.look || '{}') };
-    const card = { id: t.id, nick: t.nick, name: me ? '' : fullName(prof, 'all'), me, look, status: statusName(look.status), full: close || coffeeMate, canDm: !me && crew ? crew.canDm(u, t) : false };
+    const card = { id: t.id, nick: t.nick, name: me ? '' : fullName(prof, 'all'), role: prof.role || '', askMe: prof.askMe || [], me, look, status: statusName(look.status), full: close || coffeeMate, canDm: !me && crew ? crew.canDm(u, t) : false };
     if (!card.full) return card;
     const st = memberStatus(t);
     return {
@@ -1520,10 +1563,12 @@ function createApi(db) {
   board = require('./board').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, officeById, publicLook, fullName });
   // ---------- Секретный чат один на один (сквозное шифрование) ----------
   secret = require('./secret').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, canDm: (u, t) => (crew ? crew.canDm(u, t) : true) });
+  // ---------- Пятничная пятиминутка банды ----------
+  friday = require('./friday').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, readProfile });
   // ---------- Погода на завтра: вечером накануне офисного дня ----------
   weather = require('./weather').register({ db, q, U, notify, fireAndForget, readProfile, weekdayName, features });
   // ---------- «Этаж» пишет сам: живая сводка и один утренний пуш ----------
-  inbox = require('./inbox').register({ db, q, route, requireUser, U, notify, fireAndForget, myGangs, readProfile, weekdayName, features, blitz, advent, santa, duels, gevents, polls, weather });
+  inbox = require('./inbox').register({ db, q, route, requireUser, U, notify, fireAndForget, myGangs, readProfile, weekdayName, features, blitz, advent, santa, duels, gevents, polls, weather, friday });
   feedback = require('./feedback').register({ db, q, route, requireUser, requireAdmin, bad, U, addBeans, notify, fireAndForget, HttpError, BUILD });
 
   // Разово шифруем старую переписку, лежащую в базе открытым текстом (повторный запуск ничего не меняет)
@@ -1597,6 +1642,7 @@ function createApi(db) {
     if (quiz) quiz.cleanup();
     if (board) board.cleanup();
     if (secret) secret.cleanup();
+    if (friday) friday.cleanup();
     if (feedback) feedback.cleanup();
     if (polls) polls.cleanup();
     if (gevents) gevents.cleanup();

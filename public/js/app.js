@@ -981,7 +981,7 @@ async function loadState() {
 async function loadGang() {
   if (!S.activeGang) { S.gang = null; return; }
   try { S.gang = await get(`/api/gangs/${S.activeGang}`); } catch { S.gang = null; S.activeGang = null; }
-  await Promise.all([loadPolls(), loadGEvents(), loadCV(), loadWars(), loadSanta()]);
+  await Promise.all([loadPolls(), loadGEvents(), loadCV(), loadWars(), loadSanta(), loadFriday()]);
 }
 function boardSync() {
   const d = S.boardDraft; if (!d) return;
@@ -1009,6 +1009,31 @@ function markInboxSeen() { try { store.set('inboxSeen', (S.inbox || []).map((x) 
 async function loadMatch() { try { S.match = await get('/api/match'); } catch { S.match = null; } }
 async function loadBoard() { try { S.board = await get('/api/board'); } catch { S.board = null; } }
 async function loadAdvent() { try { S.advent = await get('/api/advent'); } catch { S.advent = null; } }
+async function loadFriday() {
+  if (!S.activeGang) { S.friday = null; return; }
+  try { S.friday = await get(`/api/gangs/${S.activeGang}/friday`); } catch { S.friday = null; }
+}
+// Пятничная пятиминутка: три вопроса недели; ответил — видишь ответы банды и ставишь реакции
+function renderFriday() {
+  const f = S.friday;
+  if (!f) return '';
+  const any = f.questions.some((qd) => qd.answers.length);
+  if (!f.canAnswer && !any) return '';
+  const qBlock = (qd) => {
+    const editing = f.canAnswer && (!qd.mine || S.fridayEdit === qd.id);
+    const others = qd.answers.filter((a) => !a.me);
+    return `<div class="fr-q"><b>${esc(qd.text)}</b>
+      ${editing ? `<div class="row"><label class="field grow" style="gap:0"><span class="hidden">${esc(qd.text)}</span><input id="fr-${qd.id}" maxlength="${f.max}" value="${esc(qd.mine || '')}" placeholder="${esc(qd.ph)}"></label><button class="btn small" data-act="friday-send" data-q="${qd.id}">${qd.mine ? 'OK' : '→'}</button></div>`
+        : qd.mine ? `<div class="fr-a me"><span class="grow">${esc(qd.mine)}</span>${f.canAnswer ? `<button class="linkbtn" data-act="friday-edit" data-q="${qd.id}" aria-label="Изменить">pencil</button>` : ''}</div>` : ''}
+      ${(qd.mine || !f.canAnswer) ? others.map((a) => `<div class="fr-a"><span class="fr-ava">${avatar(a.look, 26)}</span><span class="grow"><span class="small">${esc(a.nick)}</span><span class="fr-t">${esc(a.text)}</span>
+        <span class="fr-r">${f.reactions.map((e) => `<button class="${a.my === e ? 'on' : ''}" data-act="friday-react" data-id="${a.id}" data-v="${e}" aria-label="Реакция ${e}">${e}${a.counts[e] ? `<i>${a.counts[e]}</i>` : ''}</button>`).join('')}</span></span></div>`).join('') : (others.length ? `<div class="small">Ответили ${others.length} — ответь, чтобы увидеть</div>` : '')}
+    </div>`;
+  };
+  return `<section class="card friday"><div class="row" style="justify-content:space-between"><span class="card-title">chat Пятничная пятиминутка</span><span class="small">${f.canAnswer ? `ответили ${f.people} из ${f.members}` : 'неделя закрыта'}</span></div>
+    ${f.canAnswer && !f.done ? '<p class="small" style="margin:0">Три вопроса о неделе — ответ в одну строку. Ответы банды откроются, когда ответишь сам. +3 зерна.</p>' : ''}
+    ${f.questions.map(qBlock).join('')}
+  </section>`;
+}
 async function loadGEvents() {
   if (!S.activeGang) { S.gev = null; return; }
   try { S.gev = await get(`/api/gangs/${S.activeGang}/gevents`); } catch { S.gev = null; }
@@ -1213,7 +1238,7 @@ async function refresh({ all = false } = {}) {
   if (all || t === 'chats') jobs.push(loadChats());
   if (all || t === 'chats' || t === 'games') jobs.push(loadCrew());
   if (all || (t === 'chats' && S.chatGang) || t === 'games') jobs.push(loadGang(), loadGangExtra());
-  if (all || t === 'office') jobs.push(loadEvents(), loadBoard());
+  if (all || t === 'office') jobs.push(loadEvents(), loadBoard(), S.experts && S.experts.q ? null : loadExperts());
   if (all || t === 'games') jobs.push(loadQuiz(), loadBlitz(), loadLeague('W').catch(() => {}), loadDuels(), loadTour());
   if (t === 'chats' && S.battle) jobs.push(loadBattle());
   if (t === 'chats' && S.dm) jobs.push(loadDm());
@@ -1608,6 +1633,26 @@ function renderMatch() {
     <p class="small" style="margin:0">Нажми на человека — откроется карточка: написать, позвать на кофе или обед. Жёлтая обводка — общие интересы, синяя — твоя банда.${d.me === 'unknown' ? ' <button class="linkbtn" data-act="open-sec" data-v="work">Заполни свой план</button>' : ''}</p>
   </section>`;
 }
+// ----- «Кто знает?»: поиск коллег по темам «Спроси меня про» и «Чем занимаюсь» -----
+async function loadExperts(qs = '') { try { S.experts = { ...(await get('/api/experts?q=' + encodeURIComponent(qs))), q: qs }; } catch { S.experts = S.experts || null; } }
+function renderExperts() {
+  const x = S.experts;
+  if (!x) return '';
+  const res = x.q && x.q.length >= 2 ? (x.items.length ? x.items.map((p) => `<div class="expert">
+      ${tap(p.id, avatar(p.look, 40))}
+      <div class="grow" style="min-width:0"><div class="ex-head"><b>${esc(p.name || p.nick)}</b>${p.name ? `<span class="small">${esc(p.nick)}</span>` : ''}</div>
+        ${p.role ? `<div class="small ex-role">${esc(p.role)}</div>` : ''}
+        <div class="chips">${p.allTags.map((t) => `<span class="chip ask-chip ${p.tags.includes(t) ? 'on' : ''}">${esc(t)}</span>`).join('')}</div>
+        <div class="small">${p.office ? esc(p.office) : 'офис не указан'}${p.officeDay ? ` · в офисе ${esc(p.officeDay)}` : ''}</div></div>
+      <button class="btn small ghost" data-act="dm-open" data-id="${p.id}" aria-label="Написать ${esc(p.nick)}">chat</button></div>`).join('') : `<p class="small" style="margin:0">Пока никто не указал «${esc(x.q)}» в своих темах. Спроси на доске — вопрос увидят те, у кого такая тема.</p>`) : '';
+  const mineEmpty = !(x.mine && x.mine.askMe && x.mine.askMe.length);
+  return `<section class="card experts"><div class="chats-head"><h3>help Кто знает?</h3><span class="small">кто за что отвечает</span></div>
+    <div class="row"><label class="field grow" style="gap:0"><span class="hidden">Тема</span><input id="ex-q" maxlength="40" value="${esc(x.q || '')}" placeholder="парковка, Jira, тарифы B2B…" enterkeyhint="search"></label><button class="btn" data-act="ex-find" aria-label="Найти">search</button></div>
+    ${!x.q && x.popular.length ? `<div class="chips">${x.popular.map((t) => `<button class="chip ask-chip" data-act="ex-tag" data-v="${esc(t)}">${esc(t)}</button>`).join('')}</div>` : ''}
+    ${res}
+    ${mineEmpty ? '<button class="week-lock-strip" data-act="open-sec" data-v="work">'+ico('help', 16)+'<span>Тебя тоже могут искать: заполни «Чем занимаюсь» и «Спроси меня про». <b>Заполнить →</b></span></button>' : ''}
+  </section>`;
+}
 // ----- Доска объявлений -----
 function renderBoardCard() {
   const b = S.board;
@@ -1781,6 +1826,7 @@ function renderOfficeTab() {
   return `${pageHead('Офис', where)}
     ${st.checkin && st.canteen ? renderCanteen() : `<section class="card empty"><div class="empty-ico">lunch</div><p class="sub">Загрузка столовой, обед компанией и сигналы видны тем, кто отметился в офисе.</p><button class="btn" data-act="tab" data-v="near">Отметиться</button></section>`}
     ${st.checkin ? renderLunches() : ''}
+    ${renderExperts()}
     ${renderBoardCard()}
     ${renderFeed()}`;
 }
@@ -2801,6 +2847,7 @@ function renderGang() {
   ${renderWars()}
   ${renderCrestVote()}
   ${renderGEvents()}
+  ${renderFriday()}
   ${renderPolls()}
   <section class="card ${gst(g).chat ? 'chat-theme ' + gst(g).chat : ''}">
     <h3>Чат</h3>
@@ -4198,6 +4245,10 @@ function renderProfile() {
     <button class="btn ghost" data-act="name-save">Сохранить имя</button>`;
 
   const workBody = `
+    <label class="field">Чем занимаюсь<input id="p-role" maxlength="80" value="${esc(p.role || '')}" placeholder="Аналитика тарифов B2B, отчётность для ДФК"></label>
+    <label class="field">Спроси меня про… <span class="small" style="font-weight:600">— до пяти тем через запятую</span><input id="p-ask" maxlength="140" value="${esc((p.askMe || []).join(', '))}" placeholder="Jira, тарифы B2B, пропуска и парковка"></label>
+    <button class="btn ghost small" data-act="work-save" style="justify-self:start">Сохранить</button>
+    <span class="small" style="font-weight:600">По этим темам коллеги найдут тебя в «Кто знает?» на вкладке «Офис», а вопросы с доски по твоей теме придут в сводку «Этажа».</span>
     <div class="field">Статус<div class="chips">${Object.entries(meG(S.cat.moods, S.cat.moodsF || S.cat.moods)).map(([k, l]) => `<button class="chip ${p.mood === k ? 'on' : ''}" data-act="prof" data-k="mood" data-v="${k}">${esc(l)}</button>`).join('')}</div></div>
     <label class="field">Мой офис — на главной кнопке отметки<select id="home-office">
       <option value="">Не выбран</option>${S.cat.offices.slice().sort((x, y) => x.name.localeCompare(y.name, 'ru')).map((o) => `<option value="${esc(o.id)}" ${p.home === o.id ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select></label>
@@ -4287,6 +4338,8 @@ function renderPerson() {
     <div class="nick" style="color:var(--ink);text-align:center">${esc(x.nick)}${x.me ? ' (ты)' : ''}</div>
     ${x.name ? `<div class="sub" style="text-align:center;margin:0;font-weight:700">${esc(x.name)}</div>` : ''}
     ${x.status ? `<div class="status" style="color:var(--tint-y-fg);text-align:center">${esc(x.status)}</div>` : ''}
+    ${x.role ? `<div class="person-role">${ico('office', 16)} ${esc(x.role)}</div>` : ''}
+    ${x.askMe && x.askMe.length ? `<div class="ask-box"><span class="small">Спроси меня про</span><div class="chips" style="justify-content:center">${x.askMe.map((t) => `<span class="chip ask-chip">${esc(t)}</span>`).join('')}</div></div>` : ''}
     ${x.about ? `<p class="person-about">«${esc(x.about)}»</p>` : ''}
     ${x.tags && x.tags.length ? `<div class="chips" style="justify-content:center">${x.tags.map((t) => `<span class="chip on" style="cursor:default">${esc(t)}</span>`).join('')}</div>` : ''}
     ${rows.length ? `<div class="person-rows">${rows.map(([k, v]) => `<div><span class="small">${k}</span><b>${v}</b></div>`).join('')}</div>` : ''}
@@ -4993,6 +5046,16 @@ const actions = {
     await post(`/api/crew/${S.dm}/messages`, { type: 'text', text: 'Открой со мной секретный чат — вкладка «Секретный» в нашей переписке. Его не прочитает даже сервер.' });
     toast('Позвали — ответ придёт в обычную личку');
   }),
+  'ex-find': () => run(async () => { await loadExperts(($('#ex-q') || {}).value || ''); }),
+  'ex-tag': (el) => run(async () => { await loadExperts(el.dataset.v); }),
+  'friday-send': (el) => run(async () => {
+    const inp = $('#fr-' + el.dataset.q); const text = inp ? inp.value : '';
+    const r = await post(`/api/gangs/${S.activeGang}/friday`, { q: el.dataset.q, text });
+    S.friday = r; S.fridayEdit = null; sfx('send');
+    if (r.beans) { toast(`+${r.beans} зерна за пятиминутку`); loadMe().catch(() => {}); }
+  }),
+  'friday-edit'(el) { S.fridayEdit = el.dataset.q; render(); requestAnimationFrame(() => { const i = $('#fr-' + el.dataset.q); if (i) i.focus(); }); },
+  'friday-react': (el) => run(async () => { S.friday = await post(`/api/friday/${el.dataset.id}/react`, { e: el.dataset.v }); }),
   'quest-open'(el) { S.questOpen = S.questOpen === el.dataset.v ? null : el.dataset.v; render(); },
   'quest-go'(el) {
     const go = el.dataset.v;
@@ -5286,6 +5349,7 @@ const actions = {
     const nick = S.nickConfirm; S.nickConfirm = null;
     const r = await post('/api/me/nick', { nick }); await loadMe(); toast(`Теперь ты ${r.nick}`);
   }),
+  'work-save': () => run(async () => { await post('/api/me/profile', { profile: { role: $('#p-role').value, askMe: $('#p-ask').value } }); await loadMe(); toast('Сохранено — теперь тебя можно найти по темам'); }),
   'prof-save': () => run(async () => { await post('/api/me/profile', { profile: { about: $('#p-about').value, bday: $('#p-bday').value } }); await loadMe(); toast('Сохранено'); }),
   toggle: (el) => run(async () => { await post('/api/me/profile', { [el.dataset.k]: el.checked }); await loadMe(); await loadState(); }),
   'push-enable': () => run(enablePush),

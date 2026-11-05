@@ -1,5 +1,5 @@
 // Service worker: кэш оболочки приложения и показ пушей.
-const CACHE = 'etazh-v18';
+const CACHE = 'etazh-v19';
 const SHELL = ['/', '/index.html', '/css/app.css', '/js/app.js', '/js/building.js', '/js/crest.js', '/js/theme.js', '/fonts/onest.woff', '/fonts/unbounded.woff', '/manifest.webmanifest', '/icons/icon-192.png'];
 
 self.addEventListener('install', (e) => {

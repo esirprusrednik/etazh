@@ -156,6 +156,41 @@ function startServer(day, extra = {}) {
       assert.equal(ib.read, true, 'получатель открыл — прочитано');
     });
 
+    await step('«Кто знает?»: темы в профиле, поиск, вопрос с доски приходит знатоку', async () => {
+      assert.equal((await B.post('/api/me/profile', { profile: { askMe: 'a,b,c,d,e,f'.split(',').map((x) => x + x) } })).status, 400, 'не больше пяти');
+      await B.post('/api/me/profile', { profile: { role: 'Аналитика тарифов B2B', askMe: 'парковка, jira, Парковка' } });
+      const card = (await A.get(`/api/users/${B.id}`)).json;
+      assert.deepEqual(card.askMe, ['Парковка', 'Jira'], 'с большой буквы и без повторов');
+      assert.equal(card.role, 'Аналитика тарифов B2B');
+      const r = (await A.get('/api/experts?q=' + encodeURIComponent('парк'))).json;
+      assert.equal(r.items[0].nick, 'другой_отдел'); assert.deepEqual(r.items[0].tags, ['Парковка']);
+      assert.ok((await A.get('/api/experts?q=' + encodeURIComponent('тариф'))).json.items.length === 1, 'и по «Чем занимаюсь»');
+      assert.ok((await A.get('/api/experts')).json.popular.includes('Парковка'));
+      await A.post('/api/board', { kind: 'ask', text: 'Где взять гостевой пропуск на парковку?', until: '2026-11-12' });
+      const ib = (await B.get('/api/inbox')).json.items;
+      assert.ok(ib.some((x) => x.kind === 'ask' && /Парковка|парковка/.test(x.title)), JSON.stringify(ib.map((x) => x.title)));
+    });
+
+    await step('пятиминутка: ответ, зёрна раз в неделю, чужие ответы — после своего, реакции', async () => {
+      let f = (await B.get(`/api/gangs/${gb.id}/friday`)).json;
+      assert.equal(f.canAnswer, true); assert.equal(f.questions.length, 3);
+      const q0 = f.questions[0].id;
+      const before = (await D.get('/api/me')).json.user.beans;
+      f = (await D.post(`/api/gangs/${gb.id}/friday`, { q: q0, text: 'Закрыли релиз' })).json;
+      assert.equal(f.beans, 3);
+      f = (await D.post(`/api/gangs/${gb.id}/friday`, { q: f.questions[1].id, text: 'Научился SQL' })).json;
+      assert.equal(f.beans, 0, 'зёрна — за первый ответ недели');
+      assert.equal((await D.get('/api/me')).json.user.beans, before + 3);
+      let fb = (await B.get(`/api/gangs/${gb.id}/friday`)).json;
+      assert.equal(fb.questions[0].answers.length, 1);
+      fb = (await B.post(`/api/gangs/${gb.id}/friday`, { q: q0, text: 'Всё было норм' })).json;
+      const aid = fb.questions[0].answers.find((x) => !x.me).id;
+      fb = (await B.post(`/api/friday/${aid}/react`, { e: '🔥' })).json;
+      assert.equal(fb.questions[0].answers.find((x) => x.id === aid).counts['🔥'], 1);
+      assert.equal((await A.get(`/api/gangs/${gb.id}/friday`)).status, 404, 'чужая банда');
+      assert.equal((await D.post(`/api/gangs/${gb.id}/friday`, { q: 'нет-такого', text: 'x' })).status, 400);
+    });
+
     await step('доска: объявление, «я тоже» с отметкой автору, снять может только автор, срок', async () => {
       const r = await A.post('/api/board', { kind: 'company', text: 'Ищу компанию на обед в 13:00', until: '2026-11-12', office: 'smol' });
       assert.equal(r.status, 200);

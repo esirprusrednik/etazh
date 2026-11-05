@@ -48,6 +48,7 @@ server/feedback.js
 server/league.js
 server/gevents.js
 server/crestvote.js
+server/friday.js
 server/gangwar.js
 server/wartopics.js
 server/duels.js

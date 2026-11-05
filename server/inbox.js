@@ -40,6 +40,21 @@ function register(ctx) {
         out.push({ id: `secret-${r.from_id}-${r.n}`, kind: 'secret', icon: 'lock', push: false, title: `${r.nick}: ${r.n === 1 ? 'секретное сообщение' : `${r.n} секретных сообщения`}`, text: 'Откроется только на твоём устройстве', go: { act: 'secret-open', id: r.from_id } });
       }
     } catch {}
+    // Вопрос на доске по твоей теме «Спроси меня про…»
+    try {
+      const prof = typeof u.profile === 'string' ? readProfile(u.profile) : (u.profile || {});
+      const tags = (prof.askMe || []).map((t) => t.toLocaleLowerCase('ru'));
+      if (tags.length) {
+        for (const b of q("SELECT b.id, b.text, us.nick FROM board_posts b JOIN users us ON us.id = b.user_id WHERE b.kind = 'ask' AND b.hidden = 0 AND b.user_id != ? AND b.at > ? AND b.until >= ? ORDER BY b.at DESC LIMIT 20").all(uid, U.now() - 3 * 864e5, U.msk().day)) {
+          const low = b.text.toLocaleLowerCase('ru');
+          // Падежи: «парковка» должна находить «парковку» — сравниваем по основе без окончания
+          const hit = tags.find((t) => low.includes(t.length > 5 ? t.slice(0, -2) : t));
+          if (hit) out.push({ id: `ask-${b.id}`, kind: 'ask', icon: 'help', push: false, title: `${b.nick} спрашивает про «${hit}»`, text: b.text.length > 70 ? b.text.slice(0, 70) + '…' : b.text, go: { act: 'tab', v: 'office', to: '.bboard' } });
+        }
+      }
+    } catch {}
+    // Пятничная пятиминутка: не ответил на этой неделе
+    if (ctx.friday) for (const x of ctx.friday.pending(uid, myGangs(uid))) out.push({ id: `friday-${x.gang.id}-${x.week}`, kind: 'friday', icon: 'chat', push: false, title: `Пятиминутка «${x.gang.name}»`, text: 'Три вопроса о неделе, ответ — одна строка. +3 зерна', go: { act: 'gang-open', id: x.gang.id, to: '.friday' } });
     // Блиц: не начат или не доигран
     const set = blitz && blitz.activeSet();
     if (set) {
