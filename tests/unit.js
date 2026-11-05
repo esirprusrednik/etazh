@@ -96,5 +96,14 @@ const { b64url, fromB64url, moderationProblem, emailDomainAllowed } = require('.
     assert.deepEqual(missing, [], 'нет в files.txt: ' + missing.join(', '));
     console.log('  ✓ files.txt содержит все файлы сервера и клиента');
   }
+  // Журнал изменений: валидный JSON, один день — одна запись, свежие сверху
+  {
+    const log = JSON.parse(require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'public', 'changelog.json'), 'utf8'));
+    const days = log.map((d) => d.day);
+    assert.ok(days.every((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)));
+    assert.deepEqual(days, [...new Set(days)].sort().reverse(), 'дни без повторов, свежие сверху');
+    assert.ok(log.every((d) => ['new', 'better', 'fix'].every((k) => Array.isArray(d[k])) && d.new.length + d.better.length + d.fix.length > 0));
+    console.log('  ✓ журнал изменений');
+  }
   console.log('\nВсё прошло');
 })().catch((e) => { console.error('Провал:', e); process.exitCode = 1; });

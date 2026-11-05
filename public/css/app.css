@@ -1504,3 +1504,7 @@ button.chip.ask-chip { cursor: pointer; }
 .fr-t { overflow-wrap: anywhere; }
 .fr-r { align-self: auto; margin-left: -4px; }
 .fr-a.me .grow { display: block; }
+.changelog { display: grid; gap: 14px; }
+.cl-day h4 { margin: 0 0 4px; font-size: 17px; }
+.cl-kind { margin-top: 6px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.cl-day ul { margin: 2px 0 0; padding-left: 18px; display: grid; gap: 3px; font-size: 14px; line-height: 1.4; }

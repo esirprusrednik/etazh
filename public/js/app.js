@@ -1238,6 +1238,7 @@ async function refresh({ all = false } = {}) {
   if (all || t === 'chats') jobs.push(loadChats());
   if (all || t === 'chats' || t === 'games') jobs.push(loadCrew());
   if (all || (t === 'chats' && S.chatGang) || t === 'games') jobs.push(loadGang(), loadGangExtra());
+  if (all && !S.changes) jobs.push(loadChanges());
   if (all || t === 'office') jobs.push(loadEvents(), loadBoard(), S.experts && S.experts.q ? null : loadExperts());
   if (all || t === 'games') jobs.push(loadQuiz(), loadBlitz(), loadLeague('W').catch(() => {}), loadDuels(), loadTour());
   if (t === 'chats' && S.battle) jobs.push(loadBattle());
@@ -1300,6 +1301,7 @@ function aboutHtml({ cta = true } = {}) {
     <div class="about-grid">${ABOUT_TILES.map(([e, t, d]) => `<div class="about-tile"><span class="about-emo" aria-hidden="true">${e}</span><b>${t}</b><span>${d}</span></div>`).join('')}</div>
     <div class="about-not"><b>Чего Этаж не делает</b>
       <span>Не следит: никакой геолокации — только твоя кнопка «я в офисе», и её можно скрыть. Не хранит почту — только зашифрованный отпечаток. Не для начальства: это не табель, а кофе-машина с интерфейсом.</span></div>
+    ${S.me ? '<button class="linkbtn" data-act="open" data-v="changes">Что нового — по дням →</button>' : '<a class="linkbtn" href="/changelog.html" target="_blank" rel="noopener">Что нового — по дням →</a>'}
     ${cta ? '<button class="btn" data-act="about-ok">Понятно, погнали</button>' : ''}
   </div>`;
 }
@@ -1634,6 +1636,17 @@ function renderMatch() {
   </section>`;
 }
 // ----- «Кто знает?»: поиск коллег по темам «Спроси меня про» и «Чем занимаюсь» -----
+// «Что нового»: журнал изменений по дням (public/changelog.json)
+async function loadChanges() { try { const r = await fetch('/changelog.json', { cache: 'no-cache' }); if (r.ok) S.changes = await r.json(); } catch {} }
+const changesFresh = () => !!(S.changes && S.changes[0] && S.changes[0].day > (store.get('changesSeen', '') || ''));
+function changesHtml() {
+  if (!S.changes) return '<p class="small">Загружаю…</p>';
+  const block = (title, list) => list && list.length ? `<div class="cl-kind">${title}</div><ul>${list.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : '';
+  const M = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+  const date = (d) => { const [, m, dd] = d.split('-').map(Number); return `${dd} ${M[m - 1]}`; };
+  return `<div class="changelog">${S.changes.map((d) => `<section class="cl-day"><h4>${date(d.day)}</h4>${block('Новое', d.new)}${block('Стало удобнее', d.better)}${block('Починили', d.fix)}</section>`).join('')}
+    <a class="linkbtn" href="/changelog.html" target="_blank" rel="noopener">Открыть отдельной страницей</a></div>`;
+}
 async function loadExperts(qs = '') { try { S.experts = { ...(await get('/api/experts?q=' + encodeURIComponent(qs))), q: qs }; } catch { S.experts = S.experts || null; } }
 function renderExperts() {
   const x = S.experts;
@@ -3452,6 +3465,7 @@ function renderSheet() {
     case 'crew': return sheetWrap('Подельники', renderCrew());
     case 'stats': return sheetWrap('Этаж сегодня', renderStats());
     case 'about': store.set('aboutSeen', true); return sheetWrap('Об Этаже', aboutHtml());
+    case 'changes': if (S.changes && S.changes[0]) store.set('changesSeen', S.changes[0].day); return sheetWrap('Что нового', changesHtml());
     case 'crest': return sheetWrap('Герб банды', renderCrestEditor());
     case 'gang-switch': return sheetWrap('Перейти в другую банду?', renderGangSwitch());
     case 'league': return sheetWrap('Лига банд', renderLeague());
@@ -4312,6 +4326,7 @@ function renderProfile() {
     ${section('about', 'О себе', [p.about && esc(p.about), p.bday && 'ДР ' + esc(p.bday)].filter(Boolean).join(' · ') || 'интересы, пара слов, день рождения', aboutBody)}
     ${section('priv', 'Приватность, звук и уведомления', `${me.shareOffice ? 'банда видит, где я' : 'где я — скрыто'}${me.quiet ? ' · тихие часы' : ''} · ${soundVol() ? 'звук ' + soundVol() + '%' : 'без звука'}`, privBody)}
     <button class="fb-entry about-entry" data-act="open" data-v="about"><span class="grow"><b>Об Этаже</b><span class="small">Зачем он и что тут есть — коротко и без канцелярита</span></span><span class="chev" aria-hidden="true">›</span></button>
+    <button class="fb-entry" data-act="open" data-v="changes"><span class="grow"><b>Что нового</b><span class="small">${S.changes && S.changes[0] ? 'Последнее обновление — ' + esc(ddmm(S.changes[0].day)) : 'Что добавили и починили — по дням'}</span></span>${changesFresh() ? '<span class="fb-count">новое</span>' : '<span class="chev" aria-hidden="true">›</span>'}</button>
     <button class="fb-entry" data-act="open" data-v="feedback"><span class="grow"><b>Есть идея или нашёл ошибку?</b><span class="small">Напиши — ответим. За принятую идею +10 зёрен</span></span>${(S.state && S.state.badges && S.state.badges.feedback) ? `<span class="fb-count">${S.state.badges.feedback}</span>` : '<span class="chev" aria-hidden="true">›</span>'}</button>
     ${me.isAdmin ? '<a class="btn violet" style="display:flex;align-items:center;justify-content:center;text-decoration:none" href="/admin.html">Модерация</a>' : ''}
     <div class="row" style="justify-content:space-between">

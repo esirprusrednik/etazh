@@ -5,3 +5,5 @@ body{margin:0;background:#22305A;font-family:Rubik,system-ui,-apple-system,"Sego
 .doc a{color:#2563C9}.draft{background:#FFF4E0;color:#7A4300;border-radius:12px;padding:10px 12px;font-weight:700;font-size:14px}
 .back{display:inline-block;margin-bottom:12px;color:#FFC93C;font-weight:800;text-decoration:none}
 table{border-collapse:collapse;width:100%;font-size:14px}td,th{border:1px solid #E3E7F2;padding:6px 8px;text-align:left;vertical-align:top}
+.doc h3{font-size:14px;margin:10px 0 2px;color:#5A6488;text-transform:uppercase;letter-spacing:.04em}
+.doc ul{margin:0 0 6px;padding-left:20px}.doc li{margin:2px 0}

@@ -8,6 +8,8 @@ docker-compose.yml
 files.txt
 package.json
 public/admin.html
+public/changelog.html
+public/changelog.json
 public/css/app.css
 public/css/doc.css
 public/icons/apple-touch-icon.png
@@ -18,6 +20,7 @@ public/icons/icon-maskable-512.png
 public/index.html
 public/js/admin.js
 public/js/app.js
+public/js/changelog.js
 public/js/building.js
 public/js/crest.js
 public/js/theme.js
