@@ -1508,3 +1508,10 @@ button.chip.ask-chip { cursor: pointer; }
 .cl-day h4 { margin: 0 0 4px; font-size: 17px; }
 .cl-kind { margin-top: 6px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 .cl-day ul { margin: 2px 0 0; padding-left: 18px; display: grid; gap: 3px; font-size: 14px; line-height: 1.4; }
+.gang-hint { display: grid; gap: 6px; background: var(--tint-v); border-radius: 16px; padding: 12px 14px; margin-bottom: 12px; font-size: 14px; line-height: 1.4; }
+.gang-hint > b { font-size: 15px; }
+.gh-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 2px; }
+.gh-cols > div { display: grid; gap: 3px; align-content: start; font-size: 13px; }
+.gh-cols i { font-style: normal; font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.gh-cols > div:first-child span::before { content: "✓ "; color: #2E9E5B; font-weight: 800; }
+.gh-cols > div:last-child span::before { content: "✕ "; color: #E5484D; font-weight: 800; }
