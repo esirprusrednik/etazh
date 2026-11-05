@@ -979,10 +979,15 @@ async function loadGang() {
   try { S.gang = await get(`/api/gangs/${S.activeGang}`); } catch { S.gang = null; S.activeGang = null; }
   await Promise.all([loadPolls(), loadGEvents(), loadCV(), loadWars(), loadSanta()]);
 }
+function boardSync() {
+  const d = S.boardDraft; if (!d) return;
+  const t = $('#bd-text'), u = $('#bd-until');
+  if (t) d.text = t.value; if (u) d.until = u.value;
+}
 function gevSync() {
   const d = S.gevDraft; if (!d) return;
   const v = (id) => { const e = $(id); return e ? e.value : undefined; };
-  for (const [k, id] of [['title', '#gev-title'], ['day', '#gev-day'], ['time', '#gev-time'], ['place', '#gev-place'], ['note', '#gev-note']]) { const x = v(id); if (x !== undefined) d[k] = x; }
+  for (const [k, id] of [['title', '#gev-title'], ['day', '#gev-day'], ['time', '#gev-time'], ['place', '#gev-place'], ['note', '#gev-note'], ['guest', '#gev-guest']]) { const x = v(id); if (x !== undefined) d[k] = x; }
 }
 async function loadCV() {
   if (!S.activeGang) { S.cv = null; return; }
@@ -997,6 +1002,8 @@ async function loadInbox() { try { S.inbox = (await get('/api/inbox')).items; } 
 const inboxSeen = () => { try { return new Set(store.get('inboxSeen', [])); } catch { return new Set(); } };
 const inboxNew = () => { const seen = inboxSeen(); return (S.inbox || []).filter((x) => !seen.has(x.id)).length; };
 function markInboxSeen() { try { store.set('inboxSeen', (S.inbox || []).map((x) => x.id)); } catch {} }
+async function loadMatch() { try { S.match = await get('/api/match'); } catch { S.match = null; } }
+async function loadBoard() { try { S.board = await get('/api/board'); } catch { S.board = null; } }
 async function loadAdvent() { try { S.advent = await get('/api/advent'); } catch { S.advent = null; } }
 async function loadGEvents() {
   if (!S.activeGang) { S.gev = null; return; }
@@ -1106,13 +1113,13 @@ async function refresh({ all = false } = {}) {
   if (!S.me || !S.me.nick) return;
   const t = S.tab;
   const jobs = [loadState(), loadInbox()];
-  if (all || t === 'near') jobs.push(loadPeople());
+  if (all || t === 'near') jobs.push(loadPeople(), loadMatch());
   if (all || t === 'near' || t === 'office' || t === 'games') jobs.push(loadFeatures());
   if (all || t === 'near' || t === 'games') jobs.push(loadAdvent());
   if (all || t === 'chats') jobs.push(loadChats());
   if (all || t === 'chats' || t === 'games') jobs.push(loadCrew());
   if (all || (t === 'chats' && S.chatGang) || t === 'games') jobs.push(loadGang(), loadGangExtra());
-  if (all || t === 'office') jobs.push(loadEvents());
+  if (all || t === 'office') jobs.push(loadEvents(), loadBoard());
   if (all || t === 'games') jobs.push(loadQuiz(), loadBlitz(), loadLeague('W').catch(() => {}), loadDuels(), loadTour());
   if (t === 'chats' && S.battle) jobs.push(loadBattle());
   if (t === 'chats' && S.dm) jobs.push(loadDm());
@@ -1445,9 +1452,69 @@ function renderNear() {
     ${(S.people && !S.people.length) || !S.me.gangs.length ? findBar() : ''}
     ${renderQuickCalls()}
     ${renderBirthdays()}
-    ${renderPeople()}`;
+    ${renderPeople()}
+    ${renderMatch()}`;
 }
 
+// ----- «Совпадаем»: кто из коллег (не только банды) где на неделе -----
+function renderMatch() {
+  const m = S.match;
+  if (!m) return '';
+  if (!m.on) {
+    return `<section class="card match"><div class="card-title">where Совпадаем</div>
+      <p class="sub" style="margin:0">Кто из коллег — не только из банды — в какие дни в офисе, а кто дома. Можно позвать на обед, кофе или созвониться.</p>
+      <p class="small" style="margin:0">Видят только те, кто сам открыл свои дни. ${m.count ? `Уже открыли: <b>${m.count}</b>.` : 'Будь первым.'} Показываем ник, аватар, офис на день и общие интересы — без имён.</p>
+      <button class="btn" data-act="match-on">Открыть свои дни и посмотреть</button></section>`;
+  }
+  const i = Math.min(S.matchDay || 0, m.days.length - 1);
+  const d = m.days[i];
+  const chips = `<div class="match-days">${m.days.map((x, k) => `<button class="mday ${k === i ? 'on' : ''} ${x.holiday ? 'off' : ''}" data-act="match-day" data-v="${k}"><b>${esc(x.label.split(' ')[0])}</b><span>${esc(x.label.split(' ')[1] || '')}</span><i>${x.holiday ? '—' : (x.offices ? `${ICONS.office ? ico('office', 11) : ''}${x.offices.reduce((a, o) => a + o.n, 0)}` : '')}</i></button>`).join('')}</div>`;
+  if (d.holiday) return `<section class="card match"><div class="card-title">where Совпадаем</div>${chips}<p class="sub" style="margin:0">${esc(d.holiday)} — выходной.</p></section>`;
+  const meLine = d.me === 'office' ? 'ты в офисе' : d.me === 'home' ? 'ты из дома' : d.me === 'vacation' ? 'ты в отпуске' : 'твой план не указан';
+  const strip = (ps) => `<div class="match-strip">${ps.slice(0, 14).map((p) => `<span class="mp ${p.mate ? 'mate' : ''} ${p.common.length ? 'common' : ''}">${tap(p.id, avatar(p.look, 38))}<span>${esc(p.nick)}</span></span>`).join('')}${ps.length > 14 ? `<span class="mp more">+${ps.length - 14}</span>` : ''}</div>`;
+  const commons = (ps) => { const c = ps.filter((p) => p.common.length && !p.mate).slice(0, 3); return c.length ? `<div class="match-common">star ${c.map((p) => `<button class="linkbtn" data-act="person" data-id="${p.id}">${esc(p.nick)}</button> — ${esc(p.common.slice(0, 2).join(', '))}`).join('; ')}</div>` : ''; };
+  const group = (title, n, ps, mine) => `<div class="match-group ${mine ? 'mine' : ''}"><div class="row" style="justify-content:space-between"><b>${title}</b><span class="small">${n} ${plural(n, 'человек', 'человека', 'человек')}</span></div>${strip(ps)}${commons(ps)}</div>`;
+  const body = (d.offices.length || d.home.n)
+    ? d.offices.map((o) => group(`office ${esc(o.name)}`, o.n, o.people, o.mine)).join('') + (d.home.n ? group('home Из дома', d.home.n, d.home.people) : '')
+    : '<p class="sub" style="margin:0">На этот день пока никто не отметил план.</p>';
+  return `<section class="card match"><div class="row" style="justify-content:space-between"><span class="card-title">where Совпадаем</span><span class="small">${meLine}</span></div>
+    ${chips}${body}
+    <p class="small" style="margin:0">Нажми на человека — откроется карточка: написать, позвать на кофе или обед. Жёлтая обводка — общие интересы, синяя — твоя банда.${d.me === 'unknown' ? ' <button class="linkbtn" data-act="open-sec" data-v="work">Заполни свой план</button>' : ''}</p>
+  </section>`;
+}
+// ----- Доска объявлений -----
+function renderBoardCard() {
+  const b = S.board;
+  if (!b) return '';
+  const home = S.me.profile && S.me.profile.home;
+  const mine = S.boardMine && home;
+  const items = b.items.filter((x) => !mine || !x.office || x.office.id === home);
+  const row = (x) => `<div class="bpost k-${x.kind}">
+    <div class="row" style="gap:10px;align-items:flex-start">${tap(x.author.id, avatar(x.author.look, 36))}
+      <div class="grow" style="min-width:0"><div class="bp-head"><b>${esc(x.author.nick)}</b><span class="bp-kind">${ico(x.icon, 14)} ${esc(x.kindName)}</span></div>
+        <div class="bp-text">${esc(x.text)}</div>
+        <div class="small">до ${ddmm(x.until)}${x.office ? ` · ${esc(x.office.name)}` : ' · весь Этаж'}${x.mine && x.fans && x.fans.length ? ` · откликнулись: ${x.fans.map((f) => `<button class="linkbtn" data-act="dm-open" data-id="${f.id}">${esc(f.nick)}</button>`).join(', ')}` : ''}</div></div></div>
+    <div class="row bp-acts">${x.mine ? `<button class="linkbtn" data-act="board-remove" data-id="${x.id}">Снять</button>` : `<button class="chip ${x.iMetoo ? 'on' : ''}" data-act="board-metoo" data-id="${x.id}">${x.iMetoo ? 'check ' : ''}Я тоже${x.metoo ? ' · ' + x.metoo : ''}</button><button class="chip" data-act="dm-open" data-id="${x.author.id}">Написать</button><button class="linkbtn bp-rep" data-act="report" data-type="board" data-id="${x.id}" aria-label="Пожаловаться">⚑</button>`}${x.mine && x.metoo ? `<span class="small">«я тоже» · ${x.metoo}</span>` : ''}</div></div>`;
+  return `<section class="card bboard"><div class="chats-head"><h3>megaphone Доска</h3><button class="linkbtn" data-act="board-new">＋ Объявление</button></div>
+    ${home ? `<div class="chips">${[[false, 'Весь Этаж'], [true, 'Мой офис']].map(([v, t]) => `<button class="chip ${!!S.boardMine === v ? 'on' : ''}" data-act="board-filter" data-v="${v ? 1 : 0}">${t}</button>`).join('')}</div>` : ''}
+    ${items.length ? items.slice(0, S.boardAll ? 100 : 5).map(row).join('') : '<p class="small" style="margin:0">«Ищу компанию на обед в 13:00», «Отдам билеты», «Кто едет на конференцию», «Нашёл зонт на 5-м» — сюда. Объявление само исчезнет в выбранный день.</p>'}
+    ${items.length > 5 && !S.boardAll ? `<button class="linkbtn" data-act="board-all">Ещё ${items.length - 5}</button>` : ''}
+  </section>`;
+}
+function renderBoardNew() {
+  const d = S.boardDraft;
+  const kinds = (S.board && S.board.kinds) || [];
+  const home = S.me.profile && S.me.profile.home;
+  const homeName = home && S.cat.offices ? ((S.cat.offices.find((o) => o.id === home) || {}).name || 'мой офис') : 'мой офис';
+  const min = new Date(Date.now() + 3 * 3600e3).toISOString().slice(0, 10);
+  const max = new Date(Date.now() + 3 * 3600e3 + 14 * 864e5).toISOString().slice(0, 10);
+  return `<div class="field">О чём<div class="chips">${kinds.map((k) => `<button class="chip ${d.kind === k.id ? 'on' : ''}" data-act="board-kind" data-v="${k.id}">${ico(k.icon, 14)} ${esc(k.name)}</button>`).join('')}</div></div>
+    <label class="field">Текст<textarea id="bd-text" maxlength="200" rows="3" placeholder="Ищу компанию на обед в Смоленке в 13:00 — новое место на Арбате">${esc(d.text)}</textarea></label>
+    <div class="row" style="gap:10px"><label class="field grow">Висит до<input id="bd-until" type="date" min="${min}" max="${max}" value="${esc(d.until)}"></label></div>
+    ${home ? `<div class="field">Кому<div class="chips">${[['', 'Весь Этаж'], [home, `Только ${esc(homeName)}`]].map(([v, t]) => `<button class="chip ${(d.office || '') === v ? 'on' : ''}" data-act="board-office" data-v="${v}">${t}</button>`).join('')}</div></div>` : ''}
+    <p class="small" style="margin:0">Объявление видят все. «Я тоже» придёт тебе пушем, дальше — в личке. Не дольше двух недель, потом исчезнет само.</p>
+    <button class="btn" data-act="board-save">Повесить</button>`;
+}
 const findBar = () => `<button class="find-bar" data-act="find-open">${ico('search', 18)}<span>Найти своих: по нику, имени или почте</span></button>`;
 
 function renderFind() {
@@ -1588,6 +1655,7 @@ function renderOfficeTab() {
   return `${pageHead('Офис', where)}
     ${st.checkin && st.canteen ? renderCanteen() : `<section class="card empty"><div class="empty-ico">lunch</div><p class="sub">Загрузка столовой, обед компанией и сигналы видны тем, кто отметился в офисе.</p><button class="btn" data-act="tab" data-v="near">Отметиться</button></section>`}
     ${st.checkin ? renderLunches() : ''}
+    ${renderBoardCard()}
     ${renderFeed()}`;
 }
 
@@ -1989,6 +2057,7 @@ function renderGEvent(e) {
     <div class="gev-date"><b>${w.dd}</b><span>${w.mon}</span><i>${w.wd}</i></div>
     <div class="grow" style="min-width:0;display:flex;flex-direction:column;gap:4px">
       <div class="gev-title">${gevIco(e.kind)} ${esc(e.title)}</div>
+      ${e.guest ? `<div class="gev-joint">${e.host.id === S.activeGang ? `вместе с бандой «${esc(e.guest.name)}»` : `зовёт банда «${esc(e.host.name)}»`}</div>` : ''}
       <div class="small">${[w.rel, e.time, e.place && 'where ' + esc(e.place)].filter(Boolean).join(' · ')}${e.past ? 'прошло' : ''}</div>
       ${e.note ? `<div class="small gev-note">${esc(e.note)}</div>` : ''}
       <div class="gev-who">${e.yes.slice(0, 8).map((p) => `<span title="${esc(p.nick)}">${avatar(p.look, 22)}</span>`).join('')}<span class="small">${e.yes.length ? `идут ${e.yes.length}` : 'пока никто не идёт'}${e.maybe.length ? ` · может ${e.maybe.length}` : ''}${e.no ? ` · не смогут ${e.no}` : ''}</span></div>
@@ -2313,6 +2382,7 @@ function renderGEventNew() {
     <div class="row" style="gap:10px"><label class="field grow">Дата<input id="gev-day" type="date" min="${min}" value="${esc(d.day)}"></label>
       <label class="field" style="width:120px">Время<input id="gev-time" type="time" value="${esc(d.time)}"></label></div>
     <label class="field">Где (необязательно)<input id="gev-place" maxlength="60" placeholder="Кафе на первом этаже, переговорка 5.12" value="${esc(d.place)}"></label>
+    ${d.editId ? '' : `<label class="field">Позвать ещё банду (необязательно)<select id="gev-guest"><option value="">— только своя банда —</option>${(S.gevGuests || []).map((g) => `<option value="${g.id}" ${String(d.guest || '') === String(g.id) ? 'selected' : ''}>${esc(g.name)} · ${g.members}</option>`).join('')}</select></label>`}
     <label class="field">Подробности (необязательно)<textarea id="gev-note" maxlength="300" rows="3" placeholder="Скидываемся по 500, Лена несёт торт">${esc(d.note)}</textarea></label>
     <p class="small" style="margin:0">${d.editId ? 'Если поменяешь дату, время или место — кто идёт или думает, получит пуш, а в чат банды уйдёт сообщение «Изменилось».' : 'Банда получит пуш и сообщение в чате. Утром в день события напомним тем, кто идёт.'}</p>
     <button class="btn" data-act="gev-save">${d.editId ? 'Сохранить' : 'Создать событие'}</button>`;
@@ -3224,6 +3294,7 @@ function renderSheet() {
     case 'meme': return sheetWrap('Мем-открытка', renderMemeMaker());
     case 'shop': return sheetWrap('Лавка', renderShop());
     case 'inbox': return sheetWrap('Этаж', renderInbox());
+    case 'board-new': return sheetWrap('Объявление', renderBoardNew());
     case 'coffee': return sheetWrap('Случайный кофе', `<div class="coffee-sheet">${renderCoffee()}</div><p class="small">Раз в неделю, в понедельник в 10:00, знакомим с коллегой из твоего офиса, который не в твоих бандах. Договориться о времени можно прямо здесь — кнопками.</p>${S.fx && S.fx.coffee && S.fx.coffee.optIn ? '<button class="linkbtn" data-act="coffee-off">Больше не участвовать</button>' : ''}`);
     case 'install': return sheetWrap('Установи на телефон', renderInstall());
     case 'compose': return sheetWrap(S.cat.calls[S.compose.kind].label, renderCompose());
@@ -4001,6 +4072,7 @@ function renderProfile() {
   const privBody = `
     <label class="check"><input type="checkbox" data-act="toggle" data-k="shareOffice" ${me.shareOffice ? 'checked' : ''}> <span>Показывать банде, где я: офис, дома или в отпуске</span></label>
     <label class="check"><input type="checkbox" data-act="toggle" data-k="quiet" ${me.quiet ? 'checked' : ''}> <span>Тихие часы 19:00–09:00 — не присылать зовы</span></label>
+    <label class="check"><input type="checkbox" data-act="match-toggle" ${p.matchShow ? 'checked' : ''}> <span>«Совпадаем»: показывать коллегам, в какие дни я в офисе и дома (ник, аватар, офис, общие интересы)</span></label>
     <label class="check"><input type="checkbox" data-act="digest-toggle" ${p.digest !== false ? 'checked' : ''}> <span>Утренняя сводка: один пуш в рабочий день около 11:30, если есть дела и ты ещё не заходил${meG('', 'а')}</span></label>
     <label class="check"><input type="checkbox" data-act="findable-toggle" ${p.findable !== false ? 'checked' : ''}> <span>Меня можно найти по нику и рабочей почте — и позвать в банду</span></label>
     <div class="field">Кто может писать мне в личку<div class="chips">${[['all', 'Все'], ['gang', 'Моя банда'], ['none', 'Никто']].map(([k, t]) => `<button class="chip ${(p.dmFrom || 'all') === k ? 'on' : ''}" data-act="dm-from" data-v="${k}">${t}</button>`).join('')}</div>
@@ -4656,8 +4728,9 @@ const actions = {
   }),
   'gev-new'(el) {
     const x = el && el.dataset.sug !== undefined && S.gev ? S.gev.suggestions[Number(el.dataset.sug)] : null;
-    S.gevDraft = { kind: x ? x.kind : 'meet', title: x ? x.title : '', day: x ? x.day : '', time: '', place: '', note: '' };
+    S.gevDraft = { kind: x ? x.kind : 'meet', title: x ? x.title : '', day: x ? x.day : '', time: '', place: '', note: '', guest: '' };
     S.sheet = 'gev-new'; S.error = ''; render();
+    if (!S.gevGuests && S.activeGang) get(`/api/gangs/${S.activeGang}/gevent-guests`).then((r) => { S.gevGuests = r.items; if (S.sheet === 'gev-new') { gevSync(); render(); } }).catch(() => {});
   },
   'gev-edit'(el) {
     const e = S.gev && S.gev.upcoming.find((x) => x.id === Number(el.dataset.id));
@@ -4723,7 +4796,29 @@ const actions = {
     else if (actions[g.act]) await actions[g.act](fake);
     if (g.to) requestAnimationFrame(() => setTimeout(() => { const t = document.querySelector(g.to); if (t) t.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 150));
   },
+  'match-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { matchShow: el.checked } }); await Promise.all([loadMe(), loadMatch()]); toast(el.checked ? 'Твои дни видны в «Совпадаем»' : 'Твои дни скрыты — и чужие тоже'); }),
   'digest-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { digest: el.checked } }); await loadMe(); toast(el.checked ? 'Утренняя сводка включена' : 'Утреннюю сводку больше не пришлю'); }),
+  'match-on': () => run(async () => { await post('/api/me/profile', { profile: { matchShow: true } }); await Promise.all([loadMe(), loadMatch()]); toast('Твои дни открыты коллегам'); }),
+  'match-day'(el) { S.matchDay = Number(el.dataset.v); render(); },
+  'board-filter'(el) { S.boardMine = el.dataset.v === '1'; render(); },
+  'board-all'() { S.boardAll = true; render(); },
+  'board-new'() { const t = new Date(Date.now() + 3 * 3600e3 + 3 * 864e5).toISOString().slice(0, 10); S.boardDraft = { kind: 'company', text: '', until: t, office: '' }; S.sheet = 'board-new'; S.error = ''; render(); },
+  'board-kind'(el) { boardSync(); S.boardDraft.kind = el.dataset.v; render(); },
+  'board-office'(el) { boardSync(); S.boardDraft.office = el.dataset.v; render(); },
+  'board-save': () => run(async () => {
+    boardSync();
+    await post('/api/board', S.boardDraft);
+    S.sheet = null; S.boardDraft = null; toast('Объявление на доске'); sfx('confirm'); await loadBoard();
+  }),
+  'board-metoo': (el) => run(async () => {
+    const r = await post(`/api/board/${el.dataset.id}/metoo`);
+    S.board.items = S.board.items.map((x) => (x.id === r.item.id ? r.item : x));
+    if (r.item.iMetoo) toast('Автор узнает. Можно сразу написать ему');
+  }),
+  'board-remove': (el) => run(async () => {
+    if (!confirmInline('board-rm' + el.dataset.id, 'Нажми ещё раз — объявление исчезнет')) return;
+    await post(`/api/board/${el.dataset.id}/remove`); toast('Снято'); await loadBoard();
+  }),
   'quest-open'(el) { S.questOpen = S.questOpen === el.dataset.v ? null : el.dataset.v; render(); },
   'quest-go'(el) {
     const go = el.dataset.v;

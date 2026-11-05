@@ -206,6 +206,7 @@ function createApi(db) {
   let voice = null;
   let santa = null;
   let inbox = null;
+  let board = null;
   let advent = null;
   let battle = null;
   let quiz = null;
@@ -637,6 +638,7 @@ function createApi(db) {
       if (p.nameVis !== undefined) { if (!['all', 'gang', 'hidden'].includes(p.nameVis)) throw bad('Неизвестная видимость.'); prof.nameVis = p.nameVis; }
       if (p.coffee !== undefined) prof.coffee = !!p.coffee;
       if (p.digest !== undefined) prof.digest = !!p.digest;
+      if (p.matchShow !== undefined) prof.matchShow = !!p.matchShow;
       if (p.findable !== undefined) prof.findable = !!p.findable;
       if (['all', 'gang', 'none'].includes(p.dmFrom)) prof.dmFrom = p.dmFrom;
     }
@@ -1309,7 +1311,7 @@ function createApi(db) {
   // ---------- Жалобы ----------
   route('POST', '/api/report', async (req, body) => {
     const u = requireUser(req);
-    const type = ['gang', 'message', 'signal', 'dm'].includes(body.type) ? body.type : null;
+    const type = ['gang', 'message', 'signal', 'dm', 'board'].includes(body.type) ? body.type : null;
     const id = Number(body.id);
     if (!type || !id) throw bad('Непонятно, на что жалоба.');
     // На личное сообщение жалуется только тот, кому оно пришло. Модератор увидит только его
@@ -1317,7 +1319,7 @@ function createApi(db) {
     q('INSERT OR IGNORE INTO reports (reporter_id, object_type, object_id, reason, at) VALUES (?, ?, ?, ?, ?)').run(u.id, type, id, U.cleanText(body.reason, 200) || null, U.now());
     const n = q("SELECT COUNT(DISTINCT reporter_id) AS n FROM reports WHERE object_type = ? AND object_id = ? AND status = 'open'").get(type, id).n;
     if (n >= 3) {
-      const table = { gang: 'gangs', message: 'messages', signal: 'signals', dm: 'dms' }[type];
+      const table = { gang: 'gangs', message: 'messages', signal: 'signals', dm: 'dms', board: 'board_posts' }[type];
       q(`UPDATE ${table} SET hidden = 1 WHERE id = ?`).run(id);
     }
     return { ok: true };
@@ -1412,6 +1414,7 @@ function createApi(db) {
     const reports = q(`SELECT object_type, object_id, COUNT(*) AS n, MAX(at) AS last, GROUP_CONCAT(reason, ' | ') AS reasons
                        FROM reports WHERE status = 'open' GROUP BY object_type, object_id ORDER BY last DESC LIMIT 100`).all();
     const preview = (r) => {
+      if (r.object_type === 'board') { const b = q('SELECT text, hidden FROM board_posts WHERE id = ?').get(r.object_id); return b ? { text: `[доска] ${b.text}`, hidden: !!b.hidden } : null; }
       if (r.object_type === 'gang') { const g = q('SELECT name, motto, hidden FROM gangs WHERE id = ?').get(r.object_id); return g ? { text: `${g.name}${g.motto ? ' — «' + g.motto + '»' : ''}`, hidden: !!g.hidden } : null; }
       if (r.object_type === 'dm') { const m = q('SELECT type, text, kind, opt, hidden FROM dms WHERE id = ?').get(r.object_id); return m ? { text: `[личное] ${m.type === 'voice' ? VOICE_MOD : m.text || `${m.kind} ${m.opt || ''}`}`, hidden: m.hidden === 1 } : null; }
       if (r.object_type === 'message') { const m = q('SELECT type, text, opt, kind, hidden FROM messages WHERE id = ?').get(r.object_id); return m ? { text: m.type === 'voice' ? VOICE_MOD : m.text || `${m.kind} ${m.opt || ''}`, hidden: !!m.hidden } : null; }
@@ -1433,7 +1436,7 @@ function createApi(db) {
 
   route('POST', '/api/admin/report', async (req, body) => {
     requireAdmin(req);
-    const table = { gang: 'gangs', message: 'messages', signal: 'signals', dm: 'dms' }[body.type];
+    const table = { gang: 'gangs', message: 'messages', signal: 'signals', dm: 'dms', board: 'board_posts' }[body.type];
     if (!table) throw bad('Неизвестный тип.');
     const id = Number(body.id);
     if (body.action === 'hide') q(`UPDATE ${table} SET hidden = 1 WHERE id = ?`).run(id);
@@ -1487,6 +1490,8 @@ function createApi(db) {
   gangwar = require('./gangwar').register({ db, q, route, requireUser, requireAdmin, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, spendBeans, battle, publicLook });
   league = require('./league').register({ db, q, route, requireUser, U, addBeans, notify, fireAndForget });
   tourney = require('./tourney').register({ db, q, route, requireUser, requireAdmin, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, gangwar, league });
+  // ---------- Доска объявлений на весь «Этаж» ----------
+  board = require('./board').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, officeById, publicLook });
   // ---------- «Этаж» пишет сам: живая сводка и один утренний пуш ----------
   inbox = require('./inbox').register({ db, q, route, requireUser, U, notify, fireAndForget, myGangs, readProfile, weekdayName, features, blitz, advent, santa, duels, gevents, polls });
   feedback = require('./feedback').register({ db, q, route, requireUser, requireAdmin, bad, U, addBeans, notify, fireAndForget, HttpError, BUILD });
@@ -1550,6 +1555,7 @@ function createApi(db) {
     if (crew) crew.cleanup();
     if (battle) battle.cleanup();
     if (quiz) quiz.cleanup();
+    if (board) board.cleanup();
     if (feedback) feedback.cleanup();
     if (polls) polls.cleanup();
     if (gevents) gevents.cleanup();

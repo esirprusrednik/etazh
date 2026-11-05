@@ -902,6 +902,47 @@ function register(ctx) {
     tick();
   }
 
+  // ---------- «Совпадаем»: кто из коллег (не только банды) в какие дни в каком офисе и дома ----------
+  // Видят только те, кто сам открыл свои дни (взаимность): profile.matchShow. Показываем ник, аватар,
+  // офис на этот день и общие интересы — без имён и без точного времени.
+  const MATCH_PER_GROUP = 40;
+  route('GET', '/api/match', async (req) => {
+    const u = requireUser(req);
+    const me = readProfile(typeof u.profile === 'string' ? u.profile : JSON.stringify(u.profile || {}));
+    const days = weekDays();
+    const out = { on: !!me.matchShow, home: me.home || null, days: days.map((d) => ({ day: d, label: `${DAY_NAMES[new Date(d + 'T00:00:00Z').getUTCDay()]} ${ddmm(d)}`, holiday: HOL.holidayName(d) || null, today: d === today() })) };
+    if (!out.on) {
+      out.count = q('SELECT COUNT(*) AS n FROM users WHERE nick IS NOT NULL AND id != ? AND json_extract(profile, \'$.matchShow\') = 1').get(u.id).n;
+      return out;
+    }
+    const myTags = new Set((me.tags || []).map((t) => String(t).toLowerCase()));
+    const mates = new Set();
+    myGangs(u.id).forEach((g) => gangMembers(g.id).forEach((m) => mates.add(m.id)));
+    const rows = q("SELECT id, nick, look, profile FROM users WHERE nick IS NOT NULL AND id != ? AND json_extract(profile, '$.matchShow') = 1").all(u.id);
+    const people = rows.map((r) => ({ r, prof: readProfile(r.profile) }));
+    out.days = out.days.map((d) => {
+      const offices = {}; const home = [];
+      let mine = cellFor(me, u.id, d.day);
+      for (const { r, prof } of people) {
+        const cell = cellFor(prof, r.id, d.day);
+        if (cell !== 'office' && cell !== 'home') continue;
+        const common = (prof.tags || []).filter((t) => myTags.has(String(t).toLowerCase()));
+        const p = { id: r.id, nick: r.nick, look: lookOf(r), common, mate: mates.has(r.id) };
+        if (cell === 'home') { home.push(p); continue; }
+        const ci = d.today ? activeCheckin(r.id) : null;
+        const oid = (ci && ci.office_id) || prof.home || 'unknown';
+        (offices[oid] = offices[oid] || []).push(p);
+      }
+      const rank = (a, b) => (b.common.length - a.common.length) || (Number(a.mate) - Number(b.mate)) || a.nick.localeCompare(b.nick, 'ru');
+      const list = Object.entries(offices).map(([id, ps]) => {
+        const o = officeById(id);
+        return { id, name: o ? o.name : 'офис не указан', mine: id === me.home, n: ps.length, people: ps.sort(rank).slice(0, MATCH_PER_GROUP) };
+      }).sort((a, b) => Number(b.mine) - Number(a.mine) || b.n - a.n);
+      return { ...d, me: mine, offices: list, home: { n: home.length, people: home.sort(rank).slice(0, MATCH_PER_GROUP) } };
+    });
+    return out;
+  });
+
   // Для сводки «Этажа»: сколько заданий дня осталось, пара на кофе, заходил ли сегодня
   function questSummary(uid) {
     const done = new Set(q('SELECT quest FROM quests_done WHERE user_id = ? AND day = ?').all(uid, today()).map((r) => r.quest));

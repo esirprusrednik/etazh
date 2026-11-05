@@ -3,6 +3,7 @@
 // Изменить или отменить может автор или владелец банды. Если поменялись дата, время или место —
 // тем, кто идёт или думает, приходит пуш, и сутки висит пункт «Изменилось» в сводке «Этажа».
 // Утром в день события — напоминание тем, кто идёт или думает.
+// Совместное событие: при создании можно позвать ещё одну банду — она видит событие у себя и тоже отвечает «иду».
 // Прошедшие события хранятся ещё 7 дней (чтобы было видно «как сходили»), потом удаляются.
 
 const { OFF } = require('./holidays');
@@ -51,10 +52,16 @@ function register(ctx) {
     PRIMARY KEY (user_id, event_id)
   );
   `);
+  try { db.exec('ALTER TABLE gang_events ADD COLUMN guest_gang_id INTEGER REFERENCES gangs(id) ON DELETE SET NULL'); } catch {}
   const NOTE_TTL = 864e5;
+  // Кто видит событие: члены банды-хозяйки и банды-гостьи. Для пушей и ссылок — «своя» банда человека
+  const sees = (e, uid) => isMember(e.gang_id, uid) || (!!e.guest_gang_id && isMember(e.guest_gang_id, uid));
+  const gangOf = (e, uid) => (isMember(e.gang_id, uid) ? e.gang_id : e.guest_gang_id);
+  const gname = (id) => (q('SELECT name FROM gangs WHERE id = ?').get(id) || {}).name || '';
+  const chatBoth = (e, uid, text) => { const t = U.now(); for (const gid of [e.gang_id, e.guest_gang_id].filter(Boolean)) q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(gid, uid, 'text', text, t); };
   const note = (ids, e, kind, text) => {
     const st = q('INSERT OR REPLACE INTO gang_event_notes (user_id, event_id, gang_id, kind, title, text, at) VALUES (?, ?, ?, ?, ?, ?, ?)');
-    for (const id of ids) st.run(id, e.id, e.gang_id, kind, e.title, text, U.now());
+    for (const id of ids) st.run(id, e.id, gangOf(e, id) || e.gang_id, kind, e.title, text, U.now());
   };
   const whenOf = (day, time) => `${day.slice(8)}.${day.slice(5, 7)}${time ? ' в ' + time : ''}`;
 
@@ -78,6 +85,7 @@ function register(ctx) {
     return {
       id: e.id, kind: e.kind, emoji: k.emoji, kindName: k.name, title: e.title, day: e.day, time: e.time, place: e.place || '', note: e.note || '',
       inDays: daysTo(e.day), past: e.day < today(),
+      host: { id: e.gang_id, name: gname(e.gang_id) }, guest: e.guest_gang_id ? { id: e.guest_gang_id, name: gname(e.guest_gang_id) } : null,
       author: author ? author.nick : 'удалённый аккаунт', mine: e.user_id === uid, canCancel: e.user_id === uid || ownerId === uid, canEdit: (e.user_id === uid || ownerId === uid) && e.day >= today(),
       my: mine ? mine.answer : null,
       yes: rs.filter((r) => r.answer === 'yes').map((r) => ({ id: r.user_id, nick: r.nick, look: lookOf(r) })),
@@ -131,8 +139,8 @@ function register(ctx) {
   route('GET', '/api/gangs/:id/gevents', async (req, body, query, params) => {
     const u = requireUser(req);
     const g = gangOr404(params.id, u.id);
-    const rows = q('SELECT * FROM gang_events WHERE gang_id = ? AND day >= ? ORDER BY day ASC, COALESCE(time, \'99:99\') ASC').all(g.id, addDays(today(), -KEEP_DAYS));
-    const items = rows.map((e) => view(e, u.id, g.owner_id));
+    const rows = q('SELECT * FROM gang_events WHERE (gang_id = ? OR guest_gang_id = ?) AND day >= ? ORDER BY day ASC, COALESCE(time, \'99:99\') ASC').all(g.id, g.id, addDays(today(), -KEEP_DAYS));
+    const items = rows.map((e) => view(e, u.id, e.gang_id === g.id ? g.owner_id : null));
     return {
       upcoming: items.filter((e) => !e.past), past: items.filter((e) => e.past).reverse().slice(0, 3),
       kinds: Object.entries(KINDS).map(([id, k]) => ({ id, ...k })), suggestions: suggestions(g)
@@ -153,23 +161,30 @@ function register(ctx) {
     const time = /^([01]\d|2[0-3]):[0-5]\d$/.test(body.time || '') ? body.time : null;
     const place = clean(body.place, 60) || null;
     const note = clean(body.note, 300) || null;
+    const guest = Number(body.guest) && Number(body.guest) !== g.id ? q('SELECT * FROM gangs WHERE id = ? AND hidden = 0').get(Number(body.guest)) : null;
+    if (body.guest && Number(body.guest) !== g.id && !guest) throw bad('Такой банды нет.');
     if (q('SELECT COUNT(*) AS n FROM gang_events WHERE gang_id = ? AND day >= ?').get(g.id, today()).n >= MAX_UPCOMING) throw bad(`В банде уже ${MAX_UPCOMING} будущих событий — хватит планов, пора отдыхать.`);
     const t = U.now();
-    const id = Number(q('INSERT INTO gang_events (gang_id, user_id, kind, title, day, time, place, note, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(g.id, u.id, kind, title, day, time, place, note, t).lastInsertRowid);
+    const id = Number(q('INSERT INTO gang_events (gang_id, user_id, kind, title, day, time, place, note, at, guest_gang_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(g.id, u.id, kind, title, day, time, place, note, t, guest ? guest.id : null).lastInsertRowid);
     q('INSERT INTO gang_event_rsvp (event_id, user_id, answer, at) VALUES (?, ?, ?, ?)').run(id, u.id, 'yes', t);
     const k = KINDS[kind];
     const when = `${day.slice(8)}.${day.slice(5, 7)}${time ? ' в ' + time : ''}`;
-    q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(g.id, u.id, 'text', `${k.emoji} Событие: «${title}» — ${when}. Отметься в «Событиях» выше`, t);
+    q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(g.id, u.id, 'text', `${k.emoji} Событие: «${title}» — ${when}${guest ? ` вместе с бандой «${guest.name}»` : ''}. Отметься в «Событиях» выше`, t);
     const others = gangMembers(g.id).filter((m) => m.id !== u.id).map((m) => m.id);
-    fireAndForget(notify(others, { title: `${k.emoji} ${g.name}: ${title}`, body: `${when}${place ? ' · ' + place : ''} — ${u.nick} зовёт`, url: `/#gang/${g.id}`, tag: `gevent-${id}` }));
+    fireAndForget(notify(others, { title: `${k.emoji} ${g.name}: ${title}`, body: `${when}${place ? ' · ' + place : ''} — ${u.nick} зовёт${guest ? ` вместе с «${guest.name}»` : ''}`, url: `/#gang/${g.id}`, tag: `gevent-${id}` }));
+    if (guest) {
+      q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(guest.id, u.id, 'text', `${k.emoji} Банда «${g.name}» зовёт вас: «${title}» — ${when}. Отметься в «Событиях» выше`, t);
+      const gm = gangMembers(guest.id).filter((m) => m.id !== u.id && !others.includes(m.id)).map((m) => m.id);
+      fireAndForget(notify(gm, { title: `${k.emoji} «${g.name}» зовёт вашу банду`, body: `${title} — ${when}${place ? ' · ' + place : ''}`, url: `/#gang/${guest.id}`, tag: `gevent-${id}` }));
+    }
     if (onEvent) onEvent('gang_event', u.id);
     return { id, event: view(q('SELECT * FROM gang_events WHERE id = ?').get(id), u.id, g.owner_id) };
   });
 
   const eventOr404 = (id, uid) => {
     const e = q('SELECT * FROM gang_events WHERE id = ?').get(Number(id));
-    if (!e || !isMember(e.gang_id, uid)) throw new HttpError(404, 'Событие не найдено.');
+    if (!e || !sees(e, uid)) throw new HttpError(404, 'Событие не найдено.');
     return e;
   };
 
@@ -198,10 +213,18 @@ function register(ctx) {
     q('DELETE FROM gang_events WHERE id = ?').run(e.id);
     if (e.day >= today()) {
       note(going, e, 'cancel', `${u.nick} ${U.g(u.look, 'отменил', 'отменила')} — было ${whenOf(e.day, e.time)}`);
-      q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(e.gang_id, u.id, 'text', `Отменено: «${e.title}» (${e.day.slice(8)}.${e.day.slice(5, 7)})`, U.now());
-      fireAndForget(notify(going, { title: `Отменено: ${e.title}`, body: `${u.nick} ${U.g(u.look, 'отменил', 'отменила')} событие`, url: `/#gang/${e.gang_id}`, tag: `gevent-${e.id}` }));
+      chatBoth(e, u.id, `Отменено: «${e.title}» (${e.day.slice(8)}.${e.day.slice(5, 7)})`);
+      for (const id of going) fireAndForget(notify([id], { title: `Отменено: ${e.title}`, body: `${u.nick} ${U.g(u.look, 'отменил', 'отменила')} событие`, url: `/#gang/${gangOf(e, id) || e.gang_id}`, tag: `gevent-${e.id}` }));
     }
     return { ok: true };
+  });
+
+  // Каких банд можно позвать на совместное событие: все видимые, кроме своей
+  route('GET', '/api/gangs/:id/gevent-guests', async (req, body, query, params) => {
+    const u = requireUser(req);
+    const g = gangOr404(params.id, u.id);
+    const rows = q(`SELECT g.id, g.name, (SELECT COUNT(*) FROM gang_members m WHERE m.gang_id = g.id) AS n FROM gangs g WHERE g.hidden = 0 AND g.id != ? ORDER BY n DESC, g.name LIMIT 100`).all(g.id);
+    return { items: rows.map((r) => ({ id: r.id, name: r.name, members: r.n })) };
   });
 
   // Изменить событие. Важные правки (дата, время, место) — пуш и пункт в сводке тем, кто идёт или думает
@@ -234,9 +257,9 @@ function register(ctx) {
       const text = changes.join(' · ');
       const going = q("SELECT user_id FROM gang_event_rsvp WHERE event_id = ? AND answer IN ('yes', 'maybe') AND user_id != ?").all(e.id, u.id).map((r) => r.user_id);
       note(going, fresh, 'edit', text);
-      q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(e.gang_id, u.id, 'text', `Изменилось: «${title}» — ${text}`, U.now());
+      chatBoth(e, u.id, `Изменилось: «${title}» — ${text}`);
       const k = KINDS[kind] || KINDS.other;
-      fireAndForget(notify(going, { title: `${k.emoji} Изменилось: ${title}`, body: `${text} — ${u.nick}`, url: `/#gang/${e.gang_id}`, tag: `gevent-${e.id}` }));
+      for (const id of going) fireAndForget(notify([id], { title: `${k.emoji} Изменилось: ${title}`, body: `${text} — ${u.nick}`, url: `/#gang/${gangOf(e, id) || e.gang_id}`, tag: `gevent-${e.id}` }));
     }
     return { event: view(fresh, u.id, g ? g.owner_id : null), notified: changes.length > 0 };
   }
@@ -245,18 +268,22 @@ function register(ctx) {
   function pending(uid) {
     const t = today(), soon = addDays(t, 14), tomorrow = addDays(t, 1);
     const rows = q(`SELECT e.*, g.name AS gname, r.answer FROM gang_events e JOIN gangs g ON g.id = e.gang_id AND g.hidden = 0
-                    JOIN gang_members m ON m.gang_id = e.gang_id AND m.user_id = ?
+                    JOIN gang_members m ON (m.gang_id = e.gang_id OR m.gang_id = e.guest_gang_id) AND m.user_id = ?
                     LEFT JOIN gang_event_rsvp r ON r.event_id = e.id AND r.user_id = ?
                     WHERE e.day >= ? AND e.day <= ? ORDER BY e.day, COALESCE(e.time, '99:99')`).all(uid, uid, t, soon);
     const now = U.msk().hhmm;
-    const out = [];
+    const out = [], seen = new Set();
     for (const e of rows) {
       if (e.day === t && e.time && e.time < now) continue; // уже началось
       const k = KINDS[e.kind] || KINDS.other;
       const rel = e.day === t ? 'сегодня' : e.day === tomorrow ? 'завтра' : whenOf(e.day, null);
       const tail = [rel, e.time, e.place].filter(Boolean).join(' · ');
-      if (!e.answer && e.user_id !== uid) out.push({ type: 'ask', event: e, gname: e.gname, kindName: k.name, tail });
-      else if ((e.answer === 'yes' || e.answer === 'maybe') && e.day <= tomorrow) out.push({ type: 'soon', event: e, gname: e.gname, tail, maybe: e.answer === 'maybe' });
+      if (seen.has(e.id)) continue;
+      seen.add(e.id);
+      const my = gangOf(e, uid);
+      const label = my === e.gang_id ? e.gname : `${gname(my)} + ${e.gname}`;
+      if (!e.answer && e.user_id !== uid) out.push({ type: 'ask', event: e, gname: label, gang: my, kindName: k.name, tail });
+      else if ((e.answer === 'yes' || e.answer === 'maybe') && e.day <= tomorrow) out.push({ type: 'soon', event: e, gname: label, gang: my, tail, maybe: e.answer === 'maybe' });
     }
     const notes = q('SELECT n.*, g.name AS gname FROM gang_event_notes n JOIN gangs g ON g.id = n.gang_id WHERE n.user_id = ? AND n.at > ? ORDER BY n.at DESC').all(uid, U.now() - NOTE_TTL);
     return { events: out, notes };

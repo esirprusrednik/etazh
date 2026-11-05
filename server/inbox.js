@@ -61,8 +61,8 @@ function register(ctx) {
         title: `${n.kind === 'cancel' ? 'Отменено' : 'Изменилось'}: ${n.title}`, text: `${n.gname} · ${n.text}`, go: { act: 'gang-open', id: n.gang_id, to: '.gevents' } });
       for (const x of ev.events) {
         const e = x.event;
-        if (x.type === 'ask') out.push({ id: `gev-ask-${e.id}`, kind: 'gev', icon: 'cal', push: false, title: `${e.title} — идёшь?`, text: `${x.gname} · ${x.tail}`, go: { act: 'gang-open', id: e.gang_id, to: '.gevents' } });
-        else out.push({ id: `gev-soon-${e.id}-${e.day}`, kind: 'gev', icon: 'cal', push: false, title: `${x.tail.startsWith('сегодня') ? 'Сегодня' : 'Завтра'}: ${e.title}`, text: `${x.gname}${e.time ? ' · ' + e.time : ''}${e.place ? ' · ' + e.place : ''}${x.maybe ? ' · ты пока «может быть»' : ''}`, go: { act: 'gang-open', id: e.gang_id, to: '.gevents' } });
+        if (x.type === 'ask') out.push({ id: `gev-ask-${e.id}`, kind: 'gev', icon: 'cal', push: false, title: `${e.title} — идёшь?`, text: `${x.gname} · ${x.tail}`, go: { act: 'gang-open', id: x.gang || e.gang_id, to: '.gevents' } });
+        else out.push({ id: `gev-soon-${e.id}-${e.day}`, kind: 'gev', icon: 'cal', push: false, title: `${x.tail.startsWith('сегодня') ? 'Сегодня' : 'Завтра'}: ${e.title}`, text: `${x.gname}${e.time ? ' · ' + e.time : ''}${e.place ? ' · ' + e.place : ''}${x.maybe ? ' · ты пока «может быть»' : ''}`, go: { act: 'gang-open', id: x.gang || e.gang_id, to: '.gevents' } });
       }
     }
     // Опросы банды без твоего голоса

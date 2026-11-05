@@ -38,6 +38,7 @@ server/advent.js
 server/api.js
 server/battle.js
 server/blitz.js
+server/board.js
 server/catalog.js
 server/config.js
 server/crew.js
@@ -69,4 +70,5 @@ tests/features.js
 tests/holidays.js
 tests/quiz.js
 tests/smoke.js
+tests/social.js
 tests/unit.js
