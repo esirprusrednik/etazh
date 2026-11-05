@@ -1,6 +1,6 @@
 // Тайный Санта банды.
 // С 1 ноября любой член банды записывается и пишет пожелание (что любит, чего не надо дарить).
-// 10 декабря — автоматическая жеребьёвка (владелец может провести раньше, если записались трое и больше).
+// 4 декабря — автоматическая жеребьёвка (владелец может провести раньше, если записались трое и больше).
 // Каждый видит только своего подопечного и его пожелание; кто дарит ему самому — не видит никто.
 // Подарки вручают на встрече банды; «Подарок вручён» отмечает дарящий. Карточка видна до 15 января.
 
@@ -40,7 +40,7 @@ function register(ctx) {
     if (m === 1 && d <= 15) return { year: y - 1, visible: true };
     return { year: y, visible: false };
   }
-  const drawDay = (year) => `${year}-12-10`;
+  const drawDay = (year) => `${year}-12-04`;
   const row = (gid, year) => q('SELECT * FROM santa WHERE gang_id = ? AND year = ?').get(gid, year);
   const ensure = (gid, year) => { q('INSERT OR IGNORE INTO santa (gang_id, year) VALUES (?, ?)').run(gid, year); return row(gid, year); };
   const chat = (gid, uid, text) => q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(gid, uid, 'text', text, U.now());
@@ -143,7 +143,7 @@ function register(ctx) {
     return view(u, g);
   });
 
-  // 10 декабря: жеребьёвка во всех бандах, где записались трое и больше; где меньше — отменяем с объяснением
+  // 4 декабря: жеребьёвка во всех бандах, где записались трое и больше; где меньше — отменяем с объяснением
   // 29 декабря, с полудня: мягкое напоминание тем, кто ещё не отметил «Подарок вручён». Один раз
   const remindDay = (year) => `${year}-12-29`;
   function remind(s) {

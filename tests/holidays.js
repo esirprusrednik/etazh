@@ -189,7 +189,7 @@ function startServer(day) {
       assert.equal((await A.post(`/api/gangs/${g.id}/messages`, { type: 'meme', kind: 'monday', opt: 'calm' })).status, 400, 'в чат банды — только праздничные');
     });
 
-    await step('Санта после 10 декабря: запись закрыта', async () => {
+    await step('Санта после 4 декабря: запись закрыта', async () => {
       const v = (await A.get(`/api/gangs/${g.id}/santa`)).json;
       assert.equal(v.regOpen, false);
       assert.equal((await A.post(`/api/gangs/${g.id}/santa/join`, { wish: '' })).status, 400);
