@@ -1,6 +1,7 @@
 // «Волна» по банде: один кидает клич, остальным приходит смешной пуш,
 // и у банды 10 минут, чтобы «встать» — нажать кнопку. Цель — раз в неделю вернуть банду в приложение. Встали больше половины — банда в силе.
-// Запустить можно раз в календарную неделю (с понедельника) и одну волну на банду за раз.
+// Одна волна на банду в календарную неделю (с понедельника): кто первый, тот и запускает.
+// Если до среды никто не запустил — в первый рабочий день со среды в 12:00 Этаж запускает её сам.
 // За то, что встал, — +2 зерна (раз в день). Пуши уважают тихие часы и отпуск.
 
 const WINDOW_MIN = 10;
@@ -20,9 +21,17 @@ const CALLS = [
   ['Подъём!', 'Даже кофемашина уже встала. Твоя очередь'],
   ['Поставь созвон на паузу', '{nick} {v} волну, у вас 10 минут. Без регистрации и СМС']
 ];
+// Когда волну запускает сам Этаж (никто из банды за полнедели не собрался)
+const AUTO_CALLS = [
+  ['Середина недели', 'Банда «{gang}» что-то притихла. Волна! Встань, подними руки — 10 минут'],
+  ['Среда — маленькая пятница', 'Ну почти. Отметим волной: зайди и нажми «Встать»'],
+  ['Волна от Этажа', 'Никто не запустил — запустили мы. Банда, подъём!'],
+  ['Перерыв на волну', 'Отложи таблицу на 5 секунд. «{gang}» встаёт']
+];
+const AUTO_HOUR = 12;
 
 function register(ctx) {
-  const { db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, publicLook, onEvent } = ctx;
+  const { db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, publicLook, onEvent, weekdayName } = ctx;
 
   db.exec(`
   CREATE TABLE IF NOT EXISTS waves (
@@ -45,7 +54,7 @@ function register(ctx) {
   const week = () => mondayOf(U.msk().day);
   const activeWave = (gid) => q('SELECT * FROM waves WHERE gang_id = ? AND ends_at > ? ORDER BY at DESC LIMIT 1').get(gid, U.now());
   const lastWave = (gid) => q('SELECT * FROM waves WHERE gang_id = ? AND ends_at <= ? AND ends_at > ? ORDER BY at DESC LIMIT 1').get(gid, U.now(), U.now() - SHOW_RESULT_H * 3600e3);
-  const launchedThisWeek = (uid) => !!q('SELECT 1 FROM waves WHERE by_id = ? AND week = ?').get(uid, week());
+  const gangWaveThisWeek = (gid) => q('SELECT * FROM waves WHERE gang_id = ? AND week = ? ORDER BY at LIMIT 1').get(gid, week());
   const joinsOf = (wid) => q('SELECT j.user_id, j.at, u.nick, u.look FROM wave_joins j JOIN users u ON u.id = j.user_id WHERE j.wave_id = ? ORDER BY j.at').all(wid);
 
   const gangOr404 = (req, id) => {
@@ -70,16 +79,17 @@ function register(ctx) {
   function view(g, uid) {
     const members = gangMembers(g.id);
     const w = activeWave(g.id);
-    const can = members.length >= MIN_GANG && !launchedThisWeek(uid) && !w;
+    const done = gangWaveThisWeek(g.id);
+    const can = members.length >= MIN_GANG && !done && !w;
     const why = members.length < MIN_GANG ? `Волну можно запустить, когда в банде ${MIN_GANG} человека.`
-      : w ? '' : launchedThisWeek(uid) ? 'Твоя волна на этой неделе уже была. Следующая — с понедельника.' : '';
-    const out = { canLaunch: can, why, windowMin: WINDOW_MIN, active: null, last: null };
+      : w ? '' : done ? 'Волна на этой неделе уже была. Следующая — с понедельника.' : '';
+    const out = { canLaunch: can, why, windowMin: WINDOW_MIN, autoHint: `Если до среды никто не запустит, Этаж сам поднимет банду в ${AUTO_HOUR}:00`, active: null, last: null };
     if (w) {
       const joins = joinsOf(w.id);
       const order = new Map(joins.map((j, i) => [j.user_id, i]));
-      const by = q('SELECT id, nick, look FROM users WHERE id = ?').get(w.by_id) || { id: 0, nick: 'кто-то', look: '{}' };
+      const by = (w.by_id && q('SELECT id, nick, look FROM users WHERE id = ?').get(w.by_id)) || { id: 0, nick: 'Этаж', look: '{}' };
       out.active = {
-        id: w.id, by: { id: by.id, nick: by.nick, fem: U.fem(by.look) }, endsAt: w.ends_at, now: U.now(),
+        id: w.id, by: { id: by.id, nick: by.nick, fem: U.fem(by.look), auto: !w.by_id }, endsAt: w.ends_at, now: U.now(),
         joined: joins.length, size: Math.max(w.size, joins.length), mine: order.has(uid),
         fans: members.map((m) => ({ id: m.id, nick: m.nick, look: publicLook(m), up: order.has(m.id), i: order.has(m.id) ? order.get(m.id) : null, me: m.id === uid }))
           .sort((a, b) => (a.up === b.up ? (a.i ?? 0) - (b.i ?? 0) : a.up ? -1 : 1))
@@ -87,8 +97,8 @@ function register(ctx) {
     } else {
       const l = lastWave(g.id);
       if (l) {
-        const by = q('SELECT nick FROM users WHERE id = ?').get(l.by_id);
-        out.last = { ...result(l), by: by ? by.nick : 'кто-то', mine: !!q('SELECT 1 FROM wave_joins WHERE wave_id = ? AND user_id = ?').get(l.id, uid) };
+        const by = l.by_id && q('SELECT nick FROM users WHERE id = ?').get(l.by_id);
+        out.last = { ...result(l), by: by ? by.nick : 'Этаж', mine: !!q('SELECT 1 FROM wave_joins WHERE wave_id = ? AND user_id = ?').get(l.id, uid) };
       }
     }
     return out;
@@ -104,7 +114,7 @@ function register(ctx) {
     const members = gangMembers(g.id);
     if (members.length < MIN_GANG) throw bad(`Для волны нужна банда хотя бы из ${MIN_GANG} человек.`);
     if (activeWave(g.id)) throw bad('Волна уже идёт — вставай!');
-    if (launchedThisWeek(u.id)) throw bad('Твоя волна на этой неделе уже была. Следующая — с понедельника.');
+    if (gangWaveThisWeek(g.id)) throw bad('Волна на этой неделе в банде уже была. Следующая — с понедельника.');
     const now = U.now();
     const id = Number(q('INSERT INTO waves (gang_id, by_id, week, at, ends_at, size) VALUES (?, ?, ?, ?, ?, ?)').run(g.id, u.id, week(), now, now + WINDOW_MIN * 60e3, members.length).lastInsertRowid);
     q('INSERT INTO wave_joins (wave_id, user_id, at) VALUES (?, ?, ?)').run(id, u.id, now);
@@ -141,6 +151,30 @@ function register(ctx) {
     return { ...view(g, u.id), beans };
   });
 
+  // Автозапуск: первый рабочий день со среды, 12:00–12:59 по Москве, только банды от 3 человек и без волны на этой неделе
+  function autoLaunch(g) {
+    const members = gangMembers(g.id);
+    if (members.length < MIN_GANG || gangWaveThisWeek(g.id) || activeWave(g.id)) return false;
+    const now = U.now();
+    q('INSERT INTO waves (gang_id, by_id, week, at, ends_at, size) VALUES (?, NULL, ?, ?, ?, ?)').run(g.id, week(), now, now + WINDOW_MIN * 60e3, members.length);
+    const [t, b] = AUTO_CALLS[Math.floor(Math.random() * AUTO_CALLS.length)];
+    const fill = (s) => s.replace(/\{gang\}/g, g.name);
+    fireAndForget(notify(members.map((m) => m.id), { title: fill(t), body: fill(b), url: `/#wave/${g.id}`, tag: `wave-${g.id}` }));
+    return true;
+  }
+  function autoDue() {
+    const m = U.msk(), dow = (new Date(m.day + 'T12:00:00Z').getUTCDay() + 6) % 7; // пн=0
+    if (m.hour !== AUTO_HOUR || dow < 2 || dow > 4 || !weekdayName(m.day)) return false;
+    // Сегодня — первый рабочий день начиная со среды
+    for (let d = 2; d < dow; d++) if (weekdayName(addDays(m.day, d - dow))) return false;
+    return true;
+  }
+  function tick() {
+    if (!autoDue()) return;
+    for (const g of q('SELECT id, name FROM gangs WHERE hidden = 0').all()) autoLaunch(g);
+  }
+  setInterval(() => { try { tick(); } catch (e) { console.error('wave', e); } }, Number(process.env.WAVE_TICK_MS) || 5 * 60e3).unref();
+
   // Для сводки «Этажа»: идёт волна, а ты ещё сидишь
   function pending(uid, gangs) {
     const out = [];
@@ -153,7 +187,7 @@ function register(ctx) {
 
   function cleanup() { q('DELETE FROM waves WHERE at < ?').run(U.now() - 60 * 864e5); }
 
-  return { pending, cleanup };
+  return { pending, cleanup, autoLaunch, autoDue };
 }
 
 module.exports = { register, CALLS, WINDOW_MIN };

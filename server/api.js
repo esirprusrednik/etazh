@@ -1574,7 +1574,7 @@ function createApi(db) {
     features.onEvent = (t, uid, d) => { style.track(t, uid, d); return orig(t, uid, d); };
   }
   // ---------- «Волна» по банде: клич раз в неделю ----------
-  wave = require('./wave').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, publicLook, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
+  wave = require('./wave').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, publicLook, weekdayName, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   // ---------- Погода на завтра: вечером накануне офисного дня ----------
   weather = require('./weather').register({ db, q, U, notify, fireAndForget, readProfile, weekdayName, features });
   // ---------- «Этаж» пишет сам: живая сводка и один утренний пуш ----------

@@ -286,5 +286,30 @@ function startServer(day, extra = {}) {
       assert.ok((await D.get('/api/inbox')).json.items.some((x) => x.kind === 'gev-edit' && x.go.id === gb.id));
     });
   } finally { sv.stop(); }
+
+  // Среда, 11 ноября, ~12:30 по Москве: Этаж сам запускает волну в бандах, где за полнедели её никто не начал
+  const offset = Math.round((Date.parse('2026-11-11T12:30:00Z') - Date.now()) / 3600e3);
+  const sw = startServer('2026-11-11', { TZ_OFFSET_HOURS: String(offset), WAVE_TICK_MS: '700' });
+  try {
+    await sw.ready;
+    await step('волна: одна на банду в неделю, в среду в 12 — автозапуск от Этажа', async () => {
+      const P = await new sw.Client().login('w1@mts.ru', 'первый');
+      const Q = await new sw.Client().login('w2@mts.ru', 'второй');
+      const R = await new sw.Client().login('w3@mts.ru', 'третий');
+      const g = (await P.post('/api/gangs', { name: 'Волнорезы', access: 'open' })).json;
+      await Q.post(`/api/gangs/${g.id}/apply`); await R.post(`/api/gangs/${g.id}/apply`);
+      const small = (await new sw.Client().login('w4@mts.ru', 'одиночка').then((x) => x.post('/api/gangs', { name: 'Двое', access: 'open' }))).json;
+      let w = null;
+      for (let i = 0; i < 30 && !(w && w.active); i++) { await new Promise((r) => setTimeout(r, 300)); w = (await Q.get(`/api/gangs/${g.id}/wave`)).json; }
+      assert.ok(w.active, 'Этаж запустил волну сам: ' + JSON.stringify(w));
+      assert.equal(w.active.by.auto, true);
+      assert.equal(w.active.joined, 0, 'никто не встал автоматически');
+      assert.equal((await P.post(`/api/gangs/${g.id}/wave`)).status, 400, 'вторую волну на этой неделе — нельзя');
+      w = (await R.post(`/api/waves/${w.active.id}/join`)).json;
+      assert.equal(w.active.joined, 1);
+      assert.equal((await P.get(`/api/gangs/${small.id}/wave`)).status, 404, 'в чужую банду не заглянуть');
+      assert.ok(small && small.id);
+    });
+  } finally { sw.stop(); }
   console.log(`social: ${passed} ok`);
 })().catch((e) => { console.error(e); process.exit(1); });

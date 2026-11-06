@@ -1076,7 +1076,7 @@ function renderWave() {
     const pct = Math.round((a.joined / a.size) * 100), need = Math.ceil(a.size / 2);
     return `<section class="card wave live">
       <div class="row" style="justify-content:space-between"><span class="card-title">hand Волна!</span><span class="wave-timer" id="wave-left">${mmss(waveLeft(a) * 1000)}</span></div>
-      <p class="sub" style="margin:0"><b>${esc(a.by.nick)}</b> ${a.by.fem ? 'запустила' : 'запустил'} волну. ${a.joined >= a.size ? 'Встала вся банда!' : a.joined >= need ? 'Банда в силе — дожимайте до всех!' : `Нужно, чтобы встали ${need} из ${a.size}.`}</p>
+      <p class="sub" style="margin:0">${a.by.auto ? 'Середина недели — Этаж сам запустил волну.' : `<b>${esc(a.by.nick)}</b> ${a.by.fem ? 'запустила' : 'запустил'} волну.`} ${a.joined >= a.size ? 'Встала вся банда!' : a.joined >= need ? 'Банда в силе — дожимайте до всех!' : `Нужно, чтобы встали ${need} из ${a.size}.`}</p>
       <div class="stands" role="img" aria-label="Встали ${a.joined} из ${a.size}">${a.fans.map((f) => fanHtml(f)).join('')}</div>
       <div class="wave-bar"><i style="width:${pct}%"></i><span>встали ${a.joined} из ${a.size}</span></div>
       ${a.mine ? `<p class="small" style="margin:0;text-align:center">Ты стоишь. Свистни тем, кто ещё сидит, — пуш им уже ушёл.</p>` : `<button class="btn wave-go" data-act="wave-join" data-id="${a.id}">Встать за своих!</button>`}
@@ -1086,7 +1086,7 @@ function renderWave() {
   if (!w.canLaunch && !last) return '';
   return `<section class="card wave idle">
     ${last ? `<div class="wave-last ${last.kind}">hand <span>${esc(last.text)}${last.mine ? '' : ` · ты ${meG('пропустил', 'пропустила')}`}</span></div>` : ''}
-    ${w.canLaunch ? `<div class="row"><div class="grow"><b>Подними банду волной</b><div class="small">Клич своим: у всех ${w.windowMin} минут, чтобы встать. Раз в неделю</div></div><button class="btn small" data-act="wave-launch-open">Запустить</button></div>` : `<div class="small">${esc(w.why)}</div>`}
+    ${w.canLaunch ? `<div class="row"><div class="grow"><b>Подними банду волной</b><div class="small">Клич своим: у всех ${w.windowMin} минут, чтобы встать. Одна волна на банду в неделю — успей первым. ${esc(w.autoHint)}</div></div><button class="btn small" data-act="wave-launch-open">Запустить</button></div>` : `<div class="small">${esc(w.why)}</div>`}
   </section>`;
 }
 const WAVE_PREVIEW = ['{nick} запустил волну. Встань, подними руки — у банды 10 минут', 'Это волна, а не спам. Ну почти. Зайди и нажми «Встать» — банда считает', 'Срочно: ничего срочного. Просто {nick} запустил волну', 'Даже кофемашина уже встала. Твоя очередь'];
@@ -1098,7 +1098,7 @@ function renderWaveLaunch() {
     <div class="stands demo-stands" aria-hidden="true">${demo}</div>
     <div class="push-preview"><span class="pp-ico">Э.</span><div class="grow"><b>Этаж</b><span>${esc(txt)}</span></div></div>
     <ol class="ol"><li>Своим придёт смешной клич — повод заглянуть в Этаж.</li><li>У всех ${S.wave ? S.wave.windowMin : 10} минут, чтобы нажать «Встать за своих».</li><li>Встанут больше половины — банда в силе. Встанут все — ты капитан.</li></ol>
-    <p class="small" style="margin:0">Свою волну можно запускать раз в неделю. Тем, кто в отпуске или в тихих часах, пуш не придёт.</p>
+    <p class="small" style="margin:0">Одна волна на банду в неделю: кто первый, тот и запускает. Если до среды никто не соберётся, Этаж поднимет банду сам в 12:00. Тем, кто в отпуске или в тихих часах, пуш не придёт.</p>
     <button class="btn wave-go" data-act="wave-launch">Запустить волну!</button>
   </div>`;
 }
