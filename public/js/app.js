@@ -941,8 +941,10 @@ const hyWord = (w) => { const v = (c) => !!c && HV.includes(c); const lt = (c) =
   return o; };
 const hy = (t) => String(t).replace(/[А-Яа-яЁё]{8,}/g, hyWord);
 const ICON_TOKEN = /\uE000(\w+)\uE001/g;
-const iconize = (html) => html.replace(/(<[^>]*>)|\uE000(\w+)\uE001/g, (m, tag, n) => tag ? tag.replace(/\uE000\w+\uE001\s?/g, '') : ICONS[n] ? `<svg class="ei ei-${n}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICONS[n]}"/></svg>` : '');
-const plain = (t) => String(t ?? '').replace(/\uE000\w+\uE001\s?/g, '').trim();
+// Род: в текстах интерфейса токен \uE002мужская|женская\uE003 — разворачивается по полу из профиля при отрисовке и в тостах
+const genderize = (s) => String(s).replace(/\uE002([^|\uE003]*)\|([^\uE003]*)\uE003/g, (_, m, f) => meG(m, f));
+const iconize = (html) => genderize(html).replace(/(<[^>]*>)|\uE000(\w+)\uE001/g, (m, tag, n) => tag ? tag.replace(/\uE000\w+\uE001\s?/g, '') : ICONS[n] ? `<svg class="ei ei-${n}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICONS[n]}"/></svg>` : '');
+const plain = (t) => genderize(String(t ?? '')).replace(/\uE000\w+\uE001\s?/g, '').trim();
 const OFFICE_BG = { smol: '#E5484D', mark: '#3A86FF', vor: '#F4A72C' };
 const CALL_STYLE = {
   coffee: '#8B5A2B', lunch: '#1F7A3A', room: '#2563C9', home: '#6D3FD6', call: '#F97316', where: '#0E7490', online: '#BE185D', wait: '#4B5563'
@@ -1140,7 +1142,7 @@ function renderFriday() {
     </div>`;
   };
   return `<section class="card friday"><div class="row" style="justify-content:space-between"><span class="card-title">chat Пятничная пятиминутка</span><span class="small">${f.canAnswer ? `ответили ${f.people} из ${f.members}` : 'неделя закрыта'}</span></div>
-    ${f.canAnswer && !f.done ? '<p class="small" style="margin:0">Три вопроса о неделе — ответ в одну строку. Ответы банды откроются, когда ответишь сам. +3 зерна.</p>' : ''}
+    ${f.canAnswer && !f.done ? '<p class="small" style="margin:0">Три вопроса о неделе — ответ в одну строку. Ответы банды откроются, когда ответишь сам|сама. +3 зерна.</p>' : ''}
     ${f.questions.map(qBlock).join('')}
   </section>`;
 }
@@ -1398,7 +1400,7 @@ function render() {
 
 // «Об Этаже»: цель и функции в шести карточках, мемным тоном. Один текст — для входа, новичков и профиля
 const ABOUT_TILES = [
-  ['office', 'Кто в офисе', 'Отметился — и банда видит, что ты тут. Больше никаких «ты сегодня где?» в пяти чатах.'],
+  ['office', 'Кто в офисе', 'Отметься — и банда видит, что ты тут. Больше никаких «ты сегодня где?» в пяти чатах.'],
   ['coffee', 'Зовы', 'Кофе, обед, «домой», «перезвони» — в одно касание. Банда отвечает кнопкой, а не созвоном.'],
   ['lunch', 'Очередь в столовой', 'Свои подсказывают, есть ли очередь. Лучше узнать заранее, чем стоять с подносом и рефлексировать.'],
   ['flag', 'Банды', 'Не отдел по списку, а свои: с кем обедаешь, пьёшь кофе и сидишь рядом. Общий чат, опросы, неделя офиса, дни рождения.'],
@@ -1722,7 +1724,7 @@ function renderMatch() {
   if (!m.on) {
     return `<section class="card match"><div class="card-title">where Совпадаем</div>
       <p class="sub" style="margin:0">Кто из коллег — не только из банды — в какие дни в офисе, а кто дома. Можно позвать на обед, кофе или созвониться.</p>
-      <p class="small" style="margin:0">Видят только те, кто сам открыл свои дни. ${m.count ? `Уже открыли: <b>${m.count}</b>.` : 'Будь первым.'} Показываем ник, имя, аватар, офис на день и общие интересы.</p>
+      <p class="small" style="margin:0">Видят только те, кто сам открыл свои дни. ${m.count ? `Уже открыли: <b>${m.count}</b>.` : 'Будь первым|первой.'} Показываем ник, имя, аватар, офис на день и общие интересы.</p>
       <button class="btn" data-act="match-on">Открыть свои дни и посмотреть</button></section>`;
   }
   if (m.locked) {
@@ -1861,7 +1863,7 @@ function renderFind() {
 const LONER_LINES = [
   'Ты — герой-одиночка: ни банды, ни знамени, только ветер в ушах и кофе из автомата.',
   'Одинокий воин бродит по этажам. Говорят, у костра банды теплее — и обед там вкуснее.',
-  'Кто ты, воин? Самурай без господина. Найди своих или собери дружину сам.'
+  'Кто ты, воин? Самурай без господина. Найди своих или собери дружину сам|сама.'
 ];
 function renderMyGang(gangs, seenG) {
   if (!gangs.length) {
@@ -1893,7 +1895,7 @@ function renderMyGang(gangs, seenG) {
         ${x.motto ? `<span class="small" style="font-style:italic">«${esc(x.motto)}»</span>` : ''}
         ${facts.map((f) => `<span class="small">${f}</span>`).join('')}
         ${flags ? `<span class="mg-flags">${flags}</span>` : ''}
-        <span class="where ellipsis ${unread ? 'unread' : ''}">${x.last ? `chat ${x.last.mine ? 'Ты' : esc(x.last.who || '')}: ${esc(x.last.text || '')}` : 'chat Сообщений пока нет — начни первым'}</span>
+        <span class="where ellipsis ${unread ? 'unread' : ''}">${x.last ? `chat ${x.last.mine ? 'Ты' : esc(x.last.who || '')}: ${esc(x.last.text || '')}` : 'chat Сообщений пока нет — начни первым|первой'}</span>
       </span><span class="chev" aria-hidden="true">›</span></button>`;
   };
   return `<section class="card chats"><div class="chats-head"><h3>${gangs.length > 1 ? 'Мои банды' : 'Моя банда'}</h3></div>
@@ -1936,7 +1938,7 @@ function renderChats() {
       return `<button class="chat-row" data-act="gang-open" data-id="${x.id}">
         <span class="chat-gang-crest">${gangBadge(x, 42)}</span>
         <span class="grow" style="min-width:0"><span class="chat-title">${esc(x.name)} <span class="small">· ${x.members}</span></span>
-          <span class="where ellipsis ${unread ? 'unread' : ''}">${x.last ? `${x.last.mine ? 'Ты' : esc(x.last.who || '')}: ${esc(x.last.text || '')}` : 'Сообщений пока нет — начни первым'}</span></span>
+          <span class="where ellipsis ${unread ? 'unread' : ''}">${x.last ? `${x.last.mine ? 'Ты' : esc(x.last.who || '')}: ${esc(x.last.text || '')}` : 'Сообщений пока нет — начни первым|первой'}</span></span>
         <span class="crew-side">${x.lastTime ? `<span class="small">${x.lastTime}</span>` : ''}${x.polls ? `<span class="poll-badge" title="Опросы без твоего голоса">chart ${x.polls}</span>` : unread ? '<span class="crew-badge">•</span>' : ''}</span></button>`;
     }
     const [w, color] = x.where ? whereText(x) : ['', '#C9D1EA'];
@@ -2255,14 +2257,14 @@ function renderToday() {
           <div class="vac-sub">Банда видит «в отпуске», зовы без пушей</div>
         </div>
       </div>
-      <div class="vac-acts"><button class="vac-btn" data-act="vac-end">Вышел из отпуска</button><button class="vac-btn" data-act="open" data-v="profile">График</button></div>
+      <div class="vac-acts"><button class="vac-btn" data-act="vac-end">Вышел|Вышла из отпуска</button><button class="vac-btn" data-act="open" data-v="profile">График</button></div>
     </section>`;
   }
   if (p.where === 'sick') {
     return `<section class="card" style="background:var(--tint-r)">
       <h2>thermo Болеешь${p.until !== st.today ? ` до ${ddmm(p.until)}` : ' сегодня'}</h2>
       <p class="sub">Выздоравливай! Банда видит «болеет», зовы не присылают пуши. Причину и подробности никто не видит.</p>
-      <button class="btn ghost" data-act="today" data-v="">Выздоровел</button>
+      <button class="btn ghost" data-act="today" data-v="">Выздоровел|Выздоровела</button>
     </section>`;
   }
   if (p.where === 'slack') {
@@ -2392,7 +2394,7 @@ function renderGEvent(e) {
       ${e.note ? `<div class="small gev-note">${esc(e.note)}</div>` : ''}
       <div class="gev-who">${e.yes.slice(0, 8).map((p) => `<span title="${esc(p.nick)}">${avatar(p.look, 22)}</span>`).join('')}<span class="small">${e.yes.length ? `идут ${e.yes.length}` : 'пока никто не идёт'}${e.maybe.length ? ` · может ${e.maybe.length}` : ''}${e.no ? ` · не смогут ${e.no}` : ''}</span></div>
       ${e.past ? '' : `<div class="chips">${btn('yes', 'thumbUp Иду')}${btn('maybe', 'Может быть')}${btn('no', 'Не смогу')}</div>`}
-      <div class="small">предложил(а): ${esc(e.author)}${e.canEdit ? ` · <button class="linkbtn" data-act="gev-edit" data-id="${e.id}">изменить</button>` : ''}${e.canCancel && !e.past ? ` · <button class="linkbtn" data-act="gev-cancel" data-id="${e.id}">отменить</button>` : ''}</div>
+      <div class="small">автор: ${esc(e.author)}${e.canEdit ? ` · <button class="linkbtn" data-act="gev-edit" data-id="${e.id}">изменить</button>` : ''}${e.canCancel && !e.past ? ` · <button class="linkbtn" data-act="gev-cancel" data-id="${e.id}">отменить</button>` : ''}</div>
     </div></div>`;
 }
 function renderGEvents() {
@@ -2420,7 +2422,7 @@ const WAR_RULES = (r) => `<ol class="ol">
   <li><b>Ограничения:</b> не больше 2 битв у банды сразу, с одной бандой — одна битва и пауза ${r.rematchDays} дней перед реваншем. По одной теме банда бьётся один раз.</li>
   <li><b>Награда:</b> герою-победителю +${r.prizeHero} зёрен, всей его банде по +${r.prizeTeam} и очки в Лигу.</li></ol>`;
 const HERO_RULES = `<ul class="ol">
-  <li>Нажми «hand Готов быть героем» — владелец увидит тебя первым в списке.</li>
+  <li>Нажми «hand Готов быть героем» — владелец увидит тебя первым|первой в списке.</li>
   <li><b>Ротация:</b> кто бился за банду в прошлый раз, в следующей битве не выходит — пусть пробуют все.</li>
   <li>Не сможешь — откажись до старта, владелец назначит замену. После старта отказаться нельзя.</li>
   <li>Рядом с ником — сколько раз был героем и сколько побед.</li></ul>`;
@@ -2459,7 +2461,7 @@ function renderTreasury() {
   const G = t.glory;
   const v = t.vote;
   const vote = v ? `<div class="tr-vote"><b>vote Голосуем: «${esc(v.item.name)}» за ${v.item.price} славы</b>
-      <span class="small">Предложил(а) ${esc(v.author)} · за — ${v.za}, против — ${v.protiv} из ${v.members}. Досрочно решит ${v.needEarly}, иначе через ${Math.max(0, Math.round((v.endsAt - Date.now()) / 3600e3))} ч при кворуме ${v.quorum}. Голос тайный.</span>
+      <span class="small">Автор — ${esc(v.author)} · за — ${v.za}, против — ${v.protiv} из ${v.members}. Досрочно решит ${v.needEarly}, иначе через ${Math.max(0, Math.round((v.endsAt - Date.now()) / 3600e3))} ч при кворуме ${v.quorum}. Голос тайный.</span>
       <div class="row"><button class="btn small grow ${v.my === 1 ? 'green' : ''}" data-act="tr-vote" data-v="1">thumbUp За${v.my === 1 ? ' ✓' : ''}</button><button class="btn small ghost grow" data-act="tr-vote" data-v="-1">thumbDown Против${v.my === -1 ? ' ✓' : ''}</button></div></div>` : '';
   const action = (it) => {
     if (it.owned) return t.isOwner ? `<button class="btn small ${it.equipped ? 'worn' : 'ghost wear'}" data-act="tr-equip" data-v="${it.id}" data-slot="${it.slot}" data-on="${it.equipped ? '0' : '1'}">${it.equipped ? 'check Надето' : 'Надеть'}</button>` : `<span class="small">${it.equipped ? 'надето' : 'есть'}</span>`;
@@ -2541,7 +2543,7 @@ function renderWar(w) {
   const betLine = w.bets.mine ? `dice Твоя ставка: ${w.bets.mine.amount}${w.bets.mine.payout != null ? ` → получено ${w.bets.mine.payout}` : ''}`
     : w.bets.open ? `<span class="bet-row">dice Ставка за своих: ${[1, 3, 5, 10].filter((x) => x <= w.bets.max).map((x) => `<button class="chip bet-chip" data-act="war-bet" data-id="${w.id}" data-v="${x}">${x}</button>`).join('')}</span>` : '';
   const pools = (w.from.pool || w.to.pool) ? `<span class="small">банк: ${w.from.pool} : ${w.to.pool}</span>` : '';
-  const cheer = live && mySide && !w.amHero ? (w.cheered ? '<span class="small">bolt ты поддержал(а) героя</span>' : `<button class="btn small cheer" data-act="war-cheer" data-id="${w.id}">bolt Держись!</button>`) : '';
+  const cheer = live && mySide && !w.amHero ? (w.cheered ? '<span class="small">bolt ты поддержал|поддержала героя</span>' : `<button class="btn small cheer" data-act="war-cheer" data-id="${w.id}">bolt Держись!</button>`) : '';
   const extra = [betLine, pools, cheer, live && mySide && mySide.cheers ? `<span class="small">bolt болеют за нашего: ${mySide.cheers}</span>` : ''].filter(Boolean);
   return `<div class="war ${w.status} ${w.winner || ''}">
     <div class="war-head"><span class="war-kind">${w.tour ? 'trophy Турнир · ' : ''}${kind}</span><span class="small">${status}</span></div>
@@ -2637,7 +2639,7 @@ function renderDuel(d) {
     const reveal = last ? `<div class="rps-reveal ${fresh ? 'anim' : ''}"><span class="rps-hand me">${RPS_EMO[last.me]}</span><span class="rps-vs ${last.win}">${last.win === 'me' ? 'бьёт' : last.win === 'opp' ? 'проигрывает' : '='}</span><span class="rps-hand opp">${RPS_EMO[last.opp]}</span></div>` : '';
     return `<div class="duel rps">${duelHead(d)}${reveal}
       ${d.status === 'play' ? (d.myTurn ? `<div class="rps-pick">${Object.keys(RPS_EMO).map((m) => `<button class="rps-btn" data-act="duel-rps" data-id="${d.id}" data-v="${m}"><span>${RPS_EMO[m]}</span><b>${RPS_NAME[m]}</b></button>`).join('')}</div>`
-        : `<p class="small duel-hint">${cur.me ? `Ты выбрал(а) ${RPS_EMO[cur.me]} — ждём соперника${cur.opp === 'hidden' ? '' : '…'}` : ''}</p>`) : ''}
+        : `<p class="small duel-hint">${cur.me ? `Ты выбрал|выбрала ${RPS_EMO[cur.me]} — ждём соперника${cur.opp === 'hidden' ? '' : '…'}` : ''}</p>`) : ''}
       <p class="small duel-hint">До ${d.winTo} побед. Ход соперника скрыт, пока не сходишь сам.</p></div>`;
   }
   // Кости
@@ -2808,7 +2810,7 @@ function renderGangNew() {
       <span>Это те, с кем ты и так пересекаешься каждый день: кофе, обед, соседние столы, общий проект. Может совпасть с частью твоей команды, но строить её по штатному расписанию не нужно.</span>
       <div class="gh-cols"><div><i>Банда</i><span>с кем обедаешь и ходишь за кофе</span><span>соседи по этажу и проектная тусовка</span><span>часть команды, если вы на одной волне</span></div>
       <div><i>Не банда</i><span>весь отдел по списку</span><span>руководитель «для порядка»</span><span>рабочие задачи — им место в рабочих системах</span></div></div></div>
-    <p class="sub" style="margin-top:0">Общий чат, зовы, неделя офиса, опросы. Залог 50 зёрен вернётся, когда в банде будет 3 человека. В банде до 30 человек, а сам ты можешь быть только в одной банде${S.me.gangs.length ? ` — сколотишь новую, выйдешь из «${esc(S.me.gangs[0].name)}»` : ''}.</p>
+    <p class="sub" style="margin-top:0">Общий чат, зовы, неделя офиса, опросы. Залог 50 зёрен вернётся, когда в банде будет 3 человека. В банде до 30 человек, а сам|сама ты можешь быть только в одной банде${S.me.gangs.length ? ` — сколотишь новую, выйдешь из «${esc(S.me.gangs[0].name)}»` : ''}.</p>
     <label class="field">Название<input id="gang-name" maxlength="30" placeholder="Например, Кофейный патруль" value="${esc(d.name || '')}"></label>
     <label class="field">Что вас объединяет${areaSelect('gang-area', d.area)}</label>
     ${crestField(d, 'new')}
@@ -3190,7 +3192,7 @@ function renderDm() {
     <div class="chat" id="dm-chat">${msgs}</div>
     ${shut ? '' : `<div class="row"><label class="field grow" style="gap:0"><span class="hidden">Сообщение</span><input id="dm-text" maxlength="500" placeholder="Написать ${esc(f.nick)}" aria-label="Личное сообщение"></label>
       ${micBtn('dm')}<button class="btn" data-act="dm-send" aria-label="Отправить">→</button></div>${recBar('dm')}`}
-    ${v.closedByMe ? '<p class="small" style="margin:0">Ты закрыл эту личку. Напишешь — она откроется снова.</p>' : ''}
+    ${v.closedByMe ? '<p class="small" style="margin:0">Ты закрыл|закрыла эту личку. Напишешь — она откроется снова.</p>' : ''}
   </section>`}
   <section class="card">
     ${S.dmSecret ? '' : '<p class="small">Переписку видите только вы двое. Модератор увидит сообщение, только если на него пожалуются (⚑).</p>'}
@@ -3436,7 +3438,7 @@ function renderBirthdays() {
   return f.birthdaysToday.map((b) => `<section class="bday">
     ${tap(b.id, `<span class="ava-wrap">${avatar(b.look, 34)}</span>`)}
     <div class="grow"><div style="font-weight:900">Сегодня день рождения у ${esc(b.nick)}</div><div class="small" >Поздравь в банде или подари зёрна</div></div>
-    ${b.gifted ? '<span class="small" style="font-weight:700">Поздравил ✓</span>' : `<button class="btn small" data-act="gift" data-id="${b.id}">+${f.giftBeans} ${BEAN}</button>`}
+    ${b.gifted ? '<span class="small" style="font-weight:700">Поздравил|Поздравила ✓</span>' : `<button class="btn small" data-act="gift" data-id="${b.id}">+${f.giftBeans} ${BEAN}</button>`}
   </section>`).join('');
 }
 
@@ -3475,7 +3477,7 @@ function renderCoffee() {
   const p = c.pair;
   let state = '';
   if (p.ping && p.ping.reply) state = `<div class="note ${p.ping.reply === 'Иду' ? 'good' : 'warn'}" style="margin:0">${p.ping.mine ? esc(p.partner.nick) + ': ' : (meG('Ты ответил: ', 'Ты ответила: '))}${esc(p.ping.reply)} · ${esc(p.ping.opt.toLowerCase())}</div>`;
-  else if (p.ping && p.ping.mine) state = `<div class="note warn" style="margin:0">Ты предложил: ${esc(p.ping.opt.toLowerCase())}. Ждём ответа.</div>`;
+  else if (p.ping && p.ping.mine) state = `<div class="note warn" style="margin:0">Ты предложил|предложила: ${esc(p.ping.opt.toLowerCase())}. Ждём ответа.</div>`;
   else if (p.canReply) state = `<div class="note good" style="margin:0">${esc(p.partner.nick)} предлагает: ${esc(p.ping.opt.toLowerCase())}</div>
     <div class="chips">${p.replies.map((r) => `<button class="chip" data-act="coffee-reply" data-v="${esc(r)}">${esc(r)}</button>`).join('')}</div>`;
   const offer = p.canReply || (p.ping && p.ping.mine && !p.ping.reply) ? '' : `<div class="chips">${p.options.map((o) => `<button class="chip" data-act="coffee-ping" data-v="${esc(o)}">${esc(o)}</button>`).join('')}</div>`;
@@ -4198,9 +4200,9 @@ const BG_NAMES = { auto: 'Под кожу', sky: 'Небо', mint: 'Мята', p
 // Мемные пресеты меняют одежду, аксессуары и выражение лица, а лицо, кожу и причёску оставляют твоими
 const AVA_PRESETS = [
   { id: 'boss', name: 'Начальник отдела', look: { outfit: 'suit', hoodie: 'navy', neck: 'tie', hat: 'none', prop: 'none', mouth: 'smirk', eyeShape: 'sly', glasses: false } },
-  { id: 'tired', name: 'Устал, но держусь', look: { outfit: 'hoodie', neck: 'none', hat: 'none', prop: 'mug', mouth: 'neutral', eyeShape: 'tired' } },
+  { id: 'tired', name: 'Устал|Устала, но держусь', look: { outfit: 'hoodie', neck: 'none', hat: 'none', prop: 'mug', mouth: 'neutral', eyeShape: 'tired' } },
   { id: 'excel', name: 'Гений Excel', look: { outfit: 'shirt', hoodie: 'green', neck: 'tie', hat: 'none', prop: 'papers', mouth: 'grin', eyeShape: 'wide', glasses: true } },
-  { id: 'nothing', name: 'Я ничего не трогал', look: { outfit: 'dev', neck: 'none', hat: 'none', prop: 'none', mouth: 'wow', eyeShape: 'wide' } },
+  { id: 'nothing', name: 'Я ничего не трогал|трогала', look: { outfit: 'dev', neck: 'none', hat: 'none', prop: 'none', mouth: 'wow', eyeShape: 'wide' } },
   { id: 'report', name: 'Снова квартальный отчёт', look: { outfit: 'shirt', hoodie: 'blue', neck: 'tie_crooked', hat: 'none', prop: 'papers', mouth: 'neutral', eyeShape: 'tired' } },
   { id: 'control', name: 'Всё под контролем', look: { outfit: 'suit', hoodie: 'red', neck: 'tie', hat: 'headset', prop: 'mug', mouth: 'smile', eyeShape: 'normal' } },
   // Легендарные образы: детали за зёрна в Лавке, примерить можно бесплатно
@@ -4372,7 +4374,7 @@ function renderAvatarEditor() {
   </div>`;
 }
 
-const MOUTH_NAMES = { smile: 'Улыбка', grin: 'До ушей', smirk: 'Ухмылка', neutral: 'Серьёзный', sad: 'Грустный', wow: 'Удивлён' };
+const MOUTH_NAMES = { smile: 'Улыбка', grin: 'До ушей', smirk: 'Ухмылка', neutral: 'Серьёзный|Серьёзная', sad: 'Грустный|Грустная', wow: 'Удивлён|Удивлена' };
 const BEARD_NAMES = { none: 'Нет', stubble: 'Щетина', beard: 'Борода', mustache: 'Усы', goatee: 'Эспаньолка' };
 function section(id, title, summary, body, opts = {}) {
   const open = S.sec.has(id);
@@ -4681,7 +4683,7 @@ const actions = {
     const id = Number(el.dataset.id);
     const it = ((S.chats && S.chats.items) || []).find((x) => x.type === 'dm' && x.id === id);
     const closedByOther = (it && it.closed) || (S.dmView && S.dm === id && S.dmView.closedByOther);
-    if (!closedByOther && !confirmInline('dm-close' + id, 'Нажми ещё раз: переписка удалится у вас обоих, а собеседник увидит, что ты закрыл личку')) return;
+    if (!closedByOther && !confirmInline('dm-close' + id, 'Нажми ещё раз: переписка удалится у вас обоих, а собеседник увидит, что ты закрыл|закрыла личку')) return;
     await post(`/api/dm/${id}/close`);
     if (S.dm === id) { S.dm = null; S.dmView = null; }
     toast(closedByOther ? 'Убрали из списка' : 'Личка закрыта');
@@ -4724,7 +4726,7 @@ const actions = {
   'war-hero-open': (el) => run(async () => { S.warHero = { id: Number(el.dataset.id), hero: null }; S.warMeta = null; S.sheet = 'war-hero'; render(); S.warMeta = await get(`/api/gangwar/rivals?gang=${S.activeGang}`); }),
   'war-hero-save': () => run(async () => { await post(`/api/wars/${S.warHero.id}/hero`, { hero: S.warHero.hero }); S.sheet = null; toast('Герой назначен — ему придёт пуш'); await loadWars(); }),
   'war-step-down': (el) => run(async () => { if (!confirmInline('war-sd' + el.dataset.id, 'Нажми ещё раз: владелец назначит замену')) return; await post(`/api/wars/${el.dataset.id}/step-down`); toast('Владелец получит пуш'); await loadWars(); }),
-  'war-volunteer': (el) => run(async () => { await post(`/api/gangs/${S.activeGang}/volunteer`, { on: el.dataset.v === '1' }); sfx(el.dataset.v === '1' ? 'confirm' : 'off'); toast(el.dataset.v === '1' ? 'Владелец увидит тебя первым' : 'Убрали из добровольцев'); await loadWars(); }),
+  'war-volunteer': (el) => run(async () => { await post(`/api/gangs/${S.activeGang}/volunteer`, { on: el.dataset.v === '1' }); sfx(el.dataset.v === '1' ? 'confirm' : 'off'); toast(el.dataset.v === '1' ? 'Владелец увидит тебя первым|первой' : 'Убрали из добровольцев'); await loadWars(); }),
   'war-bet': (el) => run(async () => { if (!confirmInline('war-bet' + el.dataset.id + el.dataset.v, `Нажми ещё раз: ставка ${el.dataset.v} ${plural(Number(el.dataset.v), 'зерно', 'зерна', 'зёрен')} за свою банду`)) return; await post(`/api/wars/${el.dataset.id}/bet`, { amount: Number(el.dataset.v) }); sfx('coin'); await Promise.all([loadWars(), loadMe()]); }),
   'war-cheer': (el) => run(async () => { await post(`/api/wars/${el.dataset.id}/cheer`); sfx('fanfare'); if (navigator.vibrate && vibroOn()) navigator.vibrate([30, 30, 60]); await loadWars(); }),
   'treasury-open': () => run(async () => { S.sheet = 'treasury'; render(); await loadTreasury(); }),
@@ -4815,7 +4817,7 @@ const actions = {
     else {
       if (e.isAuto) throw new Error('Собери герб: выбери форму, поле или фигуру — «Авто» на голосование не выносят.');
       const r = await post(`/api/gangs/${e.gid}/crest-vote`, { crest: e.crest });
-      S.sheet = null; toast(r.status === 'accepted' ? 'Герб принят — в банде ты один' : 'Герб вынесен на голосование на 48 часов');
+      S.sheet = null; toast(r.status === 'accepted' ? 'Герб принят — в банде ты один|одна' : 'Герб вынесен на голосование на 48 часов');
       await Promise.all([loadMe(), loadGang(), loadChats()]);
     }
     S.crestEd = null;
@@ -5000,7 +5002,7 @@ const actions = {
       try {
         const r = await post(`/api/battle/${S.battle}/shoot`, { x: Number(el.dataset.x), y: Number(el.dataset.y) });
         setBattleView(r.view);
-        const t = { miss: 'Мимо', hit: 'Ранил! Стреляй ещё', sunk: 'Потопил! Стреляй ещё' }[r.result];
+        const t = { miss: 'Мимо', hit: 'Ранил|Ранила! Стреляй ещё', sunk: 'Потопил|Потопила! Стреляй ещё' }[r.result];
         S.bShout = { text: r.view.status === 'done' ? (r.beans ? `Победа! +${r.beans} зёрен` : 'Победа!') : t, cls: r.view.status === 'done' ? 'sunk' : r.result, until: Date.now() + 1400, board: 'o' };
         sfx(r.view.status === 'done' ? 'sunk' : r.result === 'miss' ? 'splash' : r.result);
         if (r.view.status === 'done') { loadMe().catch(() => {}); loadFeatures().catch(() => {}); }
@@ -5127,7 +5129,7 @@ const actions = {
     const range = `${ddmm(v.from)}${v.to !== v.from ? `–${ddmm(v.to)}` : ''}`;
     const text = `Ухожу в отпуск ${range}, выхожу ${v.backDow.toLowerCase()} ${ddmm(v.back)}. Если что-то срочное — ловите до ${ddmm(v.lastWork)}`;
     await post(`/api/gangs/${gid}/messages`, { type: 'text', text });
-    store.set('vacAnn:' + v.from, 1); toast('Написал в чат банды'); sfx('confirm'); render();
+    store.set('vacAnn:' + v.from, 1); toast('Написал|Написала в чат банды'); sfx('confirm'); render();
   }),
   'vac-party': () => run(async () => {
     const v = S.state.nextVacation;
@@ -5345,7 +5347,7 @@ const actions = {
   'santa-edit'() { S.santaEdit = !S.santaEdit; render(); if (S.santaEdit) requestAnimationFrame(() => { const t = $('#santa-wish'); if (t) t.focus(); }); },
   'santa-leave': (el) => run(async () => {
     if (!confirmInline('santa-leave', 'Нажми ещё раз, чтобы выйти из Тайного Санты')) return;
-    S.santa = await post(`/api/gangs/${S.activeGang}/santa/leave`); toast('Ты вышел из Тайного Санты');
+    S.santa = await post(`/api/gangs/${S.activeGang}/santa/leave`); toast('Ты вышел|вышла из Тайного Санты');
   }),
   'santa-draw': () => run(async () => {
     if (!confirmInline('santa-draw', `Нажми ещё раз: жеребьёвка на ${S.santa.count} человек, потом записаться будет нельзя`)) return;

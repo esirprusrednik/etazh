@@ -130,7 +130,7 @@ const MEMES = [
 ];
 const MEME_EMOS = {
   joy: { label: 'Радость', mouth: 'grin', eyeShape: 'normal' },
-  tired: { label: 'Устал', mouth: 'neutral', eyeShape: 'tired' },
+  tired: { label: 'Усталость', mouth: 'neutral', eyeShape: 'tired' },
   shock: { label: 'Шок', mouth: 'wow', eyeShape: 'wide' },
   sly: { label: 'Хитрость', mouth: 'smirk', eyeShape: 'sly' },
   calm: { label: 'Как есть', mouth: null, eyeShape: null }

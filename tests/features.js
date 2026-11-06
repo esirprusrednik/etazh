@@ -275,6 +275,16 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.ok(!/ленивый_удав получил ачивку/.test(ev));
     const me = (await m.get(`/api/gangs/${gw.id}`)).json.members.find((x) => x.nick === 'ленивый_удав');
     assert.equal(me.mood, 'Готова к кофе');
+    await w.post(`/api/gangs/${gw.id}/messages`, { type: 'text', text: 'привет' });
+    const achW = (await w.get('/api/features')).json.achievements;
+    assert.equal(achW.find((a) => a.id === 'first_msg').name, 'Голос подала', 'ачивки в женском роде');
+    assert.equal((await m.get('/api/features')).json.achievements.find((a) => a.id === 'first_msg').name, 'Голос подал');
+    // Клиентские тексты: токены рода есть и разворачиваются, «(а)» нигде не осталось
+    const app = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'public', 'js', 'app.js'), 'utf8');
+    assert.ok(!/[а-яё]\((а|ла|лась)\)/.test(app), 'никаких «сделал(а)» в интерфейсе');
+    for (const f of require('node:fs').readdirSync(require('node:path').join(__dirname, '..', 'server')).filter((x) => x.endsWith('.js'))) {
+      assert.ok(!/[а-яё]\((а|ла|лась)\)/.test(require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'server', f), 'utf8')), `«(а)» в server/${f}`);
+    }
   });
 
   await step('банды: поиск, открытая/по заявке/закрытая, настройки, лимит, кто зовёт, исключение', async () => {

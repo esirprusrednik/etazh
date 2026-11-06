@@ -959,7 +959,7 @@ function createApi(db) {
     if (others.length && !body.switch) throw inGangError(others[0]);
     rateLimit('gapply:' + u.id, 10, 24 * 3600e3);
     const was = q('SELECT status FROM gang_requests WHERE gang_id = ? AND user_id = ?').get(g.id, u.id);
-    if (was && was.status === 'declined') throw bad('Владелец уже отклонил заявку. Попробуй позже или попроси приглашение.');
+    if (was && was.status === 'declined') throw bad('Заявку уже отклонили. Попробуй позже или попроси приглашение.');
     q("INSERT OR REPLACE INTO gang_requests (gang_id, user_id, at, status) VALUES (?, ?, ?, 'pending')").run(g.id, u.id, U.now());
     if (g.owner_id) fireAndForget(notify([g.owner_id], { title: g.name, body: `${u.nick} ${U.g(u.look, 'хочет', 'хочет')} в банду — прими или откажи`, url: `/#gang/${g.id}`, tag: `greq-${g.id}` }));
     return { ok: true, requested: true };
@@ -1109,10 +1109,10 @@ function createApi(db) {
     if (!g || !isMember(g.id, u.id)) throw bad('Позвать можно только в свою банду.');
     const t = q('SELECT * FROM users WHERE id = ? AND nick IS NOT NULL').get(Number(body.to));
     if (!t || t.id === u.id || readProfile(t.profile).findable === false) throw bad('Этого человека нельзя позвать.');
-    if (isMember(g.id, t.id)) throw bad('Он уже в банде.');
+    if (isMember(g.id, t.id)) throw bad(U.g(t.look, 'Он уже в банде.', 'Она уже в банде.'));
     try { if (q('SELECT 1 FROM crew_blocks WHERE (user_id = ? AND blocked_id = ?) OR (user_id = ? AND blocked_id = ?)').get(t.id, u.id, u.id, t.id)) throw bad('Этого человека нельзя позвать.'); } catch (e) { if (e instanceof HttpError) throw e; }
     if (q("SELECT 1 FROM gang_invites WHERE gang_id = ? AND to_id = ? AND status = 'pending'").get(g.id, t.id)) throw bad('Уже позвали — ждём ответа.');
-    if (q("SELECT COUNT(*) AS n FROM gang_invites WHERE gang_id = ? AND to_id = ? AND status = 'declined'").get(g.id, t.id).n >= 2) throw bad('Он дважды отказался от этой банды. Больше не зовём.');
+    if (q("SELECT COUNT(*) AS n FROM gang_invites WHERE gang_id = ? AND to_id = ? AND status = 'declined'").get(g.id, t.id).n >= 2) throw bad(U.g(t.look, 'Он дважды отказался от этой банды. Больше не зовём.', 'Она дважды отказалась от этой банды. Больше не зовём.'));
     if (q('SELECT COUNT(*) AS n FROM gang_invites WHERE from_id = ? AND at > ?').get(u.id, U.now() - 864e5).n >= 20) throw bad('Не больше 20 приглашений в день.');
     q('INSERT INTO gang_invites (gang_id, from_id, to_id, at) VALUES (?, ?, ?, ?)').run(g.id, u.id, t.id, U.now());
     fireAndForget(notify([t.id], { title: 'Зовут в банду', body: `${u.nick} зовёт в банду «${g.name}»`, url: '/#chats', tag: `ginv-${g.id}` }));

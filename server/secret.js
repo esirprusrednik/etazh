@@ -74,7 +74,7 @@ function register(ctx) {
     rateLimit('secret:' + u.id, 30, 60e3);
     const iv = String(body.iv || ''), ct = String(body.ct || ''), kfp = String(body.kfp || '');
     if (!b64.test(iv) || iv.length > 24 || !b64.test(ct) || ct.length > CT_MAX || !/^[0-9a-f]{16}$/.test(kfp)) throw bad('Сообщение повреждено.');
-    if (!keyOf(t.id)) throw bad('Собеседник ещё не открывал секретный чат.');
+    if (!keyOf(t.id)) throw bad(U.g(t.look, 'Собеседник ещё не открывал секретный чат.', 'Собеседница ещё не открывала секретный чат.'));
     const [lo, hi] = pair(u.id, t.id);
     q('INSERT INTO secret_msgs (lo, hi, from_id, to_id, iv, ct, kfp, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(lo, hi, u.id, t.id, iv, ct, kfp, U.now());
     // В пуше — ничего из текста: сервер его и не знает

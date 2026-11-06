@@ -239,7 +239,7 @@ function register(ctx) {
     let canPlay = false, waitReason = null;
     if (w.status === 'active' && w.kind === 'blitz' && amHero) {
       const mine = runOf(w.id, uid);
-      if (mine && mine.finished_at) waitReason = 'Ты своё прошёл — ждём итог';
+      if (mine && mine.finished_at) waitReason = 'Твой заход готов — ждём итог';
       else if (uid === w.to_hero) canPlay = true;
       else if (rt && rt.finished_at) canPlay = true;
       else waitReason = 'Сначала проходит герой банды, принявшей вызов. Как пройдёт — придёт пуш';
@@ -385,7 +385,7 @@ function register(ctx) {
     chat(gt.id, u.id, `Вызов «${gf.name}» принят: ${what}. Наш герой — ${nick(hero)}. Срок — 5 рабочих дней. Ставки открыты, пока герои не начали`);
     chat(gf.id, w.from_hero, `«${gt.name}» приняли вызов: ${what}. Их герой — ${nick(hero)}`);
     fireAndForget(notify([...gangMembers(gf.id), ...gangMembers(gt.id)].map((m) => m.id), { title: 'Битва банд началась', body: `«${gf.name}» против «${gt.name}»: ${what}`, url: `/#gang/${gt.id}`, tag: `war-${w.id}` }));
-    if (w.kind === 'blitz') fireAndForget(notify([hero], { title: 'Твой выход', body: `Ты первым проходишь блиц «${topicById(w.topic).title}» — 3 минуты, когда удобно на этой неделе`, url: `/#gang/${gt.id}`, tag: `war-hero-${w.id}` }));
+    if (w.kind === 'blitz') fireAndForget(notify([hero], { title: 'Твой выход', body: `Ты ${U.g((q('SELECT look FROM users WHERE id = ?').get(hero) || {}).look, 'первым', 'первой')} проходишь блиц «${topicById(w.topic).title}» — 3 минуты, когда удобно на этой неделе`, url: `/#gang/${gt.id}`, tag: `war-hero-${w.id}` }));
     return view(q('SELECT * FROM gang_wars WHERE id = ?').get(w.id), u.id);
   });
 
@@ -413,7 +413,7 @@ function register(ctx) {
     if (hero === (mySide === 'from' ? w.to_hero : w.from_hero)) throw bad('Это герой соперника.');
     q(`UPDATE gang_wars SET ${mySide}_hero = ? WHERE id = ?`).run(hero, w.id);
     chat(gid, u.id, `Наш герой в битве с «${gang(mySide === 'from' ? w.to_gang : w.from_gang).name}» — ${nick(hero)}`);
-    fireAndForget(notify([hero], { title: 'Ты — герой банды', body: 'Владелец выставил тебя в битву банд — загляни в банду', url: `/#gang/${gid}`, tag: `war-hero-${w.id}` }));
+    fireAndForget(notify([hero], { title: 'Ты — герой банды', body: 'Тебя выставили в битву банд — загляни в банду', url: `/#gang/${gid}`, tag: `war-hero-${w.id}` }));
     return view(q('SELECT * FROM gang_wars WHERE id = ?').get(w.id), u.id);
   });
 

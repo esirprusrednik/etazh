@@ -81,7 +81,7 @@ function register(ctx) {
   const hasThread = (a, b) => !!q('SELECT 1 FROM dms WHERE lo = ? AND hi = ? AND hidden = 0 LIMIT 1').get(...pair(a, b));
   // Может ли a написать b. Возвращает null или причину отказа — её покажем вместо поля ввода
   function writeBlock(a, b) {
-    if (closedBy(b.id, a.id)) return 'Собеседник закрыл личку. Написать получится, когда он сам напишет.';
+    if (closedBy(b.id, a.id)) return U.g(b.look, 'Собеседник закрыл личку. Написать получится, когда он сам напишет.', 'Собеседница закрыла личку. Написать получится, когда она сама напишет.');
     if (blocked(b.id, a.id)) return null; // о блоке не говорим: сообщение «уйдёт», но не дойдёт
     if (areCrew(a.id, b.id)) return null;
     const pol = dmPolicy(b);
@@ -434,7 +434,7 @@ function register(ctx) {
       }
       ins.run(lo, hi, u.id, f.id, 'meme', body.kind, body.opt, JSON.stringify(u.look || {}), U.now());
       if (onEvent) onEvent('meme', u.id, { to: f.id });
-      fireAndForget(notify([f.id], { title: u.nick, body: 'Прислал мем-открытку', url: `/#crew/${u.id}`, tag: `dm-${u.id}` }));
+      fireAndForget(notify([f.id], { title: u.nick, body: U.g(u.look, 'Прислал мем-открытку', 'Прислала мем-открытку'), url: `/#crew/${u.id}`, tag: `dm-${u.id}` }));
       return { ok: true };
     }
     const def = CALLS[body.kind];

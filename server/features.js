@@ -7,6 +7,14 @@ const crypto = require('node:crypto');
 // m/goal — счётчик и порог (по ним же считается прогресс); secret — описание скрыто, пока не получишь.
 // id старых ачивок не меняем: они уже выданы людям.
 const A = (cat, id, tier, name, desc, m, goal, extra = {}) => ({ cat, id, tier, name, desc, m, goal, ...extra });
+// Женские варианты названий и описаний ачивок — по полу из профиля (аватар «Ж»)
+const ACH_FEM = {
+  first_msg: ['Голос подала'], quiz1: ['Угадала'], signals1: ['Зоркая'], canteen100: ['Своя на раздаче'], dm3: ['Своя в доску'],
+  wave1: ['Своя'], wave10: ['Надёжная'], recruit5: ['Сколотила банду'], st_lone: ['Одинокая волчица', 'Выйти из банды и никуда не вступить'],
+  duel_resign_lead: [null, 'Сдаться, когда сама ведёшь в счёте'], active30: ['Старожилка']
+};
+const achName = (a, fem) => (fem && ACH_FEM[a.id] && ACH_FEM[a.id][0]) || a.name;
+const achDesc = (a, fem) => (fem && ACH_FEM[a.id] && ACH_FEM[a.id][1]) || a.desc;
 const ACH = [
   // ---- Первые шаги ----
   A('first', 'first_checkin', 'common', 'Первый шаг', 'Отметиться в офисе', 'checkins', 1),
@@ -94,7 +102,7 @@ const ACH = [
   A('social', 'thanks_people5', 'rare', 'Щедрая душа', 'Сказать спасибо пятерым разным людям', 'thanks_people', 5),
   A('social', 'gangs3', 'rare', 'Многостаночник', 'Состоять в трёх бандах', 'gangs', 3),
   A('social', 'recruit1', 'common', 'Вербовщик', 'Позвать человека в банду — и он вступил', 'recruits', 1, { series: 'recruits' }),
-  A('social', 'recruit5', 'rare', 'Сколотил братву', '5 человек вступили по твоему приглашению', 'recruits', 5, { series: 'recruits' }),
+  A('social', 'recruit5', 'rare', 'Сколотил банду', '5 человек вступили по твоему приглашению', 'recruits', 5, { series: 'recruits' }),
   A('social', 'coffee', 'rare', 'Новые лица', 'Договориться о случайном кофе', 'coffee', 1, { series: 'coffee' }),
   A('social', 'coffee5', 'legendary', 'Кофейный дипломат', '5 раз договориться о случайном кофе', 'coffee', 5, { series: 'coffee' }),
   A('social', 'sea_rivals', 'rare', 'Гроза морей', 'Обыграть 5 разных соперников', 'sea_rivals', 5),
@@ -332,7 +340,7 @@ function register(ctx) {
       q('INSERT OR IGNORE INTO achievements (user_id, ach, at) VALUES (?, ?, ?)').run(uid, a.id, U.now());
       addBeans(uid, 'ach', ACH_REWARD[a.tier]);
       // Секретные в общую ленту не попадают — на то они и секретные
-      if (!a.secret) pushEvent(null, uid, `${u.nick} ${U.g(u.look, 'получил', 'получила')} ачивку «${a.name}»`, 'ach');
+      if (!a.secret) pushEvent(null, uid, `${u.nick} ${U.g(u.look, 'получил', 'получила')} ачивку «${achName(a, U.fem(u.look))}»`, 'ach');
       got.push(a.id);
     }
     return got;
@@ -698,7 +706,7 @@ function register(ctx) {
     const p = q('SELECT * FROM coffee_pairs WHERE week = ? AND (a = ? OR b = ?)').get(mondayOf(today()), u.id, u.id);
     if (!p) throw bad('На этой неделе у тебя нет пары для кофе.');
     if (!COFFEE_OPTS.includes(body.opt)) throw bad('Выбери время.');
-    if (p.ping_by === u.id && p.ping_at > U.now() - 30 * 60e3 && !p.reply) throw bad('Ты уже предложил время — дождись ответа.');
+    if (p.ping_by === u.id && p.ping_at > U.now() - 30 * 60e3 && !p.reply) throw bad(U.g(u.look, 'Ты уже предложил время — дождись ответа.', 'Ты уже предложила время — дождись ответа.'));
     q('UPDATE coffee_pairs SET ping_by = ?, ping_opt = ?, ping_at = ?, reply = NULL, reply_at = NULL WHERE id = ?').run(u.id, body.opt, U.now(), p.id);
     const partnerId = p.a === u.id ? p.b : p.a;
     fireAndForget(notify([partnerId], { title: 'Случайный кофе', body: `${u.nick} предлагает: ${body.opt.toLowerCase()}`, url: '/', tag: 'coffee' }));
@@ -803,7 +811,7 @@ function register(ctx) {
           const got = !!owned[a.id];
           const hide = a.secret && !got;
           return { id: a.id, cat: a.cat, series: a.series || null, tier: a.tier, secret: !!a.secret, reward: ACH_REWARD[a.tier], got, at: owned[a.id] || null,
-            name: hide ? '???' : a.name, desc: hide ? 'Секретная ачивка' : a.desc,
+            name: hide ? '???' : achName(a, U.fem(u.look)), desc: hide ? 'Секретная ачивка' : achDesc(a, U.fem(u.look)),
             n: hide ? null : Math.min(c[a.m] || 0, a.goal), goal: hide ? null : a.goal };
         });
       })(),

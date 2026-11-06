@@ -108,6 +108,7 @@ function register(ctx) {
       addBeans(winner, 'duel_win');
     }
   }
+  const lookOf = (uid) => (q('SELECT look FROM users WHERE id = ?').get(uid) || {}).look;
   const ping = (uid, by, d, text) => fireAndForget(notify([uid], { title: `${GAMES[d.game]}: ${by.nick}`, body: text, url: `/#crew/${by.id}`, tag: `duel-${d.id}` }));
 
   route('GET', '/api/duels', async (req, body, query) => {
@@ -187,7 +188,7 @@ function register(ctx) {
       if (st.score.a >= WIN_TO || st.score.b >= WIN_TO) {
         const w = st.score.a >= WIN_TO ? d.a : d.b;
         d = save(d, st, { status: 'done', winner: w }); finish(d, w);
-        ping(opp, u, d, w === u.id ? 'Дуэль за мной. Реванш?' : 'Ты победил(а) в дуэли!');
+        ping(opp, u, d, w === u.id ? 'Дуэль за мной. Реванш?' : `Ты ${U.g(lookOf(opp), 'победил', 'победила')} в дуэли!`);
       } else if (st.rounds.length >= MAX_ROUNDS) {
         d = save(d, st, { status: 'done', winner: null }); finish(d, null); ping(opp, u, d, 'Ничья — раунды кончились');
       } else {
@@ -197,7 +198,7 @@ function register(ctx) {
       }
     } else {
       d = save(d, st);
-      ping(opp, u, d, d.game === 'rps' ? 'Сделал(а) ход — твоя очередь' : 'Бросил(а) кости — твоя очередь');
+      ping(opp, u, d, d.game === 'rps' ? `${U.g(u.look, 'Сделал', 'Сделала')} ход — твоя очередь` : `${U.g(u.look, 'Бросил', 'Бросила')} кости — твоя очередь`);
     }
     return { ...view(d, u.id), ...extra };
   });
@@ -213,12 +214,12 @@ function register(ctx) {
     if (side(d, u.id) === 'b' && !bMoved) {
       d = save(d, JSON.parse(d.state), { status: 'done', winner: null, resigned: 1, turn: null });
       finish(d, null, { resigner: u.id, declined: true });
-      ping(opp, u, d, 'Отказался(лась) от дуэли');
+      ping(opp, u, d, U.g(u.look, 'Отказался от дуэли', 'Отказалась от дуэли'));
       return view(d, u.id);
     }
     d = save(d, JSON.parse(d.state), { status: 'done', winner: opp, resigned: 1, turn: null });
     finish(d, opp, { resigner: u.id });
-    ping(opp, u, d, 'Сдался(лась) — победа твоя');
+    ping(opp, u, d, U.g(u.look, 'Сдался — победа твоя', 'Сдалась — победа твоя'));
     return view(d, u.id);
   });
 
