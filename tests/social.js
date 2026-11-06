@@ -219,6 +219,9 @@ function startServer(day, extra = {}) {
       assert.equal((await D.get(`/api/users/${B.id}/style`)).status, 404, 'чужой стиль не отдаётся');
       // Бейджи: показать можно только заработанные и не больше трёх
       assert.equal(st.badges.length, 15);
+      const fast = st.badges.find((b) => b.id === 'fast');
+      assert.ok(fast.got || /в личке|в среднем/.test(fast.hint), 'у «Отвечает быстро» — понятная подсказка: ' + fast.hint);
+      assert.ok(st.badges.filter((b) => ['lark', 'lunch', 'owl'].includes(b.id) && !b.got).every((b) => /ритм/i.test(b.hint)), 'у бейджей ритма — какой ритм сейчас');
       assert.equal((await D.post('/api/me/badges', { ids: ['voice'] })).status, 400, 'незаработанный — нельзя');
       assert.equal((await D.post('/api/me/badges', { ids: ['a', 'b', 'c', 'd'] })).status, 400, 'больше трёх — нельзя');
       const got = st.badges.filter((b) => b.got).map((b) => b.id);

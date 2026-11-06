@@ -1631,3 +1631,4 @@ button.chip.ask-chip { cursor: pointer; }
 .cbadge { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; font-size: 13px; font-weight: 700; background: linear-gradient(120deg, #6D3FD6, #2E5BD8); color: #fff; }
 .bdg .grow > .small { display: block; }
 .bdg .grow > .small + .small { margin-top: 2px; }
+.bdg .bd-hint { color: var(--ink); opacity: .7; }

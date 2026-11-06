@@ -18,11 +18,18 @@ const TYPES = [
 
 // Бейджи: человек сам выбирает до трёх и показывает их в своей карточке. Только хорошее, по действиям
 // m — метрики: c (счётчики), chrono, replyMin, replyN, tiesCount
+const CHRONO_NAME = { lark: 'жаворонок', lunch: 'обеденный пик', owl: 'сова' };
+const chronoHint = (m) => (m.total < 12 ? 'Ритм пока не сложился — нужно чуть больше действий'
+  : m.chrono === 'even' ? 'Сейчас у тебя ровный ритм, без пика' : `Сейчас твой ритм — ${CHRONO_NAME[m.chrono]}`);
 const BADGES = [
-  { id: 'lark', title: 'Жаворонок', icon: 'sun', desc: 'Самое живое время — до 11 утра', test: (m) => [m.chrono === 'lark' ? 1 : 0, 1] },
-  { id: 'lunch', title: 'Обеденный пик', icon: 'lunch', desc: 'Самое живое время — с 12 до 15', test: (m) => [m.chrono === 'lunch' ? 1 : 0, 1] },
-  { id: 'owl', title: 'Сова', icon: 'moon', desc: 'Самое живое время — после 17', test: (m) => [m.chrono === 'owl' ? 1 : 0, 1] },
-  { id: 'fast', title: 'Отвечает быстро', icon: 'bolt', desc: 'В личке в среднем отвечает за 15 минут', test: (m) => [m.replyMin != null && m.replyMin <= 15 ? Math.min(m.replyN, 5) : 0, 5] },
+  { id: 'lark', title: 'Жаворонок', icon: 'sun', desc: 'Самое живое время — до 11 утра', test: (m) => [m.chrono === 'lark' ? 1 : 0, 1, chronoHint(m)] },
+  { id: 'lunch', title: 'Обеденный пик', icon: 'lunch', desc: 'Самое живое время — с 12 до 15', test: (m) => [m.chrono === 'lunch' ? 1 : 0, 1, chronoHint(m)] },
+  { id: 'owl', title: 'Сова', icon: 'moon', desc: 'Самое живое время — после 17', test: (m) => [m.chrono === 'owl' ? 1 : 0, 1, chronoHint(m)] },
+  { id: 'fast', title: 'Отвечает быстро', icon: 'bolt', desc: 'В личке в среднем отвечает до 15 минут', test: (m) => {
+    if (m.replyMin == null) return [m.replyN, 3, `Посчитаем после трёх ответов в личке — пока ${m.replyN} из 3`];
+    if (m.replyMin <= 15) return [1, 1];
+    return [0, 1, `Сейчас в среднем ${m.replyMin < 60 ? m.replyMin + ' мин' : Math.round(m.replyMin / 60) + ' ч'}, нужно до 15 мин`];
+  } },
   { id: 'caller', title: 'Заводила', icon: 'megaphone', desc: '15 зовов и обедов компанией', test: (m) => [m.c.calls + m.c.lunches, 15] },
   { id: 'voice', title: 'Голос банды', icon: 'chat', desc: '100 сообщений в чатах и личке', test: (m) => [m.c.msgs + m.c.dms, 100] },
   { id: 'responder', title: 'На подхвате', icon: 'check', desc: 'Отклик на 20 зовов', test: (m) => [m.c.replies, 20] },
@@ -103,7 +110,7 @@ function register(ctx) {
     const tiesCount = q('SELECT COUNT(*) AS n FROM style_ties WHERE user_id = ? AND last_at > ?').get(uid, U.now() - 60 * 864e5).n;
     return { c, hoursRaw, total, chrono, replyMin, replyN: m.reply_n || 0, tiesCount };
   }
-  const badgeList = (mt, shown = []) => BADGES.map((b) => { const [n, of] = b.test(mt); return { id: b.id, title: b.title, icon: b.icon, desc: b.desc, got: n >= of, n: Math.min(n, of), of, shown: shown.includes(b.id) }; });
+  const badgeList = (mt, shown = []) => BADGES.map((b) => { const [n, of, hint] = b.test(mt); const got = n >= of; return { id: b.id, title: b.title, icon: b.icon, desc: b.desc, got, n: Math.min(n, of), of, hint: got ? null : hint || null, shown: shown.includes(b.id) }; });
   // Бейджи напоказ в карточке человека: только выбранные им и всё ещё заслуженные
   function shownBadges(uid, prof) {
     const want = Array.isArray(prof && prof.badges) ? prof.badges.slice(0, SHOW_MAX) : [];
