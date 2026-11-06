@@ -54,6 +54,8 @@ function register(ctx) {
       }
     } catch {}
     // Пятничная пятиминутка: не ответил на этой неделе
+    { const td = ctx.todos && ctx.todos(); const n = td ? td.pending(uid) : 0;
+      if (n) out.push({ id: 'todos-today', kind: 'todo', icon: 'check', push: false, title: `Дела дня: ${n}`, text: 'Закроешь все — похвала и +2 зерна', go: { act: 'tab', v: 'near', to: '.todos' } }); }
     { const bt = ctx.battery && ctx.battery();
       if (bt) {
         if (bt.pending(uid)) out.push({ id: 'battery-week', kind: 'battery', icon: 'bolt', push: false, title: 'Батарейка недели', text: 'Пять вопросов, 30 секунд. Результат видишь только ты', go: { act: 'open', v: 'battery' } });

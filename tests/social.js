@@ -257,6 +257,36 @@ function startServer(day, extra = {}) {
       assert.equal((await B.get(`/api/gangs/${gb.id}`)).json.members.find((m) => m.id === D.id).charge, false, 'зарядился — просьба снялась сама');
     });
 
+    const E2 = await new Client().login('todo@mts.ru', 'деловой_ёж');
+    await step('дела дня: до трёх, похвала и зёрна за чистый день, текст зашифрован, чужое не трогать', async () => {
+      let t = (await E2.get('/api/todos')).json;
+      assert.equal(t.left, 3);
+      t = (await E2.post('/api/todos', { text: 'Вернуть зонт секретный-зонт-42', when: 'today', time: '23:59' })).json;
+      t = (await E2.post('/api/todos', { text: 'Позвать на кофе', when: 'today', person: B.id })).json;
+      t = (await E2.post('/api/todos', { text: 'Поздравить', when: 'today' })).json;
+      assert.equal(t.today.length, 3); assert.equal(t.left, 0);
+      assert.equal(t.today.find((x) => x.person).person.id, B.id);
+      assert.equal((await E2.post('/api/todos', { text: 'Четвёртое', when: 'today' })).status, 400, 'больше трёх — нельзя');
+      assert.equal((await E2.post('/api/todos', { text: 'В офисе', when: 'office' })).status, 400, 'без плана недели офисного дня нет');
+      assert.equal((await E2.post('/api/todos', { text: 'Завтрашнее', when: 'tomorrow' })).status, 200);
+      assert.ok((await E2.get('/api/inbox')).json.items.some((x) => x.kind === 'todo'), 'в сводке — дела дня');
+      const raw = fs.readdirSync(sv.dir).map((f) => fs.readFileSync(path.join(sv.dir, f)).toString('utf8')).join('');
+      assert.ok(!raw.includes('секретный-зонт-42'), 'текст дела в базе зашифрован');
+      assert.equal((await B.post(`/api/todos/${t.today[0].id}/done`, {})).status, 404, 'чужое дело не отметить');
+      const before = (await E2.get('/api/me')).json.user.beans;
+      let r = (await E2.post(`/api/todos/${t.today[0].id}/done`, {})).json;
+      assert.equal(r.praise, null, 'пока не все — без похвалы');
+      await E2.post(`/api/todos/${t.today[1].id}/done`, {});
+      r = (await E2.post(`/api/todos/${t.today[2].id}/done`, {})).json;
+      assert.ok(r.praise, 'все закрыты — похвала'); assert.equal(r.beans, 2); assert.equal(r.streak, 1); assert.equal(r.cleanToday, true);
+      assert.ok((await E2.get('/api/me')).json.user.beans >= before + 2);
+      assert.ok(!(await E2.get('/api/inbox')).json.items.some((x) => x.kind === 'todo'));
+      assert.equal(r.later.length, 1);
+      r = (await E2.post(`/api/todos/${r.later[0].id}/remove`, {})).json;
+      assert.equal(r.later.length, 0);
+      assert.ok((await E2.get('/api/features')).json.achievements.find((a) => a.id === 'todo1').got, 'ачивка «Чистый день»');
+    });
+
     await step('пятиминутка: ответ, зёрна раз в неделю, чужие ответы — после своего, реакции', async () => {
       let f = (await B.get(`/api/gangs/${gb.id}/friday`)).json;
       assert.equal(f.canAnswer, true); assert.equal(f.questions.length, 3);

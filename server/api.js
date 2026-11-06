@@ -224,6 +224,7 @@ function createApi(db) {
   let wave = null;
   let style = null;
   let battery = null;
+  let todos = null;
   let advent = null;
   let battle = null;
   let quiz = null;
@@ -1577,12 +1578,14 @@ function createApi(db) {
   }
   // ---------- «Батарейка недели»: самотест на усталость, результат — только себе; подзарядка от своих по просьбе ----------
   battery = require('./battery').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, readProfile, myGangs, gangMembers, areCrew: (a, b) => !!q("SELECT 1 FROM crew WHERE lo = ? AND hi = ? AND status = 'ok'").get(Math.min(a, b), Math.max(a, b)), publicLook });
+  // ---------- «Дела дня»: напоминалка про жизнь в офисе, до трёх дел, похвала и подкол ----------
+  todos = require('./todos').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, readProfile, features, addBeans, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d), myGangs, gangMembers, publicLook });
   // ---------- «Волна» по банде: клич раз в неделю ----------
   wave = require('./wave').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, publicLook, weekdayName, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   // ---------- Погода на завтра: вечером накануне офисного дня ----------
   weather = require('./weather').register({ db, q, U, notify, fireAndForget, readProfile, weekdayName, features });
   // ---------- «Этаж» пишет сам: живая сводка и один утренний пуш ----------
-  inbox = require('./inbox').register({ db, q, route, requireUser, U, notify, fireAndForget, myGangs, readProfile, weekdayName, features, blitz, advent, santa, duels, gevents, polls, weather, friday, wave, battery: () => battery });
+  inbox = require('./inbox').register({ db, q, route, requireUser, U, notify, fireAndForget, myGangs, readProfile, weekdayName, features, blitz, advent, santa, duels, gevents, polls, weather, friday, wave, battery: () => battery, todos: () => todos });
   feedback = require('./feedback').register({ db, q, route, requireUser, requireAdmin, bad, U, addBeans, notify, fireAndForget, HttpError, BUILD });
 
   // Разово шифруем старую переписку, лежащую в базе открытым текстом (повторный запуск ничего не меняет)
@@ -1659,6 +1662,7 @@ function createApi(db) {
     if (friday) friday.cleanup();
     if (wave) wave.cleanup();
     if (battery) battery.cleanup();
+    if (todos) todos.cleanup();
     if (feedback) feedback.cleanup();
     if (polls) polls.cleanup();
     if (gevents) gevents.cleanup();

@@ -1025,6 +1025,53 @@ async function loadFriday() {
   if (!S.activeGang) { S.friday = null; return; }
   try { S.friday = await get(`/api/gangs/${S.activeGang}/friday`); } catch { S.friday = null; }
 }
+// ----- «Дела дня»: до трёх дел, сроки — сегодня, завтра или следующий офисный день -----
+async function loadTodos() { try { S.todos = await get('/api/todos'); } catch { S.todos = null; } }
+const TODO_TPL = ['Позвать на кофе', 'Вернуть', 'Поздравить', 'Обед с', 'Занести'];
+const TODO_DONE = ['Галочка!', 'Одним меньше', 'Так держать', 'Сделано — и забыто', 'Вычеркнуто'];
+const dayLabel = (d, office) => (S.todos && d === S.todos.tomorrow ? 'завтра' : `${ddmmW(d)}${office && d === office ? ' · офис' : ''}`);
+function renderTodos() {
+  const t = S.todos;
+  if (!t) return '';
+  const adding = S.todoAdd;
+  const row = (x) => `<div class="todo ${x.done ? 'done' : ''}">
+    <button class="todo-check" data-act="todo-done" data-id="${x.id}" data-v="${x.done ? 0 : 1}" aria-label="${x.done ? 'Вернуть' : 'Сделано'}: ${esc(x.text)}">${x.done ? 'check' : ''}</button>
+    <span class="grow"><span class="todo-t">${esc(x.text)}</span>
+      ${x.time || x.person || x.tail ? `<span class="todo-meta">${x.tail ? `<i class="todo-tail">хвост с ${ddmmW(x.tail)}</i>` : ''}${x.time ? `<i>${esc(x.time)}</i>` : ''}${x.person ? `<button class="todo-who" data-act="dm-open" data-id="${x.person.id}">${avatar(x.person.look, 18)} ${esc(x.person.nick)}</button>` : ''}</span>` : ''}</span>
+    ${x.done ? '' : `<button class="icon-btn" data-act="todo-move" data-id="${x.id}" aria-label="Перенести на завтра" title="На завтра">${ico('swap', 15)}</button>`}
+    <button class="icon-btn" data-act="todo-remove" data-id="${x.id}" aria-label="Удалить" title="Удалить">${ico('x', 15)}</button></div>`;
+  const when = S.todoWhen || 'today';
+  const form = adding ? `<div class="todo-form">
+      <input id="todo-text" maxlength="80" placeholder="Что не забыть? Без рабочих секретов" value="${esc(S.todoDraft || '')}" autocomplete="off">
+      <div class="chips">${TODO_TPL.map((x) => `<button class="chip" data-act="todo-tpl" data-v="${esc(x)}">${esc(x)}…</button>`).join('')}</div>
+      <div class="chips todo-when">${[['today', 'Сегодня'], ['tomorrow', 'Завтра'], ['office', t.officeDay ? `В офисный день · ${ddmmW(t.officeDay)}` : 'В офисный день']].map(([k, l]) => `<button class="chip ${when === k ? 'on' : ''}" data-act="todo-when" data-v="${k}" ${k === 'office' && !t.officeDay ? 'disabled title="Заполни план недели в профиле"' : ''}>${esc(l)}</button>`).join('')}
+        <label class="todo-time">${ico('wait', 14)}<input id="todo-time" type="time" value="${esc(S.todoTime || '')}" aria-label="Время напоминания"></label></div>
+      ${t.people.length ? `<div class="todo-people"><span class="small">С кем связано:</span>${t.people.map((p) => `<button class="todo-pp ${S.todoPerson === p.id ? 'on' : ''}" data-act="todo-person" data-id="${p.id}" title="${esc(p.nick)}">${avatar(p.look, 28)}</button>`).join('')}</div>` : ''}
+      <div class="row"><button class="btn grow" data-act="todo-add">Добавить</button><button class="btn ghost" data-act="todo-add-close">Отмена</button></div>
+    </div>` : '';
+  const empty = !t.today.length && !adding;
+  return `<section class="card todos">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <span class="card-title">check Дела дня</span>
+      <span class="row" style="gap:6px">${t.streak ? `<span class="todo-streak" title="Дней без хвостов подряд">${ico('flame', 14)} ${t.streak}</span>` : ''}${!adding && t.left ? `<button class="btn small" data-act="todo-add-open">+ Дело</button>` : ''}</span>
+    </div>
+    ${t.cleanToday && t.today.length ? `<div class="todo-clean">${ico('party', 18)} Чистый день — ни одного хвоста</div>` : ''}
+    ${empty ? `<p class="sub" style="margin:0">Что не забыть? Позвать на кофе, вернуть зонт, поздравить с днём рождения. До трёх дел — закроешь все, будет похвала.</p>` : ''}
+    ${t.today.map(row).join('')}
+    ${form}
+    ${!t.left && !adding && !t.cleanToday ? `<p class="small" style="margin:0">Три дела на сегодня — максимум. Выбери главное.</p>` : ''}
+    ${t.later.length ? `<details class="todo-later"><summary>Потом · ${t.later.length}</summary>${t.later.map((x) => `<div class="todo later"><span class="todo-due">${dayLabel(x.due, t.officeDay)}</span><span class="grow"><span class="todo-t">${esc(x.text)}</span></span><button class="icon-btn" data-act="todo-remove" data-id="${x.id}" aria-label="Удалить">${ico('x', 15)}</button></div>`).join('')}</details>` : ''}
+  </section>`;
+}
+// Праздник «Чистый день»: галочка и звёзды через экран
+function todoParty(text) {
+  const el = document.createElement('div');
+  el.className = 'todo-party'; el.setAttribute('aria-hidden', 'true');
+  el.innerHTML = `<div class="tp-check">${ico('check', 60)}</div><div class="tp-text">${esc(text)}</div>${Array.from({ length: 14 }, (_, i) => `<i style="--i:${i};--x:${Math.round(Math.cos(i / 14 * 6.28) * 160)}px;--y:${Math.round(Math.sin(i / 14 * 6.28) * 160)}px"></i>`).join('')}`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2200);
+}
+
 // ----- «Батарейка недели»: самотест на усталость — результат видит только сам человек -----
 function batterySvg(level, color, { size = 1, boosts = 0, anim = false } = {}) {
   const w = 150 * size, h = 70 * size, pad = 8 * size, inner = (w - 18 * size) - pad * 2;
@@ -1403,7 +1450,7 @@ async function refresh({ all = false } = {}) {
   if (!S.me || !S.me.nick) return;
   const t = S.tab;
   const jobs = [loadState(), loadInbox()];
-  if (all || t === 'near') jobs.push(loadPeople(), loadMatch());
+  if (all || t === 'near') jobs.push(loadPeople(), loadMatch(), loadTodos());
   if (all || t === 'near' || t === 'office' || t === 'games') jobs.push(loadFeatures());
   if (all || t === 'near' || t === 'games') jobs.push(loadAdvent());
   if (all || t === 'chats') jobs.push(loadChats());
@@ -1760,6 +1807,7 @@ function renderNear() {
   return `${pageHead('Рядом', 'Где ты сегодня и кто из твоих людей рядом')}
     ${aboutCard}
     ${renderStatusBlock()}
+    ${renderTodos()}
     ${renderAdvent(true)}
     ${(S.people && !S.people.length) || !S.me.gangs.length ? findBar() : ''}
     ${renderQuickCalls()}
@@ -4191,7 +4239,7 @@ function sfx(name, arg) {
 const tabSound = (tab) => sfx('tab', tab);
 
 // Какой звук у какого нажатия. Свои звуки у вкладок, выстрелов, сдачи и Лавки — их играют сами действия
-const FEEL_SELF = new Set(['wave-launch', 'wave-join', 'tr-buy', 'tr-vote', 'tr-equip', 'duel-go', 'war-bet', 'war-cheer', 'war-volunteer', 'tourney-reg', 'duel-rps', 'duel-roll', 'duel-cell', 'duel-new', 'war-start', 'war-send', 'war-accept', 'tab', 'blitz-pick', 'bshoot', 'bresign', 'sound-toggle', 'vibro-toggle', 'sound-test', 'splash-skip']);
+const FEEL_SELF = new Set(['todo-done', 'wave-launch', 'wave-join', 'tr-buy', 'tr-vote', 'tr-equip', 'duel-go', 'war-bet', 'war-cheer', 'war-volunteer', 'tourney-reg', 'duel-rps', 'duel-roll', 'duel-cell', 'duel-new', 'war-start', 'war-send', 'war-accept', 'tab', 'blitz-pick', 'bshoot', 'bresign', 'sound-toggle', 'vibro-toggle', 'sound-test', 'splash-skip']);
 const FEEL = {
   open: 'open', 'open-sec': 'open', person: 'open', 'find-open': 'open', 'poll-new': 'open', 'gev-new': 'open', 'ava-open': 'open', 'ava-open-vac': 'open', 'vac-party': 'open', 'meme-open': 'open', 'pcall-open': 'open',
   'call-open': 'open', 'dm-call-open': 'open', 'battle-new': 'open', 'crew-share': 'open',
@@ -5621,6 +5669,26 @@ const actions = {
     const nick = S.nickConfirm; S.nickConfirm = null;
     const r = await post('/api/me/nick', { nick }); await loadMe(); toast(`Теперь ты ${r.nick}`);
   }),
+  'todo-add-open'() { S.todoAdd = true; S.todoWhen = 'today'; S.todoPerson = null; S.todoTime = ''; S.todoDraft = ''; render(); setTimeout(() => { const i = $('#todo-text'); if (i) i.focus(); }, 50); },
+  'todo-add-close'() { S.todoAdd = false; render(); },
+  'todo-tpl'(el) { const i = $('#todo-text'); if (!i) return; i.value = el.dataset.v + ' '; S.todoDraft = i.value; i.focus(); },
+  'todo-when'(el) { const i = $('#todo-text'); S.todoDraft = i ? i.value : ''; const tm = $('#todo-time'); S.todoTime = tm ? tm.value : ''; S.todoWhen = el.dataset.v; render(); },
+  'todo-person'(el) { const i = $('#todo-text'); S.todoDraft = i ? i.value : ''; const tm = $('#todo-time'); S.todoTime = tm ? tm.value : ''; const id = Number(el.dataset.id); S.todoPerson = S.todoPerson === id ? null : id; render(); },
+  'todo-add': () => run(async () => {
+    const text = ($('#todo-text') || {}).value || '', time = ($('#todo-time') || {}).value || '';
+    S.todos = await post('/api/todos', { text, when: S.todoWhen || 'today', time: time || null, person: S.todoPerson || null });
+    S.todoAdd = false; S.todoDraft = ''; render();
+    toast(S.todoWhen === 'today' || !S.todoWhen ? (time ? `Напомню в ${time}` : 'Записано на сегодня') : 'Записано — напомню в нужный день');
+  }),
+  'todo-done': (el) => run(async () => {
+    const done = el.dataset.v === '1';
+    const r = await post(`/api/todos/${el.dataset.id}/done`, { done });
+    S.todos = r; render();
+    if (r.praise) { sfx('charge'); todoParty(r.praise); toast(`${r.praise}${r.beans ? ` · +${r.beans} ${plural(r.beans, 'зерно', 'зерна', 'зёрен')}` : ''}`); if (r.beans) await loadMe(); }
+    else if (done) { sfx('confirm'); toast(TODO_DONE[Math.floor(Math.random() * TODO_DONE.length)]); }
+  }),
+  'todo-move': (el) => run(async () => { S.todos = await post(`/api/todos/${el.dataset.id}/move`, { when: 'tomorrow' }); render(); toast('Перенесено на завтра — без осуждения'); }),
+  'todo-remove': (el) => run(async () => { S.todos = await post(`/api/todos/${el.dataset.id}/remove`, {}); render(); toast('Удалено. Иногда это тоже решение'); }),
   'bt-pick': (el) => run(async () => {
     const st = S.bt || (S.bt = { step: 0, answers: [] });
     st.answers[st.step] = Number(el.dataset.v);
@@ -5820,7 +5888,7 @@ document.addEventListener('change', (e) => {
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.id) {
-    const map = { 'gfind-q': 'gang-find-go', 'find-q': 'find-go', email: 'login-submit', code: 'code-submit', nick: 'nick-submit', 'chat-text': 'chat-send', 'thanks-text': 'thanks-send', 'thx-text': 'thx-send', 'lunch-place': 'lunch-create', 'dm-text': 'dm-send', 'crew-nick': 'crew-add' };
+    const map = { 'gfind-q': 'gang-find-go', 'find-q': 'find-go', email: 'login-submit', code: 'code-submit', nick: 'nick-submit', 'chat-text': 'chat-send', 'thanks-text': 'thanks-send', 'thx-text': 'thx-send', 'todo-text': 'todo-add', 'lunch-place': 'lunch-create', 'dm-text': 'dm-send', 'crew-nick': 'crew-add' };
     if (map[e.target.id]) { e.preventDefault(); actions[map[e.target.id]](); }
     else if (e.target.id && e.target.id.startsWith('poll-add-')) { e.preventDefault(); actions['poll-add']({ dataset: { id: e.target.id.slice(9) } }); }
   }
@@ -5879,6 +5947,7 @@ document.addEventListener('visibilitychange', async () => {
 // Ссылки из пушей: #gang/ID, #crew/ID, #battle/ID, #feed, #feedback
 function applyHash(hash) {
   if (hash.startsWith('#gang/')) { S.tab = 'chats'; S.chatGang = true; S.dm = null; S.activeGang = Number(hash.slice(6)) || S.activeGang; }
+  if (hash === '#todos') { S.tab = 'near'; S.chatGang = false; S.dm = null; setTimeout(() => { const c = document.querySelector('.todos'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 600); }
   if (hash === '#battery') { S.sheet = 'battery'; S.bt = { step: 0, answers: [] }; get('/api/battery').then((b) => { S.battery = b; render(); }).catch(() => {}); }
   if (hash.startsWith('#wave/')) { S.tab = 'chats'; S.chatGang = true; S.dm = null; S.activeGang = Number(hash.slice(6)) || S.activeGang; S.waveScroll = true; }
   if (hash === '#feed') S.tab = 'office';

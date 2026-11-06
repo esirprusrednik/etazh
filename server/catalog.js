@@ -102,7 +102,8 @@ const EARN = {
   quiz: { amount: 3, perDay: 3 },    // квиз недели: верный ответ
   food_rate: { amount: 1, perDay: 1 }, // оценка обеда
   friday: { amount: 3, perDay: 1 },
-  wave: { amount: 2, perDay: 1 },   // встал в волну банды // ответ на пятничную пятиминутку банды
+  wave: { amount: 2, perDay: 1 },
+  todo_day: { amount: 2, perDay: 1 }, // закрыл все дела дня   // встал в волну банды // ответ на пятничную пятиминутку банды
   duel_win: { amount: 2, perDay: 3 }  // победа в личной дуэли
 };
 

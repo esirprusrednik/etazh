@@ -71,6 +71,7 @@ server/seasons.js
 server/util.js
 server/voice.js
 server/style.js
+server/todos.js
 server/wave.js
 server/weather.js
 server/webpush.js
