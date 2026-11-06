@@ -90,7 +90,7 @@ const ACH = [
   A('social', 'thanks50', 'legendary', 'Легенда банды', 'Получить 50 спасибо', 'thanks_got', 50, { series: 'thanks' }),
   A('social', 'wave1', 'common', 'Свой', 'Встать в волну банды', 'waves', 1, { series: 'waves' }),
   A('social', 'wave10', 'rare', 'Надёжный', 'Встать в 10 волн', 'waves', 10, { series: 'waves' }),
-  A('social', 'wave_full', 'legendary', 'Авторитет', 'Запустить волну, в которую встала вся банда', 'wave_full', 1),
+  A('social', 'wave_full', 'legendary', 'Капитан', 'Запустить волну, в которую встала вся банда', 'wave_full', 1),
   A('social', 'thanks_people5', 'rare', 'Щедрая душа', 'Сказать спасибо пятерым разным людям', 'thanks_people', 5),
   A('social', 'gangs3', 'rare', 'Многостаночник', 'Состоять в трёх бандах', 'gangs', 3),
   A('social', 'recruit1', 'common', 'Вербовщик', 'Позвать человека в банду — и он вступил', 'recruits', 1, { series: 'recruits' }),

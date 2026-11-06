@@ -1064,7 +1064,7 @@ function renderStyle() {
 }
 
 // ----- «Волна» по банде: клич раз в неделю, у банды 10 минут, чтобы встать -----
-const WAVE_JOINED = () => [`${meG('Встал', 'Встала')} — значит, ${meG('свой', 'своя')}`, 'Банда видит', 'Уважение', 'Красиво пошла!', 'Руки выше, банда в силе'];
+const WAVE_JOINED = () => [`${meG('Встал', 'Встала')} — значит, ${meG('свой', 'своя')}`, 'Банда видит', 'Красиво пошла!', 'Банда в сборе', 'Руки выше, банда в силе'];
 const fanHtml = (f, size = 36) => `<span class="fan ${f.up ? 'up' : ''} ${f.me ? 'me' : ''}" style="--i:${f.i ?? 0}" title="${esc(f.nick)}"><span class="fan-arms" aria-hidden="true"></span>${avatar(f.look, size)}</span>`;
 const waveLeft = (a) => Math.max(0, Math.round((a.endsAt - (Date.now() + (S.waveOff || 0))) / 1000));
 function renderWave() {
@@ -1089,7 +1089,7 @@ function renderWave() {
     ${w.canLaunch ? `<div class="row"><div class="grow"><b>Подними банду волной</b><div class="small">Клич своим: у всех ${w.windowMin} минут, чтобы встать. Раз в неделю</div></div><button class="btn small" data-act="wave-launch-open">Запустить</button></div>` : `<div class="small">${esc(w.why)}</div>`}
   </section>`;
 }
-const WAVE_PREVIEW = ['{nick} запустил волну. Вся банда встаёт — у тебя 10 минут', 'Это волна, а не облава. Встань, подними руки — так надо', 'Свои встают, чужие сидят. Ты же свой?', 'Это просто волна. Но сидеть сейчас — не по понятиям'];
+const WAVE_PREVIEW = ['{nick} запустил волну. Встань, подними руки — у банды 10 минут', 'Это волна, а не спам. Ну почти. Зайди и нажми «Встать» — банда считает', 'Срочно: ничего срочного. Просто {nick} запустил волну', 'Даже кофемашина уже встала. Твоя очередь'];
 function renderWaveLaunch() {
   const g = S.gang && S.gang.gang;
   const demo = Array.from({ length: 9 }, (_, i) => `<span class="fan up demo" style="--i:${i}"><span class="fan-arms" aria-hidden="true"></span><span class="demo-head" style="--c:${['#FFC93C', '#4F8BFF', '#2FA84F', '#E5484D', '#8B5CF6'][i % 5]}"></span></span>`).join('');
@@ -1097,7 +1097,7 @@ function renderWaveLaunch() {
   return `<div class="wave-launch">
     <div class="stands demo-stands" aria-hidden="true">${demo}</div>
     <div class="push-preview"><span class="pp-ico">Э.</span><div class="grow"><b>Этаж</b><span>${esc(txt)}</span></div></div>
-    <ol class="ol"><li>Своим придёт клич в бандитском духе.</li><li>У всех ${S.wave ? S.wave.windowMin : 10} минут, чтобы нажать «Встать за своих».</li><li>Встанут больше половины — банда в силе. Встанут все — ты авторитет.</li></ol>
+    <ol class="ol"><li>Своим придёт смешной клич — повод заглянуть в Этаж.</li><li>У всех ${S.wave ? S.wave.windowMin : 10} минут, чтобы нажать «Встать за своих».</li><li>Встанут больше половины — банда в силе. Встанут все — ты капитан.</li></ol>
     <p class="small" style="margin:0">Свою волну можно запускать раз в неделю. Тем, кто в отпуске или в тихих часах, пуш не придёт.</p>
     <button class="btn wave-go" data-act="wave-launch">Запустить волну!</button>
   </div>`;
@@ -4033,7 +4033,7 @@ function crowd(ctx, { at = 0, dur = 1.6, vol = 0.09, f = 900, pan = -0.9, pan2 =
   if (ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.setValueAtTime(pan, t); p.pan.linearRampToValueAtTime(pan2, t + dur); g.connect(p); sndOut(ctx, p, 0.25); } else sndOut(ctx, g, 0.25);
   src.start(t); src.stop(t + dur + 0.05);
 }
-// Свист в два пальца — «свистнуть братву»: синус с резким подъёмом и лёгким дыханием
+// Свист в два пальца — «свистнуть своих»: синус с резким подъёмом и лёгким дыханием
 function whistle(ctx, { at = 0, vol = 0.06 } = {}) {
   tone(ctx, { f: 1500, f2: 2600, type: 'sine', at, dur: 0.22, vol, atk: 0.01 });
   tone(ctx, { f: 2300, f2: 3000, type: 'sine', at: at + 0.24, dur: 0.5, vol: vol * 1.1, atk: 0.02, rv: 0.2 });

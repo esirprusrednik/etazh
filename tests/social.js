@@ -200,7 +200,7 @@ function startServer(day, extra = {}) {
       assert.equal((await A.post(`/api/waves/${w.active.id}/join`)).status, 404, 'чужая банда');
       w = (await E.post(`/api/waves/${w.active.id}/join`)).json;
       assert.equal(w.active.joined, 3);
-      assert.ok((await B.get('/api/features')).json.achievements.find((x) => x.id === 'wave_full').got, 'встала вся банда — запустившему «Авторитет»');
+      assert.ok((await B.get('/api/features')).json.achievements.find((x) => x.id === 'wave_full').got, 'встала вся банда — запустившему «Капитан»');
       assert.ok(!((await D.get('/api/inbox')).json.items.some((x) => x.kind === 'wave')));
       assert.match((await B.get(`/api/gangs/${gb.id}/wave`)).json.why || '', /^$|неделе/);
       assert.equal((await B.get(`/api/gangs/${gb.id}/wave`)).json.canLaunch, false, 'волна ещё идёт');
