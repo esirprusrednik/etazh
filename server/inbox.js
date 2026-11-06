@@ -54,6 +54,11 @@ function register(ctx) {
       }
     } catch {}
     // Пятничная пятиминутка: не ответил на этой неделе
+    { const bt = ctx.battery && ctx.battery();
+      if (bt) {
+        if (bt.pending(uid)) out.push({ id: 'battery-week', kind: 'battery', icon: 'bolt', push: false, title: 'Батарейка недели', text: 'Пять вопросов, 30 секунд. Результат видишь только ты', go: { act: 'open', v: 'battery' } });
+        for (const p of bt.needs(uid)) out.push({ id: `boost-${p.id}`, kind: 'boost', icon: 'bolt', push: false, title: `${p.nick} просит подзарядку`, text: 'Позови на кофе, пришли шоколадку или дай пять', go: { act: 'boost-open', id: p.id, nick: p.nick } });
+      } }
     if (ctx.wave) for (const x of ctx.wave.pending(uid, myGangs(uid))) out.push({ id: `wave-${x.wave.id}`, kind: 'wave', icon: 'hand', push: false, title: `Волна в «${x.gang.name}» — вставай!`, text: `Осталось ${Math.max(1, Math.ceil((x.wave.ends_at - U.now()) / 60e3))} мин. Банда ждёт`, go: { act: 'wave-open', id: x.gang.id } });
     if (ctx.friday) for (const x of ctx.friday.pending(uid, myGangs(uid))) out.push({ id: `friday-${x.gang.id}-${x.week}`, kind: 'friday', icon: 'chat', push: false, title: `Пятиминутка «${x.gang.name}»`, text: 'Три вопроса о неделе, ответ — одна строка. +3 зерна', go: { act: 'gang-open', id: x.gang.id, to: '.friday' } });
     // Блиц: не начат или не доигран

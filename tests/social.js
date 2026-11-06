@@ -233,6 +233,30 @@ function startServer(day, extra = {}) {
       assert.deepEqual((await B.get(`/api/users/${D.id}`)).json.badges, [], 'снятый бейдж из карточки пропал');
     });
 
+    await step('батарейка: заряд только себе, подзарядка — по своей просьбе и только от своих', async () => {
+      let b = (await D.post('/api/battery', { answers: [3, 3, 3, 3, 3] })).json;
+      assert.equal(b.mine.level, 100); assert.equal(b.mine.lv.id, 'full');
+      assert.equal((await D.post('/api/battery/ask', { on: true })).status, 400, 'при полном заряде просить не нужно');
+      assert.equal((await D.post('/api/battery', { answers: [3, 3, 9, 3, 3] })).status, 400, 'ответы только 0–3');
+      b = (await D.post('/api/battery', { answers: [0, 0, 1, 0, 0] })).json;
+      assert.equal(b.mine.level, 7); assert.equal(b.mine.lv.id, 'empty');
+      let mates = (await B.get(`/api/gangs/${gb.id}`)).json.members;
+      assert.equal(mates.find((m) => m.id === D.id).charge, false, 'без просьбы банда ничего не видит');
+      assert.equal((await B.post('/api/battery/boost', { to: D.id, kind: 'choco' })).status, 400, 'подзарядку не просили');
+      await D.post('/api/battery/ask', { on: true });
+      mates = (await B.get(`/api/gangs/${gb.id}`)).json;
+      assert.equal(mates.members.find((m) => m.id === D.id).charge, true, 'попросил — значок у своих');
+      assert.ok(!JSON.stringify(mates).includes('"level"'), 'процент заряда никому не уходит');
+      assert.ok((await B.get('/api/inbox')).json.items.some((x) => x.kind === 'boost'), 'в сводке у своих — «просит подзарядку»');
+      assert.equal((await B.post('/api/battery/boost', { to: D.id, kind: 'choco' })).status, 200);
+      assert.equal((await B.post('/api/battery/boost', { to: D.id, kind: 'choco' })).status, 400, 'одну и ту же — один раз в неделю');
+      assert.equal((await A.post('/api/battery/boost', { to: D.id, kind: 'five' })).status, 404, 'чужие не подзаряжают');
+      b = (await D.get('/api/battery')).json;
+      assert.equal(b.boosts.length, 1); assert.equal(b.boosts[0].from.id, B.id);
+      await D.post('/api/battery', { answers: [3, 3, 3, 2, 3] });
+      assert.equal((await B.get(`/api/gangs/${gb.id}`)).json.members.find((m) => m.id === D.id).charge, false, 'зарядился — просьба снялась сама');
+    });
+
     await step('пятиминутка: ответ, зёрна раз в неделю, чужие ответы — после своего, реакции', async () => {
       let f = (await B.get(`/api/gangs/${gb.id}/friday`)).json;
       assert.equal(f.canAnswer, true); assert.equal(f.questions.length, 3);

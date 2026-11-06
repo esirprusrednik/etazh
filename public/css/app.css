@@ -1632,3 +1632,37 @@ button.chip.ask-chip { cursor: pointer; }
 .bdg .grow > .small { display: block; }
 .bdg .grow > .small + .small { margin-top: 2px; }
 .bdg .bd-hint { color: var(--ink); opacity: .7; }
+/* ----- Батарейка недели ----- */
+.battery-entry { background: linear-gradient(120deg, rgba(47,168,79,.14), var(--card) 70%); }
+.bt-ico { background: #2FA84F; }
+.bt-quiz { display: grid; gap: 14px; }
+.bt-quiz h3 { margin: 0; font-size: 22px; text-align: center; }
+.bt-dots { display: flex; gap: 6px; justify-content: center; }
+.bt-dots i { width: 28px; height: 8px; border-radius: 6px; background: var(--s1); transition: background .3s; }
+.bt-dots i.done { background: #2FA84F; } .bt-dots i.now { background: #8B5CF6; }
+.bt-opts { display: grid; gap: 8px; }
+.bt-opt { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; font: inherit; font-size: 16px; font-weight: 700; color: var(--ink); padding: 14px 16px; border-radius: 16px; border: 1.5px solid var(--line); background: var(--card); cursor: pointer; transition: transform .12s, border-color .2s; }
+.bt-opt:active { transform: scale(.98); }
+.bt-opt:hover { border-color: #8B5CF6; }
+.bt-dot { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+.bt-result { display: grid; gap: 12px; }
+.bt-hero { display: grid; justify-items: center; gap: 4px; text-align: center; padding: 18px 14px; border-radius: 22px; background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--c) 22%, transparent), transparent 70%), var(--card); border: 1px solid var(--line); color: var(--ink); }
+.bt-hero p { margin: 4px 0 0; line-height: 1.4; }
+.bt-pct { font-size: 40px; font-weight: 900; line-height: 1; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.bt-name { font-size: 20px; font-weight: 900; }
+.bt-svg { color: var(--ink); display: block; }
+.bt-svg.anim .bt-fill { animation: btfill 1.2s cubic-bezier(.3,.8,.3,1) both; }
+@keyframes btfill { from { width: 4px; } to { width: var(--w); } }
+.bt-bolt { animation: btbolt 1.4s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+@keyframes btbolt { 50% { transform: scale(1.15); } }
+.bt-ask { gap: 6px; }
+.bt-hist { display: flex; gap: 10px; justify-content: space-between; flex-wrap: wrap; }
+.bt-hist span { display: grid; justify-items: center; gap: 2px; }
+.bt-hist em { font-style: normal; font-size: 11px; color: var(--muted); }
+.bt-remind { display: inline-flex; gap: 6px; align-items: center; }
+.btn.bt-need { background: #F2B705; color: #1A2547; box-shadow: 0 0 0 0 rgba(242,183,5,.6); animation: btneed 2s ease-out infinite; }
+@keyframes btneed { 0% { box-shadow: 0 0 0 0 rgba(242,183,5,.55); } 70% { box-shadow: 0 0 0 10px rgba(242,183,5,0); } 100% { box-shadow: 0 0 0 0 rgba(242,183,5,0); } }
+.boost { display: grid; gap: 10px; }
+.boost-opt b { display: block; }
+.boost-opt.done { opacity: .6; cursor: default; border-color: #2FA84F; }
+@media (prefers-reduced-motion: reduce) { .bt-svg.anim .bt-fill, .bt-bolt, .btn.bt-need { animation: none; } }

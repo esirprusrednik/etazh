@@ -1025,6 +1025,65 @@ async function loadFriday() {
   if (!S.activeGang) { S.friday = null; return; }
   try { S.friday = await get(`/api/gangs/${S.activeGang}/friday`); } catch { S.friday = null; }
 }
+// ----- «Батарейка недели»: самотест на усталость — результат видит только сам человек -----
+function batterySvg(level, color, { size = 1, boosts = 0, anim = false } = {}) {
+  const w = 150 * size, h = 70 * size, pad = 8 * size, inner = (w - 18 * size) - pad * 2;
+  const fill = Math.max(4 * size, Math.round(inner * level / 100));
+  return `<svg class="bt-svg ${anim ? 'anim' : ''}" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="Заряд ${level}%">
+    <rect x="${2 * size}" y="${2 * size}" width="${w - 18 * size}" height="${h - 4 * size}" rx="${14 * size}" fill="none" stroke="currentColor" stroke-width="${4 * size}" opacity=".85"/>
+    <rect x="${w - 14 * size}" y="${h * 0.32}" width="${10 * size}" height="${h * 0.36}" rx="${4 * size}" fill="currentColor" opacity=".85"/>
+    <rect class="bt-fill" x="${pad}" y="${pad}" width="${fill}" height="${h - pad * 2}" rx="${9 * size}" fill="${color}" style="--w:${fill}px"/>
+    ${boosts ? `<path d="M${w / 2 - 6 * size} ${h * 0.22} L${w / 2 - 14 * size} ${h * 0.56} L${w / 2 - 2 * size} ${h * 0.56} L${w / 2 - 8 * size} ${h * 0.82} L${w / 2 + 12 * size} ${h * 0.42} L${w / 2} ${h * 0.42} L${w / 2 + 6 * size} ${h * 0.22} Z" fill="#fff" stroke="#1A2547" stroke-width="${1.5 * size}" class="bt-bolt"/>` : ''}
+  </svg>`;
+}
+const ddmmW = (w) => { const [, m, d] = w.split('-'); return `${d}.${m}`; };
+function renderBattery() {
+  const b = S.battery;
+  if (!b) return '<p class="sub">Проверяем заряд…</p>';
+  const st = S.bt || { step: 0, answers: [] };
+  // Тест: если на этой неделе не проходил или нажал «пройти заново»
+  if (!b.mine || st.retake) {
+    const qn = b.questions[st.step];
+    if (!qn) return '<p class="sub">Считаем заряд…</p>';
+    return `<div class="bt-quiz">
+      <div class="bt-dots">${b.questions.map((_, i) => `<i class="${i < st.step ? 'done' : i === st.step ? 'now' : ''}"></i>`).join('')}</div>
+      <h3>${esc(qn.text)}</h3>
+      <div class="bt-opts">${qn.opts.map((o, i) => ({ o, i })).reverse().map(({ o, i }) => `<button class="bt-opt" data-act="bt-pick" data-v="${i}"><span class="bt-dot" style="background:${['#E5484D', '#F07A1A', '#F2B705', '#2FA84F'][i]}"></span>${esc(o)}</button>`).join('')}</div>
+      <p class="small" style="margin:0;text-align:center">Вопрос ${st.step + 1} из ${b.questions.length} · ответы не сохраняются, только итоговый заряд</p>
+    </div>`;
+  }
+  const m = b.mine;
+  const boosts = b.boosts || [];
+  return `<div class="bt-result">
+    <div class="bt-hero" style="--c:${m.lv.color}">
+      ${batterySvg(m.level, m.lv.color, { size: 1.4, boosts: boosts.length, anim: S.btAnim })}
+      <div class="bt-pct" style="color:${m.lv.color}">${m.level}%</div>
+      <div class="bt-name">${esc(m.lv.name)}</div>
+      <p>${esc(m.lv.text)}</p>
+    </div>
+    ${boosts.length ? `<section class="st-block"><div class="st-h"><b>Тебе подкинули заряд</b><span class="small">${boosts.length}</span></div>
+      ${boosts.map((x) => `<div class="st-person">${tap(x.from.id, avatar(x.from.look, 36))}<span class="grow"><b>${esc(x.from.nick)}</b><span class="small">${esc(x.name)}</span></span>${ico(x.icon, 20)}</div>`).join('')}</section>` : ''}
+    ${m.canAsk ? `<section class="st-block bt-ask"><b>${m.ask ? 'Подзарядку ' + meG('попросил', 'попросила') + ' — свои видят' : 'Попросить подзарядку у своих?'}</b>
+      <span class="small">${m.ask ? 'У тебя в банде и у подельников рядом с твоим ником горит значок. Процентов и ответов никто не видит. Просьба снимется сама в понедельник.' : 'Банда и подельники увидят значок рядом с твоим ником и смогут позвать на кофе, прислать шоколадку или дать пять. Процентов и ответов никто не увидит.'}</span>
+      <button class="btn ${m.ask ? 'ghost' : ''}" data-act="bt-ask" data-v="${m.ask ? 0 : 1}">${m.ask ? 'Снять просьбу' : 'bolt Попросить подзарядку'}</button></section>` : ''}
+    ${b.history.length > 1 ? `<section class="st-block"><div class="st-h"><b>Последние недели</b></div><div class="bt-hist">${b.history.map((h) => { const lv = b.levels.find((l) => h.level >= l.min); return `<span>${batterySvg(h.level, lv.color, { size: 0.42 })}<em>${ddmmW(h.week)} · ${h.level}%</em></span>`; }).join('')}</div></section>` : ''}
+    <div class="row" style="justify-content:space-between;align-items:center"><button class="linkbtn" data-act="bt-retake">Пройти заново</button>
+      <label class="small bt-remind"><input type="checkbox" data-act="bt-remind" ${S.me && S.me.profile && S.me.profile.battery === false ? '' : 'checked'}> Напоминать по пятницам</label></div>
+    <p class="small st-note">lock Это не медицинский тест, а повод прислушаться к себе. Результат видишь только ты. Храним только процент за неделю, четыре недели.</p>
+  </div>`;
+}
+function renderBoost() {
+  const t = S.boostTo;
+  if (!t) return '';
+  const sent = t.sent || [];
+  const opts = [['coffee', 'coffee', 'Позвать на кофе', 'Пуш с приглашением, договоритесь в личке'], ['choco', 'gift', 'Виртуальная шоколадка', 'Маленькая сладкая радость в пуше'], ['five', 'hand', 'Дать пять', 'Просто напомнить, что ты рядом']];
+  return `<div class="boost">
+    <p class="sub" style="margin:0"><b>${esc(t.nick)}</b> просит немного подзарядки. Выбери, чем поддержать — можно всё сразу.</p>
+    ${opts.map(([k, i, n, d]) => `<button class="bt-opt boost-opt ${sent.includes(k) ? 'done' : ''}" data-act="boost-send" data-v="${k}" ${sent.includes(k) ? 'disabled' : ''}>${ico(i, 22)}<span class="grow"><b>${n}</b><span class="small">${sent.includes(k) ? 'Отправлено' : d}</span></span>${sent.includes(k) ? 'check' : ''}</button>`).join('')}
+    <p class="small" style="margin:0">Человек сам попросил подзарядку. Сколько у него заряда, видит только он.</p>
+  </div>`;
+}
+
 // Бейджи: заработанные можно показать в своей карточке (до трёх), незаработанные — с прогрессом
 function renderBadges(s) {
   if (!s.badges) return '';
@@ -2981,10 +3040,11 @@ function renderGang() {
     const [w, color] = whereText(m);
     return `<div class="person">${tap(m.id, avatar(m.look, 34))}<div class="grow"><div style="font-weight:900" class="tapname" data-act="person" data-id="${m.id}">${esc(m.nick)}${m.me ? ' (ты)' : ''}</div>${m.name ? `<div class="realname">${esc(m.name)}</div>` : ''}
       <div class="where"><span class="dot" style="background:${color}"></span>${esc(w)}${m.mood && m.where === 'office' ? ' · ' + esc(m.mood) : ''}${m.status ? ' · ' + esc(m.status) : ''}</div></div>
+      ${m.charge && !m.me ? `<button class="btn small bt-need" data-act="boost-open" data-id="${m.id}" data-nick="${esc(m.nick)}" aria-label="Подкинуть заряд: ${esc(m.nick)} просит подзарядку">bolt</button>` : ''}
       ${m.me ? '' : `<button class="btn small ghost" data-act="dm-open" data-id="${m.id}" aria-label="Написать лично">chat</button><button class="btn small ghost" data-act="call-open" data-kind="where" data-to="${m.id}" data-gang="${g.id}">Позвать</button>${g.isOwner ? `<button class="btn small ghost" data-act="gm-menu" data-id="${m.id}" aria-label="Управление">⋯</button>` : ''}`}</div>
       ${g.isOwner && S.gmMenu === m.id ? `<div class="row gm-menu"><button class="btn small ghost" data-act="gm-owner" data-id="${m.id}">Сделать владельцем</button><button class="btn small danger" data-act="gm-kick" data-id="${m.id}">Убрать из банды</button></div>` : ''}`;
   }).join('');
-  const msgs = v.messages.map(renderMsg).join('') || '<p class="sub">Сообщения и зовы живут 24 часа. Начни первым.</p>';
+  const msgs = v.messages.map(renderMsg).join('') || '<p class="sub">Сообщения и зовы живут 24 часа. Начни первым|первой.</p>';
   return `${multi}${chips}
   <section class="card" style="${g.gold ? 'border:3px solid #FFC93C' : ''}">
     ${gst(g).cardbg ? `<div class="g-banner ${gst(g).cardbg}" aria-hidden="true"></div>` : ''}
@@ -3611,6 +3671,8 @@ function renderSheet() {
     case 'stats': return sheetWrap('Этаж сегодня', renderStats());
     case 'about': store.set('aboutSeen', true); return sheetWrap('Об Этаже', aboutHtml());
     case 'style': return sheetWrap('Мой стиль', renderStyle());
+    case 'battery': return sheetWrap('Батарейка недели', renderBattery());
+    case 'boost': return sheetWrap('Подкинуть заряд', renderBoost());
     case 'wave-launch': return sheetWrap('Волна по банде', renderWaveLaunch());
     case 'thanks-person': return sheetWrap('Сказать спасибо', renderThx());
     case 'guide': return sheetWrap('Как тут всё устроено', guideHtml());
@@ -4048,6 +4110,9 @@ function hey(ctx, { at = 0, vol = 0.05 } = {}) {
 }
 const SOUNDS = {
   // Волна: запуск — свист в два пальца и гул; встал — гул проходит по трибуне и «Эй!»; встала вся банда — гул, «Эй!» и фанфары дудкой
+  // Батарейка: заряд набирается короткими «блипами» вверх; бодрый итог — с аккордом
+  charge: (c) => { [392, 494, 587, 784].forEach((f, i) => tone(c, { f, type: 'sine', at: i * 0.11, dur: 0.12, vol: 0.035, atk: 0.008 })); tone(c, { f: 988, f2: 1175, type: 'triangle', at: 0.46, dur: 0.35, vol: 0.03, rv: 0.25 }); },
+  chargeLow: (c) => { [392, 440, 494].forEach((f, i) => tone(c, { f, type: 'sine', at: i * 0.14, dur: 0.14, vol: 0.03, atk: 0.01 })); tone(c, { f: 523, type: 'sine', at: 0.44, dur: 0.4, vol: 0.025, rv: 0.3 }); },
   waveHorn: (c) => { whistle(c); crowd(c, { at: 0.55, dur: 1.8, vol: 0.06 }); hey(c, { at: 1.2, vol: 0.04 }); },
   waveCrowd: (c) => { crowd(c, { dur: 1.7, vol: 0.1 }); hey(c, { at: 0.75 }); },
   waveFull: (c) => { crowd(c, { dur: 2.2, vol: 0.12 }); hey(c, { at: 0.6 }); hey(c, { at: 1.1, vol: 0.06 }); whistle(c, { at: 1.4 }); },
@@ -4509,6 +4574,7 @@ function renderProfile() {
     ${section('vac', 'Отпуска', p.vacations.length ? p.vacations.map((v) => `${ddmm(v.from)}–${ddmm(v.to)}`).join(', ') : 'не запланированы', vacBody)}
     ${section('about', 'О себе', [p.about && esc(p.about), p.bday && 'ДР ' + esc(p.bday)].filter(Boolean).join(' · ') || 'интересы, пара слов, день рождения', aboutBody)}
     ${section('priv', 'Приватность, звук и уведомления', `${me.shareOffice ? 'банда видит, где я' : 'где я — скрыто'}${me.quiet ? ' · тихие часы' : ''} · ${soundVol() ? 'звук ' + soundVol() + '%' : 'без звука'}`, privBody)}
+    <button class="fb-entry battery-entry" data-act="open" data-v="battery"><span class="st-ico bt-ico">bolt</span><span class="grow"><b>Батарейка недели</b><span class="small">Пять вопросов по пятницам: сколько сил осталось. Видишь только ты</span></span><span class="chev" aria-hidden="true">›</span></button>
     <button class="fb-entry style-entry" data-act="open" data-v="style"><span class="st-ico">spark</span><span class="grow"><b>Мой стиль</b><span class="small">Какой ты в Этаже: ритм, привычки, с кем на связи. Видишь только ты</span></span><span class="chev" aria-hidden="true">›</span></button>
     <button class="fb-entry about-entry" data-act="open" data-v="about"><span class="grow"><b>Об Этаже</b><span class="small">Зачем он и что тут есть — коротко и без канцелярита</span></span><span class="chev" aria-hidden="true">›</span></button>
     <button class="fb-entry" data-act="open" data-v="guide"><span class="grow"><b>Как тут всё устроено</b><span class="small">Каждая вкладка и меню: что нажимать и зачем</span></span><span class="chev" aria-hidden="true">›</span></button>
@@ -5113,6 +5179,7 @@ const actions = {
     if (S.sheet === 'profile' || S.sheet === 'lunch') await run(loadFeatures);
     if (S.sheet === 'feedback') await run(loadFeedback);
     if (S.sheet === 'style') await run(async () => { S.style = await get('/api/me/style'); });
+    if (S.sheet === 'battery') { S.bt = { step: 0, answers: [] }; await run(async () => { S.battery = await get('/api/battery'); }); }
     if (S.sheet === 'crew-new' && !S.crew) await run(loadCrew);
     if ((S.sheet === 'battle-pick' || S.sheet === 'dm-pick') && !S.people) await run(loadPeople);
   },
@@ -5202,7 +5269,7 @@ const actions = {
     let g = {};
     try { g = JSON.parse(el.dataset.go || '{}'); } catch {}
     S.sheet = null;
-    const fake = { dataset: { v: g.v, id: g.id, opp: g.opp }, classList: { contains: () => false } };
+    const fake = { dataset: { v: g.v, id: g.id, opp: g.opp, nick: g.nick }, classList: { contains: () => false } };
     if (g.act === 'tab') { S.tab = g.v; S.chatGang = false; S.dm = null; S.battle = null; render(); await run(() => refresh()); }
     else if (actions[g.act]) await actions[g.act](fake);
     if (g.to) requestAnimationFrame(() => setTimeout(() => { const t = document.querySelector(g.to); if (t) t.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 150));
@@ -5554,6 +5621,30 @@ const actions = {
     const nick = S.nickConfirm; S.nickConfirm = null;
     const r = await post('/api/me/nick', { nick }); await loadMe(); toast(`Теперь ты ${r.nick}`);
   }),
+  'bt-pick': (el) => run(async () => {
+    const st = S.bt || (S.bt = { step: 0, answers: [] });
+    st.answers[st.step] = Number(el.dataset.v);
+    st.step++;
+    if (st.step < S.battery.questions.length) { render(); return; }
+    S.battery = await post('/api/battery', { answers: st.answers });
+    S.bt = { step: 0, answers: [] }; S.btAnim = true;
+    const lvl = S.battery.mine.level;
+    sfx(lvl >= 60 ? 'charge' : 'chargeLow'); render();
+    setTimeout(() => { S.btAnim = false; }, 1500);
+  }),
+  'bt-retake'() { S.bt = { step: 0, answers: [], retake: true }; render(); },
+  'bt-ask': (el) => run(async () => {
+    S.battery = await post('/api/battery/ask', { on: el.dataset.v === '1' });
+    render();
+    toast(S.battery.mine.ask ? 'Просьба отправлена своим — ждём подзарядку' : 'Просьба снята');
+  }),
+  'bt-remind': (el) => run(async () => { await post('/api/me/profile', { profile: { battery: el.checked } }); await loadMe(); toast(el.checked ? 'Напомню в пятницу вечером' : 'Больше не напоминаю'); }),
+  'boost-open'(el) { S.boostTo = { id: Number(el.dataset.id), nick: el.dataset.nick, sent: [] }; S.sheet = 'boost'; render(); },
+  'boost-send': (el) => run(async () => {
+    const r = await post('/api/battery/boost', { to: S.boostTo.id, kind: el.dataset.v });
+    S.boostTo.sent = r.sent; sfx('send'); render();
+    toast(`Заряд ушёл: ${S.boostTo.nick} получит пуш`);
+  }),
   'badge-toggle': (el) => run(async () => {
     const s = S.style; if (!s) return;
     const id = el.dataset.v, cur = s.badges.filter((b) => b.shown).map((b) => b.id);
@@ -5788,6 +5879,7 @@ document.addEventListener('visibilitychange', async () => {
 // Ссылки из пушей: #gang/ID, #crew/ID, #battle/ID, #feed, #feedback
 function applyHash(hash) {
   if (hash.startsWith('#gang/')) { S.tab = 'chats'; S.chatGang = true; S.dm = null; S.activeGang = Number(hash.slice(6)) || S.activeGang; }
+  if (hash === '#battery') { S.sheet = 'battery'; S.bt = { step: 0, answers: [] }; get('/api/battery').then((b) => { S.battery = b; render(); }).catch(() => {}); }
   if (hash.startsWith('#wave/')) { S.tab = 'chats'; S.chatGang = true; S.dm = null; S.activeGang = Number(hash.slice(6)) || S.activeGang; S.waveScroll = true; }
   if (hash === '#feed') S.tab = 'office';
   if (hash === '#crew' || hash === '#chats') S.tab = 'chats';

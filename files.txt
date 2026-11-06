@@ -42,6 +42,7 @@ server/advent.js
 server/api.js
 server/battle.js
 server/blitz.js
+server/battery.js
 server/board.js
 server/catalog.js
 server/config.js
