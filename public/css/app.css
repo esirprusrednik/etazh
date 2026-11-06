@@ -1613,3 +1613,19 @@ button.chip.ask-chip { cursor: pointer; }
 .st-person b { display: block; }
 .st-note { margin: 0; text-align: center; }
 @media (max-width: 360px) { .st-nums { grid-template-columns: repeat(2, 1fr); } }
+/* ----- Бейджи ----- */
+.bdgs { display: grid; gap: 8px; }
+.bdg { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; font: inherit; color: var(--ink); padding: 10px 12px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--card); cursor: pointer; }
+.bdg b { display: block; font-size: 15px; }
+.bdg.on { border-color: #8B5CF6; background: var(--tint-v); }
+.bd-ico { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; flex: none; background: linear-gradient(140deg, #6D3FD6, #2E5BD8); color: #fff; }
+.bd-check { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; flex: none; border: 1.5px solid var(--line); color: #fff; }
+.bdg.on .bd-check { background: #8B5CF6; border-color: #8B5CF6; }
+.bdg.locked { cursor: default; opacity: .75; }
+.bdg.locked .bd-ico { background: var(--s1); color: var(--muted); }
+.bd-bar { display: block; height: 6px; border-radius: 4px; background: var(--s1); margin: 5px 0 2px; overflow: hidden; }
+.bd-bar i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #4F8BFF, #8B5CF6); }
+.bd-more summary { cursor: pointer; font-weight: 700; font-size: 14px; color: var(--muted); padding: 4px 0; }
+.bd-more .bdgs { margin-top: 8px; }
+.card-badges { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.cbadge { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; font-size: 13px; font-weight: 700; background: linear-gradient(120deg, #6D3FD6, #2E5BD8); color: #fff; }

@@ -222,6 +222,7 @@ function createApi(db) {
   let secret = null;
   let friday = null;
   let wave = null;
+  let style = null;
   let advent = null;
   let battle = null;
   let quiz = null;
@@ -1180,7 +1181,7 @@ function createApi(db) {
     const close = me || sharedGangs.length > 0 || crewMate;
     const prof = readProfile(t.profile);
     const look = { ...DEFAULT_LOOK, ...JSON.parse(t.look || '{}') };
-    const card = { id: t.id, nick: t.nick, name: me ? '' : fullName(prof, 'all'), role: prof.role || '', askMe: prof.askMe || [], me, look, status: statusName(look.status), full: close || coffeeMate, canDm: !me && crew ? crew.canDm(u, t) : false };
+    const card = { id: t.id, nick: t.nick, name: me ? '' : fullName(prof, 'all'), role: prof.role || '', askMe: prof.askMe || [], badges: style ? style.shownBadges(t.id, prof) : [], me, look, status: statusName(look.status), full: close || coffeeMate, canDm: !me && crew ? crew.canDm(u, t) : false };
     if (!card.full) return card;
     const st = memberStatus(t);
     return {
@@ -1568,7 +1569,7 @@ function createApi(db) {
   friday = require('./friday').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, readProfile });
   // ---------- «Мой стиль»: личная карточка поведения по действиям (без текстов), видит только сам человек ----------
   {
-    const style = require('./style').register({ db, q, route, requireUser, U, publicLook, myGangs, gangMembers });
+    style = require('./style').register({ db, q, route, requireUser, U, publicLook, myGangs, gangMembers, bad });
     const orig = features.onEvent;
     features.onEvent = (t, uid, d) => { style.track(t, uid, d); return orig(t, uid, d); };
   }

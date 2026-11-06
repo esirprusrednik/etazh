@@ -1023,6 +1023,20 @@ async function loadFriday() {
   if (!S.activeGang) { S.friday = null; return; }
   try { S.friday = await get(`/api/gangs/${S.activeGang}/friday`); } catch { S.friday = null; }
 }
+// Бейджи: заработанные можно показать в своей карточке (до трёх), незаработанные — с прогрессом
+function renderBadges(s) {
+  if (!s.badges) return '';
+  const got = s.badges.filter((b) => b.got), locked = s.badges.filter((b) => !b.got).sort((a, b) => b.n / b.of - a.n / a.of);
+  const shown = got.filter((b) => b.shown).length;
+  const tile = (b) => b.got
+    ? `<button class="bdg ${b.shown ? 'on' : ''}" data-act="badge-toggle" data-v="${b.id}" aria-pressed="${b.shown}"><span class="bd-ico">${ico(b.icon, 20)}</span><span class="grow"><b>${esc(b.title)}</b><span class="small">${esc(b.desc)}</span></span><span class="bd-check" aria-hidden="true">${b.shown ? 'check' : ''}</span></button>`
+    : `<div class="bdg locked"><span class="bd-ico">${ico(b.icon, 20)}</span><span class="grow"><b>${esc(b.title)}</b><span class="small">${esc(b.desc)}</span>${b.of > 1 ? `<span class="bd-bar"><i style="width:${Math.round((b.n / b.of) * 100)}%"></i></span><span class="small">${b.n} из ${b.of}</span>` : '<span class="small">Пока не твой ритм</span>'}</span></div>`;
+  return `<section class="st-block"><div class="st-h"><b>Бейджи</b><span class="small">${got.length ? `в карточке ${shown} из ${s.showMax}` : 'заработай первый'}</span></div>
+    ${got.length ? `<p class="small" style="margin:0">Нажми на бейдж — он появится в твоей карточке, его увидят коллеги. До ${s.showMax} штук.</p><div class="bdgs">${got.map(tile).join('')}</div>` : ''}
+    ${locked.length ? `<details class="bd-more" ${got.length ? '' : 'open'}><summary>Ещё ${locked.length} — как получить</summary><div class="bdgs">${locked.map(tile).join('')}</div></details>` : ''}
+  </section>`;
+}
+
 // ----- «Мой стиль»: личная карточка по действиям — видит только сам человек, тексты не читаются -----
 function renderStyle() {
   const s = S.style;
@@ -1034,6 +1048,7 @@ function renderStyle() {
   return `<div class="style">
     <section class="st-hero"><span class="st-hero-ico">${ico(s.main.icon, 30)}</span><div><span class="small">Твой архетип</span><h2>${esc(s.main.title)}</h2><p>${esc(s.main.text)}</p>
       ${s.traits.length ? `<div class="chips">${s.traits.map((t) => `<span class="chip on" style="cursor:default">${esc(t)}</span>`).join('')}</div>` : ''}</div></section>
+    ${renderBadges(s)}
     <section class="st-block"><div class="st-h"><b>${esc(s.chrono.title)}</b>${s.busiest ? `<span class="small">самый живой день — ${esc(s.busiest)}</span>` : ''}</div>
       <p class="small" style="margin:0">${esc(s.chrono.text)}</p>
       <div class="st-hours" aria-label="Активность по часам">${s.hours.map((x) => `<span title="${x.h}:00 — ${x.n}"><i style="height:${Math.round((x.n / maxH) * 100)}%"></i><em>${x.h % 3 === 0 ? x.h : ''}</em></span>`).join('')}</div>
@@ -4524,6 +4539,7 @@ function renderPerson() {
     ${x.name ? `<div class="sub" style="text-align:center;margin:0;font-weight:700">${esc(x.name)}</div>` : ''}
     ${x.status ? `<div class="status" style="color:var(--tint-y-fg);text-align:center">${esc(x.status)}</div>` : ''}
     ${x.role ? `<div class="person-role">${ico('office', 16)} ${esc(x.role)}</div>` : ''}
+    ${x.badges && x.badges.length ? `<div class="card-badges">${x.badges.map((b) => `<span class="cbadge" title="${esc(b.desc)}">${ico(b.icon, 16)} ${esc(b.title)}</span>`).join('')}</div>` : ''}
     ${x.askMe && x.askMe.length ? `<div class="ask-box"><span class="small">Спроси меня про</span><div class="chips" style="justify-content:center">${x.askMe.map((t) => `<span class="chip ask-chip">${esc(t)}</span>`).join('')}</div></div>` : ''}
     ${x.about ? `<p class="person-about">«${esc(x.about)}»</p>` : ''}
     ${x.tags && x.tags.length ? `<div class="chips" style="justify-content:center">${x.tags.map((t) => `<span class="chip on" style="cursor:default">${esc(t)}</span>`).join('')}</div>` : ''}
@@ -5535,6 +5551,16 @@ const actions = {
   'nick-yes': () => run(async () => {
     const nick = S.nickConfirm; S.nickConfirm = null;
     const r = await post('/api/me/nick', { nick }); await loadMe(); toast(`Теперь ты ${r.nick}`);
+  }),
+  'badge-toggle': (el) => run(async () => {
+    const s = S.style; if (!s) return;
+    const id = el.dataset.v, cur = s.badges.filter((b) => b.shown).map((b) => b.id);
+    const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
+    if (next.length > s.showMax) { toast(`В карточке помещается ${s.showMax} бейджа — сними один`); return; }
+    await post('/api/me/badges', { ids: next });
+    s.badges.forEach((b) => { b.shown = next.includes(b.id); });
+    render();
+    toast(next.includes(id) ? 'Бейдж в карточке — коллеги увидят' : 'Бейдж убран из карточки');
   }),
   'wave-launch-open'() { S.sheet = 'wave-launch'; render(); },
   'wave-launch': () => run(async () => {

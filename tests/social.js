@@ -217,6 +217,17 @@ function startServer(day, extra = {}) {
       assert.ok(!JSON.stringify(st).includes('как дела'), 'тексты сообщений в карточку не попадают');
       assert.equal(st.hours.length, 16); assert.equal(st.week.length, 5);
       assert.equal((await D.get(`/api/users/${B.id}/style`)).status, 404, 'чужой стиль не отдаётся');
+      // Бейджи: показать можно только заработанные и не больше трёх
+      assert.equal(st.badges.length, 15);
+      assert.equal((await D.post('/api/me/badges', { ids: ['voice'] })).status, 400, 'незаработанный — нельзя');
+      assert.equal((await D.post('/api/me/badges', { ids: ['a', 'b', 'c', 'd'] })).status, 400, 'больше трёх — нельзя');
+      const got = st.badges.filter((b) => b.got).map((b) => b.id);
+      if (got.length) {
+        assert.equal((await D.post('/api/me/badges', { ids: [got[0]] })).status, 200);
+        assert.deepEqual((await B.get(`/api/users/${D.id}`)).json.badges.map((b) => b.id), [got[0]], 'бейдж виден в карточке');
+      }
+      assert.equal((await D.post('/api/me/badges', { ids: [] })).status, 200);
+      assert.deepEqual((await B.get(`/api/users/${D.id}`)).json.badges, [], 'снятый бейдж из карточки пропал');
     });
 
     await step('пятиминутка: ответ, зёрна раз в неделю, чужие ответы — после своего, реакции', async () => {

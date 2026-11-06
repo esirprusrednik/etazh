@@ -16,6 +16,27 @@ const TYPES = [
   { id: 'regular', title: 'Человек-офис', icon: 'office', score: (c) => c.checkins * 1.5, text: 'Отмечаешься исправно — по тебе можно сверять, кто сегодня в офисе.' }
 ];
 
+// Бейджи: человек сам выбирает до трёх и показывает их в своей карточке. Только хорошее, по действиям
+// m — метрики: c (счётчики), chrono, replyMin, replyN, tiesCount
+const BADGES = [
+  { id: 'lark', title: 'Жаворонок', icon: 'sun', desc: 'Самое живое время — до 11 утра', test: (m) => [m.chrono === 'lark' ? 1 : 0, 1] },
+  { id: 'lunch', title: 'Обеденный пик', icon: 'lunch', desc: 'Самое живое время — с 12 до 15', test: (m) => [m.chrono === 'lunch' ? 1 : 0, 1] },
+  { id: 'owl', title: 'Сова', icon: 'moon', desc: 'Самое живое время — после 17', test: (m) => [m.chrono === 'owl' ? 1 : 0, 1] },
+  { id: 'fast', title: 'Отвечает быстро', icon: 'bolt', desc: 'В личке в среднем отвечает за 15 минут', test: (m) => [m.replyMin != null && m.replyMin <= 15 ? Math.min(m.replyN, 5) : 0, 5] },
+  { id: 'caller', title: 'Заводила', icon: 'megaphone', desc: '15 зовов и обедов компанией', test: (m) => [m.c.calls + m.c.lunches, 15] },
+  { id: 'voice', title: 'Голос банды', icon: 'chat', desc: '100 сообщений в чатах и личке', test: (m) => [m.c.msgs + m.c.dms, 100] },
+  { id: 'responder', title: 'На подхвате', icon: 'check', desc: 'Отклик на 20 зовов', test: (m) => [m.c.replies, 20] },
+  { id: 'kind', title: 'Щедрая душа', icon: 'hand', desc: '10 сказанных «спасибо»', test: (m) => [m.c.thanks_given, 10] },
+  { id: 'thanked', title: 'Есть за что благодарить', icon: 'star', desc: '10 полученных «спасибо»', test: (m) => [m.c.thanks_got, 10] },
+  { id: 'connector', title: 'Связной', icon: 'swap', desc: 'На связи один на один с 8 людьми за два месяца', test: (m) => [m.tiesCount, 8] },
+  { id: 'player', title: 'Игрок', icon: 'game', desc: '15 игр: дуэли, морской бой, блиц', test: (m) => [m.c.duels_started + m.c.battles + m.c.blitz, 15] },
+  { id: 'memer', title: 'Мемолог', icon: 'image', desc: '10 мем-открыток', test: (m) => [m.c.memes, 10] },
+  { id: 'regular', title: 'Человек-офис', icon: 'office', desc: '20 отметок в офисе', test: (m) => [m.c.checkins, 20] },
+  { id: 'streak', title: 'Без пропусков', icon: 'flame', desc: 'Серия 10 рабочих дней подряд', test: (m) => [m.c.day_streak, 10] },
+  { id: 'wave', title: 'Свой', icon: 'flag', desc: '3 волны банды', test: (m) => [m.c.waves, 3] }
+];
+const SHOW_MAX = 3;
+
 function register(ctx) {
   const { db, q, route, requireUser, U, publicLook, myGangs, gangMembers } = ctx;
 
@@ -69,9 +90,41 @@ function register(ctx) {
     return c;
   };
 
+  // Общие метрики для карточки и бейджей
+  function metrics(uid) {
+    const c = counters(uid);
+    const hoursRaw = Object.fromEntries(q('SELECT hour, n FROM style_hours WHERE user_id = ?').all(uid).map((r) => [r.hour, r.n]));
+    const total = Object.values(hoursRaw).reduce((a, b) => a + b, 0);
+    const band = (a, b) => Object.entries(hoursRaw).filter(([h]) => h >= a && h < b).reduce((s2, [, n]) => s2 + n, 0);
+    let chrono = 'even';
+    if (total >= 12) { const best = [['lark', band(5, 11)], ['lunch', band(12, 15)], ['owl', band(17, 24)]].sort((a, b) => b[1] - a[1])[0]; if (best[1] / total >= 0.4) chrono = best[0]; }
+    const m = Object.fromEntries(q('SELECT key, n FROM style_meta WHERE user_id = ?').all(uid).map((r) => [r.key, r.n]));
+    const replyMin = m.reply_n >= 3 ? Math.round(m.reply_min_sum / m.reply_n) : null;
+    const tiesCount = q('SELECT COUNT(*) AS n FROM style_ties WHERE user_id = ? AND last_at > ?').get(uid, U.now() - 60 * 864e5).n;
+    return { c, hoursRaw, total, chrono, replyMin, replyN: m.reply_n || 0, tiesCount };
+  }
+  const badgeList = (mt, shown = []) => BADGES.map((b) => { const [n, of] = b.test(mt); return { id: b.id, title: b.title, icon: b.icon, desc: b.desc, got: n >= of, n: Math.min(n, of), of, shown: shown.includes(b.id) }; });
+  // Бейджи напоказ в карточке человека: только выбранные им и всё ещё заслуженные
+  function shownBadges(uid, prof) {
+    const want = Array.isArray(prof && prof.badges) ? prof.badges.slice(0, SHOW_MAX) : [];
+    if (!want.length) return [];
+    return badgeList(metrics(uid), want).filter((b) => b.got && b.shown).map(({ id, title, icon, desc }) => ({ id, title, icon, desc }));
+  }
+
+  route('POST', '/api/me/badges', async (req, body) => {
+    const u = requireUser(req);
+    const ids = [...new Set((Array.isArray(body.ids) ? body.ids : []).map(String))];
+    if (ids.length > SHOW_MAX) throw ctx.bad(`Показать можно не больше ${SHOW_MAX} бейджей.`);
+    const got = new Set(badgeList(metrics(u.id)).filter((b) => b.got).map((b) => b.id));
+    if (ids.some((id) => !got.has(id))) throw ctx.bad('Этот бейдж ещё не заработан.');
+    q('UPDATE users SET profile = ? WHERE id = ?').run(JSON.stringify({ ...u.profile, badges: ids }), u.id);
+    return { ok: true, badges: ids };
+  });
+
   route('GET', '/api/me/style', async (req) => {
     const u = requireUser(req);
-    const c = counters(u.id);
+    const mt = metrics(u.id);
+    const c = mt.c;
     const hoursRaw = Object.fromEntries(q('SELECT hour, n FROM style_hours WHERE user_id = ?').all(u.id).map((r) => [r.hour, r.n]));
     const hours = []; for (let h = HOURS_FROM; h <= HOURS_TO; h++) hours.push({ h, n: hoursRaw[h] || 0 });
     const wdRaw = Object.fromEntries(q('SELECT wd, n FROM style_wd WHERE user_id = ?').all(u.id).map((r) => [r.wd, r.n]));
@@ -121,11 +174,12 @@ function register(ctx) {
       main: { id: main.id, title: main.title, icon: main.icon, text: main.text }, traits,
       chrono: { id: chrono[0], title: chrono[1], text: chrono[2] }, busiest: busiest.n ? busiest.d : null,
       hours, week, total, replyMin, ties, fresh: fresh.slice(0, 3),
+      badges: badgeList(mt, Array.isArray(u.profile.badges) ? u.profile.badges : []), showMax: SHOW_MAX,
       stats: { msgs: c.msgs, dms: c.dms, calls: c.calls, replies: c.replies, thanksGiven: c.thanks_given, thanksGot: c.thanks_got, games: c.duels_started + c.battles + c.blitz, checkins: c.checkins, days: c.active_days }
     };
   });
 
-  return { track };
+  return { track, shownBadges };
 }
 
-module.exports = { register, TYPES };
+module.exports = { register, TYPES, BADGES };
