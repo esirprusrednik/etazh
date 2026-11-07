@@ -1178,7 +1178,7 @@ const waveLeft = (a) => Math.max(0, Math.round((a.endsAt - (Date.now() + (S.wave
 function renderWave() {
   const w = S.wave;
   if (!w) return '';
-  if (S.waveScroll) { S.waveScroll = false; setTimeout(() => { const c = document.querySelector('.wave'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 300); }
+  if (S.waveScroll) { S.waveScroll = false; setTimeout(() => { const c = findInGangTabs('.wave'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 300); }
   const a = w.active;
   if (a) {
     const pct = Math.round((a.joined / a.size) * 100), need = Math.ceil(a.size / 2);
@@ -1232,6 +1232,13 @@ setInterval(() => {
 }, 1000);
 
 // Пятничная пятиминутка: три вопроса недели; ответил — видишь ответы банды и ставишь реакции
+// Блок мог уехать в другую вкладку банды («Чат», «Жизнь», «Банда») — ищем по очереди и переключаем
+function findInGangTabs(sel) {
+  let t = document.querySelector(sel);
+  if (t || !S.chatGang && S.tab !== 'chats') return t;
+  for (const k of ['chat', 'life', 'crew']) { if (t) break; S.gangTab = k; render(); t = document.querySelector(sel); }
+  return t;
+}
 // Свёрнутая пятиминутка: после своих ответов — полоска с фразой, кто ответил и сколько новых чужих ответов
 const FR_DONE = ['Неделя отрефлексирована. Психолог доволен', 'Сдано. Можно официально уходить в выходные', 'Отчёт о неделе принят без согласования с руководством',
   'Три строчки честности — и ты свободен|свободна', 'Пятиминутка закрыта за 30 секунд. Рекорд офиса'];
@@ -1472,7 +1479,7 @@ async function refresh({ all = false } = {}) {
   if (!S.me || !S.me.nick) return;
   const t = S.tab;
   const jobs = [loadState(), loadInbox()];
-  if (all || t === 'near') jobs.push(loadPeople(), loadMatch(), loadTodos());
+  if (all || t === 'near') jobs.push(loadPeople(), loadMatch(), loadTodos(), S.fx ? Promise.resolve() : loadFeatures().catch(() => {}));
   if (all || t === 'near' || t === 'office' || t === 'games') jobs.push(loadFeatures());
   if (all || t === 'near' || t === 'games') jobs.push(loadAdvent());
   if (all || t === 'chats') jobs.push(loadChats());
@@ -1674,7 +1681,7 @@ function renderApp() {
       </button>
       <button class="beans3d ${S.beanFx ? 'gain' : ''} ${S.coach === 2 ? 'coach-focus' : ''}" data-act="open" data-v="shop" aria-label="Зёрна: ${me.beans}. Открыть лавку${shopDot() ? '. Есть что купить' : ''}">${BEAN}<span class="bnum">${S.beanFx ? S.beanFx.from : me.beans}</span><span class="bcart"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11h10.2L20 8H6.3"/><circle cx="9.5" cy="19.5" r="1.4"/><circle cx="16.5" cy="19.5" r="1.4"/></svg></span>${shopDot() ? '<span class="bdot" aria-hidden="true"></span>' : ''}${S.beanFx ? `<span class="bplus" aria-hidden="true">+${S.beanFx.to - S.beanFx.from}</span>` : ''}</button>
     </header>
-    ${renderTopStrip()}
+    ${S.tab === 'near' ? renderTopStrip() : ''}
     ${renderCoach()}
     ${S.newBuild ? '<button class="upd-bar" data-act="reload">spark Вышло обновление — нажми, чтобы обновить</button>' : ''}
     <main>
@@ -1786,7 +1793,9 @@ function personRow(p) {
     : away ? '<span class="small">отдыхает</span>'
     : sameOffice ? `<button class="btn small" data-act="pcall" data-id="${p.id}" data-kind="coffee">На кофе</button>`
     : `<button class="btn small ghost" data-act="pcall-open" data-id="${p.id}">Позвать</button>`;
-  const tagline = [p.mood && p.where === 'office' ? p.mood : '', p.gangs.length ? p.gangs.map((g) => g.name).join(', ') : ''].filter(Boolean).join(' · ');
+  const mine = new Set(S.me.gangs.length === 1 ? [S.me.gangs[0].name] : []); // единственную свою банду не повторяем у каждого
+  const gs = p.gangs.map((g) => g.name).filter((n) => !mine.has(n));
+  const tagline = [p.mood && p.where === 'office' ? p.mood : '', gs.join(', ')].filter(Boolean).join(' · ');
   return `<div class="person2">
     ${tap(p.id, `<span class="ava-wrap" style="opacity:${away ? 0.6 : 1}"><span class="ava-ring" style="border-color:${color}">${avatar(p.look, 32)}</span><span class="ava-dot" style="background:${color}"></span></span>`)}
     <div class="grow" style="min-width:0"><div class="tapname" style="font-weight:800;font-size:15px" data-act="person" data-id="${p.id}">${esc(p.nick)}</div>${p.name ? `<div class="realname">${esc(p.name)}</div>` : ''}
@@ -1835,6 +1844,7 @@ function renderNear() {
     ${renderQuickCalls()}
     ${renderBirthdays()}
     ${renderPeople()}
+    ${renderCoffeeStrip()}
     ${renderMatch()}`;
 }
 
@@ -2096,7 +2106,7 @@ function renderChats() {
       <div class="grow" style="min-width:0"><div style="font-weight:900">${esc(i.gang.name)}</div><div class="where">${i.gang.members} ${plural(i.gang.members, 'человек', 'человека', 'человек')} · зовёт ${esc(i.from)}</div></div>
       <button class="btn small" data-act="invite-accept" data-id="${i.id}">Вступить</button><button class="btn small ghost" data-act="invite-decline" data-id="${i.id}" aria-label="Отказаться">Нет</button></div>`).join('')}</section>` : ''}
     ${reqs}
-    <button class="invite-app" data-act="crew-share"><span class="grow"><b>Позвать коллегу в Этаж</b><span class="small">Личная ссылка: придёт — сразу будете на связи. +15 зёрен за каждого новичка</span></span><span aria-hidden="true">mail</span></button>
+    ${store.get('inviteShared') ? `<button class="invite-mini" data-act="crew-share">mail Позвать ещё коллегу в Этаж <span class="small">+15 зёрен за новичка</span></button>` : `<button class="invite-app" data-act="crew-share"><span class="grow"><b>Позвать коллегу в Этаж</b><span class="small">Личная ссылка: придёт — сразу будете на связи. +15 зёрен за каждого новичка</span></span><span aria-hidden="true">mail</span></button>`}
     ${renderMyGang(gangs, seenG)}
     <section class="card chats">${head('Личка <span class="pigeon-sub">голубиная почта</span>', dmUnread ? `${dmUnread} ${plural(dmUnread, 'новое', 'новых', 'новых')}` : '', 'dm-pick', 'Написать', true)}${favStrip}<p class="small chats-hint">Один на один · видите только вы двое · × закрывает переписку у обоих</p>${dmList}</section>`;
 }
@@ -2187,7 +2197,6 @@ function renderGames() {
   const gangChips = S.me.gangs.length > 1 ? `<div class="chips dark">${S.me.gangs.map((g) => `<button class="chip ${g.id === S.activeGang ? 'on' : ''}" data-act="gang-select" data-v="${g.id}">${esc(g.name)}</button>`).join('')}</div>` : '';
   const group = (title) => `<div class="g-group">${title}</div>`;
   return `${pageHead('Игры', 'Задания, квизы и бои со своими. За всё дают зёрна, их тратят в Лавке')}
-    ${renderGamesQuick()}
     ${renderAdvent()}
     ${renderQuests()}
     ${renderBlitzCard()}
@@ -2199,10 +2208,18 @@ function renderGames() {
     ${renderGuess()}
     ${group('Банды')}
     ${renderLeagueCard()}
-    ${renderTourCard()}
-    ${renderCompletion()}`;
+    ${renderTourCard()}`;
 }
-// Быстрые иконки наверху «Игр»: случайный кофе, ачивки и Лавка — всегда на виду
+// Случайный кофе — это знакомства, а не игра: живёт во вкладке «Рядом», рядом с «Совпадаем»
+function renderCoffeeStrip() {
+  const f = S.fx, c = f && f.coffee;
+  if (!c) return '';
+  const p = c.pair;
+  const hot = !!(p && (p.canReply || !p.ping));
+  const sub = !c.optIn ? 'Раз в неделю — пара на кофе с коллегой из другой банды' : !p ? 'Пару подберём в понедельник' : `Пара этой недели — ${esc(p.partner.nick)}`;
+  return `<button class="coffee-strip ${hot ? 'hot' : ''}" data-act="open" data-v="coffee"><span class="gq-ico">${p ? avatar(p.partner.look, 40) : ico('coffee', 22)}${hot ? '<i class="gq-dot" aria-label="ждёт ответа"></i>' : ''}</span><span class="grow"><b>Случайный кофе</b><span class="small">${sub}</span></span><span class="chev" aria-hidden="true">›</span></button>`;
+}
+// Старые быстрые иконки «Игр» — больше не показываются (ачивки — в профиле, Лавка — в шапке)
 function renderGamesQuick() {
   const f = S.fx;
   const c = f && f.coffee;
@@ -2369,7 +2386,7 @@ function whereText0(r) {
   if (r.where === 'weekend') return [r.holiday ? `выходной · ${r.holiday.replace(/ \(.*\)$/, '')}` : 'выходной', '#9AA3B5'];
   if (r.where === 'none') return ['ещё в пути', '#9AA3B5'];
   if (r.where === 'night') return ['офисы спят', '#9AA3B5'];
-  return [gw(r.look, 'скрывает, где он', 'скрывает, где она'), '#9AA3B5'];
+  return ['место не показывает', '#9AA3B5'];
 }
 
 // Плашка «мой статус сегодня» над выбором офиса
@@ -2692,9 +2709,10 @@ function renderWars() {
     ${v.items.length ? v.items.map(renderWar).join('') : '<p class="small" style="margin:4px 0 0">Вызови другую банду: блиц на 3 минуты по теме или быстрый морской бой. От каждой банды — один герой, на всё — рабочая неделя.</p>'}
     <button class="btn small ${v.volunteer ? 'green' : 'ghost'} vol-btn" data-act="war-volunteer" data-v="${v.volunteer ? '0' : '1'}">${v.volunteer ? 'hand Ты в списке добровольцев — нажми, чтобы выйти' : 'hand Готов быть героем'}</button>
     ${v.isOwner ? (v.members < v.minMembers ? `<p class="small" style="margin:0">Битвы — для банд от ${v.minMembers} человек. Позови своих.</p>` : '<button class="btn war-call" data-act="war-new">swords Бросить вызов</button>') : `<p class="small" style="margin:0">Вызов бросает и принимает владелец банды.${v.volunteers ? ` Добровольцев: ${v.volunteers}.` : ''}</p>`}
+    <details class="hint-group"><summary>help Как это работает: битвы, герои, ставки</summary>
     ${hint('war-rules', 'Как устроены битвы банд', WAR_RULES(v.rules))}
     ${hint('war-hero', 'Кто становится героем', HERO_RULES)}
-    ${hint('war-bets', 'Как работают ставки', BET_RULES(v.rules.betMax))}
+    ${hint('war-bets', 'Как работают ставки', BET_RULES(v.rules.betMax))}</details>
   </section>`;
 }
 function renderWarNew() {
@@ -2862,7 +2880,7 @@ function renderGEventNew() {
 function renderPolls() {
   const items = S.polls || [];
   return `<section class="card polls">
-    <div class="chats-head"><h3>Опросы${items.filter((p) => !p.closed).length ? ` <span class="chats-n">${items.filter((p) => !p.closed).length}</span>` : ''}</h3><button class="linkbtn" data-act="poll-new">＋ Опрос</button></div>
+    <div class="chats-head"><h3>vote Опросы${items.filter((p) => !p.closed).length ? ` <span class="chats-n">${items.filter((p) => !p.closed).length}</span>` : ''}</h3><button class="linkbtn" data-act="poll-new">＋ Опрос</button></div>
     ${items.length ? items.map(renderPoll).join('') : '<p class="small" style="margin:4px 0 0">Куда идём обедать, когда собираемся, какую пиццу брать — спроси банду. Можно разрешить всем дописывать свои варианты.</p>'}
   </section>`;
 }
@@ -3115,48 +3133,65 @@ function renderGang() {
       ${g.isOwner && S.gmMenu === m.id ? `<div class="row gm-menu"><button class="btn small ghost" data-act="gm-owner" data-id="${m.id}">Сделать владельцем</button><button class="btn small danger" data-act="gm-kick" data-id="${m.id}">Убрать из банды</button></div>` : ''}`;
   }).join('');
   const msgs = v.messages.map(renderMsg).join('') || '<p class="sub">Сообщения и зовы живут 24 часа. Начни первым|первой.</p>';
-  return `${multi}${chips}
-  <section class="card" style="${g.gold ? 'border:3px solid #FFC93C' : ''}">
+  // Что ждёт меня в банде — для ленты «Сейчас важно» во вкладке «Чат» и счётчика на «Жизни»
+  const f = S.friday, w = S.wave, cv = S.cv && S.cv.active;
+  const life = [];
+  if (f && f.canAnswer && !f.done) life.push(['chat', 'Пятиминутка ждёт тебя', 'Три строчки о неделе · +3 зерна', '.friday']);
+  for (const e of (S.gev && S.gev.upcoming) || []) if (!e.my && e.inDays <= 7) life.push(['cal', esc(e.title), `${e.inDays === 0 ? 'сегодня' : e.inDays === 1 ? 'завтра' : `через ${e.inDays} ${plural(e.inDays, 'день', 'дня', 'дней')}`} · ответь, придёшь ли`, '.gevents']);
+  for (const p of S.polls || []) if (!p.closed && !p.voted && !p.mine) life.push(['vote', esc(p.question), 'Опрос ждёт твой голос', '.polls']);
+  if (cv && !cv.my && !cv.mine) life.push(['shield', 'Голосуем за новый герб', 'Твой голос решает', '.cv']);
+  const reqN = (v.requests || []).length;
+  const tab = S.gangTab || 'chat';
+  const tabs = `<div class="g-tabs" role="tablist">${[['chat', 'Чат', 0], ['life', 'Жизнь', life.length], ['crew', 'Банда', reqN]].map(([k, l, n]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" data-act="gang-tab" data-v="${k}">${l}${n ? `<i>${n}</i>` : ''}</button>`).join('')}</div>`;
+  const head = `<section class="card g-head" style="${g.gold ? 'border:3px solid #FFC93C' : ''}">
     ${gst(g).cardbg ? `<div class="g-banner ${gst(g).cardbg}" aria-hidden="true"></div>` : ''}
-    <div class="row"><button class="crest-btn ${auraCls(g)}" data-act="crest-open" data-ctx="vote" aria-label="Предложить новый герб банды">${crestSvg(crestOf(g), { size: 58, full: true })}<i aria-hidden="true">✎</i></button><div class="grow" style="min-width:0"><h2 style="margin:0">${gangName(g)}</h2><span class="small">${g.area ? esc(g.area) + ' · ' : ''}${v.gang.count}${g.max ? '/' + g.max : ''} ${plural(v.gang.count, 'участник', 'участника', 'участников')} · ${(ACCESS_NAMES[g.access] || ACCESS_NAMES.invite)[0].toLowerCase()}</span></div>
+    <div class="row"><button class="crest-btn ${auraCls(g)}" data-act="crest-open" data-ctx="vote" aria-label="Предложить новый герб банды">${crestSvg(crestOf(g), { size: 52, full: true })}<i aria-hidden="true">✎</i></button><div class="grow" style="min-width:0"><h2 style="margin:0">${gangName(g)}</h2><span class="small">${g.area ? esc(g.area) + ' · ' : ''}${v.gang.count}${g.max ? '/' + g.max : ''} ${plural(v.gang.count, 'участник', 'участника', 'участников')}${g.league && g.league.place ? ` · ${MEDAL[g.league.place - 1] || ''} ${g.league.place} место в Лиге` : ''}</span></div>
       ${g.isOwner ? '<button class="icon-btn" data-act="gang-settings" aria-label="Настройки банды">gear</button>' : `<button class="icon-btn" data-act="gang-profile" data-id="${g.id}" aria-label="Профиль банды">help</button>`}</div>
-    ${g.legend ? `<div class="g-legend">crown ${esc(g.legend)}</div>` : ''}
-    <button class="tr-strip" data-act="treasury-open">bank Казна: <b>${g.glory || 0}</b> славы <span class="small">— оформление банды за общие победы</span></button>
-    ${g.league ? `<button class="lg-strip" data-act="league-open">trophy Лига недели: <b>${g.league.place ? `${MEDAL[g.league.place - 1] || ''} ${g.league.place} место из ${g.league.of}` : g.league.eligible ? 'пока без очков' : 'нужно 3 человека'}</b> · счёт ${g.league.score}${trophyLine(g.trophies) ? ` · ${trophyLine(g.trophies)}` : ''}</button>` : ''}
-    ${g.league ? leagueRules() : ''}
-    ${g.motto ? `<p class="sub" style="font-style:italic">«${esc(g.motto)}»</p>` : ''}
-    ${g.about ? `<p class="sub" style="margin:0">${esc(g.about)}</p>` : ''}
-    ${g.interests && g.interests.length ? `<div class="g-tags">${g.interests.map((t) => `<i>${esc(t)}</i>`).join('')}</div>` : ''}
-    ${(v.requests || []).length ? `<div class="g-req"><b>Хотят в банду · ${v.requests.length}</b>${v.requests.map((r) => `<div class="person2">${tap(r.id, avatar(r.look, 30))}<span class="grow ellipsis" style="font-weight:800">${esc(r.nick)}</span><button class="btn small" data-act="greq" data-id="${r.id}" data-v="accept">Принять</button><button class="btn small ghost" data-act="greq" data-id="${r.id}" data-v="decline" aria-label="Отклонить">✕</button></div>`).join('')}</div>` : ''}
-    ${g.depositPending ? '<div class="note warn">Залог 50 зёрен вернётся, когда в банде будет 3 человека.</div>' : ''}
-    <div class="calls">${Object.entries(S.cat.calls).map(([k, c]) => `<button class="call" style="--c:${CALL_STYLE[k]}" data-act="call-open" data-kind="${k}" data-gang="${g.id}">${ico(k, 20)}<span>${esc(c.label)}</span></button>`).join('')}</div>
-  </section>
-  ${renderWave()}
-  ${renderSanta()}
-  ${renderWars()}
-  ${renderCrestVote()}
-  ${renderGEvents()}
-  ${renderFriday()}
-  ${renderPolls()}
+    ${tabs}
+  </section>`;
+  // ----- Чат: сейчас важно, зовы, переписка
+  const now = [];
+  if (w && w.active && !w.active.mine) now.push(renderWave());
+  if (life.length || reqN) now.push(`<section class="card g-now"><span class="eyebrow">Сейчас важно</span>
+    ${life.slice(0, 3).map(([i, t, d, to]) => `<button class="g-now-row" data-act="gang-go" data-v="life" data-to="${to}">${ico(i, 18)}<span class="grow"><b>${t}</b><span class="small">${d}</span></span><span class="chev" aria-hidden="true">›</span></button>`).join('')}
+    ${life.length > 3 ? `<button class="linkbtn" data-act="gang-tab" data-v="life">Ещё ${life.length - 3} — во вкладке «Жизнь»</button>` : ''}
+    ${reqN && g.isOwner ? `<button class="g-now-row" data-act="gang-go" data-v="crew" data-to=".g-req">${ico('hand', 18)}<span class="grow"><b>Хотят в банду: ${reqN}</b><span class="small">Прими или откажи</span></span><span class="chev" aria-hidden="true">›</span></button>` : ''}
+  </section>`);
+  const chatTab = `${now.join('')}
   <section class="card ${gst(g).chat ? 'chat-theme ' + gst(g).chat : ''}">
-    <h3>Чат</h3>
+    <div class="calls">${Object.entries(S.cat.calls).map(([k, c]) => `<button class="call" style="--c:${CALL_STYLE[k]}" data-act="call-open" data-kind="${k}" data-gang="${g.id}">${ico(k, 20)}<span>${esc(c.label)}</span></button>`).join('')}</div>
     <div class="chat" id="chat">${msgs}</div>
     ${(S.cat.memes || []).some((x) => x.season && x.on !== false) ? `<div class="chips"><button class="chip hol-chip" data-act="meme-open" data-gang="${g.id}">gift Праздничная открытка банде</button></div>` : ''}
     <div class="row"><label class="field grow" style="gap:0"><span class="hidden">Сообщение</span><input id="chat-text" maxlength="300" placeholder="Написать банде" aria-label="Сообщение банде"></label>
       ${micBtn('gang')}<button class="btn" data-act="chat-send" aria-label="Отправить">→</button></div>${recBar('gang')}
+  </section>`;
+  // ----- Жизнь: всё, что банда делает вместе
+  const lifeTab = `${w && w.active && w.active.mine ? renderWave() : ''}${renderGEvents()}${renderFriday()}${renderPolls()}${renderThanks(v)}${renderGangBirthdays()}${renderCrestVote()}${w && !w.active ? renderWave() : ''}${renderSanta()}`;
+  // ----- Банда: кто мы, люди, неделя, казна, лига, битвы
+  const crewTab = `<section class="card g-about">
+    ${g.legend ? `<div class="g-legend">crown ${esc(g.legend)}</div>` : ''}
+    ${g.motto ? `<p class="sub" style="font-style:italic;margin:0">«${esc(g.motto)}»</p>` : ''}
+    ${g.about ? `<p class="sub" style="margin:0">${esc(g.about)}</p>` : ''}
+    ${g.interests && g.interests.length ? `<div class="g-tags">${g.interests.map((t) => `<i>${esc(t)}</i>`).join('')}</div>` : ''}
+    <button class="tr-strip" data-act="treasury-open">bank Казна: <b>${g.glory || 0}</b> славы <span class="small">— оформление банды за общие победы</span></button>
+    ${g.league ? `<button class="lg-strip" data-act="league-open">trophy Лига недели: <b>${g.league.place ? `${MEDAL[g.league.place - 1] || ''} ${g.league.place} место из ${g.league.of}` : g.league.eligible ? 'пока без очков' : 'нужно 3 человека'}</b> · счёт ${g.league.score}${trophyLine(g.trophies) ? ` · ${trophyLine(g.trophies)}` : ''}</button>` : ''}
+    ${g.league ? leagueRules() : ''}
+    ${g.depositPending ? '<div class="note warn">Залог 50 зёрен вернётся, когда в банде будет 3 человека.</div>' : ''}
   </section>
-  ${renderWeek()}
-  ${renderThanks(v)}
-  ${renderGangBirthdays()}
-  <section class="card"><h3>Участники</h3><p class="small" style="margin:0">Нажми на человека, чтобы написать ему лично.</p>${members}
+  <section class="card"><h3>hand Участники</h3>
+    ${reqN ? `<div class="g-req"><b>Хотят в банду · ${reqN}</b>${v.requests.map((r) => `<div class="person2">${tap(r.id, avatar(r.look, 30))}<span class="grow ellipsis" style="font-weight:800">${esc(r.nick)}</span><button class="btn small" data-act="greq" data-id="${r.id}" data-v="accept">Принять</button><button class="btn small ghost" data-act="greq" data-id="${r.id}" data-v="decline" aria-label="Отклонить">✕</button></div>`).join('')}</div>` : ''}
+    ${members}
     ${g.link ? `<button class="btn blue" data-act="invite-share">Позвать в банду по ссылке</button>
     <p class="small">Ссылка: ${esc(g.link)}. Отправь её в рабочий мессенджер — вступить смогут только свои — с рабочей почтой.</p>` : '<p class="small">В этой банде новых зовёт только владелец.</p>'}
-    <div class="row" style="justify-content:space-between">
-      <button class="linkbtn" data-act="report" data-type="gang" data-id="${g.id}">Пожаловаться на банду</button>
-      <button class="linkbtn" data-act="gang-leave">Выйти из банды</button>
-    </div>
   </section>
+  ${renderWeek()}
+  ${renderWars()}
+  <div class="row g-foot" style="justify-content:space-between">
+    <button class="linkbtn" data-act="report" data-type="gang" data-id="${g.id}">Пожаловаться на банду</button>
+    <button class="linkbtn" data-act="gang-leave">Выйти из банды</button>
+  </div>
   ${create}`;
+  return `${multi}${chips}${head}${tab === 'life' ? lifeTab : tab === 'crew' ? crewTab : chatTab}`;
 }
 
 function renderMsg(m) {
@@ -3517,7 +3552,7 @@ function renderFeed() {
   if (!ev) return '<div class="card"><p class="sub">Загружаем…</p></div>';
   const sig = ev.office
     ? `<section class="card">
-        <div class="row"><h3 class="grow">Сигналы офиса</h3><button class="btn small" data-act="open" data-v="signal">Сообщить</button></div>
+        <div class="row"><h3 class="grow">alert Сигналы офиса</h3><button class="btn small" data-act="open" data-v="signal">Сообщить</button></div>
         ${ev.signals.length ? ev.signals.map((s) => `<div class="item"><div class="grow">
           <div style="font-weight:900">${esc(s.label)}${s.confirmed ? ' ✓' : ''}</div>
           <div class="where">${s.time}${s.zone ? ' · ' + esc(s.zone) : ''}${s.comment ? ' · ' + esc(s.comment) : ''}</div>
@@ -3528,15 +3563,29 @@ function renderFeed() {
         </div>`).join('') : '<p class="sub">Пока тихо. Заметил, что холодно, на кухне яблоки или кофе закончился — сообщи всем на этаже.</p>'}
         <p class="small">Пожарная тревога и эвакуация — только по официальным каналам АХО и охраны, не здесь.</p>
       </section>`
-    : '<section class="card"><h3>Сигналы офиса</h3><p class="sub">Отметься в офисе, чтобы видеть и отправлять сигналы: холодно, еда на кухне, кофе закончился.</p></section>';
+    : '<section class="card"><h3>alert Сигналы офиса</h3><p class="sub">Отметься в офисе, чтобы видеть и отправлять сигналы: холодно, еда на кухне, кофе закончился.</p></section>';
   const off = new Set(store.get('feedOff', []));
   const onlyClose = !!store.get('feedClose', false);
   const kinds = [['office', 'В офисе'], ['join', 'Новички'], ['ach', 'Ачивки'], ['shop', 'Покупки']];
   const shown = ev.events.filter((e) => !off.has(e.kind) && (!onlyClose || e.close));
   const filters = `<div class="chips feed-f"><button class="chip ${onlyClose ? 'on' : ''}" data-act="feed-close">room Только свои</button>${kinds.map(([k, l]) => `<button class="chip ${off.has(k) ? '' : 'on'}" data-act="feed-kind" data-v="${k}">${l}</button>`).join('')}</div>`;
-  const lim = S.feedAll ? shown.length : 15;
-  const list = shown.length ? shown.slice(0, lim).map((e) => `<div class="item"><div class="grow"><div style="font-weight:700">${esc(e.text)}</div><div class="where">${e.time}${e.office ? ' · ' + esc(e.office) : ''}</div></div></div>`).join('') : '<p class="sub">Событий пока нет.</p>';
-  return `${sig}<section class="card"><h3>Лента</h3>${filters}${list}${shown.length < ev.events.length ? `<p class="small" style="margin:0">Скрыто фильтром: ${ev.events.length - shown.length}</p>` : ''}${shown.length > lim ? `<button class="linkbtn" data-act="feed-more">Показать ещё ${shown.length - lim}</button>` : ''}</section>`;
+  // Однотипные события склеиваем: «4 человека получили ачивку „В банде“», «3 новичка присоединились к Этажу»
+  const groups = [];
+  for (const e of shown) {
+    const m = /^(.+?) (получил|получила|присоединился|присоединилась) (.+)$/.exec(e.text);
+    const key = m ? `${e.kind}|${m[3]}` : `one|${e.id}`;
+    const gq = m && groups.find((x) => x.key === key);
+    if (gq) gq.who.push(m[1]); else groups.push({ key, e, who: m ? [m[1]] : [], verb: m ? m[2] : '', rest: m ? m[3] : '' });
+  }
+  const gtext = (x) => {
+    if (x.who.length < 2) return x.e.text;
+    const pl = x.verb.startsWith('получ') ? 'получили' : 'присоединились';
+    const names = x.who.length <= 3 ? `${x.who.slice(0, -1).join(', ')} и ${x.who[x.who.length - 1]}` : `${x.who.slice(0, 2).join(', ')} и ещё ${x.who.length - 2}`;
+    return `${names} ${pl} ${x.rest}`;
+  };
+  const lim = S.feedAll ? groups.length : 4;
+  const list = groups.length ? groups.slice(0, lim).map((x) => `<div class="item"><div class="grow"><div style="font-weight:700">${esc(gtext(x))}</div><div class="where">${x.e.time}${x.e.office ? ' · ' + esc(x.e.office) : ''}</div></div></div>`).join('') : '<p class="sub">Событий пока нет.</p>';
+  return `${sig}<section class="card"><h3>spark Лента</h3>${filters}${list}${shown.length < ev.events.length ? `<p class="small" style="margin:0">Скрыто фильтром: ${ev.events.length - shown.length}</p>` : ''}${groups.length > lim ? `<button class="linkbtn" data-act="feed-more">Показать ещё ${groups.length - lim}</button>` : ''}</section>`;
 }
 
 // ----- Новые блоки: задания, обед, кофе, дни рождения, неделя, спасибо -----
@@ -3648,7 +3697,7 @@ function renderWeek() {
   if (w.locked) {
     const fake = ['office', 'home', 'office', 'office', 'home'];
     return `<section class="card">
-    <div class="row" style="justify-content:space-between"><span class="card-title">Неделя банды</span><span class="small">${ico('lock', 14)} скрыто</span></div>
+    <div class="row" style="justify-content:space-between"><span class="card-title">cal Неделя банды</span><span class="small">${ico('lock', 14)} скрыто</span></div>
     <div class="week week-blur" aria-hidden="true" style="grid-template-columns: minmax(0, 1.6fr) repeat(${w.days.length}, minmax(0, 1fr))">
       <span></span>${w.days.map((d) => `<span class="wk-h">${esc(d.label.split(' ')[0])}</span>`).join('')}
       ${[0, 1, 2, 3].map((r) => `<span class="wk-n">●●●●●●</span>${w.days.map((d, i) => `<span class="wk-c ${fake[(i + r) % 5]}"></span>`).join('')}`).join('')}
@@ -3657,7 +3706,7 @@ function renderWeek() {
   </section>`;
   }
   return `<section class="card">
-    <div class="row" style="justify-content:space-between"><span class="card-title">Неделя банды</span><button class="linkbtn" data-act="open" data-v="profile">мой план</button></div>
+    <div class="row" style="justify-content:space-between"><span class="card-title">cal Неделя банды</span><button class="linkbtn" data-act="open" data-v="profile">мой план</button></div>
     <div class="week" style="grid-template-columns: minmax(0, 1.6fr) repeat(${w.days.length}, minmax(0, 1fr))">
       <span></span>${w.days.map((d) => `<span class="wk-h ${d.holiday ? 'off' : ''}" ${d.holiday ? `title="${esc(d.holiday)}"` : d.short ? 'title="Сокращённый день, на час короче"' : ''}>${esc(d.label.split(' ')[0])}<br><b>${esc(d.label.split(' ')[1].slice(0, 5))}</b>${d.short ? '<i class="wk-short">−1ч</i>' : ''}</span>`).join('')}
       ${w.rows.map((r) => `<span class="wk-n ellipsis">${esc(r.nick)}${r.me ? ' (ты)' : ''}</span>${r.cells.map((c, i) => `<span class="wk-c ${c}" title="${c === 'off' ? esc(w.days[i].holiday) : CELL[c][1]}" aria-label="${c === 'off' ? 'Выходной: ' + esc(w.days[i].holiday) : CELL[c][1]}">${CELL[c][0]}</span>`).join('')}`).join('')}
@@ -3675,7 +3724,7 @@ function renderThanks(v) {
   if (!x) return '';
   const others = v.members.filter((m) => !m.me);
   return `<section class="card">
-    <div class="row" style="justify-content:space-between"><span class="card-title">Спасибо</span><span class="small">осталось ${x.thanksLeft} из 3 сегодня</span></div>
+    <div class="row" style="justify-content:space-between"><span class="card-title">hand Спасибо</span><span class="small">осталось ${x.thanksLeft} из 3 сегодня</span></div>
     ${others.length && x.thanksLeft > 0 ? `<div class="chips">${others.map((m) => `<button class="chip ${S.thanksTo === m.id ? 'on' : ''}" data-act="thanks-to" data-v="${m.id}">${esc(m.nick)}</button>`).join('')}</div>
     ${S.thanksTo ? `<div class="row"><label class="field grow" style="gap:0"><span class="hidden">За что спасибо</span><input id="thanks-text" maxlength="80" placeholder="За что? Можно пусто" aria-label="За что спасибо"></label><button class="btn" data-act="thanks-send">Спасибо</button></div>` : '<p class="small" style="margin:0">Выбери, кому сказать спасибо. Получатель получит зерно.</p>'}` : ''}
     ${x.thanks.length ? `<div class="thanks-list">${x.thanks.map((t) => `<div class="thx ${t.toMe ? 'me' : ''}"><b>${esc(t.from)}</b> → <b>${esc(t.to)}</b>${t.text ? ': ' + esc(t.text) : ''}<span class="small"> · ${esc(t.when)}</span></div>`).join('')}</div>` : '<p class="small" style="margin:0">За неделю спасибо ещё не было. Начни первым.</p>'}
@@ -4637,15 +4686,19 @@ function renderProfile() {
       ${me.status ? `<div class="status" style="color:var(--tint-y-fg)">${esc(me.status)}</div>` : ''}
       <div class="small">${me.beans} ${plural(me.beans, 'зерно', 'зерна', 'зёрен')}</div></div></div>
     ${renderCompletion(true)}
+    <div class="p-group">Обо мне</div>
     ${section('look', 'Внешность', `${OUTFIT_NAMES[look.outfit] || 'Худи'} · ${(HAIR_NAMES[look.hairStyle] || '').toLowerCase()}${look.prop && look.prop !== 'none' ? ' · ' + (PROP_NAMES[look.prop] || '').toLowerCase() : ''}`, lookBody)}
     ${section('name', 'Ник, имя и фамилия', name ? `${esc(name)}` : 'Имя не указано', nameBody)}
     ${section('ach', 'Ачивки', got == null ? '' : `${got} из ${S.fx.achievements.length}`, renderAchievements())}
     ${section('work', 'Работа', `${office || 'офис не указан'} · ${plan}`, workBody)}
     ${section('vac', 'Отпуска', p.vacations.length ? p.vacations.map((v) => `${ddmm(v.from)}–${ddmm(v.to)}`).join(', ') : 'не запланированы', vacBody)}
     ${section('about', 'О себе', [p.about && esc(p.about), p.bday && 'ДР ' + esc(p.bday)].filter(Boolean).join(' · ') || 'интересы, пара слов, день рождения', aboutBody)}
-    ${section('priv', 'Приватность, звук и уведомления', `${me.shareOffice ? 'банда видит, где я' : 'где я — скрыто'}${me.quiet ? ' · тихие часы' : ''} · ${soundVol() ? 'звук ' + soundVol() + '%' : 'без звука'}`, privBody)}
+    <div class="p-group">Для себя</div>
     <button class="fb-entry battery-entry" data-act="open" data-v="battery"><span class="st-ico bt-ico">bolt</span><span class="grow"><b>Батарейка недели</b><span class="small">Пять вопросов по пятницам: сколько сил осталось. Видишь только ты</span></span><span class="chev" aria-hidden="true">›</span></button>
-    <button class="fb-entry style-entry" data-act="open" data-v="style"><span class="st-ico">spark</span><span class="grow"><b>Мой стиль</b><span class="small">Какой ты в Этаже: ритм, привычки, с кем на связи. Видишь только ты</span></span><span class="chev" aria-hidden="true">›</span></button>
+    <button class="fb-entry style-entry" data-act="open" data-v="style"><span class="st-ico">spark</span><span class="grow"><b>Мой стиль</b><span class="small">Какой ты в Этаже: ритм, привычки, бейджи, с кем на связи. Видишь только ты</span></span><span class="chev" aria-hidden="true">›</span></button>
+    <div class="p-group">Настройки</div>
+    ${section('priv', 'Приватность, звук и уведомления', `${me.shareOffice ? 'банда видит, где я' : 'где я — скрыто'}${me.quiet ? ' · тихие часы' : ''} · ${soundVol() ? 'звук ' + soundVol() + '%' : 'без звука'}`, privBody)}
+    <div class="p-group">Про Этаж</div>
     <button class="fb-entry about-entry" data-act="open" data-v="about"><span class="grow"><b>Об Этаже</b><span class="small">Зачем он и что тут есть — коротко и без канцелярита</span></span><span class="chev" aria-hidden="true">›</span></button>
     <button class="fb-entry" data-act="open" data-v="guide"><span class="grow"><b>Как тут всё устроено</b><span class="small">Каждая вкладка и меню: что нажимать и зачем</span></span><span class="chev" aria-hidden="true">›</span></button>
     <button class="fb-entry" data-act="open" data-v="changes"><span class="grow"><b>Что нового</b><span class="small">${S.changes && S.changes[0] ? 'Последнее обновление — ' + esc(ddmm(S.changes[0].day)) : 'Что добавили и починили — по дням'}</span></span>${changesFresh() ? '<span class="fb-count">новое</span>' : '<span class="chev" aria-hidden="true">›</span>'}</button>
@@ -5149,7 +5202,7 @@ const actions = {
   'dm-back': () => run(async () => { S.dm = null; S.dmView = null; await Promise.all([loadChats(), loadCrew(), loadState()]); }),
   'chats-back': () => run(async () => { S.chatGang = false; await Promise.all([loadChats(), loadState()]); }),
   'gang-open': (el) => run(async () => {
-    S.tab = 'chats'; S.dm = null; S.chatGang = true; S.activeGang = Number(el.dataset.id); store.set('activeGang', S.activeGang);
+    S.tab = 'chats'; S.dm = null; S.chatGang = true; S.gangTab = 'chat'; S.activeGang = Number(el.dataset.id); store.set('activeGang', S.activeGang);
     const sg = store.get('seenGang', {}); sg[S.activeGang] = Date.now(); store.set('seenGang', sg);
     render(); await Promise.all([loadGang(), loadGangExtra()]); markSeen('chat'); window.scrollTo(0, 0);
   }),
@@ -5221,6 +5274,7 @@ const actions = {
   }),
   'crew-unblock': (el) => run(async () => { await post(`/api/crew/${el.dataset.id}/unblock`); await loadCrew(); }),
   'crew-share': async () => {
+    store.set('inviteShared', true);
     if (!S.crew) await loadCrew().catch(() => {});
     const link = S.crew && S.crew.link;
     if (!link) return toast('Не получилось получить ссылку. Попробуй ещё раз');
@@ -5342,7 +5396,7 @@ const actions = {
     const fake = { dataset: { v: g.v, id: g.id, opp: g.opp, nick: g.nick }, classList: { contains: () => false } };
     if (g.act === 'tab') { S.tab = g.v; S.chatGang = false; S.dm = null; S.battle = null; render(); await run(() => refresh()); }
     else if (actions[g.act]) await actions[g.act](fake);
-    if (g.to) requestAnimationFrame(() => setTimeout(() => { const t = document.querySelector(g.to); if (t) t.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 150));
+    if (g.to) requestAnimationFrame(() => setTimeout(() => { const t = findInGangTabs(g.to); if (t) t.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 150));
   },
   'match-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { matchShow: el.checked } }); await Promise.all([loadMe(), loadMatch()]); toast(el.checked ? 'Твои дни видны в «Совпадаем»' : 'Твои дни скрыты — и чужие тоже'); }),
   'weather-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { weather: el.checked } }); await loadMe(); toast(el.checked ? 'Напомню про погоду накануне офиса' : 'Про погоду больше не пишу'); }),
@@ -5693,6 +5747,8 @@ const actions = {
     const nick = S.nickConfirm; S.nickConfirm = null;
     const r = await post('/api/me/nick', { nick }); await loadMe(); toast(`Теперь ты ${r.nick}`);
   }),
+  'gang-tab'(el) { S.gangTab = el.dataset.v; render(); const h = document.querySelector('.g-head'); if (h) h.scrollIntoView({ block: 'start' }); },
+  'gang-go'(el) { S.gangTab = el.dataset.v; render(); setTimeout(() => { const c = findInGangTabs(el.dataset.to); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 60); },
   'friday-open'() { const f = S.friday; if (f) { const m = store.get('frSeen', {}) || {}; m[frSeenKey(f)] = f.othersCount; store.set('frSeen', m); } S.fridayOpen = true; render(); },
   'friday-close'() { S.fridayOpen = false; S.fridayEdit = null; render(); },
   'friday-poke': () => run(async () => {
@@ -5773,7 +5829,7 @@ const actions = {
   }),
   'wave-open': (el) => run(async () => {
     await actions['gang-open'](el);
-    setTimeout(() => { const c = document.querySelector('.wave'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 250);
+    setTimeout(() => { const c = findInGangTabs('.wave'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 250);
   }),
   'thx-open': (el) => run(async () => {
     S.thx = { id: Number(el.dataset.id), nick: el.dataset.nick }; S.thxLeft = null; S.sheet = 'thanks-person'; render();
