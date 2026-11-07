@@ -30,7 +30,7 @@ const KEEP_WEEKS = 4;
 const levelOf = (pct) => LEVELS.find((l) => pct >= l.min);
 
 function register(ctx) {
-  const { db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, readProfile, myGangs, gangMembers, areCrew, publicLook } = ctx;
+  const { db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, readProfile, myGangs, gangMembers, areCrew, publicLook, onEvent } = ctx;
 
   db.exec(`
   CREATE TABLE IF NOT EXISTS battery (
@@ -79,6 +79,7 @@ function register(ctx) {
     // Пересдать на той же неделе можно; просьба о подзарядке сохраняется, только если заряд всё ещё низкий
     q(`INSERT INTO battery (user_id, week, level, at, ask) VALUES (?, ?, ?, ?, ?)
        ON CONFLICT(user_id, week) DO UPDATE SET level = excluded.level, at = excluded.at, ask = excluded.ask`).run(u.id, week(), level, U.now(), was && was.ask && level < ASK_BELOW ? 1 : 0);
+    if (onEvent) onEvent('battery', u.id, {});
     return view(u.id);
   });
 

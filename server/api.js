@@ -1569,7 +1569,7 @@ function createApi(db) {
   // ---------- Секретный чат один на один (сквозное шифрование) ----------
   secret = require('./secret').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, canDm: (u, t) => (crew ? crew.canDm(u, t) : true) });
   // ---------- Пятничная пятиминутка банды ----------
-  friday = require('./friday').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, readProfile });
+  friday = require('./friday').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, readProfile, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   // ---------- «Мой стиль»: личная карточка поведения по действиям (без текстов), видит только сам человек ----------
   {
     style = require('./style').register({ db, q, route, requireUser, U, publicLook, myGangs, gangMembers, bad });
@@ -1577,7 +1577,7 @@ function createApi(db) {
     features.onEvent = (t, uid, d) => { style.track(t, uid, d); return orig(t, uid, d); };
   }
   // ---------- «Батарейка недели»: самотест на усталость, результат — только себе; подзарядка от своих по просьбе ----------
-  battery = require('./battery').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, readProfile, myGangs, gangMembers, areCrew: (a, b) => !!q("SELECT 1 FROM crew WHERE lo = ? AND hi = ? AND status = 'ok'").get(Math.min(a, b), Math.max(a, b)), publicLook });
+  battery = require('./battery').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, readProfile, myGangs, gangMembers, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d), areCrew: (a, b) => !!q("SELECT 1 FROM crew WHERE lo = ? AND hi = ? AND status = 'ok'").get(Math.min(a, b), Math.max(a, b)), publicLook });
   // ---------- «Дела дня»: напоминалка про жизнь в офисе, до трёх дел, похвала и подкол ----------
   todos = require('./todos').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, readProfile, features, addBeans, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d), myGangs, gangMembers, publicLook });
   // ---------- «Волна» по банде: клич раз в неделю ----------
@@ -1585,6 +1585,14 @@ function createApi(db) {
   // ---------- Погода на завтра: вечером накануне офисного дня ----------
   weather = require('./weather').register({ db, q, U, notify, fireAndForget, readProfile, weekdayName, features });
   // ---------- «Этаж» пишет сам: живая сводка и один утренний пуш ----------
+  // Задания дня знают, что сейчас доступно: дела, пятиминутка, волна, блиц, батарейка
+  if (features && features.setQuestProviders) features.setQuestProviders({
+    todos: (uid) => (todos ? todos.pending(uid) : 0),
+    friday: (uid) => !!(friday && friday.pending(uid, myGangs(uid)).length),
+    wave: (uid) => !!(wave && wave.pending(uid, myGangs(uid)).length),
+    battery: (uid) => !!(battery && battery.pending(uid)),
+    blitz: (uid) => { const set = blitz && blitz.activeSet(); return !!(set && !q('SELECT 1 FROM blitz_runs WHERE user_id = ? AND set_id = ?').get(uid, set.id)); }
+  });
   inbox = require('./inbox').register({ db, q, route, requireUser, U, notify, fireAndForget, myGangs, readProfile, weekdayName, features, blitz, advent, santa, duels, gevents, polls, weather, friday, wave, battery: () => battery, todos: () => todos });
   feedback = require('./feedback').register({ db, q, route, requireUser, requireAdmin, bad, U, addBeans, notify, fireAndForget, HttpError, BUILD });
 

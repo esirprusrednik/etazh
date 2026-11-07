@@ -111,6 +111,7 @@ function register(ctx) {
     const t = today();
     const done = body.done !== false;
     q('UPDATE todos SET done_at = ?, done_day = ? WHERE id = ?').run(done ? U.now() : null, done ? t : null, r.id);
+    if (done && onEvent) onEvent('todo_done', u.id, {});
     let praise = null, beans = 0;
     // Все дела на сегодня закрыты (и хотя бы одно было) — похвала, зёрна раз в день, серия
     const open = q('SELECT COUNT(*) AS n FROM todos WHERE user_id = ? AND due <= ? AND done_at IS NULL').get(u.id, t).n;

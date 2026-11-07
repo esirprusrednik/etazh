@@ -149,25 +149,35 @@ const ACH = [
 const ACH_CATS = [['first', 'Первые шаги'], ['grow', 'Ступени'], ['daily', 'Каждый день'], ['social', 'Душа компании'], ['stealth', 'Скрытность'], ['duels', 'Дуэли']];
 const ACH_REWARD = { common: 5, rare: 15, legendary: 40 };
 
-// Задания дня. Каждый день — «Отметься» (в рабочие дни) плюс три случайных из пула, которые тебе сейчас доступны.
+// Задания дня. Будни: «Отметься» плюс три из пула — только те, что можно выполнить прямо сейчас за полминуты.
+// Выходные: «задания отдыхают» — никого из коллег не дёргаем, только два необязательных одиночных задания «для удовольствия».
 // Набор фиксируется на день при первом показе, чтобы задания не менялись под руками.
-// go — куда ведёт плитка задания в приложении.
+// go — куда ведёт плитка задания в приложении; to — к какому блоку прокрутить.
 const QUESTS = [
   { id: 'where', name: 'Отметься: в офисе или «из дома»', go: 'near' },
   { id: 'join', name: 'Вступи в банду или сколоти свою', go: 'chats' },
-  { id: 'chat', name: 'Напиши в чат банды', go: 'gang', need: 'gang' },
-  { id: 'call', name: 'Позови своих на кофе или обед', go: 'gang', need: 'gang' },
-  // «Ответь на зов» убран из пула: если тебя никто не позвал, задание не выполнить — нечестно
-  { id: 'reply', name: 'Ответь на зов', go: 'chats' },
-  { id: 'thanks', name: 'Скажи кому-нибудь спасибо', go: 'gang', need: 'gang2' },
-  { id: 'dm', name: 'Напиши кому-нибудь в личку', go: 'dm', need: 'gang2' },
-  { id: 'meme', name: 'Отправь мем-открытку', go: 'dm', need: 'gang2' },
-  { id: 'vote', name: 'Проголосуй в опросе или запусти свой', go: 'gang', need: 'gang' },
+  { id: 'call', name: 'Кинь зов банде: кофе, обед или созвон', go: 'gang', need: 'gang2' },
+  { id: 'thanks', name: 'Скажи кому-нибудь спасибо — хоть коллеге не из банды', go: 'gang', need: 'gang2' },
+  { id: 'dmnew', name: 'Напиши в личку тому, с кем ещё не общался', go: 'dmnew', need: 'fresh' },
+  { id: 'todo', name: 'Закрой дело дня', go: 'near', to: '.todos', need: 'todo' },
+  { id: 'friday', name: 'Ответь в пятиминутке банды', go: 'gang', to: '.friday', need: 'friday' },
+  { id: 'wave', name: 'Встань в волну — банда ждёт', go: 'gang', to: '.wave', need: 'wave' },
+  { id: 'vote', name: 'Проголосуй в опросе банды', go: 'gang', to: '.polls', need: 'poll' },
+  { id: 'sea', name: 'Сделай ход в морском бою — твой ход', go: 'games', need: 'seaTurn' },
+  { id: 'chat', name: 'Напиши в чат банды', go: 'gang', need: 'gang2' },
   { id: 'guess', name: 'Сыграй в «Кто из наших?»', go: 'games', need: 'gang4' },
   { id: 'quiz', name: 'Ответь на квиз недели', go: 'games', need: 'quiz' },
-  { id: 'sea', name: 'Сделай ход в морском бою или вызови кого-нибудь', go: 'games', need: 'gang2' }
+  // Выходные: одиночные и необязательные
+  { id: 'blitz', name: 'Пройди блиц недели', go: 'games', to: '.blitz', need: 'blitz', weekend: true },
+  { id: 'battery', name: 'Проверь батарейку недели', go: 'battery', need: 'battery', weekend: true },
+  { id: 'wquiz', name: 'Ответь на квиз недели', go: 'games', to: '.quiz', need: 'quiz', weekend: true },
+  { id: 'wguess', name: 'Сыграй в «Кто из наших?»', go: 'games', to: '.guess', need: 'gang4', weekend: true },
+  { id: 'look', name: 'Обнови образ в конструкторе', go: 'look', weekend: true }
 ];
 const QUEST_POOL_PICK = 3;
+const WEEKEND_PICK = 2;
+// Самые полезные — первыми: если доступны, попадают в набор раньше случайных
+const QUEST_PRIORITY = ['wave', 'friday', 'todo', 'dmnew', 'vote', 'sea'];
 // Бонусные задания: появляются днём, когда становятся возможны, и не влияют на награду «за все»
 const BONUS_QUESTS = [
   { id: 'food', name: 'Оцени обед в столовой', go: 'office' },
@@ -213,6 +223,7 @@ function migrate(db) {
   CREATE TABLE IF NOT EXISTS counters (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, key TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, key));
   -- Только набор офисов, где человек бывал, без дат
   CREATE TABLE IF NOT EXISTS user_offices (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, office_id TEXT NOT NULL, PRIMARY KEY (user_id, office_id));
+  CREATE TABLE IF NOT EXISTS quest_target (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, day TEXT NOT NULL, target_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, swaps INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, day));
   CREATE TABLE IF NOT EXISTS quest_days (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, day TEXT NOT NULL, list TEXT NOT NULL, PRIMARY KEY (user_id, day));
   CREATE TABLE IF NOT EXISTS quests_done (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, day TEXT NOT NULL, quest TEXT NOT NULL, PRIMARY KEY (user_id, day, quest));
 
@@ -366,28 +377,90 @@ function register(ctx) {
     return true;
   }
 
-  // Набор заданий на сегодня: создаётся один раз, дальше берётся из базы
+  // Что сейчас доступно человеку — от этого зависит набор заданий
+  const prov = {};
+  function availability(uid) {
+    const gangs = myGangs(uid);
+    const sizes = gangs.map((g) => q('SELECT COUNT(*) AS n FROM gang_members WHERE gang_id = ?').get(g.id).n);
+    const safe = (f) => { try { return !!f(); } catch { return false; } };
+    return {
+      gang: gangs.length > 0, gang2: sizes.some((n) => n >= 2), gang4: sizes.some((n) => n >= 4),
+      quiz: safe(() => q('SELECT 1 FROM quizzes z WHERE z.closes_at > ? AND NOT EXISTS (SELECT 1 FROM quiz_answers a WHERE a.quiz_id = z.id AND a.user_id = ?)').get(U.now(), uid)),
+      fresh: safe(() => freshPerson(uid)),
+      todo: safe(() => prov.todos && prov.todos(uid) > 0),
+      friday: safe(() => prov.friday && prov.friday(uid)),
+      wave: safe(() => prov.wave && prov.wave(uid)),
+      poll: safe(() => q(`SELECT 1 FROM polls p JOIN gang_members m ON m.gang_id = p.gang_id AND m.user_id = ? WHERE p.open = 1 AND p.closes_at > ? AND (p.user_id IS NULL OR p.user_id != ?)
+        AND NOT EXISTS (SELECT 1 FROM poll_votes v WHERE v.poll_id = p.id AND v.user_id = ?) LIMIT 1`).get(uid, U.now(), uid, uid)),
+      seaTurn: safe(() => q("SELECT 1 FROM battles WHERE status = 'play' AND turn = ? LIMIT 1").get(uid)),
+      blitz: safe(() => prov.blitz && prov.blitz(uid)),
+      battery: safe(() => prov.battery && prov.battery(uid))
+    };
+  }
+  // Свой человек из банды, с кем ещё не было ни лички, ни спасибо — для задания «Напиши в личку»
+  function freshPerson(uid, skip = 0) {
+    const known = new Set();
+    try { for (const r of q('SELECT other_id FROM style_ties WHERE user_id = ?').all(uid)) known.add(r.other_id); } catch {}
+    for (const r of q('SELECT from_id, to_id FROM thanks WHERE from_id = ? OR to_id = ?').all(uid, uid)) known.add(r.from_id === uid ? r.to_id : r.from_id);
+    const out = [];
+    for (const g of myGangs(uid)) for (const m of q('SELECT u.id, u.nick FROM gang_members gm JOIN users u ON u.id = gm.user_id WHERE gm.gang_id = ? ORDER BY gm.joined_at').all(g.id)) {
+      if (m.id !== uid && !known.has(m.id) && !out.some((x) => x.id === m.id)) out.push(m);
+    }
+    return out.length ? out[skip % out.length] : null;
+  }
+  const isWeekend = (d) => !weekdayName(d);
+  // Набор заданий на сегодня: создаётся один раз, дальше берётся из базы. Для «Напиши в личку» запоминаем человека
   function questsFor(uid) {
     const d = today();
     const row = q('SELECT list FROM quest_days WHERE user_id = ? AND day = ?').get(uid, d);
-    if (row) return JSON.parse(row.list);
-    const gangs = myGangs(uid);
-    const sizes = gangs.map((g) => q('SELECT COUNT(*) AS n FROM gang_members WHERE gang_id = ?').get(g.id).n);
-    const has = {
-      gang: gangs.length > 0, gang2: sizes.some((n) => n >= 2), gang4: sizes.some((n) => n >= 4),
-      quiz: !!q('SELECT 1 FROM quizzes z WHERE z.closes_at > ? AND NOT EXISTS (SELECT 1 FROM quiz_answers a WHERE a.quiz_id = z.id AND a.user_id = ?)').get(U.now(), uid)
-    };
-    const list = [];
-    if (weekdayName(d)) list.push('where');
-    if (!has.gang) list.push('join');
-    // Детерминированное «случайное» перемешивание по человеку и дню
+    const target = QUEST_POOL_PICK + 1;
+    // Набор уже есть. Если в будни он неполный (утром ещё не было банды или дел) — добираем новыми, но ничего не убираем
+    if (row) {
+      const cur = JSON.parse(row.list);
+      if (isWeekend(d) || cur.length >= target) return cur;
+      const hasNow = availability(uid);
+      const add = QUESTS.filter((x) => !x.weekend && x.need && hasNow[x.need] && !cur.includes(x.id)).map((x) => x.id);
+      const prio = QUEST_PRIORITY.filter((id) => add.includes(id));
+      for (const id of [...prio, ...add.filter((id) => !prio.includes(id))]) { if (cur.length >= target) break; cur.push(id); }
+      q('UPDATE quest_days SET list = ? WHERE user_id = ? AND day = ?').run(JSON.stringify(cur), uid, d);
+      if (cur.includes('dmnew') && !q('SELECT 1 FROM quest_target WHERE user_id = ? AND day = ?').get(uid, d)) { const p = freshPerson(uid); if (p) q('INSERT OR REPLACE INTO quest_target (user_id, day, target_id, swaps) VALUES (?, ?, ?, 0)').run(uid, d, p.id); }
+      return cur;
+    }
+    const has = availability(uid);
     let seed = [...(uid + ':' + d)].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 17);
     const rnd = () => ((seed = (seed * 1103515245 + 12345) >>> 0) / 2 ** 32);
-    const pool = QUESTS.filter((x) => x.need && has[x.need]).map((x) => [rnd(), x.id]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
-    for (const id of pool) { if (list.length >= QUEST_POOL_PICK + 1) break; list.push(id); }
+    const list = [];
+    if (isWeekend(d)) {
+      const pool = QUESTS.filter((x) => x.weekend && (!x.need || has[x.need])).map((x) => [rnd(), x.id]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
+      list.push(...pool.slice(0, WEEKEND_PICK));
+    } else {
+      list.push('where');
+      if (!has.gang) list.push('join');
+      const ok = QUESTS.filter((x) => !x.weekend && x.need && has[x.need]).map((x) => x.id);
+      const first = QUEST_PRIORITY.filter((id) => ok.includes(id));
+      const rest = ok.filter((id) => !first.includes(id)).map((id) => [rnd(), id]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
+      // Приоритетные не забивают весь набор: максимум два, остальное — случайное из пула
+      for (const id of [...first.slice(0, 2), ...rest, ...first.slice(2)]) { if (list.length >= QUEST_POOL_PICK + 1) break; if (!list.includes(id)) list.push(id); }
+    }
     q('INSERT OR IGNORE INTO quest_days (user_id, day, list) VALUES (?, ?, ?)').run(uid, d, JSON.stringify(list));
+    if (list.includes('dmnew')) { const p = freshPerson(uid); if (p) q('INSERT OR REPLACE INTO quest_target (user_id, day, target_id, swaps) VALUES (?, ?, ?, 0)').run(uid, d, p.id); }
     return list;
   }
+  const questTarget = (uid) => {
+    const r = q('SELECT t.target_id, t.swaps, u.nick, u.look FROM quest_target t JOIN users u ON u.id = t.target_id WHERE t.user_id = ? AND t.day = ?').get(uid, today());
+    return r ? { id: r.target_id, nick: r.nick, look: (() => { try { return JSON.parse(r.look || '{}'); } catch { return {}; } })(), canSwap: r.swaps < 1 } : null;
+  };
+
+  route('POST', '/api/quests/dmnew/swap', async (req) => {
+    const u = requireUser(req);
+    const t = questTarget(u.id);
+    if (!t) throw bad('Такого задания сегодня нет.');
+    if (!t.canSwap) throw bad('Поменять можно один раз в день.');
+    const next = freshPerson(u.id, 1);
+    if (!next || next.id === t.id) throw bad('Больше некого — в банде ты уже со всеми на связи, кроме этого человека.');
+    q('UPDATE quest_target SET target_id = ?, swaps = swaps + 1 WHERE user_id = ? AND day = ?').run(next.id, u.id, today());
+    return { ok: true };
+  });
 
   // Именинники сегодня среди своих (кроме меня)
   function bdayIdsToday(uid) {
@@ -414,7 +487,8 @@ function register(ctx) {
     if (!r.changes) return;
     addBeans(uid, 'quest', QUEST_REWARD);
     const done = new Set(q('SELECT quest FROM quests_done WHERE user_id = ? AND day = ?').all(uid, today()).map((x) => x.quest));
-    if (list.every((id) => done.has(id))) { addBeans(uid, 'quest_all', QUEST_ALL_BONUS); bump(uid, 'quest_all'); }
+    // Бонус «за все» — только в будни и один раз за день (набор может пополниться позже)
+    if (!isWeekend(today()) && list.every((id) => done.has(id)) && q('INSERT OR IGNORE INTO quests_done (user_id, day, quest) VALUES (?, ?, ?)').run(uid, today(), '__all').changes) { addBeans(uid, 'quest_all', QUEST_ALL_BONUS); bump(uid, 'quest_all'); }
   }
 
   function onEvent(type, uid, data = {}) {
@@ -437,6 +511,7 @@ function register(ctx) {
       if (type === 'text') { stat('messages'); bump(uid, 'msgs'); completeQuest(uid, 'chat'); }
       if ((type === 'dm' || type === 'meme') && data.to && bdayIdsToday(uid).has(data.to)) completeQuest(uid, 'bday');
       if (type === 'dm') { bump(uid, data.call ? 'calls' : 'dms'); if (seenPair(uid, 'dm', data.to)) bump(uid, 'dm_people'); completeQuest(uid, data.call ? 'call' : 'dm'); }
+      if ((type === 'dm' || type === 'meme') && data.to) { const t = questTarget(uid); if (t && t.id === Number(data.to)) completeQuest(uid, 'dmnew'); }
       if (type === 'santa') bump(uid, 'santa');
       if (type === 'advent') bump(uid, 'advent');
       if (type === 'meme') { bump(uid, 'memes'); if (seenPair(uid, 'dm', data.to)) bump(uid, 'dm_people'); completeQuest(uid, 'meme'); }
@@ -445,15 +520,20 @@ function register(ctx) {
       if (type === 'gang_join') completeQuest(uid, 'join');
       // Одинокий волк: вышел сам и остался без банды (переход в другую банду не считается)
       if (type === 'gang_leave' && !q('SELECT 1 FROM gang_members WHERE user_id = ?').get(uid)) flag(uid, 'st_lone');
-      if (type === 'guess_any') completeQuest(uid, 'guess');
+      if (type === 'guess_any') { completeQuest(uid, 'guess'); completeQuest(uid, 'wguess'); }
       if (type === 'sea_shot') completeQuest(uid, 'sea');
       if (type === 'signal_sent') bump(uid, 'signals_sent');
       if (type === 'blitz') { bump(uid, 'blitz'); if ((data.score || 0) > counter(uid, 'blitz_best')) setCounter(uid, 'blitz_best', data.score); }
-      if (type === 'poll') { bump(uid, 'polls'); completeQuest(uid, 'vote'); }
+      if (type === 'poll') bump(uid, 'polls');
       if (type === 'poll_vote') { bump(uid, 'poll_votes'); completeQuest(uid, 'vote'); }
-      if (type === 'battle_start') { bump(uid, 'battles'); completeQuest(uid, 'sea'); }
+      if (type === 'battle_start') bump(uid, 'battles');
       if (type === 'recruit') bump(uid, 'recruits');
-      if (type === 'wave_join') bump(uid, 'waves');
+      if (type === 'wave_join') { bump(uid, 'waves'); completeQuest(uid, 'wave'); }
+      if (type === 'todo_done') completeQuest(uid, 'todo');
+      if (type === 'friday_answer') completeQuest(uid, 'friday');
+      if (type === 'blitz') completeQuest(uid, 'blitz');
+      if (type === 'battery') completeQuest(uid, 'battery');
+      if (type === 'profile' && data.look) completeQuest(uid, 'look');
       if (type === 'wave_full') bump(uid, 'wave_full');
       if (type === 'todo_clean') bump(uid, 'todo_clean');
       if (type === 'checkout' && data.since && U.now() - data.since < 3600e3) flag(uid, 'st_ghost');
@@ -470,7 +550,7 @@ function register(ctx) {
       if (type === 'signal') stat('signals');
       if (type === 'guess_ok') { bump(uid, 'guess_ok'); stat('guess_ok'); }
       if (type === 'quiz_ok') bump(uid, 'quiz_ok');
-      if (type === 'quiz_any') { bump(uid, 'quiz_any'); stat('quiz_answers'); completeQuest(uid, 'quiz'); }
+      if (type === 'quiz_any') { bump(uid, 'quiz_any'); stat('quiz_answers'); completeQuest(uid, 'quiz'); completeQuest(uid, 'wquiz'); }
       // Морской бой: в зачёт идут только победы потоплением всего флота — сдача соперника не считается
       if (type === 'duel') bump(uid, 'duels_started');
       if (type === 'duel_roll' && Array.isArray(data.dice)) {
@@ -807,7 +887,10 @@ function register(ctx) {
       }
     }
     return {
-      quests: { items: questsFor(u.id).map((id) => QUESTS.find((x) => x.id === id)).filter(Boolean).map((x) => ({ id: x.id, name: x.name, go: x.go, done: done.has(x.id) })), reward: QUEST_REWARD, bonus: QUEST_ALL_BONUS,
+      quests: { weekend: isWeekend(today()), items: questsFor(u.id).map((id) => QUESTS.find((x) => x.id === id)).filter(Boolean).map((x) => {
+          const t = x.id === 'dmnew' ? questTarget(u.id) : null;
+          return { id: x.id, name: t ? `Напиши в личку ${t.nick} — вы ещё не общались один на один` : x.name, go: x.go, to: x.to || null, done: done.has(x.id), target: t };
+        }), reward: QUEST_REWARD, bonus: QUEST_ALL_BONUS,
         extra: bonusFor(u.id).map((id) => BONUS_QUESTS.find((x) => x.id === id)).map((x) => ({ id: x.id, name: x.name, go: x.go, done: done.has(x.id) })) },
       achievements: (() => {
         const c = countersOf(u.id, userRow(u.id));
@@ -1011,7 +1094,7 @@ function register(ctx) {
     return { total: list.length, left: list.filter((id) => !done.has(id)).length };
   }
   const activeToday = (uid) => counter(uid, 'last_active') >= Number(today().replace(/-/g, ''));
-  return { onEvent, cleanup, tick, pairNow, questSummary, myPair, activeToday, cellFor };
+  return { setQuestProviders: (p) => Object.assign(prov, p), onEvent, cleanup, tick, pairNow, questSummary, myPair, activeToday, cellFor };
 }
 
 module.exports = { register, ACH, QUESTS };

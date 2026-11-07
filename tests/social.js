@@ -296,7 +296,7 @@ function startServer(day, extra = {}) {
       assert.equal(f.beans, 3);
       f = (await D.post(`/api/gangs/${gb.id}/friday`, { q: f.questions[1].id, text: 'Научился SQL' })).json;
       assert.equal(f.beans, 0, 'зёрна — за первый ответ недели');
-      assert.equal((await D.get('/api/me')).json.user.beans, before + 3);
+      assert.ok((await D.get('/api/me')).json.user.beans >= before + 3, '+3 за пятиминутку (и задание дня сверху)');
       let fb = (await B.get(`/api/gangs/${gb.id}/friday`)).json;
       assert.equal(fb.questions[0].answers.length, 1);
       fb = (await B.post(`/api/gangs/${gb.id}/friday`, { q: q0, text: 'Всё было норм' })).json;
@@ -376,5 +376,21 @@ function startServer(day, extra = {}) {
       assert.ok(small && small.id);
     });
   } finally { sw.stop(); }
+  // Суббота, 14 ноября: задания дня отдыхают — никаких «позови» и «напиши в чат», только одиночные «для удовольствия»
+  const ss = startServer('2026-11-14');
+  try {
+    await ss.ready;
+    await step('задания в выходные: никого не дёргаем, не больше двух, без «Отметься»', async () => {
+      const P = await new ss.Client().login('sat1@mts.ru', 'субботний');
+      const Q = await new ss.Client().login('sat2@mts.ru', 'выходной');
+      const g = (await P.post('/api/gangs', { name: 'Субботники', access: 'open' })).json;
+      await Q.post(`/api/gangs/${g.id}/apply`);
+      const f = (await P.get('/api/features')).json.quests;
+      assert.equal(f.weekend, true);
+      assert.ok(f.items.length <= 2, JSON.stringify(f.items));
+      const social = ['where', 'call', 'chat', 'thanks', 'dmnew', 'dm', 'meme', 'vote', 'join'];
+      assert.ok(!f.items.some((x) => social.includes(x.id)), 'в выходные коллег не трогаем: ' + f.items.map((x) => x.id));
+    });
+  } finally { ss.stop(); }
   console.log(`social: ${passed} ok`);
 })().catch((e) => { console.error(e); process.exit(1); });

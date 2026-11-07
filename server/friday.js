@@ -17,7 +17,7 @@ const REACTIONS = ['👍', '😂', '🔥', '❤️'];
 const TEXT_MAX = 120;
 
 function register(ctx) {
-  const { db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, readProfile } = ctx;
+  const { db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, readProfile, onEvent } = ctx;
 
   db.exec(`
   CREATE TABLE IF NOT EXISTS friday_answers (
@@ -106,6 +106,7 @@ function register(ctx) {
     q(`INSERT INTO friday_answers (gang_id, week, user_id, qid, text, at) VALUES (?, ?, ?, ?, ?, ?)
        ON CONFLICT(gang_id, week, user_id, qid) DO UPDATE SET text = excluded.text, at = excluded.at`).run(g.id, c.week, u.id, qd.id, U.seal(text), U.now());
     const beans = first && addBeans ? addBeans(u.id, 'friday') : 0;
+    if (onEvent) onEvent('friday_answer', u.id, { gang: g.id });
     return { ...view(g, u.id), beans };
   });
 

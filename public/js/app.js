@@ -3592,22 +3592,31 @@ function renderFeed() {
 // Иконка и короткая подпись для каждого задания дня
 const QUEST_ICON = { where: ['where', 'Отметься'], join: ['flag', 'Банда'], chat: ['chat', 'Чат банды'], call: ['coffee', 'Позови'], reply: ['megaphone', 'Ответь'],
   thanks: ['hand', 'Спасибо'], dm: ['mail', 'Личка'], meme: ['image', 'Мем'], vote: ['vote', 'Опрос'], guess: ['help', 'Кто из наших'], quiz: ['bulb', 'Квиз'],
-  sea: ['anchor', 'Морской бой'], food: ['lunch', 'Обед'], bday: ['cake', 'Именинник'] };
+  sea: ['anchor', 'Морской бой'], food: ['lunch', 'Обед'], bday: ['cake', 'Именинник'],
+  dmnew: ['mail', 'Личка'], todo: ['check', 'Дело дня'], friday: ['chat', 'Пятиминутка'], wave: ['hand', 'Волна'],
+  blitz: ['bolt', 'Блиц'], battery: ['thermo', 'Батарейка'], wquiz: ['bulb', 'Квиз'], wguess: ['help', 'Кто из наших'], look: ['palette', 'Образ'] };
 function renderQuests() {
   const f = S.fx;
   if (!f) return '';
+  const wk = f.quests.weekend;
   const all = [...f.quests.items, ...(f.quests.extra || []).map((x) => ({ ...x, bonus: true }))];
   const done = f.quests.items.filter((x) => x.done).length, total = f.quests.items.length;
+  if (wk && !all.length) return `<section class="card quests wk"><span class="card-title">sun Выходной</span><p class="sub" style="margin:0">Задания отдыхают — и ты отдыхай. Увидимся в понедельник.</p></section>`;
   const open = all.find((x) => x.id === S.questOpen);
-  return `<section class="card quests">
-    <div class="row" style="justify-content:space-between"><span class="card-title">Задания дня</span><span class="small">${done === total ? `все готовы · +${f.quests.bonus} бонус` : `${done} из ${total} · +${f.quests.reward} за каждое`}</span></div>
+  const t = open && open.target;
+  const more = open ? `<div class="qi-more"><div class="grow"><b>${esc(open.name)}</b><span class="small">${open.done ? 'Готово' : `+${f.quests.reward} зерна${open.bonus ? ' · бонусное, в «все задания» не входит' : ''}`}</span></div>
+      ${open.done ? '' : t ? `<span class="row" style="gap:6px">${t.canSwap ? '<button class="btn small ghost" data-act="quest-swap">Другого</button>' : ''}<button class="btn small" data-act="dm-open" data-id="${t.id}">Написать →</button></span>`
+        : `<button class="btn small" data-act="quest-go" data-v="${esc(open.go || '')}" data-q="${open.id}" data-to="${esc(open.to || '')}">Сделать →</button>`}</div>`
+    : wk ? '' : `<div class="qi-bar"><i style="width:${Math.round(done / Math.max(1, total) * 100)}%"></i></div>`;
+  return `<section class="card quests ${wk ? 'wk' : ''}">
+    <div class="row" style="justify-content:space-between"><span class="card-title">${wk ? 'sun Выходной' : 'Задания дня'}</span><span class="small">${wk ? '' : done === total ? `все готовы · +${f.quests.bonus} бонус` : `${done} из ${total} · +${f.quests.reward} за каждое`}</span></div>
+    ${wk ? '<p class="small" style="margin:0">Задания отдыхают — и ты отдыхай. Коллег не дёргаем. Если скучно — вот пара для себя:</p>' : ''}
     <div class="qi-row">${all.map((x) => {
       const [icon, label] = QUEST_ICON[x.id] || ['star', x.name];
-      return `<button class="qi ${x.done ? 'done' : ''} ${x.bonus ? 'bonus' : ''} ${open && open.id === x.id ? 'on' : ''}" data-act="quest-open" data-v="${x.id}" aria-expanded="${open && open.id === x.id}" aria-label="${esc(x.name)}${x.done ? ', выполнено' : ''}">
-        <span class="qi-c">${ico(icon, 22)}${x.done ? `<i class="qi-ok">${ico('check', 12)}</i>` : x.bonus ? '<i class="qi-ok star">★</i>' : ''}</span><span class="qi-l">${hy(label)}</span></button>`;
+      return `<button class="qi ${x.done ? 'done' : ''} ${x.bonus ? 'bonus' : ''} ${open && open.id === x.id ? 'on' : ''}" data-act="quest-open" data-v="${x.id}" aria-expanded="${open && open.id === x.id}" aria-label="${esc(x.name)}${x.done ? ' — готово' : ''}">
+        <span class="qi-c">${x.target ? avatar(x.target.look, 40) : ico(icon, 22)}${x.done ? `<i class="qi-ok">${ico('check', 12)}</i>` : x.bonus ? '<i class="qi-ok star">★</i>' : ''}</span><span class="qi-l">${hy(x.target ? x.target.nick : label)}</span></button>`;
     }).join('')}</div>
-    ${open ? `<div class="qi-more"><div class="grow"><b>${esc(open.name)}</b><span class="small">${open.done ? 'Готово' : `+${f.quests.reward} зерна${open.bonus ? ' · бонусное, в «все задания» не входит' : ''}`}</span></div>${open.done ? '' : `<button class="btn small" data-act="quest-go" data-v="${esc(open.go || '')}" data-q="${open.id}">Сделать →</button>`}</div>`
-      : `<div class="qi-bar"><i style="width:${Math.round(done / Math.max(1, total) * 100)}%"></i></div>`}
+    ${more}
   </section>`;
 }
 
@@ -5455,9 +5464,13 @@ const actions = {
   'friday-edit'(el) { S.fridayEdit = el.dataset.q; render(); requestAnimationFrame(() => { const i = $('#fr-' + el.dataset.q); if (i) i.focus(); }); },
   'friday-react': (el) => run(async () => { S.friday = await post(`/api/friday/${el.dataset.id}/react`, { e: el.dataset.v }); }),
   'quest-open'(el) { S.questOpen = S.questOpen === el.dataset.v ? null : el.dataset.v; render(); },
+  'quest-swap': () => run(async () => { await post('/api/quests/dmnew/swap', {}); await loadFeatures(); toast('Другой человек — тоже свой'); }),
   'quest-go'(el) {
-    const go = el.dataset.v;
-    const qAnchor = { guess: '.guess', quiz: '.quiz', sea: '.duels-card' }[el.dataset.q];
+    const go = el.dataset.v, to = el.dataset.to;
+    if (go === 'battery') { S.questOpen = null; return actions.open({ dataset: { v: 'battery' } }); }
+    if (go === 'look') { S.questOpen = null; return actions['ava-open'](); }
+    if (to) setTimeout(() => { const t = findInGangTabs(to); if (t) t.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 700);
+    const qAnchor = { guess: '.guess', quiz: '.quiz', sea: '.duels-card', wguess: '.guess', wquiz: '.quiz', blitz: '.blitz' }[el.dataset.q];
     S.questOpen = null;
     if (qAnchor && go === 'games') { render(); requestAnimationFrame(() => { const t = document.querySelector(qAnchor); if (t) t.scrollIntoView({ block: 'center', behavior: 'smooth' }); }); return; }
     S.sheet = null;
