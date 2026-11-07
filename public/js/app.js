@@ -1232,11 +1232,33 @@ setInterval(() => {
 }, 1000);
 
 // Пятничная пятиминутка: три вопроса недели; ответил — видишь ответы банды и ставишь реакции
+// Свёрнутая пятиминутка: после своих ответов — полоска с фразой, кто ответил и сколько новых чужих ответов
+const FR_DONE = ['Неделя отрефлексирована. Психолог доволен', 'Сдано. Можно официально уходить в выходные', 'Отчёт о неделе принят без согласования с руководством',
+  'Три строчки честности — и ты свободен|свободна', 'Пятиминутка закрыта за 30 секунд. Рекорд офиса'];
+const frSeenKey = (f) => `${S.activeGang}:${f.week}`;
+function renderFridayStrip(f) {
+  const seen = (store.get('frSeen', {}) || {})[frSeenKey(f)] || 0;
+  const fresh = Math.max(0, f.othersCount - seen);
+  const alone = f.people <= 1, all = f.people >= f.members;
+  const line = all ? 'Вся банда отчиталась. Можно открывать пятничное'
+    : alone ? `Пока ты один такой честный|одна такая честная, остальные ${f.members - 1} стесняются`
+    : FR_DONE[(f.week.charCodeAt(9) + S.activeGang) % FR_DONE.length];
+  return `<section class="card friday fr-strip">
+    <button class="fr-strip-btn" data-act="friday-open">
+      <span class="fr-ok">check</span>
+      <span class="grow"><b>Пятиминутка сдана</b><span class="small">${esc(line)}</span>
+        <span class="fr-who">${f.answered.slice(0, 8).map((p) => avatar(p.look, 22)).join('')}<em>ответили ${f.people} из ${f.members}</em></span></span>
+      ${fresh ? `<span class="fr-new">+${fresh} ${plural(fresh, 'новый', 'новых', 'новых')}</span>` : '<span class="chev" aria-hidden="true">›</span>'}
+    </button>
+    ${f.canAnswer && !all && !f.poked ? `<button class="btn small ghost fr-poke" data-act="friday-poke">megaphone Пнуть банду</button>` : ''}
+  </section>`;
+}
 function renderFriday() {
   const f = S.friday;
   if (!f) return '';
   const any = f.questions.some((qd) => qd.answers.length);
   if (!f.canAnswer && !any) return '';
+  if (f.done && !S.fridayOpen && !S.fridayEdit) return renderFridayStrip(f);
   const qBlock = (qd) => {
     const editing = f.canAnswer && (!qd.mine || S.fridayEdit === qd.id);
     const others = qd.answers.filter((a) => !a.me);
@@ -1247,7 +1269,7 @@ function renderFriday() {
         <span class="fr-r">${f.reactions.map((e) => `<button class="${a.my === e ? 'on' : ''}" data-act="friday-react" data-id="${a.id}" data-v="${e}" aria-label="Реакция ${e}">${e}${a.counts[e] ? `<i>${a.counts[e]}</i>` : ''}</button>`).join('')}</span></span></div>`).join('') : (others.length ? `<div class="small">Ответили ${others.length} — ответь, чтобы увидеть</div>` : '')}
     </div>`;
   };
-  return `<section class="card friday"><div class="row" style="justify-content:space-between"><span class="card-title">chat Пятничная пятиминутка</span><span class="small">${f.canAnswer ? `ответили ${f.people} из ${f.members}` : 'неделя закрыта'}</span></div>
+  return `<section class="card friday"><div class="row" style="justify-content:space-between"><span class="card-title">chat Пятничная пятиминутка</span>${f.done ? '<button class="linkbtn small" data-act="friday-close">Свернуть</button>' : ''}<span class="small">${f.canAnswer ? `ответили ${f.people} из ${f.members}` : 'неделя закрыта'}</span></div>
     ${f.canAnswer && !f.done ? '<p class="small" style="margin:0">Три вопроса о неделе — ответ в одну строку. Ответы банды откроются, когда ответишь сам|сама. +3 зерна.</p>' : ''}
     ${f.questions.map(qBlock).join('')}
   </section>`;
@@ -5370,8 +5392,10 @@ const actions = {
   'ex-tag': (el) => run(async () => { await loadExperts(el.dataset.v); }),
   'friday-send': (el) => run(async () => {
     const inp = $('#fr-' + el.dataset.q); const text = inp ? inp.value : '';
+    const wasDone = S.friday && S.friday.done;
     const r = await post(`/api/gangs/${S.activeGang}/friday`, { q: el.dataset.q, text });
     S.friday = r; S.fridayEdit = null; sfx('send');
+    if (r.done && !wasDone) { S.fridayOpen = false; const m = store.get('frSeen', {}) || {}; m[frSeenKey(r)] = r.othersCount; store.set('frSeen', m); if (!r.beans) toast('Пятиминутка сдана — свернули, чтобы не мешала'); }
     if (r.beans) { toast(`+${r.beans} зерна за пятиминутку`); loadMe().catch(() => {}); }
   }),
   'friday-edit'(el) { S.fridayEdit = el.dataset.q; render(); requestAnimationFrame(() => { const i = $('#fr-' + el.dataset.q); if (i) i.focus(); }); },
@@ -5668,6 +5692,13 @@ const actions = {
   'nick-yes': () => run(async () => {
     const nick = S.nickConfirm; S.nickConfirm = null;
     const r = await post('/api/me/nick', { nick }); await loadMe(); toast(`Теперь ты ${r.nick}`);
+  }),
+  'friday-open'() { const f = S.friday; if (f) { const m = store.get('frSeen', {}) || {}; m[frSeenKey(f)] = f.othersCount; store.set('frSeen', m); } S.fridayOpen = true; render(); },
+  'friday-close'() { S.fridayOpen = false; S.fridayEdit = null; render(); },
+  'friday-poke': () => run(async () => {
+    const r = await post(`/api/gangs/${S.activeGang}/friday/poke`, {});
+    S.friday = r; render();
+    toast(r.sent ? `Пнули ${r.sent} ${plural(r.sent, 'человека', 'человек', 'человек')}. Ждём их строчки` : 'Пинать некого — все молодцы или без уведомлений');
   }),
   'todo-add-open'() { S.todoAdd = true; S.todoWhen = 'today'; S.todoPerson = null; S.todoTime = ''; S.todoDraft = ''; render(); setTimeout(() => { const i = $('#todo-text'); if (i) i.focus(); }, 50); },
   'todo-add-close'() { S.todoAdd = false; render(); },

@@ -305,6 +305,14 @@ function startServer(day, extra = {}) {
       assert.equal(fb.questions[0].answers.find((x) => x.id === aid).counts['🔥'], 1);
       assert.equal((await A.get(`/api/gangs/${gb.id}/friday`)).status, 404, 'чужая банда');
       assert.equal((await D.post(`/api/gangs/${gb.id}/friday`, { q: 'нет-такого', text: 'x' })).status, 400);
+      // Свёрнутая полоска: кто ответил, сколько чужих ответов; «пнуть банду» — раз в неделю и только ответившему
+      fb = (await B.get(`/api/gangs/${gb.id}/friday`)).json;
+      assert.ok(fb.answered.some((p) => p.id === D.id) && fb.answered.some((p) => p.id === B.id));
+      assert.ok(fb.othersCount >= 2);
+      assert.equal(fb.poked, false);
+      const pk = (await B.post(`/api/gangs/${gb.id}/friday/poke`)).json;
+      assert.equal(pk.poked, true);
+      assert.equal((await D.post(`/api/gangs/${gb.id}/friday/poke`)).status, 400, 'второй раз за неделю — нельзя');
     });
 
     await step('доска: объявление, «я тоже» с отметкой автору, снять может только автор, срок', async () => {

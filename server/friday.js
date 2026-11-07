@@ -33,6 +33,7 @@ function register(ctx) {
     emoji TEXT NOT NULL, PRIMARY KEY (answer_id, user_id)
   );
   CREATE TABLE IF NOT EXISTS friday_push (gang_id INTEGER PRIMARY KEY, week TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS friday_poke (gang_id INTEGER PRIMARY KEY, week TEXT NOT NULL, by_id INTEGER);
   `);
 
   const addDays = (day, n) => new Date(Date.parse(day + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
@@ -70,6 +71,10 @@ function register(ctx) {
     return {
       week: c.week, canAnswer: c.canAnswer, reactions: REACTIONS, max: TEXT_MAX,
       people: new Set(rows.map((r) => r.user_id)).size, members: gangMembers(g.id).length,
+      // Кто уже ответил — для свёрнутой полоски; «пнуть банду» — раз в неделю на банду
+      answered: [...new Map(rows.map((r) => [r.user_id, { id: r.user_id, nick: r.nick, look: (() => { try { return JSON.parse(r.look || '{}'); } catch { return {}; } })() }])).values()],
+      othersCount: rows.filter((r) => r.user_id !== uid).length,
+      poked: (q('SELECT week FROM friday_poke WHERE gang_id = ?').get(g.id) || {}).week === c.week,
       questions: qs.map((qd) => ({
         id: qd.id, text: qd.text, ph: qd.ph, mine: U.unseal(rows.find((r) => r.user_id === uid && r.qid === qd.id)?.text) || null,
         answers: rows.filter((r) => r.qid === qd.id).map((r) => {
@@ -102,6 +107,21 @@ function register(ctx) {
        ON CONFLICT(gang_id, week, user_id, qid) DO UPDATE SET text = excluded.text, at = excluded.at`).run(g.id, c.week, u.id, qd.id, U.seal(text), U.now());
     const beans = first && addBeans ? addBeans(u.id, 'friday') : 0;
     return { ...view(g, u.id), beans };
+  });
+
+  // «Пнуть банду»: один пуш тем, кто ещё не ответил. Раз в неделю на банду, только ответившему
+  route('POST', '/api/gangs/:id/friday/poke', async (req, body, query, params) => {
+    const { u, g } = gangOr404(req, params.id);
+    const c = current();
+    if (!c.canAnswer) throw bad('Пятиминутка сейчас закрыта.');
+    if (!q('SELECT 1 FROM friday_answers WHERE gang_id = ? AND week = ? AND user_id = ?').get(g.id, c.week, u.id)) throw bad('Сначала ответь сам — потом пинай других.');
+    const was = q('SELECT week FROM friday_poke WHERE gang_id = ?').get(g.id);
+    if (was && was.week === c.week) throw bad('Банду на этой неделе уже пинали. Хватит с них.');
+    q('INSERT INTO friday_poke (gang_id, week, by_id) VALUES (?, ?, ?) ON CONFLICT(gang_id) DO UPDATE SET week = excluded.week, by_id = excluded.by_id').run(g.id, c.week, u.id);
+    const ids = gangMembers(g.id).filter((mm) => mm.id !== u.id && readProfile(mm.profile).digest !== false
+      && !q('SELECT 1 FROM friday_answers WHERE gang_id = ? AND week = ? AND user_id = ?').get(g.id, c.week, mm.id)).map((mm) => mm.id);
+    if (ids.length) fireAndForget(notify(ids, { title: `${u.nick} ждёт твою пятиминутку`, body: `Три строчки о неделе в «${g.name}». ${U.g(u.look, 'Он', 'Она')} уже ${U.g(u.look, 'ответил', 'ответила')} — твоя очередь`, url: `/#gang/${g.id}`, tag: `friday-${g.id}` }));
+    return { ...view(g, u.id), poked: true, sent: ids.length };
   });
 
   route('POST', '/api/friday/:id/react', async (req, body, query, params) => {
