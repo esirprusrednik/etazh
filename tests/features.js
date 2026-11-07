@@ -1,5 +1,7 @@
 // Проверка функций второго этапа: node tests/features.js
 const { spawn } = require('node:child_process');
+// Тесты живут в рабочий день: в субботу и воскресенье сдвигаем часы сервера на ближайший понедельник, 12:00 по Москве
+const SHIFT_H = 12 - new Date().getUTCHours() + ({ 6: 48, 0: 24 }[new Date().getUTCDay()] || 0);
 const path = require('node:path');
 const os = require('node:os');
 const fs = require('node:fs');
@@ -12,7 +14,7 @@ const server = spawn(process.execPath, ['--no-warnings', path.join(__dirname, '.
   env: {
     ...process.env, PORT: String(PORT), BASE_URL: BASE, DB_PATH: path.join(dir, 'db.sqlite'),
     EMAIL_PEPPER: 'test-pepper-test-pepper-test-pepper-123', MAIL_MODE: 'console', SECURE_COOKIES: 'false', ADMIN_EMAILS: 'boss@mts.ru',
-    TZ_OFFSET_HOURS: String(12 - new Date().getUTCHours()), LEAGUE_LAUNCH: '2020-01-01'
+    TZ_OFFSET_HOURS: String(SHIFT_H), LEAGUE_LAUNCH: '2020-01-01'
   },
   stdio: ['ignore', 'pipe', 'pipe']
 });
@@ -46,7 +48,7 @@ let passed = 0;
 async function step(name, fn) {
   try { await fn(); passed++; console.log('  ✓ ' + name); } catch (e) { console.log('  ✗ ' + name + '\n    ' + e.stack); throw e; }
 }
-const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3600e3).toISOString().slice(0, 10);
+const mskToday = () => new Date(Date.now() + SHIFT_H * 3600e3).toISOString().slice(0, 10);
 
 (async () => {
   for (let i = 0; i < 50; i++) { try { if ((await fetch(BASE + '/healthz')).ok) break; } catch {} await new Promise((r) => setTimeout(r, 100)); }
