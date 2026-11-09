@@ -408,5 +408,41 @@ function startServer(day, extra = {}) {
       assert.equal((await Q.get('/api/me')).json.user.weather, null, 'в понедельник дома — без строки');
     });
   } finally { su.stop(); }
+  // Компании: МТС и Роснефть живут рядом, но банды, офисы и лента — свои
+  const sc = startServer('2026-11-10');
+  try {
+    await sc.ready;
+    await step('компании: Роснефть входит по @rosneft.ru, видит только Софийку и свои банды', async () => {
+      const anon = (await new sc.Client().get('/api/me')).json;
+      assert.deepEqual(anon.companies.map((c) => c.id), ['mts', 'rosneft']);
+      const bad = await new sc.Client().post('/api/auth/request', { email: 'x@gmail.com', consent: true });
+      assert.equal(bad.status, 400);
+      const M = await new sc.Client().login('co1@mts.ru', 'мтсник');
+      const R = await new sc.Client().login('co2@rosneft.ru', 'нефтяник');
+      const R2 = await new sc.Client().login('co3@rosneft.ru', 'буровик');
+      const meR = (await R.get('/api/me')).json;
+      assert.equal(meR.user.company, 'rosneft');
+      assert.deepEqual(meR.catalog.offices.map((o) => o.name), ['Софийка']);
+      assert.ok(!(await M.get('/api/me')).json.catalog.offices.some((o) => o.name === 'Софийка'));
+      assert.equal((await R.post('/api/checkin', { office: meR.catalog.offices[0].id })).status, 200);
+      const mOffice = (await M.get('/api/me')).json.catalog.offices[0].id;
+      assert.equal((await R.post('/api/checkin', { office: mOffice })).status, 400, 'в офис МТС не отмечаемся');
+      const gM = (await M.post('/api/gangs', { name: 'Красные', access: 'open' })).json;
+      assert.notEqual((await R.post(`/api/gangs/${gM.id}/apply`)).status, 200, 'в банду другой компании нельзя');
+      const gR = (await R.post('/api/gangs', { name: 'Нефтяники', access: 'open' })).json;
+      assert.equal((await R2.post(`/api/gangs/${gR.id}/apply`)).status, 200);
+      // Поиск: чужую компанию — только по нику целиком
+      assert.equal((await M.get('/api/search?q=нефт')).json.items.length, 0);
+      const hit = (await M.get('/api/search?q=нефтяник')).json.items;
+      assert.equal(hit.length, 1); assert.equal(hit[0].company, 'Роснефть');
+      // Писать до подельников нельзя, после — можно
+      { const rr = await M.post(`/api/crew/${R.id}/messages`, { type: 'text', text: 'привет' }); assert.ok(rr.status !== 200 && /другой компании/.test(rr.json.error), JSON.stringify(rr.json)); }
+      await M.post('/api/crew/add', { nick: 'нефтяник' });
+      await R.post(`/api/crew/${M.id}/accept`);
+      const crew = (await M.get('/api/crew')).json;
+      assert.ok(JSON.stringify(crew).includes('нефтяник'), 'подельник из Роснефти в списке');
+      { const rr = await M.post(`/api/crew/${R.id}/messages`, { type: 'text', text: 'привет' }); assert.equal(rr.status, 200, JSON.stringify(rr.json)); }
+    });
+  } finally { sc.stop(); }
   console.log(`social: ${passed} ok`);
 })().catch((e) => { console.error(e); process.exit(1); });

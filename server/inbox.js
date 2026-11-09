@@ -47,7 +47,7 @@ function register(ctx) {
       const prof = typeof u.profile === 'string' ? readProfile(u.profile) : (u.profile || {});
       const tags = (prof.askMe || []).map((t) => t.toLocaleLowerCase('ru'));
       if (tags.length) {
-        for (const b of q("SELECT b.id, b.text, us.nick FROM board_posts b JOIN users us ON us.id = b.user_id WHERE b.kind = 'ask' AND b.hidden = 0 AND b.user_id != ? AND b.at > ? AND b.until >= ? ORDER BY b.at DESC LIMIT 20").all(uid, U.now() - 3 * 864e5, U.msk().day)) {
+        for (const b of q("SELECT b.id, b.text, us.nick FROM board_posts b JOIN users us ON us.id = b.user_id WHERE b.kind = 'ask' AND b.hidden = 0 AND us.company = (SELECT company FROM users WHERE id = ?) AND b.user_id != ? AND b.at > ? AND b.until >= ? ORDER BY b.at DESC LIMIT 20").all(uid, uid, U.now() - 3 * 864e5, U.msk().day)) {
           const low = b.text.toLocaleLowerCase('ru');
           // Падежи: «парковка» должна находить «парковку» — сравниваем по основе без окончания
           const hit = tags.find((t) => low.includes(t.length > 5 ? t.slice(0, -2) : t));

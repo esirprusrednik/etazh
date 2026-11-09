@@ -162,7 +162,7 @@ function register(ctx) {
     const place = clean(body.place, 60) || null;
     const note = clean(body.note, 300) || null;
     const guest = Number(body.guest) && Number(body.guest) !== g.id ? q('SELECT * FROM gangs WHERE id = ? AND hidden = 0').get(Number(body.guest)) : null;
-    if (body.guest && Number(body.guest) !== g.id && !guest) throw bad('Такой банды нет.');
+    if (body.guest && Number(body.guest) !== g.id && (!guest || (guest.company || 'mts') !== (g.company || 'mts'))) throw bad('Такой банды нет.');
     if (q('SELECT COUNT(*) AS n FROM gang_events WHERE gang_id = ? AND day >= ?').get(g.id, today()).n >= MAX_UPCOMING) throw bad(`В банде уже ${MAX_UPCOMING} будущих событий — хватит планов, пора отдыхать.`);
     const t = U.now();
     const id = Number(q('INSERT INTO gang_events (gang_id, user_id, kind, title, day, time, place, note, at, guest_gang_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
@@ -223,7 +223,7 @@ function register(ctx) {
   route('GET', '/api/gangs/:id/gevent-guests', async (req, body, query, params) => {
     const u = requireUser(req);
     const g = gangOr404(params.id, u.id);
-    const rows = q(`SELECT g.id, g.name, (SELECT COUNT(*) FROM gang_members m WHERE m.gang_id = g.id) AS n FROM gangs g WHERE g.hidden = 0 AND g.id != ? ORDER BY n DESC, g.name LIMIT 100`).all(g.id);
+    const rows = q(`SELECT g.id, g.name, (SELECT COUNT(*) FROM gang_members m WHERE m.gang_id = g.id) AS n FROM gangs g WHERE g.hidden = 0 AND g.id != ? AND g.company = ? ORDER BY n DESC, g.name LIMIT 100`).all(g.id, g.company || 'mts');
     return { items: rows.map((r) => ({ id: r.id, name: r.name, members: r.n })) };
   });
 

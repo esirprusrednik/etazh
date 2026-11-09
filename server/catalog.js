@@ -33,6 +33,13 @@ const SIGNALS = {
   room_free: { label: 'Свободная переговорка', hours: 2, toFacilities: false }
 };
 
+// Компании: вход — с рабочей почты своего домена. Банды, Лига, доска, «Кто знает?» и лента — внутри своей компании,
+// подельниками и личкой можно дружить через компании
+const COMPANIES = {
+  mts: { name: 'МТС', domains: ['mts.ru'] },
+  rosneft: { name: 'Роснефть', domains: ['rosneft.ru'] }
+};
+
 const SHOP = [
   { id: 'st_night', kind: 'status', name: 'Салага', price: 30 },
   { id: 'st_coffee', kind: 'status', name: 'Кофейный магнат', price: 60 },
@@ -160,4 +167,4 @@ const CREST = {
 // Серия рабочих дней в Этаже: чем дольше подряд, тем больше зёрен за отметку. С 5-го дня — максимум
 const STREAK_BEANS = [3, 4, 5, 6, 8];
 const streakBeans = (n) => STREAK_BEANS[Math.max(1, Math.min(n || 1, STREAK_BEANS.length)) - 1];
-module.exports = { STREAK_BEANS, streakBeans, CREST, GANG_AREAS, OLD_GANG_AREAS, GANG_INTERESTS, GANG_EMOJI, MOODS_F, MOODS, CALLS, SIGNALS, SHOP, EARN, GANG_DEPOSIT, GANG_COLORS, MEMES, MEME_EMOS };
+module.exports = { COMPANIES, STREAK_BEANS, streakBeans, CREST, GANG_AREAS, OLD_GANG_AREAS, GANG_INTERESTS, GANG_EMOJI, MOODS_F, MOODS, CALLS, SIGNALS, SHOP, EARN, GANG_DEPOSIT, GANG_COLORS, MEMES, MEME_EMOS };

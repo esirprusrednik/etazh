@@ -1058,13 +1058,13 @@ function register(ctx) {
     }
     if (!planFilled(me)) {
       out.locked = true;
-      out.count = q("SELECT COUNT(*) AS n FROM users WHERE nick IS NOT NULL AND id != ? AND json_extract(profile, '$.matchShow') = 1").get(u.id).n;
+      out.count = q("SELECT COUNT(*) AS n FROM users WHERE nick IS NOT NULL AND id != ? AND company = ? AND json_extract(profile, '$.matchShow') = 1").get(u.id, u.company || 'mts').n;
       return out;
     }
     const myTags = new Set((me.tags || []).map((t) => String(t).toLowerCase()));
     const mates = new Set();
     myGangs(u.id).forEach((g) => gangMembers(g.id).forEach((m) => mates.add(m.id)));
-    const rows = q("SELECT id, nick, look, profile FROM users WHERE nick IS NOT NULL AND id != ? AND json_extract(profile, '$.matchShow') = 1").all(u.id);
+    const rows = q("SELECT id, nick, look, profile FROM users WHERE nick IS NOT NULL AND id != ? AND company = ? AND json_extract(profile, '$.matchShow') = 1").all(u.id, u.company || 'mts');
     const people = rows.map((r) => ({ r, prof: readProfile(r.profile) }));
     out.days = out.days.map((d) => {
       const offices = {}; const home = [];

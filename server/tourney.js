@@ -152,6 +152,8 @@ function register(ctx) {
 
   route('GET', '/api/tourney', async (req) => {
     const u = requireUser(req);
+    // Кубок пока разыгрывают банды МТС; у других компаний он появится, когда соберётся несколько банд
+    if ((u.company || 'mts') !== 'mts') return { off: true };
     tick();
     const t = current();
     const last = q("SELECT * FROM tourneys WHERE status = 'done' AND id != ? ORDER BY id DESC LIMIT 1").get(t.id);
@@ -159,6 +161,7 @@ function register(ctx) {
   });
   route('POST', '/api/tourney/register', async (req, body) => {
     const u = requireUser(req);
+    if ((u.company || 'mts') !== 'mts') throw bad('Кубок пока разыгрывается только среди банд МТС.');
     const t = current();
     const g = q('SELECT g.* FROM gangs g JOIN gang_members m ON m.gang_id = g.id WHERE m.user_id = ? AND g.hidden = 0 ORDER BY m.joined_at LIMIT 1').get(u.id);
     if (!g || g.owner_id !== u.id) throw bad('Записывает банду владелец.');

@@ -1,6 +1,6 @@
 const { config } = require('./config');
 const U = require('./util');
-const { CREST, GANG_AREAS, GANG_INTERESTS, GANG_EMOJI, MOODS_F, MOODS, CALLS, SIGNALS, SHOP, EARN, GANG_DEPOSIT, GANG_COLORS, MEMES, MEME_EMOS, STREAK_BEANS, streakBeans } = require('./catalog');
+const { CREST, GANG_AREAS, GANG_INTERESTS, GANG_EMOJI, MOODS_F, MOODS, CALLS, SIGNALS, SHOP, EARN, GANG_DEPOSIT, GANG_COLORS, MEMES, MEME_EMOS, STREAK_BEANS, streakBeans, COMPANIES } = require('./catalog');
 const { sendLoginLink } = require('./mailer');
 const { sendPush } = require('./webpush');
 
@@ -327,7 +327,9 @@ function createApi(db) {
   }
 
   // ---------- Офис и столовая ----------
-  const offices = () => q('SELECT * FROM offices ORDER BY sort').all();
+  const offices = (company) => q('SELECT * FROM offices ' + (company ? 'WHERE company = ? ' : '') + 'ORDER BY sort').all(...(company ? [company] : []));
+  const companyOf = (x) => (x && x.company) || 'mts';
+  const companiesPub = () => Object.entries(COMPANIES).map(([id, c]) => ({ id, name: c.name, domain: c.domains[0] }));
   const officeById = (id) => q('SELECT * FROM offices WHERE id = ?').get(id);
 
   function activeCheckin(userId) {
@@ -404,23 +406,25 @@ function createApi(db) {
   }
 
   // Обезличенная статистика для плашки сверху: только счётчики, без ников и банд. Кэш на минуту
-  let statsCache = null;
-  function appStats() {
-    if (statsCache && statsCache.until > U.now()) return statsCache.v;
+  const statsCache = new Map();
+  function appStats(company = 'mts') {
+    const hit = statsCache.get(company);
+    if (hit && hit.until > U.now()) return hit.v;
     const day = U.msk().day;
     const tn = Number(day.replace(/-/g, ''));
     const weekAgo = Number(new Date(Date.parse(day + 'T00:00:00Z') - 6 * 864e5).toISOString().slice(0, 10).replace(/-/g, ''));
+    const C = company;
     const v = {
-      users: q('SELECT COUNT(*) AS n FROM users WHERE nick IS NOT NULL').get().n,
-      gangs: q('SELECT COUNT(*) AS n FROM gangs WHERE hidden = 0').get().n,
-      inGangs: q('SELECT COUNT(DISTINCT m.user_id) AS n FROM gang_members m JOIN gangs g ON g.id = m.gang_id WHERE g.hidden = 0').get().n,
-      today: q("SELECT COUNT(*) AS n FROM counters WHERE key = 'last_active' AND n >= ?").get(tn).n,
-      week: q("SELECT COUNT(*) AS n FROM counters WHERE key = 'last_active' AND n >= ?").get(weekAgo).n,
-      inOffice: q('SELECT COUNT(DISTINCT user_id) AS n FROM checkins WHERE day = ? AND left_at IS NULL').get(day).n,
-      newWeek: q('SELECT COUNT(*) AS n FROM users WHERE nick IS NOT NULL AND created_at > ?').get(U.now() - 7 * 864e5).n,
-      msgsToday: q('SELECT COUNT(*) AS n FROM messages WHERE at > ?').get(Date.parse(day + 'T00:00:00Z') - config.tzOffsetHours * 3600e3).n
+      users: q('SELECT COUNT(*) AS n FROM users WHERE nick IS NOT NULL AND company = ?').get(C).n,
+      gangs: q('SELECT COUNT(*) AS n FROM gangs WHERE hidden = 0 AND company = ?').get(C).n,
+      inGangs: q('SELECT COUNT(DISTINCT m.user_id) AS n FROM gang_members m JOIN gangs g ON g.id = m.gang_id WHERE g.hidden = 0 AND g.company = ?').get(C).n,
+      today: q("SELECT COUNT(*) AS n FROM counters c JOIN users x ON x.id = c.user_id WHERE c.key = 'last_active' AND c.n >= ? AND x.company = ?").get(tn, C).n,
+      week: q("SELECT COUNT(*) AS n FROM counters c JOIN users x ON x.id = c.user_id WHERE c.key = 'last_active' AND c.n >= ? AND x.company = ?").get(weekAgo, C).n,
+      inOffice: q('SELECT COUNT(DISTINCT c.user_id) AS n FROM checkins c JOIN users x ON x.id = c.user_id WHERE c.day = ? AND c.left_at IS NULL AND x.company = ?').get(day, C).n,
+      newWeek: q('SELECT COUNT(*) AS n FROM users WHERE nick IS NOT NULL AND created_at > ? AND company = ?').get(U.now() - 7 * 864e5, C).n,
+      msgsToday: q('SELECT COUNT(*) AS n FROM messages m JOIN gangs g ON g.id = m.gang_id WHERE m.at > ? AND g.company = ?').get(Date.parse(day + 'T00:00:00Z') - config.tzOffsetHours * 3600e3, C).n
     };
-    statsCache = { v, until: U.now() + 60e3 };
+    statsCache.set(company, { v, until: U.now() + 60e3 });
     return v;
   }
 
@@ -496,14 +500,15 @@ function createApi(db) {
   route('POST', '/api/auth/request', async (req, body) => {
     const email = U.normalizeEmail(body.email);
     rateLimit('auth-ip:' + req.ip, 10, 15 * 60e3);
-    if (!U.emailDomainAllowed(email)) throw bad(`Регистрация только с рабочей почты ${config.allowedDomains.map((d) => '@' + d).join(', ')}.`);
+    const company = U.companyByEmail(email);
+    if (!company) throw bad(`Вход только с рабочей почты: ${Object.values(COMPANIES).map((c) => '@' + c.domains[0]).join(' или ')}.`);
     if (body.consent !== true) throw bad('Нужно согласие с политикой и правилами.');
     const emailHash = U.hashEmail(email);
     rateLimit('auth-mail:' + emailHash, 3, 15 * 60e3);
     const token = U.randomToken(32);
     const code = String(require('node:crypto').randomInt(0, 1e6)).padStart(6, '0');
-    q('INSERT INTO login_tokens (token_hash, email_hash, code_hash, expires_at) VALUES (?, ?, ?, ?)')
-      .run(U.sha256(token), emailHash, U.sha256(emailHash + ':' + code), U.now() + config.loginTokenMinutes * 60e3);
+    q('INSERT INTO login_tokens (token_hash, email_hash, code_hash, expires_at, company) VALUES (?, ?, ?, ?, ?)')
+      .run(U.sha256(token), emailHash, U.sha256(emailHash + ':' + code), U.now() + config.loginTokenMinutes * 60e3, company);
     const link = `${config.baseUrl}/auth/verify?t=${token}`;
     try {
       await sendLoginLink(email, link, code);
@@ -548,7 +553,7 @@ function createApi(db) {
 
   route('GET', '/api/me', async (req) => {
     const u = currentUser(req);
-    if (!u) return { user: null, vapidKey: config.vapid.publicKey || null, domains: config.allowedDomains };
+    if (!u) return { user: null, vapidKey: config.vapid.publicKey || null, domains: config.allowedDomains, companies: companiesPub() };
     const owned = q('SELECT item_id FROM owned WHERE user_id = ?').all(u.id).map((r) => r.item_id);
     const streak = markStreak(u.id);
     const earned = q('SELECT COALESCE(SUM(amount), 0) AS s FROM ledger WHERE user_id = ? AND amount > 0').get(u.id).s;
@@ -560,7 +565,7 @@ function createApi(db) {
     return {
       user: {
         completion, affordable,
-        id: u.id, nick: u.nick, beans: u.beans, look: u.look, profile: u.profile, shareOffice: !!u.share_office, quiet: !!u.quiet,
+        id: u.id, nick: u.nick, company: companyOf(u), companyName: (COMPANIES[companyOf(u)] || {}).name || '', beans: u.beans, look: u.look, profile: u.profile, shareOffice: !!u.share_office, quiet: !!u.quiet,
         welcomed: !!u.welcomed, isAdmin: u.isAdmin, owned, newbie: U.now() - (u.created_at || 0) < 7 * 864e5, status: statusName(u.look.status), streak, level,
         // Погода на завтра для «Рядом»: с 15:00 накануне офисного дня, только если погода необычная
         weather: weather && U.msk().hour >= 15 ? weather.adviceFor(u.id, u.profile) : null,
@@ -576,7 +581,7 @@ function createApi(db) {
         signals: Object.fromEntries(Object.entries(SIGNALS).map(([k, v]) => [k, v.label])),
         tags: TAGS, days: DAYS, look: LOOK, nickPrice: NICK_PRICE, memes: MEMES.map((m) => ({ ...m, on: SEASON.seasonOn(m.season, U.msk().day) })), memeEmos: MEME_EMOS, seasons: SEASON.activeSeasons(U.msk().day),
         parts: SHOP.filter((it) => it.kind === 'part').map(({ id, slot, value, name, price, legend, award, season }) => ({ id, slot, value, name, price, legend: !!legend, award: !!award, season: season || null, on: SEASON.seasonOn(season, U.msk().day), until: season && SEASON.seasonOn(season, U.msk().day) ? SEASON.nextWindow(season, U.msk().day).to : null })), gangColors: GANG_COLORS, idleJokes: IDLE_JOKES,
-        offices: offices().map((o) => ({ id: o.id, name: o.name, color: o.color }))
+        offices: offices(companyOf(u)).map((o) => ({ id: o.id, name: o.name, color: o.color }))
       }
     };
   });
@@ -627,7 +632,7 @@ function createApi(db) {
       // Образ для отпуска: второй аватар, который коллеги видят, пока ты в отпуске
       if (p.vacationLook !== undefined) prof.vacationLook = p.vacationLook === null ? null : applyLook({ ...DEFAULT_LOOK, ...u.look, status: null, frame: null, crown: false }, p.vacationLook, ownedSet);
       if (p.mood !== undefined && MOODS[p.mood]) prof.mood = p.mood;
-      if (p.home !== undefined && (p.home === null || officeById(p.home))) prof.home = p.home;
+      if (p.home !== undefined && (p.home === null || (officeById(p.home) && (officeById(p.home).company || 'mts') === companyOf(u)))) prof.home = p.home;
       if (p.plan && typeof p.plan === 'object') {
         prof.plan = {};
         for (const d of DAYS) if (p.plan[d] === 'office' || p.plan[d] === 'home') prof.plan[d] = p.plan[d];
@@ -750,7 +755,7 @@ function createApi(db) {
     const newChat = gangIds.length
       ? q(`SELECT COUNT(*) AS n FROM messages WHERE gang_id IN (${gangIds.map(() => '?').join(',')}) AND at > ? AND hidden = 0 AND (user_id IS NULL OR user_id != ?)`).get(...gangIds, seenChat, u.id).n
       : 0;
-    const newFeed = q('SELECT COUNT(*) AS n FROM events WHERE at > ? AND (office_id IS NULL OR office_id = ?) AND (user_id IS NULL OR user_id != ?)').get(seenFeed, ci ? ci.office_id : '', u.id).n
+    const newFeed = q('SELECT COUNT(*) AS n FROM events e WHERE at > ? AND (office_id IS NULL OR office_id = ?) AND (user_id IS NULL OR (user_id != ? AND EXISTS (SELECT 1 FROM users x WHERE x.id = e.user_id AND x.company = ?)))').get(seenFeed, ci ? ci.office_id : '', u.id, companyOf(u)).n
       + (ci ? q('SELECT COUNT(*) AS n FROM signals WHERE office_id = ? AND at > ? AND hidden = 0 AND expires_at > ?').get(ci.office_id, seenFeed, U.now()).n : 0);
     const canteenOpen = ci ? q('SELECT * FROM canteen WHERE user_id = ? AND done_at IS NULL AND at > ? ORDER BY at DESC LIMIT 1').get(u.id, U.now() - 60 * 60e3) : null;
     return {
@@ -773,7 +778,7 @@ function createApi(db) {
       canteen: office ? canteenEstimate(office) : null,
       inCanteen: !!canteenOpen,
       gangNow: { hasGang: gangs.length > 0, rows: rows.slice(0, 6), more: Math.max(0, rows.length - 6) },
-      stats: appStats(),
+      stats: appStats(companyOf(u)),
       badges: { chat: newChat, feed: newFeed, crew: (crew ? crew.unread(u.id) : 0) + (secret ? secret.unread(u.id) : 0), invites: q("SELECT COUNT(*) AS n FROM gang_invites WHERE to_id = ? AND status = 'pending'").get(u.id).n, feedback: feedback ? feedback.unseen(u.id) : 0, gangRequests: q("SELECT COUNT(*) AS n FROM gang_requests r JOIN gangs g ON g.id = r.gang_id WHERE g.owner_id = ? AND r.status = 'pending'").get(u.id).n, polls: polls ? polls.unvoted(u.id) : 0, duels: duels ? duels.myTurns(u.id) : 0 }
     };
   });
@@ -782,7 +787,7 @@ function createApi(db) {
     const u = requireUser(req);
     if (U.isAfterCheckinCutoff()) throw bad('Отметки откроются завтра утром.');
     const office = officeById(body.office);
-    if (!office) throw bad('Нет такого офиса.');
+    if (!office || (office.company || 'mts') !== companyOf(u)) throw bad('Нет такого офиса.');
     const day = U.msk().day;
     const ci = activeCheckin(u.id);
     if (ci && ci.office_id === office.id) return { ok: true, beans: 0 };
@@ -846,8 +851,8 @@ function createApi(db) {
     let code;
     do code = U.shortCode(6); while (q('SELECT 1 FROM gangs WHERE code = ?').get(code));
     const prof = gangProfileInput(body, {});
-    const r = q('INSERT INTO gangs (name, color, code, owner_id, deposit, created_at, about, area, interests, emoji, access, crest) VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)')
-      .run(name, color, code, u.id, U.now(), prof.about, prof.area, JSON.stringify(prof.interests), prof.emoji, prof.access || 'request', prof.crest || null);
+    const r = q('INSERT INTO gangs (name, color, code, owner_id, deposit, created_at, about, area, interests, emoji, access, crest, company) VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(name, color, code, u.id, U.now(), prof.about, prof.area, JSON.stringify(prof.interests), prof.emoji, prof.access || 'request', prof.crest || null, companyOf(u));
     for (const o of was) leaveGang(u.id, o.id);
     q('INSERT INTO gang_members (gang_id, user_id, joined_at) VALUES (?, ?, ?)').run(r.lastInsertRowid, u.id, U.now());
     if (league) league.touch(Number(r.lastInsertRowid), [u.id]);
@@ -880,7 +885,11 @@ function createApi(db) {
   const inGangError = (o) => bad(`Ты уже в банде «${o.name}». Банда может быть только одна: выйди из неё или подтверди переход.`);
 
   // Банда у человека одна: вступление в новую = выход из старой, но только с явного согласия (opts.switch)
+  // Банды — только внутри своей компании
+  const otherCompany = (u, g) => companyOf(g) !== companyOf(u);
+  const companyErr = () => bad('Это банда другой компании. Банды собираются внутри своей компании — а дружить можно подельниками.');
   function joinGang(u, g, opts = {}) {
+    if (otherCompany(u, g)) throw companyErr();
     if (!isMember(g.id, u.id) && memberCount(g.id) >= gangLimit(g)) throw bad(gangLimit(g) === MAX_MEMBERS ? `В банде уже ${MAX_MEMBERS} — это максимум.` : `В банде уже ${gangLimit(g)} — это предел, который поставил владелец.`);
     const others = otherGangs(u.id, g.id);
     if (others.length && !opts.switch) throw inGangError(others[0]);
@@ -947,7 +956,7 @@ function createApi(db) {
     const needle = String(query.q || '').trim().toLocaleLowerCase('ru').slice(0, 40);
     const area = GANG_AREAS.includes(query.area) ? query.area : null;
     const interest = GANG_INTERESTS.includes(query.interest) ? query.interest : null;
-    let rows = q("SELECT * FROM gangs WHERE hidden = 0 AND access IN ('open', 'request')").all();
+    let rows = q("SELECT * FROM gangs WHERE hidden = 0 AND access IN ('open', 'request') AND company = ?").all(companyOf(u));
     if (area) rows = rows.filter((g) => g.area === area);
     if (interest) rows = rows.filter((g) => JSON.parse(g.interests || '[]').includes(interest));
     if (needle) rows = rows.filter((g) => [g.name, g.about, g.area, ...(JSON.parse(g.interests || '[]'))].filter(Boolean).join(' ').toLocaleLowerCase('ru').includes(needle));
@@ -974,7 +983,7 @@ function createApi(db) {
   route('GET', '/api/gangs/:id/profile', async (req, body, query, params) => {
     const u = requireUser(req);
     const g = q('SELECT * FROM gangs WHERE id = ? AND hidden = 0').get(Number(params.id));
-    if (!g || (!isMember(g.id, u.id) && !['open', 'request'].includes(g.access))) throw new HttpError(404, 'Банда не найдена или скрыта.');
+    if (!g || (!isMember(g.id, u.id) && (!['open', 'request'].includes(g.access) || otherCompany(u, g)))) throw new HttpError(404, 'Банда не найдена или скрыта.');
     return gangCard(g, u.id);
   });
 
@@ -984,6 +993,7 @@ function createApi(db) {
     const g = q('SELECT * FROM gangs WHERE id = ? AND hidden = 0').get(Number(params.id));
     if (!g) throw new HttpError(404, 'Банда не найдена.');
     if (isMember(g.id, u.id)) return { ok: true, member: true, id: g.id };
+    if (otherCompany(u, g)) throw companyErr();
     if (g.access === 'open') { joinGang(u, g, { switch: !!body.switch }); return { ok: true, member: true, id: g.id }; }
     if (g.access !== 'request') throw bad('В эту банду попадают только по приглашению.');
     if (memberCount(g.id) >= gangLimit(g)) throw bad('В банде нет мест.');
@@ -1082,7 +1092,7 @@ function createApi(db) {
     const raw = String(query.q || '').trim().toLocaleLowerCase('ru').slice(0, 40);
     // «парковку» находит «Парковка»: ищем по основе без окончания
     const needle = raw.length > 5 ? raw.slice(0, -2) : raw;
-    const rows = q("SELECT id, nick, look, profile FROM users WHERE nick IS NOT NULL AND id != ?").all(u.id).map((r) => ({ r, p: readProfile(r.profile) }));
+    const rows = q("SELECT id, nick, look, profile FROM users WHERE nick IS NOT NULL AND id != ? AND company = ?").all(u.id, companyOf(u)).map((r) => ({ r, p: readProfile(r.profile) }));
     // Популярные темы — подсказки для поиска
     const count = new Map();
     for (const { p } of rows) for (const t of p.askMe || []) { const k = t.toLocaleLowerCase('ru'); const c = count.get(k) || { t, n: 0 }; c.n++; count.set(k, c); }
@@ -1113,7 +1123,9 @@ function createApi(db) {
     } else {
       const needle = raw.replace(/^@+/, '').toLocaleLowerCase('ru');
       const all = q('SELECT * FROM users WHERE nick IS NOT NULL AND id != ?').all(u.id);
+      // Из другой компании находим только по нику целиком или по почте: чужой список коллег не листаем
       rows = all.filter((r) => {
+        if (companyOf(r) !== companyOf(u)) return r.nick.toLocaleLowerCase('ru') === needle;
         if (r.nick.toLocaleLowerCase('ru').includes(needle)) return true;
         const p = readProfile(r.profile);
         if (!hasOwnName(u.profile)) return false; // по имени ищет тот, кто сам указал имя
@@ -1126,11 +1138,11 @@ function createApi(db) {
     const items = rows.filter((r) => r.id !== u.id && !blockedIds.has(r.id) && readProfile(r.profile).findable !== false).slice(0, 20).map((r) => {
       const prof = readProfile(r.profile);
       const shared = mine.filter((g) => isMember(g.id, r.id));
-      const invitable = mine.filter((g) => !isMember(g.id, r.id)).map((g) => ({
+      const invitable = mine.filter((g) => !isMember(g.id, r.id) && companyOf(g) === companyOf(r)).map((g) => ({
         id: g.id, name: g.name,
         pending: !!q("SELECT 1 FROM gang_invites WHERE gang_id = ? AND to_id = ? AND status = 'pending'").get(g.id, r.id)
       }));
-      return { id: r.id, nick: r.nick, look: publicLook({ look: r.look }), name: fullName(prof, 'all'), status: statusName(JSON.parse(r.look || '{}').status), shared: shared.map((g) => g.name), invitable };
+      return { id: r.id, nick: r.nick, look: publicLook({ look: r.look }), company: companyOf(r) !== companyOf(u) ? (COMPANIES[companyOf(r)] || {}).name || null : null, name: companyOf(r) !== companyOf(u) ? '' : fullName(prof, 'all'), status: statusName(JSON.parse(r.look || '{}').status), shared: shared.map((g) => g.name), invitable };
     });
     return { items, hint: items.length ? '' : 'Никого не нашли. Человек мог отключить поиск в настройках — тогда позови его ссылкой' };
   });
@@ -1142,6 +1154,7 @@ function createApi(db) {
     if (!g || !isMember(g.id, u.id)) throw bad('Позвать можно только в свою банду.');
     const t = q('SELECT * FROM users WHERE id = ? AND nick IS NOT NULL').get(Number(body.to));
     if (!t || t.id === u.id || readProfile(t.profile).findable === false) throw bad('Этого человека нельзя позвать.');
+    if (companyOf(t) !== companyOf(g)) throw bad('Он из другой компании: в банду зовём только своих. Добавь в подельники — сможете переписываться.');
     if (isMember(g.id, t.id)) throw bad(U.g(t.look, 'Он уже в банде.', 'Она уже в банде.'));
     try { if (q('SELECT 1 FROM crew_blocks WHERE (user_id = ? AND blocked_id = ?) OR (user_id = ? AND blocked_id = ?)').get(t.id, u.id, u.id, t.id)) throw bad('Этого человека нельзя позвать.'); } catch (e) { if (e instanceof HttpError) throw e; }
     if (q("SELECT 1 FROM gang_invites WHERE gang_id = ? AND to_id = ? AND status = 'pending'").get(g.id, t.id)) throw bad('Уже позвали — ждём ответа.');
@@ -1348,7 +1361,7 @@ function createApi(db) {
     const ci = activeCheckin(u.id);
     const officeId = ci ? ci.office_id : null;
     const events = q(`SELECT e.*, o.name AS office_name FROM events e LEFT JOIN offices o ON o.id = e.office_id
-                      WHERE e.at > ? AND (e.office_id IS NULL OR e.office_id = ?) ORDER BY e.at DESC LIMIT 60`).all(U.now() - 48 * 3600e3, officeId || '');
+                      WHERE e.at > ? AND (e.office_id IS NULL OR e.office_id = ?) AND (e.user_id IS NULL OR EXISTS (SELECT 1 FROM users x WHERE x.id = e.user_id AND x.company = ?)) ORDER BY e.at DESC LIMIT 60`).all(U.now() - 48 * 3600e3, officeId || '', companyOf(u));
     const signals = officeId
       ? q('SELECT * FROM signals WHERE office_id = ? AND hidden = 0 AND expires_at > ? ORDER BY at DESC').all(officeId, U.now())
       : [];
@@ -1663,8 +1676,8 @@ function createApi(db) {
     q('UPDATE login_tokens SET used = 1 WHERE token_hash = ?').run(row.token_hash);
     let user = q('SELECT * FROM users WHERE email_hash = ?').get(row.email_hash);
     if (!user) {
-      const r = q('INSERT INTO users (email_hash, created_at, consent_at, look, profile) VALUES (?, ?, ?, ?, ?)')
-        .run(row.email_hash, U.now(), U.now(), JSON.stringify(DEFAULT_LOOK), JSON.stringify(DEFAULT_PROFILE));
+      const r = q('INSERT INTO users (email_hash, created_at, consent_at, look, profile, company) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(row.email_hash, U.now(), U.now(), JSON.stringify(DEFAULT_LOOK), JSON.stringify(DEFAULT_PROFILE), row.company || 'mts');
       user = { id: Number(r.lastInsertRowid) };
     }
     const session = U.randomToken(32);

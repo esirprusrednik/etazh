@@ -92,13 +92,14 @@ function register(ctx) {
       WHERE l.reason IN ('checkin', 'home') AND l.day BETWEEN ? AND ? GROUP BY l.day`).all(gid, p.from, last).filter((r) => r.n >= need).length;
   }
 
-  function standings(p, { live = true } = {}) {
+  function standings(p, { live = true, company = null } = {}) {
     if (live && p.from <= today() && today() <= p.to) {
       for (const g of q('SELECT id FROM gangs WHERE hidden = 0').all()) touch(g.id);
     }
     const sums = new Map(q('SELECT gang_id, SUM(points) AS s FROM league_points WHERE day BETWEEN ? AND ? GROUP BY gang_id').all(p.from, p.to).map((r) => [r.gang_id, r.s]));
     const rosters = new Map(q('SELECT gang_id, COUNT(*) AS n FROM league_roster WHERE period = ? GROUP BY gang_id').all(p.key).map((r) => [r.gang_id, r.n]));
-    const gangs = q('SELECT id, name, color, emoji, access, crest, area, interests, style FROM gangs WHERE hidden = 0').all().filter((g) => rosters.has(g.id) || sums.has(g.id));
+    // Лига — внутри компании: банды МТС и Роснефти соревнуются каждая со своими
+    const gangs = q('SELECT id, name, color, emoji, access, crest, area, interests, style, company FROM gangs WHERE hidden = 0').all().filter((g) => (!company || (g.company || 'mts') === company) && (rosters.has(g.id) || sums.has(g.id)));
     const rows = gangs.map((g) => {
       const total = sums.get(g.id) || 0;
       const roster = rosters.get(g.id) || 0;
@@ -115,9 +116,9 @@ function register(ctx) {
     if (p.to < LAUNCH || p.to >= today()) return false;
     if (q('SELECT 1 FROM league_settled WHERE period = ?').get(p.key)) return false;
     q('INSERT INTO league_settled (period, at) VALUES (?, ?)').run(p.key, U.now());
-    const { ranked } = standings(p, { live: false });
     const prizes = PRIZES[p.type];
-    for (const r of ranked.slice(0, prizes.length)) {
+    const companies = q('SELECT DISTINCT company FROM gangs').all().map((r) => r.company || 'mts');
+    for (const r of companies.flatMap((c) => standings(p, { live: false, company: c }).ranked.slice(0, prizes.length))) {
       q('INSERT OR IGNORE INTO league_results (period, gang_id, place, score, name, at) VALUES (?, ?, ?, ?, ?, ?)').run(p.key, r.id, r.place, r.score, r.name, U.now());
       const prize = prizes[r.place - 1];
       // Приз — тем, кто принёс банде хоть одно очко за период
@@ -142,15 +143,16 @@ function register(ctx) {
   }
   setInterval(() => { try { tick(); } catch (e) { console.error('league', e); } }, 10 * 60e3).unref();
 
-  function lastWinners(p) {
-    return q('SELECT r.place, r.score, r.name, g.color, g.emoji, g.id, g.crest, g.area, g.interests, g.style FROM league_results r LEFT JOIN gangs g ON g.id = r.gang_id WHERE r.period = ? ORDER BY r.place').all(p.key)
+  function lastWinners(p, company = 'mts') {
+    return q("SELECT r.place, r.score, r.name, g.color, g.emoji, g.id, g.crest, g.area, g.interests, g.style FROM league_results r LEFT JOIN gangs g ON g.id = r.gang_id WHERE r.period = ? AND COALESCE(g.company, 'mts') = ? ORDER BY r.place").all(p.key, company)
       .map((r) => ({ place: r.place, score: r.score, name: r.name, color: r.color || '#9AA3B5', emoji: r.emoji || null, id: r.id || null, ...U.crestPub(r) }));
   }
 
   function view(uid, type) {
     tick();
     const p = period(type, today());
-    const { ranked, all } = standings(p);
+    const company = (q('SELECT company FROM users WHERE id = ?').get(uid) || {}).company || 'mts';
+    const { ranked, all } = standings(p, { company });
     const gid = mainGang(uid);
     const mine = gid ? all.find((r) => r.id === gid) || null : null;
     const myPoints = gid ? q('SELECT COALESCE(SUM(points), 0) AS n FROM league_points WHERE gang_id = ? AND user_id = ? AND day BETWEEN ? AND ?').get(gid, uid, p.from, p.to).n : 0;
@@ -165,7 +167,7 @@ function register(ctx) {
       count: ranked.length,
       mine: mine ? { ...pub(mine), eligible: mine.eligible, roster: mine.roster, myPoints, todayPts, dayCap: DAY_CAP } : null,
       prizes: PRIZES[type].map((x, i) => ({ place: i + 1, beans: x.beans, items: x.items })),
-      last: { label: prev.label, winners: lastWinners(prev) },
+      last: { label: prev.label, winners: lastWinners(prev, company) },
       rules: { dayCap: DAY_CAP, minRoster: MIN_ROSTER, togetherShare: TOGETHER_SHARE, togetherBonus: TOGETHER_BONUS }
     };
   }
@@ -185,7 +187,8 @@ function register(ctx) {
   // Место банды в текущей неделе — для шапки банды
   function weekPlace(gid) {
     const p = period('W', today());
-    const { ranked, all } = standings(p, { live: false });
+    const gc = (q('SELECT company FROM gangs WHERE id = ?').get(gid) || {}).company || 'mts';
+    const { ranked, all } = standings(p, { live: false, company: gc });
     const r = all.find((x) => x.id === gid);
     return r ? { place: (ranked.find((x) => x.id === gid) || {}).place || null, score: r.score, of: ranked.length, eligible: r.eligible } : null;
   }

@@ -84,6 +84,8 @@ function register(ctx) {
     if (closedBy(b.id, a.id)) return U.g(b.look, 'Собеседник закрыл личку. Написать получится, когда он сам напишет.', 'Собеседница закрыла личку. Написать получится, когда она сама напишет.');
     if (blocked(b.id, a.id)) return null; // о блоке не говорим: сообщение «уйдёт», но не дойдёт
     if (areCrew(a.id, b.id)) return null;
+    // Между компаниями — только подельники (или уже начатая переписка)
+    if ((a.company || 'mts') !== (b.company || 'mts') && !hasThread(a.id, b.id)) return `${b.nick} из другой компании — писать можно, когда станете подельниками. Отправь заявку.`;
     const pol = dmPolicy(b);
     if (pol === 'all') return null;
     if (pol === 'gang' && shareGang(a.id, b.id)) return null;

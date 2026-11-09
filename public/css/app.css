@@ -2012,3 +2012,5 @@ button.chip.ask-chip { cursor: pointer; }
 .ttl-wait { color: #B45309; } :root[data-theme="dark"] .ttl-wait { color: #FFB066; }
 
 .battle-invite.hot .small { color: #FFF1E6; }
+.co-pick { display: flex; gap: 8px; margin: 4px 0 10px; }
+.co-pick .chip { flex: 1; }

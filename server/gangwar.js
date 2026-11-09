@@ -326,7 +326,7 @@ function register(ctx) {
   route('GET', '/api/gangwar/rivals', async (req, body, query) => {
     const u = requireUser(req);
     const g = ownGang(u, query.gang);
-    const rivals = q('SELECT * FROM gangs WHERE hidden = 0 AND id != ?').all(g.id)
+    const rivals = q("SELECT * FROM gangs WHERE hidden = 0 AND id != ? AND company = ?").all(g.id, g.company || 'mts')
       .map((x) => ({ ...gangPub(x), count: memberCount(x.id), block: blockReason(g, x) }))
       .filter((x) => x.count > 0).sort((a, b) => Number(!!a.block) - Number(!!b.block) || b.count - a.count).slice(0, 50);
     const vs = Number(query.vs) || null;
@@ -338,7 +338,7 @@ function register(ctx) {
     const g = ownGang(u, params.id);
     if (g.owner_id !== u.id) throw bad('Вызов бросает владелец банды.');
     const to = q('SELECT * FROM gangs WHERE id = ? AND hidden = 0').get(Number(body.to));
-    if (!to || to.id === g.id) throw bad('Выбери банду-соперника.');
+    if (!to || to.id === g.id || (to.company || 'mts') !== (g.company || 'mts')) throw bad('Выбери банду-соперника.');
     const why = blockReason(g, to);
     if (why) throw bad(why);
     const kind = body.kind === 'sea' ? 'sea' : 'blitz';

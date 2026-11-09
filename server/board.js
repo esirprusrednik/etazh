@@ -51,7 +51,8 @@ function register(ctx) {
 
   route('GET', '/api/board', async (req, body, query) => {
     const u = requireUser(req);
-    const rows = q('SELECT * FROM board_posts WHERE hidden = 0 AND until >= ? ORDER BY at DESC LIMIT 100').all(today());
+    // Доска — внутри своей компании
+    const rows = q("SELECT p.* FROM board_posts p JOIN users x ON x.id = p.user_id WHERE p.hidden = 0 AND p.until >= ? AND x.company = ? ORDER BY p.at DESC LIMIT 100").all(today(), u.company || 'mts');
     const office = query.office ? String(query.office) : '';
     const items = rows.filter((p) => !office || !p.office_id || p.office_id === office).map((p) => view(p, u.id));
     return { items, kinds: Object.entries(KINDS).map(([id, k]) => ({ id, ...k })), maxDays: MAX_DAYS };
@@ -85,6 +86,7 @@ function register(ctx) {
     const u = requireUser(req);
     const p = postOr404(params.id);
     if (p.user_id === u.id) throw bad('Это твоё объявление.');
+    if (((q('SELECT company FROM users WHERE id = ?').get(p.user_id) || {}).company || 'mts') !== (u.company || 'mts')) throw new HttpError(404, 'Объявление не найдено.');
     const had = q('SELECT 1 FROM board_metoo WHERE post_id = ? AND user_id = ?').get(p.id, u.id);
     if (had) q('DELETE FROM board_metoo WHERE post_id = ? AND user_id = ?').run(p.id, u.id);
     else {

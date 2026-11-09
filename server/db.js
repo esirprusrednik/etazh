@@ -18,6 +18,8 @@ function openDb(file) {
   db.exec(`CREATE TABLE IF NOT EXISTS gang_requests (gang_id INTEGER NOT NULL REFERENCES gangs(id) ON DELETE CASCADE, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, at INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'pending', PRIMARY KEY (gang_id, user_id))`);
   // Одна бесплатная смена ника для каждого — в том числе для тех, кто уже менял за зёрна
   try { db.exec('ALTER TABLE users ADD COLUMN nick_free_used INTEGER NOT NULL DEFAULT 0'); } catch {}
+  // Компания: у всех, кто был до Роснефти, — МТС. Почту не храним, компанию определяем по домену при регистрации
+  for (const t of ['users', 'gangs', 'offices', 'login_tokens']) { try { db.exec(`ALTER TABLE ${t} ADD COLUMN company TEXT NOT NULL DEFAULT 'mts'`); } catch {} }
   // Ники раньше хранились с «@» впереди — убираем знак (разово, повторный запуск ничего не меняет)
   db.exec("UPDATE users SET nick = substr(nick, 2) WHERE nick LIKE '@%'");
   // Банда — не оргструктура: старые «направления» по подразделениям снимаем («По интересам» → «Просто свои»)
@@ -27,6 +29,8 @@ function openDb(file) {
     db.prepare(`UPDATE gangs SET area = NULL WHERE area IN (${OLD_GANG_AREAS.map(() => '?').join(',')})`).run(...OLD_GANG_AREAS);
   }
   seed(db);
+  // Офис Роснефти
+  db.prepare("INSERT OR IGNORE INTO offices (id, name, seats, share_p, lunch_w, color, sort, company) VALUES ('sof', 'Софийка', 250, 0.3, 25, '#F4C430', 10, 'rosneft')").run();
   return db;
 }
 

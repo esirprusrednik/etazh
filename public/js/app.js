@@ -1090,7 +1090,7 @@ function reloadIfStale() {
 
 async function loadMe() {
   const r = await get('/api/me');
-  S.me = r.user; S.cat = r.catalog; S.vapidKey = r.vapidKey; S.domains = r.domains;
+  S.me = r.user; S.cat = r.catalog; S.vapidKey = r.vapidKey; S.domains = r.domains; if (r.companies) S.companies = r.companies;
   noteBuild(r.build);
   if (S.me && S.me.gangs.length && !S.me.gangs.some((g) => g.id === S.activeGang)) S.activeGang = S.me.gangs[0].id;
 }
@@ -1688,6 +1688,14 @@ function aboutHtml({ cta = true } = {}) {
   </div>`;
 }
 
+// Компания на входе: МТС или Роснефть. Сервер всё равно определяет компанию по домену почты
+function loginCos() { return S.companies && S.companies.length ? S.companies : [{ id: 'mts', name: 'МТС', domain: 'mts.ru' }]; }
+function loginCo() { const cs = loginCos(); return cs.find((c) => c.id === S.loginCompany) || cs[0]; }
+function loginCompanyChips() {
+  const cs = loginCos(); if (cs.length < 2) return '';
+  const cur = loginCo().id;
+  return `<div class="co-pick" role="radiogroup" aria-label="Компания">${cs.map((c) => `<button class="chip${c.id === cur ? ' on' : ''}" role="radio" aria-checked="${c.id === cur}" data-act="login-co" data-id="${esc(c.id)}">${esc(c.name)}</button>`).join('')}</div>`;
+}
 function renderLogin() {
   const o = S.onb;
   const params = new URLSearchParams(location.search);
@@ -1713,9 +1721,10 @@ function renderLogin() {
     <details class="about-login"><summary>Что такое Этаж? За 30 секунд</summary>${aboutHtml({ cta: false })}</details>
     <div class="card">
       <h2>Вход по рабочей почте</h2>
-      <p class="sub">Только ${S.domains.map((d) => '@' + esc(d)).join(', ')}. Почту мы не храним — только её зашифрованный отпечаток. Остальные видят только твой ник.</p>
+      ${loginCompanyChips()}
+      <p class="sub">Только @${esc(loginCo().domain)}. Почту мы не храним — только её зашифрованный отпечаток. Остальные видят только твой ник.</p>
       ${expired ? '<div class="err">Ссылка устарела или уже использована. Запроси новую.</div>' : ''}
-      <label class="field">Рабочая почта<input id="email" type="email" inputmode="email" autocomplete="email" placeholder="name@${esc(S.domains[0])}" value="${esc(o.email)}"></label>
+      <label class="field">Рабочая почта<input id="email" type="email" inputmode="email" autocomplete="email" placeholder="name@${esc(loginCo().domain)}" value="${esc(o.email)}"></label>
       <label class="check"><input id="consent" type="checkbox"> <span>Согласен с <a href="/privacy.html" target="_blank" rel="noopener">политикой обработки данных</a> и <a href="/rules.html" target="_blank" rel="noopener">правилами</a></span></label>
       ${o.error ? `<div class="err">${esc(o.error)}</div>` : ''}
       <button class="btn wide" data-act="login-submit" ${S.busy ? 'disabled' : ''}>Получить ссылку для входа</button>
@@ -2141,12 +2150,13 @@ function renderFind() {
   const res = f.items ? (f.items.length ? f.items.map((x) => {
     let act = '';
     if (x.shared.length) act = `<button class="btn small" data-act="dm-open" data-id="${x.id}">Написать</button>`;
+    else if (x.company) act = `<button class="btn small" data-act="find-crew" data-v="${esc(x.nick)}">В подельники</button>`;
     else if (!S.me.gangs.length) act = '<span class="small">сначала сколоти банду</span>';
     const inv = x.invitable.map((g) => g.pending ? `<span class="chip" style="cursor:default">«${esc(g.name)}» · ждём ответа</span>` : `<button class="chip" data-act="find-invite" data-gang="${g.id}" data-id="${x.id}">Позвать в «${esc(g.name)}»</button>`).join('');
     return `<div class="find-row"><div class="person2">${tap(x.id, avatar(x.look, 40))}<div class="grow" style="min-width:0"><div style="font-weight:900">${esc(x.nick)}</div>
-      <div class="where ellipsis">${[x.name, x.status, x.shared.length ? 'в банде ' + x.shared.join(', ') : ''].filter(Boolean).map(esc).join(' · ') || 'пока не в твоих бандах'}</div></div>${act}</div>
+      <div class="where ellipsis">${[x.company ? `из ${x.company}` : '', x.name, x.status, x.shared.length ? 'в банде ' + x.shared.join(', ') : ''].filter(Boolean).map(esc).join(' · ') || 'пока не в твоих бандах'}</div></div>${act}</div>
       ${inv ? `<div class="chips">${inv}</div>` : ''}</div>`;
-  }).join('') : `<p class="sub">${esc(f.hint || 'Никого не нашли')}</p>`) : '<p class="small">Ник — по части, например «енот». Имя — только если человек открыл его всем. Почта — целиком, например ivanov@mts.ru: мы сравниваем отпечаток и сами адреса не храним.</p>';
+  }).join('') : `<p class="sub">${esc(f.hint || 'Никого не нашли')}</p>`) : '<p class="small">Ник — по части, например «енот». Имя — только если человек открыл его всем. Почта — целиком, например ivanov@mts.ru. Коллег из другой компании ищем только по нику целиком или по почте. Мы сравниваем отпечаток и сами адреса не храним.</p>';
   return `<div class="row"><label class="field grow" style="gap:0"><span class="hidden">Ник, имя или почта</span><input id="find-q" maxlength="80" autocapitalize="off" autocomplete="off" placeholder="Ник, имя или рабочая почта" value="${esc(f.q || '')}" aria-label="Ник, имя или рабочая почта"></label><button class="btn" data-act="find-go">Найти</button></div>
     ${res}
     <p class="small" style="margin:0">Позвать можно только в свою банду — человек сам решит, вступать ли. Не хочешь, чтобы тебя находили, — выключи в профиле: «Приватность, звук и уведомления».</p>`;
@@ -2785,7 +2795,7 @@ function renderTreasury() {
 }
 
 // ===== Турнир банд =====
-async function loadTour() { try { S.tour = await get('/api/tourney'); } catch { S.tour = null; } }
+async function loadTour() { try { S.tour = await get('/api/tourney'); if (S.tour && S.tour.off) S.tour = null; } catch { S.tour = null; } }
 const TOUR_RULES = (r) => `<ol class="ol">
   <li><b>Запись</b> — с 15-го числа до старта. Записывает владелец, в банде — от 3 человек.</li>
   <li><b>Старт</b> — за 6 рабочих дней до конца месяца. До ${r.maxTeams} банд, сетка — по очкам Лиги месяца: сильные получают слабых, лишним — проход без боя.</li>
@@ -5123,9 +5133,17 @@ async function run(fn, { rerender = true } = {}) {
 }
 
 const actions = {
+  'login-co'(el) {
+    const e = $('#email'); if (e) S.onb.email = e.value.trim();
+    S.loginCompany = el.dataset.id; S.onb.error = ''; render();
+  },
   async 'login-submit'() {
     const email = $('#email').value.trim();
     S.onb.email = email;
+    const co = loginCo(), dom = email.toLowerCase().split('@')[1] || '';
+    const other = loginCos().find((c) => c.domain === dom);
+    if (other && other.id !== co.id) { S.loginCompany = other.id; }
+    else if (email.includes('@') && !other) { S.onb.error = `Нужна почта @${co.domain}.`; return render(); }
     if (!$('#consent').checked) { S.onb.error = 'Отметь согласие с политикой и правилами.'; return render(); }
     S.busy = true; S.onb.error = ''; render();
     try {
@@ -5570,6 +5588,10 @@ const actions = {
     S.sheet = 'compose'; S.error = ''; render();
   },
   'dm-reply': (el) => run(async () => { await post(`/api/dm/${el.dataset.id}/reply`, { label: el.dataset.v }); await loadDm(); }),
+  'find-crew': (el) => run(async () => {
+    const r = await post('/api/crew/add', { nick: el.dataset.v });
+    toast(r.accepted ? 'Теперь можно переписываться!' : r.already ? 'Вы уже на связи' : 'Заявка в подельники ушла. Ждём ответа');
+  }),
   'crew-add': () => run(async () => {
     const nick = $('#crew-nick').value.trim();
     if (!nick) throw new Error('Впиши ник');
