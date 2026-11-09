@@ -629,7 +629,7 @@ function register(ctx) {
       const filled = all.filter((m) => planFilled(readProfile(m.profile))).length;
       return {
         locked: { filled, total: all.length },
-        days: days.map((d) => ({ day: d, label: `${DAY_NAMES[new Date(d + 'T00:00:00Z').getUTCDay()]} ${ddmm(d)}`, office: null, holiday: HOL.holidayName(d), short: HOL.isShort(d), workSat: HOL.isWorkSaturday(d) })),
+        days: days.map((d) => ({ day: d, today: d === today(), label: `${DAY_NAMES[new Date(d + 'T00:00:00Z').getUTCDay()]} ${ddmm(d)}`, office: null, holiday: HOL.holidayName(d), short: HOL.isShort(d), workSat: HOL.isWorkSaturday(d) })),
         rows: [{ id: meId, nick: meRow.nick, me: true, look: lookOf(meRow), cells: days.map((d) => cellFor(readProfile(meRow.profile), meId, d)) }],
         best: null, hidden: 0
       };
@@ -640,7 +640,7 @@ function register(ctx) {
       return { id: m.id, nick: m.nick, me: m.id === meId, look: lookOf(m), cells: days.map((d) => cellFor(prof, m.id, d)) };
     });
     const cols = days.map((d, i) => ({
-      day: d,
+      day: d, today: d === today(),
       label: `${DAY_NAMES[new Date(d + 'T00:00:00Z').getUTCDay()]} ${ddmm(d)}`,
       office: rows.filter((r) => r.cells[i] === 'office').length,
       holiday: HOL.holidayName(d), short: HOL.isShort(d), workSat: HOL.isWorkSaturday(d)

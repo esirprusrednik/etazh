@@ -3158,17 +3158,6 @@ function renderGang() {
   const v = S.gang;
   if (!v) return multi + chips + '<div class="card"><p class="sub">Загружаем банду…</p></div>' + create;
   const g = v.gang;
-  const MEM_SHOW = 5, memCut = v.members.length > MEM_SHOW + 1 && !S.membersAll;
-  const rank = (m) => m.me ? 0 : m.where === 'office' ? 1 : 2;
-  const memSorted = [...v.members].sort((a, b) => rank(a) - rank(b));
-  const members = (memCut ? memSorted.slice(0, MEM_SHOW) : memSorted).map((m) => {
-    const [w, color] = whereText(m);
-    return `<div class="person">${tap(m.id, avatar(m.look, 34))}<div class="grow"><div style="font-weight:900" class="tapname" data-act="person" data-id="${m.id}">${esc(m.nick)}${m.me ? ' (ты)' : ''}</div>${m.name ? `<div class="realname">${esc(m.name)}</div>` : ''}
-      <div class="where"><span class="dot" style="background:${color}"></span>${esc(w)}${m.mood && m.where === 'office' ? ' · ' + esc(m.mood) : ''}${m.status ? ' · ' + esc(m.status) : ''}</div></div>
-      ${m.charge && !m.me ? `<button class="btn small bt-need" data-act="boost-open" data-id="${m.id}" data-nick="${esc(m.nick)}" aria-label="Подкинуть заряд: ${esc(m.nick)} просит подзарядку">bolt</button>` : ''}
-      ${m.me ? '' : `<button class="btn small ghost" data-act="dm-open" data-id="${m.id}" aria-label="Написать лично">chat</button><button class="btn small ghost" data-act="call-open" data-kind="where" data-to="${m.id}" data-gang="${g.id}">Позвать</button>${g.isOwner ? `<button class="btn small ghost" data-act="gm-menu" data-id="${m.id}" aria-label="Управление">⋯</button>` : ''}`}</div>
-      ${g.isOwner && S.gmMenu === m.id ? `<div class="row gm-menu"><button class="btn small ghost" data-act="gm-owner" data-id="${m.id}">Сделать владельцем</button><button class="btn small danger" data-act="gm-kick" data-id="${m.id}">Убрать из банды</button></div>` : ''}`;
-  }).join('');
   const msgs = v.messages.map(renderMsg).join('') || '<p class="sub">Сообщения и зовы живут 24 часа. Начни первым|первой.</p>';
   // Что ждёт меня в банде — для ленты «Сейчас важно» во вкладке «Чат» и счётчика на «Жизни»
   const f = S.friday, w = S.wave, cv = S.cv && S.cv.active;
@@ -3215,14 +3204,7 @@ function renderGang() {
     ${g.league ? leagueRules() : ''}
     ${g.depositPending ? '<div class="note warn">Залог 50 зёрен вернётся, когда в банде будет 3 человека.</div>' : ''}
   </section>
-  <section class="card"><h3>hand Участники · ${v.members.length}</h3>
-    ${reqN ? `<div class="g-req"><b>Хотят в банду · ${reqN}</b>${v.requests.map((r) => `<div class="person2">${tap(r.id, avatar(r.look, 30))}<span class="grow ellipsis" style="font-weight:800">${esc(r.nick)}</span><button class="btn small" data-act="greq" data-id="${r.id}" data-v="accept">Принять</button><button class="btn small ghost" data-act="greq" data-id="${r.id}" data-v="decline" aria-label="Отклонить">✕</button></div>`).join('')}</div>` : ''}
-    ${members}
-    ${v.members.length > MEM_SHOW + 1 ? `<button class="linkbtn" data-act="members-all" aria-expanded="${!memCut}">${memCut ? `Показать всех · ${v.members.length}` : 'Свернуть'}</button>` : ''}
-    ${g.link ? `<button class="btn blue" data-act="invite-share">Позвать в банду по ссылке</button>
-    <p class="small">Ссылка: ${esc(g.link)}. Отправь её в рабочий мессенджер — вступить смогут только свои — с рабочей почтой.</p>` : '<p class="small">В этой банде новых зовёт только владелец.</p>'}
-  </section>
-  ${renderWeek()}
+  ${renderCrewWeek(v, g)}
   ${renderWars()}
   <div class="row g-foot" style="justify-content:space-between">
     <button class="linkbtn" data-act="report" data-type="gang" data-id="${g.id}">Пожаловаться на банду</button>
@@ -3737,32 +3719,57 @@ function renderWeekNotes(w) {
   return notes.length ? `<div class="wk-notes">${notes.map((n) => `<div>${n}</div>`).join('')}</div>` : '';
 }
 
-function renderWeek() {
-  const x = S.gx;
-  if (!x) return '';
-  const w = x.week;
-  if (w.locked) {
-    const fake = ['office', 'home', 'office', 'office', 'home'];
-    return `<section class="card">
-    <div class="row" style="justify-content:space-between"><span class="card-title">cal Неделя банды</span><span class="small">${ico('lock', 14)} скрыто</span></div>
-    <div class="week week-blur" aria-hidden="true" style="grid-template-columns: minmax(0, 1.6fr) repeat(${w.days.length}, minmax(0, 1fr))">
-      <span></span>${w.days.map((d) => `<span class="wk-h">${esc(d.label.split(' ')[0])}</span>`).join('')}
-      ${[0, 1, 2, 3].map((r) => `<span class="wk-n">●●●●●●</span>${w.days.map((d, i) => `<span class="wk-c ${fake[(i + r) % 5]}"></span>`).join('')}`).join('')}
+// «Банда на неделе»: участники и неделя офиса в одном списке. Строка — человек, справа точки по рабочим дням,
+// первая — сегодня. Нажатие — карточка, удержание — «Позвать» и «Написать» (у владельца — управление)
+function renderCrewWeek(v, g) {
+  const x = S.gx, w = x && x.week;
+  const reqN = (v.requests || []).length;
+  const days = w ? w.days : [];
+  const rowOf = new Map(((w && w.rows) || []).map((r) => [r.id, r]));
+  const fake = ['office', 'home', 'office', 'office', 'home'];
+  const rank = (m) => m.me ? 0 : m.where === 'office' ? 1 : 2;
+  const all = [...v.members].sort((a, b) => rank(a) - rank(b));
+  const SHOW = 5, cut = all.length > SHOW + 1 && !S.membersAll;
+  const list = cut ? all.slice(0, SHOW) : all;
+  const dots = (m, k) => {
+    const r = rowOf.get(m.id);
+    if (!days.length) return '';
+    if (!r && !w.locked) return `<span class="cw-dots cw-none" aria-label="не показывает план"></span>`;
+    return `<span class="cw-dots ${!r ? 'cw-blur' : ''}" aria-hidden="${!r}">${days.map((d, i) => {
+      const c = r ? r.cells[i] : (d.today ? 'unknown' : fake[(i + k) % 5]);
+      return `<i class="wk-c ${c} ${d.today ? 'cw-today' : ''}" title="${esc(d.label)}: ${c === 'off' ? esc(d.holiday || 'выходной') : CELL[c][1]}"></i>`;
+    }).join('')}</span>`;
+  };
+  const row = (m, k) => {
+    const [wt, color] = whereText(m);
+    const menu = S.memMenu === m.id && !m.me;
+    return `<div class="cw-row ${menu ? 'on' : ''}" data-act="person" data-id="${m.id}" ${m.me ? '' : `data-hold="mem-menu"`}>
+      ${avatar(m.look, 34)}
+      <span class="cw-who"><b class="ellipsis">${esc(m.nick)}${m.me ? ' (ты)' : ''}</b><span class="cw-where"><span class="dot" style="background:${color}"></span><span class="ellipsis">${esc(m.name ? m.name.split(' ')[0] + ' · ' : '')}${esc(wt)}</span></span></span>
+      ${m.charge && !m.me ? `<button class="btn small bt-need" data-act="boost-open" data-id="${m.id}" data-nick="${esc(m.nick)}" aria-label="Подкинуть заряд: ${esc(m.nick)} просит подзарядку">bolt</button>` : ''}
+      ${dots(m, k)}
     </div>
-    ${planLockMsg(w.locked)}
-  </section>`;
-  }
-  return `<section class="card">
-    <div class="row" style="justify-content:space-between"><span class="card-title">cal Неделя банды</span><button class="linkbtn" data-act="open" data-v="profile">мой план</button></div>
-    <div class="week" style="grid-template-columns: minmax(0, 1.6fr) repeat(${w.days.length}, minmax(0, 1fr))">
-      <span></span>${w.days.map((d) => `<span class="wk-h ${d.holiday ? 'off' : ''}" ${d.holiday ? `title="${esc(d.holiday)}"` : d.short ? 'title="Сокращённый день, на час короче"' : ''}>${esc(d.label.split(' ')[0])}<br><b>${esc(d.label.split(' ')[1].slice(0, 5))}</b>${d.short ? '<i class="wk-short">−1ч</i>' : ''}</span>`).join('')}
-      ${w.rows.map((r) => `<span class="wk-n ellipsis">${esc(r.nick)}${r.me ? ' (ты)' : ''}</span>${r.cells.map((c, i) => `<span class="wk-c ${c}" title="${c === 'off' ? esc(w.days[i].holiday) : CELL[c][1]}" aria-label="${c === 'off' ? 'Выходной: ' + esc(w.days[i].holiday) : CELL[c][1]}">${CELL[c][0]}</span>`).join('')}`).join('')}
-      <span class="wk-n small">в офисе</span>${w.days.map((d) => `<span class="wk-sum ${w.best && d.label === w.best.label ? 'best' : ''}">${d.holiday ? '—' : d.office}</span>`).join('')}
-    </div>
-    <div class="wk-legend"><span><i class="wk-c office"></i>офис</span><span><i class="wk-c home"></i>дома</span><span><i class="wk-c vacation"></i>отпуск</span><span><i class="wk-c sick"></i>болеет</span>${w.days.some((d) => d.holiday) ? '<span><i class="wk-c off"></i>праздник</span>' : ''}</div>
-    ${renderWeekNotes(w)}
-    ${w.best ? `<div class="week-hint">${ico('where', 16)}<span>${w.best.today ? 'Сегодня' : esc(w.best.label)} в офисе будут <b>${w.best.office} из ${w.best.total}</b></span></div>` : '<p class="small" style="margin:0">Заполните план недели в профиле — тут станет видно, когда банда соберётся в офисе.</p>'}
-    ${w.hidden ? `<p class="small" style="margin:0">Ещё ${w.hidden} ${plural(w.hidden, 'человек', 'человека', 'человек')} не показывают, где работают.</p>` : ''}
+    ${menu ? `<div class="cw-menu"><button class="btn small" data-act="call-open" data-kind="where" data-to="${m.id}" data-gang="${g.id}">Позвать</button><button class="btn small ghost" data-act="dm-open" data-id="${m.id}">${ico('chat', 15)} Написать</button>
+      ${g.isOwner ? `<button class="btn small ghost" data-act="gm-owner" data-id="${m.id}">Сделать владельцем</button><button class="btn small danger" data-act="gm-kick" data-id="${m.id}">Убрать</button>` : ''}</div>` : ''}`;
+  };
+  const todayCol = days.findIndex((d) => d.today);
+  const officeToday = todayCol >= 0 ? v.members.filter((m) => m.where === 'office').length : null;
+  const planToday = todayCol >= 0 && w && !w.locked ? Math.max(0, w.rows.filter((r) => r.cells[todayCol] === 'office').length - officeToday) : 0;
+  const sum = [officeToday != null ? `Сегодня в офисе <b>${officeToday} из ${v.members.length}</b>${planToday ? `, собираются ещё <b>${planToday}</b>` : ''}` : '',
+    w && w.best && !w.best.today ? `больше всего — ${esc(w.best.label.split(' ')[0].toLowerCase())}, <b>${w.best.office}</b>` : ''].filter(Boolean).join(' · ');
+  const head = days.length ? `<span class="cw-dots cw-head">${days.map((d) => `<i class="${d.today ? 'cw-today' : ''} ${d.holiday ? 'off' : ''}">${d.today ? 'сег' : esc(d.label.split(' ')[0])}</i>`).join('')}</span>` : '';
+  return `<section class="card crew-week">
+    <div class="row cw-top"><span class="card-title grow">hand Банда на неделе · ${v.members.length}</span>${head}</div>
+    ${sum ? `<div class="cw-sum">${ico('where', 15)}<span>${sum}</span></div>` : ''}
+    ${w && w.locked ? planLockMsg(w.locked, true) : ''}
+    ${reqN ? `<div class="g-req"><b>Хотят в банду · ${reqN}</b>${v.requests.map((r) => `<div class="person2">${tap(r.id, avatar(r.look, 30))}<span class="grow ellipsis" style="font-weight:800">${esc(r.nick)}</span><button class="btn small" data-act="greq" data-id="${r.id}" data-v="accept">Принять</button><button class="btn small ghost" data-act="greq" data-id="${r.id}" data-v="decline" aria-label="Отклонить">✕</button></div>`).join('')}</div>` : ''}
+    <div class="cw-list">${list.map(row).join('')}</div>
+    ${all.length > SHOW + 1 ? `<button class="linkbtn" data-act="members-all" aria-expanded="${!cut}">${cut ? `Показать всех · ${all.length}` : 'Свернуть'}</button>` : ''}
+    <div class="wk-legend"><span><i class="wk-c office"></i>офис</span><span><i class="wk-c home"></i>дома</span><span><i class="wk-c vacation"></i>отпуск</span><span><i class="wk-c sick"></i>болеет</span>${days.some((d) => d.holiday) ? '<span><i class="wk-c off"></i>праздник</span>' : ''}</div>
+    <p class="small cw-hint">Нажми — карточка. Удерживай — «Позвать» и «Написать».${w && !w.locked ? ' <button class="linkbtn" data-act="open-sec" data-v="work">Мой план</button>' : ''}</p>
+    ${w && !w.locked ? renderWeekNotes(w) : ''}
+    ${w && w.hidden ? `<p class="small" style="margin:0">${w.hidden} ${plural(w.hidden, 'человек не показывает', 'человека не показывают', 'человек не показывают')} план — у них нет точек.</p>` : ''}
+    ${g.link ? `<button class="btn blue" data-act="invite-share">Позвать в банду по ссылке</button>` : '<p class="small" style="margin:0">В этой банде новых зовёт только владелец.</p>'}
   </section>`;
 }
 
@@ -5671,6 +5678,7 @@ const actions = {
   }),
   'thx-pick'() { S.thxPick = !S.thxPick; if (!S.thxPick) S.thanksTo = null; render(); },
   'thx-all'() { S.thxAll = !S.thxAll; render(); },
+  'mem-menu'(el) { const id = Number(el.dataset.id); S.memMenu = S.memMenu === id ? null : id; render(); },
   'members-all'() { S.membersAll = !S.membersAll; render(); },
   'thanks-to'(el) { S.thanksTo = Number(el.dataset.v); render(); },
   'thanks-send': () => run(async () => {
@@ -6009,12 +6017,26 @@ async function syncPush() {
 
 // ---------- События DOM ----------
 document.addEventListener('click', (e) => {
+  if (holdFired && Date.now() - holdFired < 700) { holdFired = 0; e.preventDefault(); return; }
   const el = e.target.closest('[data-act]');
   if (!el || el.tagName === 'INPUT') return;
   if (el.dataset.act === 'close-bg' && e.target !== el) return; // клик внутри шторки — не закрываем и не мешаем ссылкам
   const fn = actions[el.dataset.act];
   if (fn) { e.preventDefault(); const snd = feelFor(el.dataset.act, el); if (snd) sfx(snd); fn(el, e); }
 });
+// Удержание: элемент с data-hold через 450 мс вызывает это действие вместо обычного нажатия
+let holdT = null, holdXY = null, holdFired = 0;
+document.addEventListener('pointerdown', (e) => {
+  const el = e.target.closest('[data-hold]');
+  if (!el || e.target.closest('button:not([data-hold])')) return;
+  holdXY = [e.clientX, e.clientY];
+  holdT = setTimeout(() => { holdT = null; holdFired = Date.now(); try { navigator.vibrate && navigator.vibrate(12); } catch {} sfx('pick'); actions[el.dataset.hold](el); }, 450);
+});
+const holdCancel = () => { if (holdT) { clearTimeout(holdT); holdT = null; } };
+document.addEventListener('pointerup', holdCancel);
+document.addEventListener('pointercancel', holdCancel);
+document.addEventListener('pointermove', (e) => { if (holdT && holdXY && Math.hypot(e.clientX - holdXY[0], e.clientY - holdXY[1]) > 10) holdCancel(); });
+document.addEventListener('contextmenu', (e) => { if (e.target.closest('[data-hold]')) e.preventDefault(); });
 // Ползунок громкости: число меняется на ходу, образец звука — когда отпустил
 document.addEventListener('input', (e) => {
   if (e.target.id === 'office-q') {

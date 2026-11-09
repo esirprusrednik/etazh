@@ -1770,3 +1770,26 @@ button.chip.ask-chip { cursor: pointer; }
 .near-more-body > .card { margin: 0; }
 
 .thx-card .thx-more { justify-self: start; }
+
+/* «Банда на неделе»: участники + точки по дням */
+.crew-week { gap: 10px; }
+.cw-top { align-items: center; gap: 8px; }
+.cw-dots { display: grid; grid-template-columns: repeat(5, 18px); gap: 4px; flex: none; }
+.cw-dots i.wk-c { height: 18px; width: 18px; border-radius: 6px; }
+.cw-dots i.cw-today { outline: 2px solid var(--ink); outline-offset: 1px; }
+.cw-head i { font-style: normal; font-size: 10px; font-weight: 800; color: var(--muted); text-align: center; text-transform: lowercase; }
+.cw-head i.cw-today { outline: none; color: var(--ink); }
+.cw-head i.off { color: var(--bad-fg); }
+.cw-blur { filter: blur(3px); opacity: .7; }
+.cw-none { min-width: 106px; }
+.cw-sum { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.cw-sum b { color: var(--ink); }
+.cw-list { display: grid; }
+.cw-row { display: flex; align-items: center; gap: 10px; min-height: 54px; padding: 4px 6px; margin: 0 -6px; border-radius: 14px; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.cw-row + .cw-row { border-top: 1px solid var(--line); }
+.cw-row.on { background: var(--s1); }
+.cw-who { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.cw-where { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 5px; min-width: 0; }
+.cw-where .dot { flex: none; margin: 0; }
+.cw-menu { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0 8px 44px; }
+.cw-hint { margin: 0; }
