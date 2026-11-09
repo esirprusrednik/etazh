@@ -5675,7 +5675,7 @@ const actions = {
         try {
           const r = await post(`/api/botgame/${P.id}/move`, { x: Number(el.dataset.x), y: Number(el.dataset.y) });
           const v = r.steps[0], mine = v.last && v.last.mine ? v.last.r : 'miss';
-          const t = { miss: 'Мимо', hit: 'Ранил|Ранила! Стреляй ещё', sunk: 'Потопил|Потопила! Стреляй ещё' }[mine];
+          const t = { miss: meG('Промахнулся', 'Промахнулась'), hit: `${meG('Попал', 'Попала')}! Стреляй ещё`, sunk: `${meG('Потопил', 'Потопила')}! Стреляй ещё` }[mine];
           S.bShout = { text: v.status === 'done' ? 'Победа!' : t, cls: v.status === 'done' ? 'sunk' : mine, until: Date.now() + 1400, board: 'o' };
           sfx(v.status === 'done' ? 'sunk' : mine === 'miss' ? 'splash' : mine);
           if (mine === 'sunk' && v.status === 'play' && Math.random() < 0.35) prBotEmote(['oops', 'angry', 'clap']);
@@ -5690,7 +5690,7 @@ const actions = {
         const r = PR.seaShoot(P.st, Number(el.dataset.x), Number(el.dataset.y));
         if (P.st.status === 'done') prCount('win');
         setBattleView(PR.seaView(P.st, prScore('sea')));
-        const t = { miss: 'Мимо', hit: 'Ранил|Ранила! Стреляй ещё', sunk: 'Потопил|Потопила! Стреляй ещё' }[r.result];
+        const t = { miss: meG('Промахнулся', 'Промахнулась'), hit: `${meG('Попал', 'Попала')}! Стреляй ещё`, sunk: `${meG('Потопил', 'Потопила')}! Стреляй ещё` }[r.result];
         S.bShout = { text: P.st.status === 'done' ? 'Победа!' : t, cls: P.st.status === 'done' ? 'sunk' : r.result, until: Date.now() + 1400, board: 'o' };
         sfx(P.st.status === 'done' ? 'sunk' : r.result === 'miss' ? 'splash' : r.result);
         if (r.result === 'sunk' && P.st.status === 'play' && Math.random() < 0.35) prBotEmote(['oops', 'angry', 'clap']);
@@ -5705,7 +5705,7 @@ const actions = {
       try {
         const r = await post(`/api/battle/${S.battle}/shoot`, { x: Number(el.dataset.x), y: Number(el.dataset.y) });
         setBattleView(r.view);
-        const t = { miss: 'Мимо', hit: 'Ранил|Ранила! Стреляй ещё', sunk: 'Потопил|Потопила! Стреляй ещё' }[r.result];
+        const t = { miss: meG('Промахнулся', 'Промахнулась'), hit: `${meG('Попал', 'Попала')}! Стреляй ещё`, sunk: `${meG('Потопил', 'Потопила')}! Стреляй ещё` }[r.result];
         S.bShout = { text: r.view.status === 'done' ? (r.beans ? `Победа! +${r.beans} зёрен` : 'Победа!') : t, cls: r.view.status === 'done' ? 'sunk' : r.result, until: Date.now() + 1400, board: 'o' };
         sfx(r.view.status === 'done' ? 'sunk' : r.result === 'miss' ? 'splash' : r.result);
         if (r.view.status === 'done') { loadMe().catch(() => {}); loadFeatures().catch(() => {}); }
