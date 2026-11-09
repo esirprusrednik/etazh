@@ -2,73 +2,76 @@
 // конфетти и тучка. Тот же стиль, что у кораблей морского боя: вид чуть сверху, свет слева сверху,
 // снизу видна «толщина» предмета.
 
-const SKIN = { hi: '#FFE0C2', mid: '#F4BF92', lo: '#D9925F', line: '#8A5634', nail: '#FFE9DA' };
+// Цвет: осветлить/затемнить hex на k (−1…1)
+function tone(hex, k) {
+  const n = parseInt(String(hex || '#E8B48A').replace('#', ''), 16);
+  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => Math.round(k > 0 ? c + (255 - c) * k : c * (1 + k)));
+  return '#' + ch.map((c) => Math.max(0, Math.min(255, c)).toString(16).padStart(2, '0')).join('');
+}
+let gid = 0;
 
-// Общие градиенты — один раз на экран
+// Общие градиенты — один раз на экран. Фишки: «я» — фиолетовые, соперник — оранжевые, как рукава
 export const DUEL_DEFS = `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
-  <linearGradient id="dg-skin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${SKIN.hi}"/><stop offset=".55" stop-color="${SKIN.mid}"/><stop offset="1" stop-color="${SKIN.lo}"/></linearGradient>
-  <linearGradient id="dg-skin2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${SKIN.mid}"/><stop offset="1" stop-color="${SKIN.lo}"/></linearGradient>
   <linearGradient id="dg-die-top" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#EEF0F7"/></linearGradient>
   <linearGradient id="dg-die-l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E4E7F1"/><stop offset="1" stop-color="#CDD2E2"/></linearGradient>
   <linearGradient id="dg-die-r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C6CCDD"/><stop offset="1" stop-color="#AAB2C8"/></linearGradient>
-  <linearGradient id="dg-x" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9CC5"/><stop offset="1" stop-color="#E23D82"/></linearGradient>
-  <linearGradient id="dg-o" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7FEAFF"/><stop offset="1" stop-color="#0FA3C7"/></linearGradient>
+  <linearGradient id="dg-me" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#C7B2FF"/><stop offset="1" stop-color="#6D3FD6"/></linearGradient>
+  <linearGradient id="dg-opp" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFC48A"/><stop offset="1" stop-color="#E8780F"/></linearGradient>
 </defs></svg>`;
+export const SIDE = { me: { c: '#6D3FD6', dark: '#3A1E8C' }, opp: { c: '#E8780F', dark: '#8A4206' } };
 
-const OL = `stroke="${SKIN.line}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"`;
-const capsule = (x1, y1, x2, y2, w, fill = 'url(#dg-skin)') => `<path d="M${x1} ${y1} L${x2} ${y2}" stroke="${SKIN.line}" stroke-width="${w + 3.6}" stroke-linecap="round"/><path d="M${x1} ${y1} L${x2} ${y2}" stroke="${fill}" stroke-width="${w}" stroke-linecap="round"/>`;
-const nail = (x, y, r = 0) => `<ellipse cx="${x}" cy="${y}" rx="3.6" ry="2.6" fill="${SKIN.nail}" stroke="${SKIN.line}" stroke-width=".8" transform="rotate(${r} ${x} ${y})"/>`;
-
-// Рукав: цвет — игрока. Манжета со строчкой и тенью
-const sleeve = (c) => `<path d="M-6 22 L30 20 C34 30 34 52 30 62 L-6 64 Z" fill="${c}" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/>
-  <path d="M24 20.5 L32 20 C36 30 36 52 32 62 L24 62.5 C28 52 28 30 24 20.5 Z" fill="rgba(0,0,0,.22)"/>
-  <path d="M-4 30 L22 29" stroke="rgba(255,255,255,.35)" stroke-width="2" stroke-linecap="round"/>
-  <path d="M27 24 C30 34 30 48 27 58" stroke="rgba(255,255,255,.4)" stroke-width="1" stroke-dasharray="2 2.5" fill="none"/>`;
-
-// Кулак сбоку: костяшки смотрят вправо, большой палец сверху
-const curled = (ys, x0, x1) => ys.slice().reverse().map((y, i, a) => { const k = a.length - 1 - i; const w = x1 - x0 - k * 1.5;
-  return `<rect x="${x0}" y="${y}" width="${w}" height="11" rx="5.5" fill="url(#dg-skin2)" ${OL}/><path d="M${x0 + w - 9} ${y + 2.6} C${x0 + w - 4} ${y + 2.4} ${x0 + w - 2.4} ${y + 4} ${x0 + w - 2.4} ${y + 5.5}" stroke="rgba(255,255,255,.6)" stroke-width="1.5" fill="none" stroke-linecap="round"/>`; }).join('');
-// Кулак сбоку: костяшки смотрят вправо, четыре согнутых пальца, большой палец сверху
-function fist() {
-  return `<path d="M30 25 C44 18 70 16 86 20 C96 23 100 33 100 42 C100 53 96 61 86 64 C70 68 44 65 30 59 Z" fill="url(#dg-skin)" ${OL}/>
-    <path d="M36 54 C52 60 72 61 84 58" stroke="rgba(150,80,40,.35)" stroke-width="3" fill="none" stroke-linecap="round"/>
-    ${curled([23, 33, 43, 53], 76, 108)}
-    <path d="M48 26 C58 14 82 14 94 22 C99 26 97 34 89 34 C76 33 62 33 50 34 Z" fill="url(#dg-skin)" ${OL}/>
-    ${nail(91, 26, -12)}
-    <path d="M54 23 C62 18 76 17 86 20" stroke="rgba(255,255,255,.6)" stroke-width="1.6" fill="none" stroke-linecap="round"/>`;
+// Палец: сужается к кончику, кончик скруглён, сверху ноготь
+function finger(x1, y1, x2, y2, w1, w2, P) {
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
+  const a = [x1 + nx * w1 / 2, y1 + ny * w1 / 2], b = [x2 + nx * w2 / 2, y2 + ny * w2 / 2], c = [x2 - nx * w2 / 2, y2 - ny * w2 / 2], d = [x1 - nx * w1 / 2, y1 - ny * w1 / 2];
+  const f = (p) => p.map((v) => Math.round(v * 10) / 10).join(' ');
+  const tip = [x2 + dx / L * w2 * 0.55, y2 + dy / L * w2 * 0.55];
+  const nl = [x2 - dx / L * w2 * 0.15 + nx * w2 * 0.12, y2 - dy / L * w2 * 0.15 + ny * w2 * 0.12];
+  const ang = Math.atan2(dy, dx) * 180 / Math.PI;
+  return `<path d="M${f(a)} L${f(b)} Q${f(tip)} ${f(c)} L${f(d)} Z" fill="url(#${P.g})" stroke="${P.line}" stroke-width="1.3" stroke-linejoin="round"/>
+    <ellipse cx="${f([nl[0]])}" cy="${f([nl[1]])}" rx="${Math.round(w2 * 0.34 * 10) / 10}" ry="${Math.round(w2 * 0.24 * 10) / 10}" transform="rotate(${Math.round(ang)} ${f(nl)})" fill="${P.nail}" opacity=".9"/>
+    <path d="M${f([x1 + nx * w1 * 0.28, y1 + ny * w1 * 0.28])} L${f([x2 + nx * w2 * 0.26, y2 + ny * w2 * 0.26])}" stroke="${P.hi}" stroke-width="1.1" stroke-linecap="round" opacity=".7"/>`;
 }
-// Ладонь вперёд: четыре пальца веером, большой вверх
-function paper() {
-  return `<path d="M30 26 C44 20 64 20 76 24 L78 58 C64 63 44 62 30 57 Z" fill="url(#dg-skin)" ${OL}/>
-    ${capsule(70, 55, 102, 60, 9)}${nail(102, 60, 8)}
-    ${capsule(72, 47, 112, 49, 10)}${nail(112, 49, 3)}
-    ${capsule(72, 38, 114, 37, 10)}${nail(114, 37, -2)}
-    ${capsule(70, 29, 108, 24, 9.5)}${nail(108, 24, -8)}
-    <path d="M78 26 L78 58" stroke="url(#dg-skin)" stroke-width="8"/>
-    ${capsule(56, 27, 74, 8, 10)}${nail(74, 8, -55)}
-    <path d="M40 30 C52 27 64 27 72 29" stroke="rgba(255,255,255,.55)" stroke-width="2" fill="none" stroke-linecap="round"/>
-    <path d="M46 44 C54 47 62 47 70 45" stroke="rgba(150,80,40,.35)" stroke-width="1.4" fill="none" stroke-linecap="round"/>`;
+// Согнутый палец (фаланга смотрит вперёд): скруглённый брусок с бликом на костяшке
+const curl = (x, y, w, P) => `<rect x="${x}" y="${y}" width="${w}" height="9.5" rx="4.75" fill="url(#${P.g2})" stroke="${P.line}" stroke-width="1.3"/>
+  <path d="M${x + w - 7} ${y + 2.3} q4 0 4.6 3" stroke="${P.hi}" stroke-width="1.2" fill="none" stroke-linecap="round" opacity=".8"/>`;
+const sleeve = (c) => `<path d="M-4 25 L28 23.5 C31.5 32 31.5 50 28 58.5 L-4 60 Z" fill="${c}"/>
+  <path d="M-4 25 L28 23.5 C31.5 32 31.5 50 28 58.5 L-4 60 Z" fill="none" stroke="rgba(0,0,0,.3)" stroke-width="1.2"/>
+  <path d="M22 24 L29 23.6 C32.6 32 32.6 50 29 58.4 L22 58.8 C25 50 25 32 22 24 Z" fill="rgba(0,0,0,.22)"/>
+  <path d="M-2 31 L20 30" stroke="rgba(255,255,255,.3)" stroke-width="1.8" stroke-linecap="round"/>`;
+const palm = (P, wide = 0) => `<path d="M28 27 C40 21.5 62 20.5 ${74 + wide} 24 C${82 + wide} 27 ${85 + wide} 34 ${85 + wide} 42 C${85 + wide} 50 ${81 + wide} 56 ${73 + wide} 58.5 C60 61 40 60 28 56 Z" fill="url(#${P.g})" stroke="${P.line}" stroke-width="1.3" stroke-linejoin="round"/>
+  <path d="M34 51 C46 55 62 55.5 72 53.5" stroke="${P.lo}" stroke-width="2.2" fill="none" stroke-linecap="round" opacity=".55"/>`;
+const thumbOver = (P, x2 = 80, y2 = 30) => `<path d="M44 29 C52 20.5 68 20 ${x2 - 2} ${y2 - 6} C${x2 + 4} ${y2 - 3} ${x2 + 3} ${y2 + 3} ${x2 - 3} ${y2 + 3} C66 ${y2 + 3} 56 33 46 34 Z" fill="url(#${P.g})" stroke="${P.line}" stroke-width="1.3" stroke-linejoin="round"/>
+  <ellipse cx="${x2 - 1.5}" cy="${y2 - 1.5}" rx="3" ry="2.2" fill="${P.nail}" transform="rotate(-10 ${x2 - 1.5} ${y2 - 1.5})"/>
+  <path d="M50 26 C57 22 66 21.5 74 23.5" stroke="${P.hi}" stroke-width="1.3" fill="none" stroke-linecap="round" opacity=".8"/>`;
+function fist(P) {
+  return palm(P) + [24, 32.5, 41, 49.5].map((y, i) => [y, i]).reverse().map(([y, i]) => curl(70, y, 22 - i * 1.4, P)).join('') + thumbOver(P);
 }
-// Ножницы: указательный и средний — буквой V, остальные поджаты
-function scissors() {
-  return `${capsule(78, 30, 114, 14, 9.5)}${nail(114, 14, -24)}
-    ${capsule(78, 40, 116, 52, 9.5)}${nail(116, 52, 18)}
-    <path d="M30 26 C44 19 70 18 82 24 C90 28 94 36 94 44 C94 53 90 60 82 62 C68 66 44 64 30 58 Z" fill="url(#dg-skin)" ${OL}/>
-    ${curled([42, 52], 74, 102)}
-    <path d="M50 34 C60 26 78 27 86 34 C90 38 87 44 80 43 C70 42 60 42 52 43 Z" fill="url(#dg-skin)" ${OL}/>
-    ${nail(84, 37, -8)}
-    <path d="M40 30 C52 25 66 24 78 27" stroke="rgba(255,255,255,.55)" stroke-width="2" fill="none" stroke-linecap="round"/>`;
+function paper(P) {
+  return palm(P, -6) + finger(66, 53, 94, 57, 8, 6.4, P) + finger(68, 46, 102, 47.5, 8.6, 7, P) + finger(68, 38.5, 104, 37.5, 8.8, 7.2, P) + finger(66, 31, 98, 26, 8.4, 6.8, P)
+    + `<path d="M72 26 L72 56" stroke="url(#${P.g})" stroke-width="6"/>` + finger(52, 29, 66, 12, 9, 7.4, P);
+}
+function scissors(P) {
+  return finger(70, 33, 102, 18, 8.6, 7, P) + finger(70, 41, 104, 50, 8.6, 7, P) + palm(P, -2) + [41, 49.5].map((y, i) => [y, i]).reverse().map(([y, i]) => curl(68, y, 20 - i * 1.4, P)).join('') + thumbOver(P, 76, 38);
 }
 const SHAPE = { rock: fist, paper, scissors };
-
-// Рука игрока: смотрит вправо, у соперника — зеркально (CSS). Тень на столе под рукой
-export function handSvg(kind, color = '#6D3FD6', cls = '') {
-  return `<svg class="hand ${cls}" viewBox="-8 0 132 80" aria-hidden="true"><ellipse cx="60" cy="74" rx="44" ry="4.5" fill="rgba(0,0,0,.28)" class="h-shadow"/><g class="h-body">${sleeve(color)}${(SHAPE[kind] || fist)()}</g></svg>`;
+function palette(skin) {
+  const id = 'dgs' + (++gid);
+  const P = { g: id, g2: id + 'b', hi: tone(skin, 0.45), lo: tone(skin, -0.25), line: tone(skin, -0.5), nail: tone(skin, 0.55) };
+  P.defs = `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${tone(skin, 0.28)}"/><stop offset=".55" stop-color="${skin}"/><stop offset="1" stop-color="${tone(skin, -0.16)}"/></linearGradient>
+    <linearGradient id="${id}b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${tone(skin, 0.12)}"/><stop offset="1" stop-color="${tone(skin, -0.2)}"/></linearGradient></defs>`;
+  return P;
 }
-// Рука для анимации раунда: кулак качается три раза, на третий превращается в выбранную фигуру
-export function handDuo(kind, color, cls = '') {
-  return `<svg class="hand ${cls}" viewBox="-8 0 132 80" aria-hidden="true"><ellipse cx="60" cy="74" rx="44" ry="4.5" fill="rgba(0,0,0,.28)" class="h-shadow"/>
-    <g class="h-body"><g class="h-fist">${sleeve(color)}${fist()}</g><g class="h-final">${sleeve(color)}${(SHAPE[kind] || fist)()}</g></g></svg>`;
+// Рука игрока смотрит вправо (у соперника зеркалит CSS). skin — тон кожи с аватара, color — рукав
+export function handSvg(kind, color = SIDE.me.c, skin = '#E8B48A', cls = '') {
+  const P = palette(skin);
+  return `<svg class="hand ${cls}" viewBox="-6 4 120 66" aria-hidden="true">${P.defs}<ellipse cx="56" cy="66" rx="40" ry="3.6" fill="rgba(0,0,0,.25)" class="h-shadow"/><g class="h-body">${sleeve(color)}${(SHAPE[kind] || fist)(P)}</g></svg>`;
+}
+// Рука для раунда: кулак качается три раза, на третий — фигура
+export function handDuo(kind, color = SIDE.me.c, skin = '#E8B48A', cls = '') {
+  const P = palette(skin);
+  return `<svg class="hand ${cls}" viewBox="-6 4 120 66" aria-hidden="true">${P.defs}<ellipse cx="56" cy="66" rx="40" ry="3.6" fill="rgba(0,0,0,.25)" class="h-shadow"/>
+    <g class="h-body"><g class="h-fist">${sleeve(color)}${fist(P)}</g><g class="h-final">${sleeve(color)}${(SHAPE[kind] || fist)(P)}</g></g></svg>`;
 }
 
 // ----- Кости: кубик в изометрии. Сверху — выпавшее число, по бокам — соседние грани -----
@@ -100,17 +103,18 @@ export function dieSvg(n, state = '', delay = 0) {
   return `<span class="die3 ${state}" style="--dd:${delay}s" aria-label="${n || ''}"><svg viewBox="0 0 100 108" aria-hidden="true"><ellipse cx="50" cy="100" rx="34" ry="6" fill="rgba(0,0,0,.3)" class="d-shadow"/><g class="d-body">${spin}</g></svg></span>`;
 }
 
-// ----- Крестики-нолики: фишки с объёмом -----
-export function tttMark(mark, fresh = false) {
+// ----- Крестики-нолики: фишки с объёмом, цвет — по игроку (я — фиолетовый, соперник — оранжевый) -----
+export function tttMark(mark, fresh = false, who = 'me') {
+  const g = `url(#dg-${who})`, dk = SIDE[who].dark;
   if (mark === 'x') return `<svg viewBox="0 0 40 40" class="tm x ${fresh ? 'fresh' : ''}" aria-hidden="true">
-    <path d="M10 11 L30 31 M30 11 L10 31" stroke="#7A1440" stroke-width="7.5" stroke-linecap="round" transform="translate(0 2.2)"/>
-    <path class="s1" d="M10 10 L30 30" stroke="url(#dg-x)" stroke-width="7" stroke-linecap="round"/>
-    <path class="s2" d="M30 10 L10 30" stroke="url(#dg-x)" stroke-width="7" stroke-linecap="round"/>
-    <path d="M12 11 L18 17 M28 11 L24 15" stroke="rgba(255,255,255,.7)" stroke-width="2" stroke-linecap="round" class="gl"/></svg>`;
+    <path d="M11 12 L29 30 M29 12 L11 30" stroke="${dk}" stroke-width="7" stroke-linecap="round" transform="translate(0 2.2)"/>
+    <path class="s1" d="M11 11 L29 29" stroke="${g}" stroke-width="6.5" stroke-linecap="round"/>
+    <path class="s2" d="M29 11 L11 29" stroke="${g}" stroke-width="6.5" stroke-linecap="round"/>
+    <path d="M13 12 L18 17 M27 12 L24 15" stroke="rgba(255,255,255,.7)" stroke-width="1.8" stroke-linecap="round" class="gl"/></svg>`;
   if (mark === 'o') return `<svg viewBox="0 0 40 40" class="tm o ${fresh ? 'fresh' : ''}" aria-hidden="true">
-    <circle cx="20" cy="22.2" r="11" stroke="#065C73" stroke-width="7.5" fill="none"/>
-    <circle class="s1" cx="20" cy="20" r="11" stroke="url(#dg-o)" stroke-width="7" fill="none"/>
-    <path d="M12.5 15 A10 10 0 0 1 20 10" stroke="rgba(255,255,255,.75)" stroke-width="2" fill="none" stroke-linecap="round" class="gl"/></svg>`;
+    <circle cx="20" cy="22.2" r="10" stroke="${dk}" stroke-width="7" fill="none"/>
+    <circle class="s1" cx="20" cy="20" r="10" stroke="${g}" stroke-width="6.5" fill="none"/>
+    <path d="M13 15.5 A9 9 0 0 1 20 11" stroke="rgba(255,255,255,.75)" stroke-width="1.8" fill="none" stroke-linecap="round" class="gl"/></svg>`;
   return '';
 }
 // Линия победы поверх поля 3×3: из центра первой клетки в центр последней
