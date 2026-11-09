@@ -2014,3 +2014,6 @@ button.chip.ask-chip { cursor: pointer; }
 .battle-invite.hot .small { color: #FFF1E6; }
 .co-pick { display: flex; gap: 8px; margin: 4px 0 10px; }
 .co-pick .chip { flex: 1; }
+.pr-head { display: flex; flex-direction: column; gap: 8px; }
+.pr-score { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.pr-score b { color: var(--ink); font-size: 16px; }

@@ -101,7 +101,7 @@ const NICK_PRICE = 50;
 // иначе у коллег, которые неделями не закрывают вкладку, остаётся старая отрисовка (например, аватаров)
 const BUILD = (() => {
   const fs = require('node:fs'), path = require('node:path'), h = require('node:crypto').createHash('sha1');
-  for (const f of ['js/app.js', 'js/building.js', 'js/crest.js', 'js/ships.js', 'js/duelart.js', 'css/app.css']) { try { h.update(fs.readFileSync(path.join(__dirname, '..', 'public', f))); } catch {} }
+  for (const f of ['js/app.js', 'js/building.js', 'js/crest.js', 'js/ships.js', 'js/duelart.js', 'js/practice.js', 'css/app.css']) { try { h.update(fs.readFileSync(path.join(__dirname, '..', 'public', f))); } catch {} }
   return h.digest('hex').slice(0, 10);
 })();
 const DEFAULT_LOOK = { preset: 'm', face: 'oval', eyes: '#22252D', mouth: 'smile', beard: 'none', freckles: false, eyeShape: 'normal', outfit: 'hoodie', neck: 'none', hat: 'none', prop: 'none', bg: 'auto', hairStyle: 'short', hair: '#2B1D14', skin: '#E8B48A', hoodie: 'blue', glasses: false, phones: false, status: null, frame: null, crown: false,

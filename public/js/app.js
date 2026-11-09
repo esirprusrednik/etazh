@@ -3,6 +3,7 @@ import { officeSvg } from './building.js';
 import { GUIDE } from './guide.js';
 import { shipSvg, boomSvg, SHIP_DEFS } from './ships.js';
 import { DUEL_DEFS, SIDE, handSvg, handDuo, dieSvg, tttMark, tttLine, confetti, raincloud } from './duelart.js';
+import * as PR from './practice.js';
 import { crestSvg, crestOf, autoCrest, randomCrest, CREST_PARTS, TINCTURES, TINCTURE_NAMES, SHAPE_NAMES, DIV_NAMES, CHARGE_NAMES, TOP_NAMES } from './crest.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -2358,6 +2359,7 @@ function renderSanta() {
 }
 
 function renderGames() {
+  if (S.practice) return renderPractice();
   const gangChips = S.me.gangs.length > 1 ? `<div class="chips dark">${S.me.gangs.map((g) => `<button class="chip ${g.id === S.activeGang ? 'on' : ''}" data-act="gang-select" data-v="${g.id}">${esc(g.name)}</button>`).join('')}</div>` : '';
   const group = (title) => `<div class="g-group">${title}</div>`;
   return `${pageHead('Игры', 'Блиц, квизы и бои со своими. За победы — зёрна, их тратят в Лавке')}
@@ -2366,6 +2368,7 @@ function renderGames() {
     ${renderBlitzCard()}
     ${group('Один на один')}
     ${renderDuelsCard()}
+    ${renderPracticeCard()}
     ${S.quiz && S.quiz.length || S.guess ? group('Про своих') : ''}
     ${renderQuiz()}
     ${gangChips}
@@ -2913,6 +2916,92 @@ function renderWarHero() {
     ${warHeroPick(m.members, d.hero, 'war-hero-pick2')}
     <button class="btn" data-act="war-hero-save" ${d.hero ? '' : 'disabled'}>star Назначить героем</button>`;
 }
+
+// ===== Тренировка с ботом =====
+// Партии идут в браузере (practice.js): без зёрен, рейтинга и уведомлений. Счёт — только себе, в localStorage
+const PR_GAMES = { rps: 'Камень, ножницы, бумага', dice: 'Кости', ttt: 'Крестики-нолики', sea: 'Морской бой' };
+const prScore = (game) => { const all = store.get('practiceScore', {}); return all[game] || { me: 0, opp: 0 }; };
+function prCount(result) {
+  const P = S.practice; if (!P || P.counted) return;
+  P.counted = true;
+  const all = store.get('practiceScore', {}); const sc = all[P.game] || { me: 0, opp: 0 };
+  if (result === 'win') sc.me++; else if (result === 'lose') sc.opp++;
+  all[P.game] = sc; store.set('practiceScore', all);
+}
+function prLevel(game) { return store.get('practiceLevel', {})[game] || 'hard'; }
+function renderPracticeCard() {
+  const games = [['rps', rpsDuo()], ['dice', 'dice'], ['ttt', 'xcircle'], ['sea', 'anchor']];
+  return `<section class="card duels-card pr-card"><div class="chats-head"><h3>target Тренировка с ботом</h3><span class="small">без зёрен и рейтинга</span></div>
+    <div class="duel-new n4">${games.map(([g, e]) => `<button class="duel-start" data-act="pr-start" data-v="${g}"><span>${e}</span><b>${hy(PR_GAMES[g])}</b></button>`).join('')}</div>
+    <p class="small" style="margin:0">Набей руку перед боем со своими. Бот играет честно: твой флот не видит, ходы не подглядывает.</p>
+  </section>`;
+}
+function renderPracticeHead() {
+  const P = S.practice, sc = prScore(P.game);
+  const lv = P.game === 'ttt' || P.game === 'sea';
+  return `<button class="linkbtn back" data-act="pr-back">‹ К играм</button>
+    <section class="card pr-head">
+      <div class="row" style="justify-content:space-between;gap:8px"><b>Тренировка: ${esc(PR_GAMES[P.game].toLowerCase())}</b><span class="pr-score" aria-label="Счёт против бота">ты <b>${sc.me}</b> : <b>${sc.opp}</b> бот</span></div>
+      ${lv ? `<div class="chips">${Object.entries(PR.LEVELS).map(([k, l]) => `<button class="chip ${P.level === k ? 'on' : ''}" data-act="pr-level" data-v="${k}" aria-pressed="${P.level === k}">${l}</button>`).join('')}</div>
+        <p class="small" style="margin:0">${P.game === 'ttt' ? (P.level === 'hard' ? 'Сильный бот не проигрывает: свести вничью — уже успех.' : 'Лёгкий бот иногда зевает тройку.') : P.level === 'hard' ? 'Сильный бот считает, где корабли вероятнее, и добивает раненые.' : 'Лёгкий бот часто стреляет наугад.'}</p>` : '<p class="small" style="margin:0">Ни зёрен, ни рейтинга — счёт видишь только ты.</p>'}
+    </section>`;
+}
+function renderPractice() {
+  const P = S.practice;
+  // Если между делом открывали настоящую партию, вернуть на экран свою тренировочную
+  if (P.game === 'sea') { if (!S.bv || !S.bv.practice) S.bv = PR.seaView(P.st, prScore('sea')); return renderBattle(); }
+  const d = PR.duelView(P.st);
+  return `${renderPracticeHead()}<section class="card duels">${DUEL_DEFS}${renderDuel(d)}
+    ${d.status === 'done' ? '<button class="btn wide" data-act="pr-again">Ещё партию</button>' : ''}</section>`;
+}
+function prNew(game) {
+  const prev = S.practice && S.practice.game === game ? S.practice : null;
+  // В крестиках-ноликах первый ход по очереди: то ты, то бот
+  const first = game === 'ttt' && prev && prev.first === 'me' ? 'opp' : 'me';
+  S.practice = { game, level: prLevel(game), first, counted: false, st: game === 'sea' ? PR.newSea() : PR.newDuel(game, { first }) };
+  S.bResigned = false; S.bEmote = null; S.duelAnim = null;
+  if (game === 'sea') { S.bv = null; setBattleView(PR.seaView(S.practice.st, prScore('sea'))); }
+  if (game === 'ttt' && first === 'opp') prTttBot();
+}
+function prDuelDone(d) {
+  S.duelAnim = { id: 'bot', seq: d.seq, until: Date.now() + 2600 };
+  if (d.status === 'done') prCount(d.result);
+  duelOutcomeSfx(d);
+}
+function prTttBot() {
+  const P = S.practice, st = P.st;
+  if (st.status !== 'play' || st.turn !== 'opp') return;
+  setTimeout(() => {
+    if (S.practice !== P) return;
+    PR.tttBot(st, { level: P.level }); sfx('marker');
+    prDuelDone(PR.duelView(st)); render();
+  }, 650 + Math.random() * 500);
+}
+// Бот в морском бое стреляет с паузой, как живой: попал — стреляет ещё
+function prSeaBot() {
+  const P = S.practice, st = P.st;
+  if (st.status !== 'play' || st.turn !== 'opp') return;
+  setTimeout(() => {
+    if (S.practice !== P) return;
+    const r = PR.seaBotShot(st, { level: P.level });
+    if (st.status === 'done') prCount('lose');
+    setBattleView(PR.seaView(st, prScore('sea')));
+    if (r && r.result === 'sunk' && st.status === 'play' && Math.random() < 0.4) prBotEmote(['easy', 'smart', 'lol']);
+    render();
+    setTimeout(() => { if (S.practice === P) render(); }, 1700);
+    prSeaBot();
+  }, 800 + Math.random() * 600);
+}
+function prBotEmote(pool) {
+  const P = S.practice;
+  setTimeout(() => {
+    if (S.practice !== P) return;
+    S.bEmote = { ...(S.bEmote || {}), opp: { e: pool[Math.floor(Math.random() * pool.length)], until: Date.now() + 3200 } };
+    sfx('vote'); render();
+    setTimeout(() => { if (S.practice === P) render(); }, 3300);
+  }, 900);
+}
+const prSea = () => S.practice && S.practice.game === 'sea';
 
 // ===== Личные дуэли =====
 const RPS_EMO = { rock: 'rock', scissors: 'scissors', paper: 'paper' };
@@ -3677,7 +3766,7 @@ function renderVersus(v) {
   return `<section class="b-vs">
     <div class="vs-side ${myTurn ? 'turn' : ''}">${bubble('mine')}<span class="vs-ava mood-${mm}">${avatar(moodLook(S.me.look, mm), 52)}</span><span class="vs-name">ты</span>${v.clock ? `<span class="vs-clock" data-who="me">${fmtClock(clockNow(v, 'me'))}</span>` : ''}</div>
     <div class="vs-mid"><div class="vs-score"><b>${v.score.me}</b><span>:</span><b>${v.score.opp}</b></div><div class="vs-cap">${v.status === 'setup' ? 'расстановка' : v.status === 'done' ? 'партия окончена' : myTurn ? 'твой ход' : 'ход соперника'}</div></div>
-    <div class="vs-side ${oppTurn ? 'turn' : ''}">${bubble('opp')}${tap(v.opp.id, `<span class="vs-ava mood-${mo}">${avatar(moodLook(v.opp.look, mo), 52)}</span>`)}<span class="vs-name ellipsis">${esc(v.opp.nick)}</span>${v.clock ? `<span class="vs-clock" data-who="opp">${fmtClock(clockNow(v, 'opp'))}</span>` : ''}</div>
+    <div class="vs-side ${oppTurn ? 'turn' : ''}">${bubble('opp')}${(v.practice ? (h) => h : (h) => tap(v.opp.id, h))(`<span class="vs-ava mood-${mo}">${avatar(moodLook(v.opp.look, mo), 52)}</span>`)}<span class="vs-name ellipsis">${esc(v.opp.nick)}</span>${v.clock ? `<span class="vs-clock" data-who="opp">${fmtClock(clockNow(v, 'opp'))}</span>` : ''}</div>
   </section>`;
 }
 
@@ -3698,7 +3787,7 @@ function renderEmoteBar() {
 
 function renderBattle() {
   const v = S.bv;
-  const back = `<button class="linkbtn back" data-act="battle-back">‹ К переписке</button>`;
+  const back = S.practice ? renderPracticeHead() : `<button class="linkbtn back" data-act="battle-back">‹ К переписке</button>`;
   if (!v) return back + '<div class="card"><p class="sub">Открываем поле…</p></div>';
   const defs = SHIP_DEFS;
   if (v.status === 'setup') {
@@ -3717,6 +3806,7 @@ function renderBattle() {
   const banner = done
     ? `<div class="b-banner ${v.winner === 'me' ? 'win' : 'lose'}">${v.winner === 'me' ? (v.timeout ? `wait У ${esc(v.opp.nick)} кончилось время. Победа!` : v.resigned ? `trophy ${esc(v.opp.nick)} ${gw(v.opp.look, 'сдался', 'сдалась')}. Победа!` : 'trophy Победа! Весь флот соперника на дне') : (v.timeout ? 'wait Время вышло. В следующий раз быстрее!' : v.resigned ? `🐔 Ты ${meG('сдался', 'сдалась')}. Бывает` : `💥 ${esc(v.opp.nick)} ${gw(v.opp.look, 'потопил', 'потопила')} твой флот`)}</div>`
     : v.myTurn ? '<div class="b-banner go">target Твой ход — стреляй по полю соперника</div>'
+    : v.practice ? `<div class="b-banner wait">wait ${esc(v.opp.nick)} целится…</div>`
     : `<div class="b-banner wait">wait Ход ${esc(v.opp.nick)}. Придёт уведомление, когда выстрелит</div>`;
   const oppFleet = v.fleet.map((len) => ({ len, sunk: false }));
   for (const sh of v.oppSunk) { const f = oppFleet.find((x) => x.len === sh.length && !x.sunk); if (f) f.sunk = true; }
@@ -3733,7 +3823,7 @@ function renderBattle() {
     ${fleetBars(fleetLeft(v.myShips, v.oppShots))}
     ${renderBoard(v, 'me')}
   </section>
-  ${done ? `<button class="btn wide" data-act="battle-new" data-id="${v.opp.id}" data-mode="${v.mode}" data-stake="${v.stake || 0}">Реванш${v.mode === 'fast' ? ' · быстрая' : ''}</button>` : '<button class="linkbtn b-quit" data-act="bresign">Сдаться</button>'}`;
+  ${done && v.practice ? '<button class="btn wide" data-act="pr-again">Ещё партию</button>' : done ? `<button class="btn wide" data-act="battle-new" data-id="${v.opp.id}" data-mode="${v.mode}" data-stake="${v.stake || 0}">Реванш${v.mode === 'fast' ? ' · быстрая' : ''}</button>` : '<button class="linkbtn b-quit" data-act="bresign">Сдаться</button>'}`;
 }
 
 function renderDmMsg(m, f) {
@@ -5315,21 +5405,40 @@ const actions = {
     S.sheet = null; S.tab = 'chats'; S.chatGang = false; S.battle = null; S.dm = to; S.dmView = null; render();
     await Promise.all([loadDm(), loadMe()]); window.scrollTo(0, 0);
   }),
+  'pr-start'(el) { prNew(el.dataset.v); sfx('open'); render(); window.scrollTo(0, 0); },
+  'pr-again'() { prNew(S.practice.game); sfx('open'); render(); window.scrollTo(0, 0); },
+  'pr-back'() { S.practice = null; S.bv = null; S.bEmote = null; render(); window.scrollTo(0, 0); },
+  'pr-level'(el) {
+    const all = store.get('practiceLevel', {}); all[S.practice.game] = el.dataset.v; store.set('practiceLevel', all);
+    sfx('pick'); prNew(S.practice.game); toast(`${PR.LEVELS[el.dataset.v]} бот — новая партия`); render();
+  },
   'duel-stake'(el) { S.duelStake = Number(el.dataset.v); sfx('pick'); render(); },
   'duel-rps': (el) => run(async () => {
+    if (el.dataset.id === 'bot') { sfx('swish'); PR.duelPlay(S.practice.st, el.dataset.v); prDuelDone(PR.duelView(S.practice.st)); return; }
     sfx('swish'); const d = await post(`/api/duels/${el.dataset.id}/move`, { move: el.dataset.v });
     S.duelAnim = { id: d.id, seq: d.seq, until: Date.now() + 2600 }; S.duelSeqSeen = { ...(S.duelSeqSeen || {}), [d.id]: d.seq }; duelOutcomeSfx(d); await loadDuels(S.dm);
   }),
   'duel-roll': (el) => run(async () => {
+    if (el.dataset.id === 'bot') {
+      const P = S.practice; S.duelRolling = 'bot'; sfx('dice'); render();
+      await new Promise((r) => setTimeout(r, 750));
+      S.duelRolling = null; if (S.practice !== P) return;
+      PR.duelPlay(P.st); sfx('diceLand'); prDuelDone(PR.duelView(P.st)); return;
+    }
     const id = Number(el.dataset.id); S.duelRolling = id; sfx('dice'); render();
     const [d] = await Promise.all([post(`/api/duels/${id}/move`, {}), new Promise((r) => setTimeout(r, 750))]);
     S.duelRolling = null; S.duelAnim = { id: d.id, seq: d.seq, until: Date.now() + 2600 }; S.duelSeqSeen = { ...(S.duelSeqSeen || {}), [d.id]: d.seq }; sfx('diceLand'); duelOutcomeSfx(d); await loadDuels(S.dm);
   }),
   'duel-cell': (el) => run(async () => {
+    if (el.dataset.id === 'bot') { sfx('marker'); PR.tttMe(S.practice.st, Number(el.dataset.v)); prDuelDone(PR.duelView(S.practice.st)); prTttBot(); return; }
     sfx('marker'); const d = await post(`/api/duels/${el.dataset.id}/move`, { cell: Number(el.dataset.v) });
     S.duelAnim = { id: d.id, seq: d.seq, until: Date.now() + 2600 }; S.duelSeqSeen = { ...(S.duelSeqSeen || {}), [d.id]: d.seq }; duelOutcomeSfx(d); await loadDuels(S.dm);
   }),
   'duel-resign': (el) => run(async () => {
+    if (el.dataset.id === 'bot') {
+      if (!confirmInline('duel-resign-bot', 'Нажми ещё раз — сдаёшься боту')) return;
+      const st = S.practice.st; st.status = 'done'; st.result = 'lose'; st.resigned = true; st.turn = null; st.seq++; prCount('lose'); sfx('lose'); return;
+    }
     const soft = el.dataset.soft === '1';
     if (!confirmInline('duel-resign' + el.dataset.id, soft ? 'Нажми ещё раз — откажешься без потерь' : 'Нажми ещё раз — засчитаем поражение')) return;
     await post(`/api/duels/${el.dataset.id}/resign`); sfx(soft ? 'off' : 'lose'); await Promise.all([loadDuels(S.dm), loadMe()]);
@@ -5519,20 +5628,38 @@ const actions = {
     if (S.bEmoteAt && Date.now() - S.bEmoteAt < 2500) return;
     S.bEmoteAt = Date.now();
     S.bEmote = { ...(S.bEmote || {}), mine: { e, until: Date.now() + 3200 } };
-    render(); setTimeout(() => { if (S.battle) render(); }, 3300);
+    render(); setTimeout(() => { if (S.battle || S.practice) render(); }, 3300);
+    if (prSea()) { if (Math.random() < 0.5) prBotEmote(['lol', 'clap', 'bored', 'easy', 'mercy']); return; }
     post(`/api/battle/${S.battle}/emote`, { e }).catch(() => {});
   },
-  bshuffle: () => run(async () => { setBattleView(await post(`/api/battle/${S.battle}/shuffle`)); }),
-  bready: () => run(async () => { setBattleView(await post(`/api/battle/${S.battle}/ready`)); }),
+  bshuffle: () => run(async () => { if (prSea()) { PR.seaShuffle(S.practice.st); sfx('pick'); setBattleView(PR.seaView(S.practice.st, prScore('sea'))); return; } setBattleView(await post(`/api/battle/${S.battle}/shuffle`)); }),
+  bready: () => run(async () => { if (prSea()) { PR.seaStart(S.practice.st); setBattleView(PR.seaView(S.practice.st, prScore('sea'))); return; } setBattleView(await post(`/api/battle/${S.battle}/ready`)); }),
   bresign: () => run(async () => {
     const playing = S.bv && S.bv.status === 'play';
     if (!confirmTwice('bresign', playing ? 'Нажми ещё раз, чтобы сдаться' : 'Нажми ещё раз, чтобы отказаться')) return;
     S.bResigned = true;
+    if (prSea()) { PR.seaResign(S.practice.st); prCount('lose'); setBattleView(PR.seaView(S.practice.st, prScore('sea'))); sfx('chicken'); return; }
     S.bv = await post(`/api/battle/${S.battle}/resign`); S.bvAt = Date.now();
     sfx('chicken');
   }),
   bshoot: (el) => {
+    if (prSea()) {
+      const P = S.practice;
+      run(async () => {
+        const r = PR.seaShoot(P.st, Number(el.dataset.x), Number(el.dataset.y));
+        if (P.st.status === 'done') prCount('win');
+        setBattleView(PR.seaView(P.st, prScore('sea')));
+        const t = { miss: 'Мимо', hit: 'Ранил|Ранила! Стреляй ещё', sunk: 'Потопил|Потопила! Стреляй ещё' }[r.result];
+        S.bShout = { text: P.st.status === 'done' ? 'Победа!' : t, cls: P.st.status === 'done' ? 'sunk' : r.result, until: Date.now() + 1400, board: 'o' };
+        sfx(P.st.status === 'done' ? 'sunk' : r.result === 'miss' ? 'splash' : r.result);
+        if (r.result === 'sunk' && P.st.status === 'play' && Math.random() < 0.35) prBotEmote(['oops', 'angry', 'clap']);
+        setTimeout(() => { if (S.practice === P) render(); }, 1500);
+        prSeaBot();
+      });
+      return;
+    }
     if (S.bBusy) return; S.bBusy = true;
+
     run(async () => {
       try {
         const r = await post(`/api/battle/${S.battle}/shoot`, { x: Number(el.dataset.x), y: Number(el.dataset.y) });

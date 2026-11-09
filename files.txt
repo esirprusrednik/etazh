@@ -26,6 +26,7 @@ public/js/crest.js
 public/js/guide.js
 public/js/ships.js
 public/js/duelart.js
+public/js/practice.js
 public/js/theme.js
 public/fonts/onest.woff
 public/fonts/unbounded.woff
@@ -81,6 +82,7 @@ tests/battle.js
 tests/crew.js
 tests/features.js
 tests/holidays.js
+tests/practice.mjs
 tests/quiz.js
 tests/smoke.js
 tests/social.js
