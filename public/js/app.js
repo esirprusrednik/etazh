@@ -22,7 +22,7 @@ const S = {
   sheet: null, compose: null, signal: null,
   onb: { step: 'email', email: '', error: '', devLink: null, devCode: null, nicks: [] },
   error: '', busy: false,
-  seenChat: store.get('seenChat', 0), seenFeed: store.get('seenFeed', 0),
+  nearMore: store.get('nearMore', false), seenChat: store.get('seenChat', 0), seenFeed: store.get('seenFeed', 0),
   fx: null, gx: null, thanksTo: null, lunchTime: '13:00', sec: new Set(),
   crew: null, dm: null, dmView: null,
   battles: [], battle: null, bv: null, bFresh: new Set(), bFreshUntil: 0, bShout: null
@@ -1859,14 +1859,28 @@ function renderNear() {
   return `${pageHead('Рядом', 'Где ты сегодня и кто из твоих людей рядом')}
     ${aboutCard}
     ${renderStatusBlock()}
-    ${renderTodos()}
     ${renderAdvent(true)}
     ${(S.people && !S.people.length) || !S.me.gangs.length ? findBar() : ''}
     ${renderQuickCalls()}
     ${renderBirthdays()}
     ${renderPeople()}
-    ${renderCoffeeStrip()}
-    ${renderMatch()}`;
+    ${renderNearMore()}`;
+}
+// «Ещё полезное» на «Рядом»: дела дня, случайный кофе и «Совпадаем» свёрнуты в одну строку.
+// Дела с открытыми пунктами на сегодня стоят на виду — их человек завёл сам.
+function renderNearMore() {
+  const t = S.todos, c = S.fx && S.fx.coffee, p = c && c.pair;
+  const openTodos = t ? t.today.filter((x) => !x.done).length : 0;
+  const todosOut = openTodos > 0 || S.todoAdd;
+  const coffeeHot = !!(p && (p.canReply || !p.ping));
+  const open = !!S.nearMore;
+  const bits = [!todosOut && t ? 'Дела дня' : '', c ? (p ? `Кофе с ${esc(p.partner.nick)}` : 'Случайный кофе') : '', S.match ? 'Совпадаем' : ''].filter(Boolean);
+  if (!bits.length) return todosOut ? renderTodos() : '';
+  return `${todosOut ? renderTodos() : ''}
+    <section class="near-more ${open ? 'on' : ''}">
+      <button class="near-more-head" data-act="near-more" aria-expanded="${open}"><span class="grow"><b>Ещё полезное</b><span class="small">${bits.join(' · ')}</span></span>${coffeeHot && !open ? '<i class="gq-dot" aria-label="ждёт ответа"></i>' : ''}<span class="chev" aria-hidden="true">${open ? '−' : '+'}</span></button>
+      ${open ? `<div class="near-more-body">${todosOut ? '' : renderTodos()}${renderCoffeeStrip()}${renderMatch()}</div>` : ''}
+    </section>`;
 }
 
 // Заблокированный график: «заполни свой план — увидишь чужой». filled/total — сколько бандитов уже заполнили
@@ -4879,6 +4893,7 @@ const actions = {
     if (again) window.scrollTo(0, 0);
     await run(() => refresh());
   },
+  'near-more': () => { S.nearMore = !S.nearMore; try { store.set('nearMore', S.nearMore); } catch {} render(); },
   checkin: (el) => run(async () => {
     S.sheet = null;
     const r = await post('/api/checkin', { office: el.dataset.v });
@@ -6071,7 +6086,7 @@ function applyHash(hash) {
   if (hash.startsWith('#gang/')) { S.tab = 'chats'; S.chatGang = true; S.dm = null; S.activeGang = Number(hash.slice(6)) || S.activeGang; }
   if (hash === '#near') { S.tab = 'near'; S.chatGang = false; S.dm = null; }
   if (hash === '#rate') { S.tab = 'office'; S.chatGang = false; S.dm = null; setTimeout(() => { const c = document.querySelector('.food'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 800); }
-  if (hash === '#todos') { S.tab = 'near'; S.chatGang = false; S.dm = null; setTimeout(() => { const c = document.querySelector('.todos'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 600); }
+  if (hash === '#todos') { S.nearMore = true; S.tab = 'near'; S.chatGang = false; S.dm = null; setTimeout(() => { const c = document.querySelector('.todos'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 600); }
   if (hash === '#battery') { S.sheet = 'battery'; S.bt = { step: 0, answers: [] }; get('/api/battery').then((b) => { S.battery = b; render(); }).catch(() => {}); }
   if (hash.startsWith('#wave/')) { S.tab = 'chats'; S.chatGang = true; S.dm = null; S.activeGang = Number(hash.slice(6)) || S.activeGang; S.waveScroll = true; }
   if (hash === '#feed') S.tab = 'office';

@@ -1759,3 +1759,11 @@ button.chip.ask-chip { cursor: pointer; }
 .sp-steps .on em { color: #E8590C; }
 .sp-card p { margin: 0; font-size: 14px; line-height: 1.4; color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { .sp-card, .sp-fire { animation: none; } }
+
+/* «Ещё» на «Рядом» */
+.near-more { background: var(--card); border: 1px solid var(--line); border-radius: 20px; }
+.near-more-head { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 16px; font: inherit; color: var(--ink); background: none; border: 0; text-align: left; cursor: pointer; position: relative; }
+.near-more-head .grow { display: grid; gap: 2px; min-width: 0; }
+.near-more-head .gq-dot { position: static; }
+.near-more-body { display: grid; gap: 12px; padding: 0 10px 10px; }
+.near-more-body > .card { margin: 0; }
