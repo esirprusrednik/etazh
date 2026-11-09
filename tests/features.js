@@ -198,6 +198,13 @@ const mskToday = () => new Date(Date.now() + SHIFT_H * 3600e3).toISOString().sli
     await a.post('/api/me/profile', { look: { face: 'heart', eyes: '#3A7BD5', hairStyle: 'afro' } });
     const look = (await a.get('/api/me')).json.user.look;
     assert.equal(look.face, 'heart'); assert.equal(look.hairStyle, 'afro');
+    // Новые черты внешности сохраняются, недопустимые значения отбрасываются
+    await a.post('/api/me/profile', { look: { browShape: 'uni', browColor: '#6E6A66', eyeShape: 'hooded', eyeGap: 'wide', age: '2', hairline: 'm', part: 'right', lips: 'full', mole: 'chin', lashes: true, dimples: true, hair: '#CFAE74', skin: '#D7A774', eyes: '#8A6A2E' } });
+    const l2 = (await a.get('/api/me')).json.user.look;
+    for (const [k, v] of Object.entries({ browShape: 'uni', browColor: '#6E6A66', eyeShape: 'hooded', eyeGap: 'wide', age: '2', hairline: 'm', part: 'right', lips: 'full', mole: 'chin', lashes: true, dimples: true, hair: '#CFAE74', skin: '#D7A774', eyes: '#8A6A2E' })) assert.equal(l2[k], v, k);
+    await a.post('/api/me/profile', { look: { browShape: 'zigzag', age: '7', hairline: 'x', lips: 'huge' } });
+    const l3 = (await a.get('/api/me')).json.user.look;
+    assert.equal(l3.browShape, 'uni'); assert.equal(l3.age, '2'); assert.equal(l3.hairline, 'm'); assert.equal(l3.lips, 'full');
   });
 
   await step('карточка коллеги: банде — полная, чужим — только ник и аватар', async () => {

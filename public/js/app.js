@@ -148,6 +148,8 @@ const HAIR_ORDER = {
   f: ['long', 'waves', 'bangs', 'lob', 'bob', 'pixie', 'ponytail', 'braid', 'buns', 'bun', 'tail', 'curly', 'afro', 'side', 'short', 'buzz']
 };
 // Какие причёски прячутся под шапкой целиком (макушка), а какие торчат из-под неё прядями
+// Где линия роста волос видна: у чёлки, каре, пикси, кудрей и афро лоб закрыт — залысины там не рисуем
+const HAIRLINE_OK = ['short', 'undercut', 'quiff', 'crop', 'slick', 'buzz', 'manbun', 'tail', 'ponytail', 'bun', 'buns', 'long', 'waves', 'lob', 'braid', 'mohawk'];
 const HAIR_TALL = ['bun', 'afro', 'manbun', 'buns', 'ponytail', 'quiff', 'mohawk', 'anime'];
 const HAIR_LONG = ['long', 'waves', 'bangs', 'lob', 'bob', 'braid', 'curly', 'afro'];
 // Рот — нарисованные губы, без «смайликовых» линий. lip — цвет губ, line — линия смыкания
@@ -471,7 +473,7 @@ function maskLayer(m, g, c) {
 // Глаза по анатомии: разрез (миндаль, узкие, нависшее веко, опущенные/приподнятые уголки) и посадка.
 // Белок — форма разреза, радужка поверх, а всё вне разреза закрывает кожа (вырез evenodd) — радужка не вылезает за веко
 const EYE_GAP = { close: 1.2, normal: 0, wide: -1.3 };
-function eyeAnat(shape, eyes, skin, gap = 0, lashes = false) {
+function eyeAnat(shape, eyes, skin, gap = 0, lashes = false, uid = 0) {
   const H = { normal: 3.8, almond: 3.1, narrow: 1.75, hooded: 3.2, down: 3.1, up: 3.1 }[shape] || 3.8;
   const tilt = { down: 2.3, up: -2.3 }[shape] || 0;
   const w = shape === 'normal' ? 4.2 : 4.7;
@@ -482,8 +484,9 @@ function eyeAnat(shape, eyes, skin, gap = 0, lashes = false) {
       ? `M${i} 48 C${i} ${top} ${o} ${top} ${o} 48 C${o} ${bot} ${i} ${bot} ${i} 48 Z`
       : `M${i} 48.2 C${i + side * 1.6} ${top} ${o - side * 2.2} ${top} ${o} ${ty} C${o - side * 2} ${bot} ${i + side * 1.4} ${bot} ${i} 48.2 Z`;
     const ix = cx + 0.4, ir = shape === 'narrow' ? 2.45 : 2.75;
-    let g = `<path d="${d}" fill="#fff"/><circle cx="${ix}" cy="48.3" r="${ir}" fill="${eyes}"/><circle cx="${ix}" cy="48.3" r="${ir * 0.47}" fill="#111"/><circle cx="${ix + 1}" cy="47.2" r=".85" fill="#fff"/>`;
-    g += `<path d="M${cx - 6.4} 42.6 H${cx + 6.4} V53.4 H${cx - 6.4} Z ${d}" fill="${skin}" fill-rule="evenodd"/>`;
+    // Радужка обрезается по разрезу (clipPath) — кожу поверх не кладём, чтобы не срезать тени, веснушки и морщинки
+    const cid = `ey${uid}${side < 0 ? 'L' : 'R'}`;
+    let g = `<clipPath id="${cid}"><path d="${d}"/></clipPath><path d="${d}" fill="#fff"/><g clip-path="url(#${cid})"><circle cx="${ix}" cy="48.3" r="${ir}" fill="${eyes}"/><circle cx="${ix}" cy="48.3" r="${ir * 0.47}" fill="#111"/><circle cx="${ix + 1}" cy="47.2" r=".85" fill="#fff"/></g>`;
     // Линия верхнего века — даёт форму глазу даже в маленьком кружке
     const lid = shape === 'normal' ? `M${i} 48 C${i} ${top} ${o} ${top} ${o} 48` : `M${i} 48.2 C${i + side * 1.6} ${top} ${o - side * 2.2} ${top} ${o} ${ty}`;
     g += `<path d="${lid}" fill="none" stroke="#22252D" stroke-width="${lashes ? 1.5 : 1}" stroke-linecap="round"/>`;
@@ -495,8 +498,8 @@ function eyeAnat(shape, eyes, skin, gap = 0, lashes = false) {
   // side — куда смотрит внешний уголок: у левого глаза влево (−1), у правого вправо (+1)
   return one(43 + gap, -1) + one(57 - gap, 1);
 }
-function eyesLayer(shape, eyes, skin, gap = 0, lashes = false) {
-  if (['normal', 'almond', 'narrow', 'hooded', 'down', 'up'].includes(shape || 'normal')) return eyeAnat(shape || 'normal', eyes, skin, gap, lashes);
+function eyesLayer(shape, eyes, skin, gap = 0, lashes = false, uid = 0) {
+  if (['normal', 'almond', 'narrow', 'hooded', 'down', 'up'].includes(shape || 'normal')) return eyeAnat(shape || 'normal', eyes, skin, gap, lashes, uid);
   if (shape === 'anime') {
     // Аниме-глаза (Лавка): большие, с двумя бликами и ресницами
     const one = (x) => `<ellipse cx="${x}" cy="48" rx="4.6" ry="5.4" fill="#fff"/><ellipse cx="${x}" cy="48.6" rx="3.6" ry="4.6" fill="${eyes}"/><ellipse cx="${x}" cy="50" rx="2.6" ry="3" fill="${shade(eyes, 0.35)}" opacity=".7"/><circle cx="${x}" cy="48.6" r="1.5" fill="#111"/><ellipse cx="${x - 1.4}" cy="46.4" rx="1.4" ry="1.7" fill="#fff"/><circle cx="${x + 1.4}" cy="51" r=".7" fill="#fff"/><path d="M${x - 5} 46 Q${x} 41.6 ${x + 5} 45.6" fill="none" stroke="#1A1A22" stroke-width="1.6" stroke-linecap="round"/>`;
@@ -630,7 +633,7 @@ function browsLayer(shape, sex, color, dy = 0, gap = 0) {
 // Возраст: 1 — «гусиные лапки» и лёгкие мешки, 2 — плюс носогубные складки и морщины на лбу
 function ageLayer(age, skin, gap = 0) {
   if (!age || age === '0') return '';
-  const c = shade(skin, -0.32), L = (d, w = 0.8, op = 0.65) => `<path d="${d}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" opacity="${op}"/>`;
+  const c = shade(skin, -0.4), L = (d, w = 0.9, op = 0.8) => `<path d="${d}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" opacity="${op}"/>`;
   let o = L(`M${37 + gap} 47 l-2 -1.2 M${37 + gap} 48.6 l-2.2 .2 M${37.2 + gap} 50 l-2 1.2 M${63 - gap} 47 l2 -1.2 M${63 - gap} 48.6 l2.2 .2 M${62.8 - gap} 50 l2 1.2`, 0.7)
     + L(`M${39.6 + gap} 52.6 Q${43 + gap} 54 ${46.4 + gap} 52.6 M${53.6 - gap} 52.6 Q${57 - gap} 54 ${60.4 - gap} 52.6`, 0.75, 0.5);
   if (age === '2') o += L('M44.2 52.6 Q41.4 56 43 60.4 M55.8 52.6 Q58.6 56 57 60.4', 1, 0.6) + L('M42 34.6 Q50 33.4 58 34.6 M43.6 37 Q50 36 56.4 37', 0.7, 0.45);
@@ -638,7 +641,7 @@ function ageLayer(age, skin, gap = 0) {
 }
 // Приметы: родинка и ямочки
 function marksLayer(mole, dimples, skin) {
-  const at = { cheekL: [39, 56], cheekR: [61.4, 55], lip: [54.6, 59.4], chin: [52.4, 65] }[mole];
+  const at = { cheekL: [39, 56], cheekR: [61.4, 55], lip: [56.8, 54.4], chin: [52.4, 65] }[mole];
   return (at ? `<circle cx="${at[0]}" cy="${at[1]}" r=".95" fill="${shade(skin, -0.55)}"/>` : '')
     + (dimples ? `<path d="M41 58.6 q.6 1.4 1.6 1.6 M59 58.6 q-.6 1.4 -1.6 1.6" fill="none" stroke="${shade(skin, -0.3)}" stroke-width=".8" stroke-linecap="round"/>` : '');
 }
@@ -923,7 +926,7 @@ function avatarInner(look = {}) {
   const mir = (svg) => (look.part === 'right' && svg ? `<g transform="translate(100 0) scale(-1 1)">${svg}</g>` : svg);
   // Залысины и высокий лоб: поверх передних прядей кладём кожу, обрезанную по контуру головы, и мягкую линию роста
   const HL = { high: [[50, 33.8, 12.6, 3.4]], receding: [[38.6, 33.4, 4.6, 4.8], [61.4, 33.4, 4.6, 4.8]], m: [[38.8, 31.4, 6.2, 6.6], [61.2, 31.4, 6.2, 6.6], [50, 35.6, 6.4, 1.6]] }[look.hairline];
-  const hlLayer = HL && hairFront && !capped && hs !== 'bald' ? `<clipPath id="hc${u}"><path d="${g.d}"/></clipPath><g clip-path="url(#hc${u})">${HL.map(([x, y, rx, ry]) => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="${skin}"/>`).join('')}</g>` : '';
+  const hlLayer = HL && hairFront && !capped && HAIRLINE_OK.includes(hs) ? `<clipPath id="hc${u}"><path d="${g.d}"/></clipPath><g clip-path="url(#hc${u})">${HL.map(([x, y, rx, ry]) => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="${skin}"/>`).join('')}</g>` : '';
   const hairFrontC = mir(fit(hairFront)) + hlLayer;
   const hairBackC = brimY && hairBack ? `<clipPath id="hb${u}"><rect x="0" y="${brimY}" width="100" height="100"/></clipPath><g clip-path="url(#hb${u})">${mir(fit(hairBack))}</g>` : mir(fit(hairBack));
   const eyesCovered = helmet || look.mask === 'scuba' || look.mask === 'visor';
@@ -939,7 +942,7 @@ function avatarInner(look = {}) {
     ${jaw}
     <ellipse cx="38" cy="54.6" rx="3.6" ry="2.6" fill="#FF7A8A" opacity="${blushOp}"/><ellipse cx="62" cy="54.6" rx="3.6" ry="2.6" fill="#FF7A8A" opacity="${blushOp}"/>
     ${freckles}${ageLayer(look.age, skin, gapK)}${marksLayer(look.mole, look.dimples, skin)}
-    <g transform="translate(50 48) scale(${es.toFixed(3)}) translate(-50 -48)">${shadow}${eyesLayer(shape, eyes, skin, gapK, lashOn)}${lash}${liner}</g>
+    <g transform="translate(50 48) scale(${es.toFixed(3)}) translate(-50 -48)">${shadow}${eyesLayer(shape, eyes, skin, gapK, lashOn, u)}${lash}${liner}</g>
     ${brows}
     ${noseLayer(look.nose, skin, sex)}
     ${beardL.under}
@@ -2919,8 +2922,8 @@ function duelHead(d) {
   return `<div class="duel-head"><b>${{ rps: 'rock Камень, ножницы, бумага', dice: 'dice Кости', ttt: 'x Крестики-нолики' }[d.game]}</b>${score}${res}${d.status === 'play' ? `<button class="linkbtn small" data-act="duel-resign" data-id="${d.id}" data-soft="${untouched ? 1 : 0}">${untouched ? 'отказаться' : 'сдаться'}</button>` : ''}</div>${stakeTag}`;
 }
 // Эмоции на аватаре: рот и глаза поверх своего образа
-const MOOD = { win: { mouth: 'grin', eyeShape: 'happy' }, happy: { mouth: 'smile', eyeShape: 'happy' }, sad: { mouth: 'sad', eyeShape: 'tired' },
-  lose: { mouth: 'wow', eyeShape: 'tired' }, meh: { mouth: 'neutral' }, smirk: { mouth: 'smirk', eyeShape: 'sly' }, wow: { mouth: 'wow', eyeShape: 'wide' } };
+// Эмоция меняет только рот: форма глаз — часть внешности, по ней человека узнают
+const MOOD = { win: { mouth: 'grin' }, happy: { mouth: 'smile' }, sad: { mouth: 'sad' }, lose: { mouth: 'wow' }, meh: { mouth: 'neutral' }, smirk: { mouth: 'smirk' }, wow: { mouth: 'wow' } };
 const moodLook = (look, m) => ({ ...(look || {}), ...(MOOD[m] || {}) });
 // Руки: кожа — с аватара, рукав — цвет худи. Если рукава у соперников похожи, у соперника — оранжевый
 const colorDist = (a, b) => { const p = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); const [x, y] = [p(a), p(b)]; return Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]); };
@@ -2962,7 +2965,7 @@ function renderDuel(d) {
       return `<button class="ttt-cell ${mark ? 'm-' + mark : ''} ${win ? 'win' : ''}" data-act="duel-cell" data-id="${d.id}" data-v="${i}" ${c || !d.myTurn ? 'disabled' : ''} aria-label="Клетка ${i + 1}${mark ? (mark === 'x' ? ', крестик' : ', нолик') : ''}">${tttMark(mark, nw.includes(i), c === 'me' ? 'me' : 'opp')}</button>`;
     };
     const moods = d.status === 'done' ? moodsOf(d) : { me: 'smirk', opp: 'smirk' };
-    return `<div class="duel ttt">${duelHead(d)}${duelVs(d, moods, fresh)}<div class="arena"><div class="ttt-grid">${d.board.map(cell).join('')}${tttLine(d.line)}</div></div>
+    return `<div class="duel ttt">${duelHead(d)}${duelVs(d, moods, fresh)}<div class="arena"><div class="ttt-grid">${d.board.map(cell).join('')}${tttLine(d.line, fresh)}</div></div>
       <p class="small duel-hint">${d.status === 'play' ? (d.myTurn ? `Твой ход — ты ${d.mark === 'x' ? 'крестики' : 'нолики'}` : 'Ход соперника…') : ''}</p>${duelFx(d, fresh)}</div>`;
   }
   const cur = d.rounds[d.rounds.length - 1];
@@ -4830,7 +4833,8 @@ function renderAvatarEditor() {
       <div class="field">Уши${chipsOf('ears', L.ears, EARS_NAMES)}</div>
       <div class="field">Тон кожи${sw('skin', L.skin)}</div>`,
     hair: `<div class="field">Причёска${tiles('hairStyle', HAIR_ORDER[sex].concat(L.hairStyle.filter((v) => !HAIR_ORDER[sex].includes(v))), HAIR_NAMES, 'hair')}</div><div class="field">Цвет волос${hairColors('hair')}</div>
-      ${d.hairStyle !== 'bald' ? `<div class="field">Линия роста волос${tiles('hairline', L.hairline, HAIRLINE_NAMES, 'top')}</div><div class="field">Пробор и чёлка${chipsOf('part', L.part, PART_NAMES)}</div>` : ''}
+      ${HAIRLINE_OK.includes(d.hairStyle || 'short') ? `<div class="field">Линия роста волос${tiles('hairline', L.hairline, HAIRLINE_NAMES, 'top')}</div>` : ''}
+      ${d.hairStyle !== 'bald' ? `<div class="field">Пробор и чёлка${chipsOf('part', L.part, PART_NAMES)}</div>` : ''}
       <p class="small" style="margin:0">Цвет бороды и усов настраивается отдельно — во вкладке «Борода».</p>`,
     eyes: `<div class="field">Форма глаз${tiles('eyeShape', EYE_ANAT, EYE_NAMES, 'eyes')}</div>
       <div class="field">Посадка${chipsOf('eyeGap', L.eyeGap, GAP_NAMES)}</div><div class="field">Размер${chipsOf('eyeSize', L.eyeSize, EYESIZE_NAMES)}</div>
@@ -5291,16 +5295,16 @@ const actions = {
   'duel-stake'(el) { S.duelStake = Number(el.dataset.v); sfx('pick'); render(); },
   'duel-rps': (el) => run(async () => {
     sfx('swish'); const d = await post(`/api/duels/${el.dataset.id}/move`, { move: el.dataset.v });
-    S.duelAnim = { id: d.id, seq: d.seq, until: Date.now() + 2600 }; duelOutcomeSfx(d); await loadDuels(S.dm);
+    S.duelAnim = { id: d.id, seq: d.seq, until: Date.now() + 2600 }; S.duelSeqSeen = { ...(S.duelSeqSeen || {}), [d.id]: d.seq }; duelOutcomeSfx(d); await loadDuels(S.dm);
   }),
   'duel-roll': (el) => run(async () => {
     const id = Number(el.dataset.id); S.duelRolling = id; sfx('dice'); render();
     const [d] = await Promise.all([post(`/api/duels/${id}/move`, {}), new Promise((r) => setTimeout(r, 750))]);
-    S.duelRolling = null; S.duelAnim = { id: d.id, seq: d.seq, until: Date.now() + 2600 }; sfx('diceLand'); duelOutcomeSfx(d); await loadDuels(S.dm);
+    S.duelRolling = null; S.duelAnim = { id: d.id, seq: d.seq, until: Date.now() + 2600 }; S.duelSeqSeen = { ...(S.duelSeqSeen || {}), [d.id]: d.seq }; sfx('diceLand'); duelOutcomeSfx(d); await loadDuels(S.dm);
   }),
   'duel-cell': (el) => run(async () => {
     sfx('marker'); const d = await post(`/api/duels/${el.dataset.id}/move`, { cell: Number(el.dataset.v) });
-    S.duelAnim = { id: d.id, seq: d.seq, until: Date.now() + 2600 }; duelOutcomeSfx(d); await loadDuels(S.dm);
+    S.duelAnim = { id: d.id, seq: d.seq, until: Date.now() + 2600 }; S.duelSeqSeen = { ...(S.duelSeqSeen || {}), [d.id]: d.seq }; duelOutcomeSfx(d); await loadDuels(S.dm);
   }),
   'duel-resign': (el) => run(async () => {
     const soft = el.dataset.soft === '1';

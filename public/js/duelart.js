@@ -148,12 +148,12 @@ export function tttMark(mark, fresh = false, who = 'me') {
   return '';
 }
 // Линия победы поверх поля 3×3: из центра первой клетки в центр последней
-export function tttLine(line) {
+export function tttLine(line, fresh = false) {
   if (!line) return '';
   const c = (i) => [(i % 3) * 100 + 50, Math.floor(i / 3) * 100 + 50];
   const [a, b] = [c(line[0]), c(line[2])];
   const dx = b[0] - a[0], dy = b[1] - a[1], k = 0.18;
-  return `<svg class="ttt-line" viewBox="0 0 300 300" aria-hidden="true"><path d="M${a[0] - dx * k} ${a[1] - dy * k} L${b[0] + dx * k} ${b[1] + dy * k}" stroke="#FFD84D" stroke-width="12" stroke-linecap="round" pathLength="100"/></svg>`;
+  return `<svg class="ttt-line ${fresh ? 'fresh' : ''}" viewBox="0 0 300 300" preserveAspectRatio="none" aria-hidden="true"><path d="M${a[0] - dx * k} ${a[1] - dy * k} L${b[0] + dx * k} ${b[1] + dy * k}" stroke="#FFD84D" stroke-width="12" stroke-linecap="round" pathLength="100"/></svg>`;
 }
 
 // ----- Праздник и огорчение -----
