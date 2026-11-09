@@ -4321,6 +4321,15 @@ const SOUNDS = {
   send: (c) => { tick(c, { vol: 0.1 }); whoosh(c, { at: 0.02 }); tone(c, { f: 420, f2: 1400, type: 'sine', at: 0.03, dur: 0.3, vol: 0.022, pan: 0.4 }); },
   swish: (c) => whoosh(c, { dur: 0.3, vol: 0.18, from: 700, to: 4500, pan: 0.6, pan2: -0.6 }),
   // Итоги действий: мягкие колокольчики вместо писка
+  // Лифт приехал: мягкое торможение кабины, глухой «стоп», двухтонный звонок «динь-дон» и шорох дверей
+  lift: (c) => {
+    tone(c, { f: 110, f2: 70, type: 'sine', dur: 0.38, vol: 0.05, atk: 0.06 });
+    noise(c, { at: 0.02, dur: 0.34, vol: 0.025, type: 'lowpass', f: 420, f2: 180, q: 0.7, shape: 1.2 });
+    noise(c, { at: 0.36, dur: 0.09, vol: 0.09, type: 'lowpass', f: 260, f2: 120, q: 0.9, shape: 3 });
+    const ding = (f, at, vol) => [[1, 1], [2, 0.18], [3, 0.06]].forEach(([k, a]) => tone(c, { f: f * k, type: 'sine', at, dur: 1.3 / k, vol: vol * a, atk: 0.004, rv: 0.35 }));
+    ding(659, 0.5, 0.06); ding(523, 0.86, 0.055);
+    noise(c, { at: 1.05, dur: 0.6, vol: 0.03, type: 'bandpass', f: 900, f2: 2600, q: 0.6, shape: 1.4, pan: -0.4, pan2: 0.4 });
+  },
   confirm: (c) => { tick(c, { vol: 0.08 }); bell(c, { f: 1047, at: 0.01, vol: 0.04, dur: 0.6 }); bell(c, { f: 1568, at: 0.08, vol: 0.035, dur: 0.8 }); },
   coin: (c) => { bell(c, { f: 1976, vol: 0.04, dur: 0.5 }); bell(c, { f: 2637, at: 0.07, vol: 0.045, dur: 1.0, rv: 0.4 }); noise(c, { at: 0.07, dur: 0.15, vol: 0.02, type: 'highpass', f: 7000, rv: 0.4 }); },
   danger: (c) => { tick(c, { f: 1500, body: 600, vol: 0.12 }); tone(c, { f: 200, f2: 130, type: 'sine', at: 0.01, dur: 0.16, vol: 0.08, atk: 0.003 }); },
@@ -4366,7 +4375,7 @@ const SOUNDS = {
 };
 // Вибрация под стать звуку: короткий «тик» на нажатия, узор — на события
 const BUZZ = { bugle: [50, 40, 50, 40, 50, 40, 260], tap: 8, tab: 10, on: 6, off: 6, pick: 5, open: 8, close: 6, expand: 5, collapse: 5, send: 14, confirm: [12, 40, 18], danger: [25, 50, 25], error: [35, 45, 35],
-  vote: 10, coin: [8, 30, 8], click: 8, tick: 4, splash: 15, hit: [30, 40, 60], sunk: [40, 30, 90], lose: [80, 60, 160], chicken: [30, 40, 30], fanfare: [60, 60, 60, 60, 200], waveHorn: [40, 60, 40, 60, 200], waveCrowd: [10, 30, 20, 30, 40, 30, 80], waveFull: [20, 30, 40, 30, 80, 60, 200] };
+  lift: [20, 60, 30, 300, 15], vote: 10, coin: [8, 30, 8], click: 8, tick: 4, splash: 15, hit: [30, 40, 60], sunk: [40, 30, 90], lose: [80, 60, 160], chicken: [30, 40, 30], fanfare: [60, 60, 60, 60, 200], waveHorn: [40, 60, 40, 60, 200], waveCrowd: [10, 30, 20, 30, 40, 30, 80], waveFull: [20, 30, 40, 30, 80, 60, 200] };
 let lastSfx = { name: '', at: 0 };
 function sfx(name, arg) {
   const now = performance.now();
@@ -5573,7 +5582,7 @@ const actions = {
       } finally { S.blitzBusy = false; }
     });
   },
-  'splash-skip'() { if (S.splashDone) { sfx('confirm'); S.splashDone(); } },
+  'splash-skip'() { if (S.splashDone) { sfx('lift'); S.splashDone(); } },
   close() { S.sheet = null; S.error = ''; render(); },
   'close-bg'(el, e) { if (e.target === el) actions.close(); },
   'shop-gang'(el) { S.shopGang = Number(el.dataset.v); render(); },
