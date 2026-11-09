@@ -3158,7 +3158,10 @@ function renderGang() {
   const v = S.gang;
   if (!v) return multi + chips + '<div class="card"><p class="sub">Загружаем банду…</p></div>' + create;
   const g = v.gang;
-  const members = v.members.map((m) => {
+  const MEM_SHOW = 5, memCut = v.members.length > MEM_SHOW + 1 && !S.membersAll;
+  const rank = (m) => m.me ? 0 : m.where === 'office' ? 1 : 2;
+  const memSorted = [...v.members].sort((a, b) => rank(a) - rank(b));
+  const members = (memCut ? memSorted.slice(0, MEM_SHOW) : memSorted).map((m) => {
     const [w, color] = whereText(m);
     return `<div class="person">${tap(m.id, avatar(m.look, 34))}<div class="grow"><div style="font-weight:900" class="tapname" data-act="person" data-id="${m.id}">${esc(m.nick)}${m.me ? ' (ты)' : ''}</div>${m.name ? `<div class="realname">${esc(m.name)}</div>` : ''}
       <div class="where"><span class="dot" style="background:${color}"></span>${esc(w)}${m.mood && m.where === 'office' ? ' · ' + esc(m.mood) : ''}${m.status ? ' · ' + esc(m.status) : ''}</div></div>
@@ -3206,15 +3209,16 @@ function renderGang() {
     ${g.legend ? `<div class="g-legend">crown ${esc(g.legend)}</div>` : ''}
     ${g.motto ? `<p class="sub" style="font-style:italic;margin:0">«${esc(g.motto)}»</p>` : ''}
     ${g.about ? `<p class="sub" style="margin:0">${esc(g.about)}</p>` : ''}
-    ${g.interests && g.interests.length ? `<div class="g-tags">${g.interests.map((t) => `<i>${esc(t)}</i>`).join('')}</div>` : ''}
+    ${g.interests && g.interests.length ? `<div class="g-tags"><span class="g-tags-l">Интересы банды:</span>${g.interests.map((t) => `<i>${esc(t)}</i>`).join('')}</div>` : ''}
     <button class="tr-strip" data-act="treasury-open">bank Казна: <b>${g.glory || 0}</b> славы <span class="small">— оформление банды за общие победы</span></button>
     ${g.league ? `<button class="lg-strip" data-act="league-open">trophy Лига недели: <b>${g.league.place ? `${MEDAL[g.league.place - 1] || ''} ${g.league.place} место из ${g.league.of}` : g.league.eligible ? 'пока без очков' : 'нужно 3 человека'}</b> · счёт ${g.league.score}${trophyLine(g.trophies) ? ` · ${trophyLine(g.trophies)}` : ''}</button>` : ''}
     ${g.league ? leagueRules() : ''}
     ${g.depositPending ? '<div class="note warn">Залог 50 зёрен вернётся, когда в банде будет 3 человека.</div>' : ''}
   </section>
-  <section class="card"><h3>hand Участники</h3>
+  <section class="card"><h3>hand Участники · ${v.members.length}</h3>
     ${reqN ? `<div class="g-req"><b>Хотят в банду · ${reqN}</b>${v.requests.map((r) => `<div class="person2">${tap(r.id, avatar(r.look, 30))}<span class="grow ellipsis" style="font-weight:800">${esc(r.nick)}</span><button class="btn small" data-act="greq" data-id="${r.id}" data-v="accept">Принять</button><button class="btn small ghost" data-act="greq" data-id="${r.id}" data-v="decline" aria-label="Отклонить">✕</button></div>`).join('')}</div>` : ''}
     ${members}
+    ${v.members.length > MEM_SHOW + 1 ? `<button class="linkbtn" data-act="members-all" aria-expanded="${!memCut}">${memCut ? `Показать всех · ${v.members.length}` : 'Свернуть'}</button>` : ''}
     ${g.link ? `<button class="btn blue" data-act="invite-share">Позвать в банду по ссылке</button>
     <p class="small">Ссылка: ${esc(g.link)}. Отправь её в рабочий мессенджер — вступить смогут только свои — с рабочей почтой.</p>` : '<p class="small">В этой банде новых зовёт только владелец.</p>'}
   </section>
@@ -3766,11 +3770,19 @@ function renderThanks(v) {
   const x = S.gx;
   if (!x) return '';
   const others = v.members.filter((m) => !m.me);
-  return `<section class="card">
-    <div class="row" style="justify-content:space-between"><span class="card-title">hand Спасибо</span><span class="small">осталось ${x.thanksLeft} из 3 сегодня</span></div>
-    ${others.length && x.thanksLeft > 0 ? `<div class="chips">${others.map((m) => `<button class="chip ${S.thanksTo === m.id ? 'on' : ''}" data-act="thanks-to" data-v="${m.id}">${esc(m.nick)}</button>`).join('')}</div>
-    ${S.thanksTo ? `<div class="row"><label class="field grow" style="gap:0"><span class="hidden">За что спасибо</span><input id="thanks-text" maxlength="80" placeholder="За что? Можно пусто" aria-label="За что спасибо"></label><button class="btn" data-act="thanks-send">Спасибо</button></div>` : '<p class="small" style="margin:0">Выбери, кому сказать спасибо. Получатель получит зерно.</p>'}` : ''}
-    ${x.thanks.length ? `<div class="thanks-list">${x.thanks.map((t) => `<div class="thx ${t.toMe ? 'me' : ''}"><b>${esc(t.from)}</b> → <b>${esc(t.to)}</b>${t.text ? ': ' + esc(t.text) : ''}<span class="small"> · ${esc(t.when)}</span></div>`).join('')}</div>` : '<p class="small" style="margin:0">За неделю спасибо ещё не было. Начни первым.</p>'}
+  const can = others.length && x.thanksLeft > 0;
+  const pick = can && S.thxPick;
+  const line = (t) => `<div class="thx ${t.toMe ? 'me' : ''}"><b>${esc(t.from)}</b> → <b>${esc(t.to)}</b>${t.text ? ': ' + esc(t.text) : ''}<span class="small"> · ${esc(t.when)}</span></div>`;
+  const toMe = x.thanks.find((t) => t.toMe);
+  return `<section class="card thx-card">
+    <div class="row" style="justify-content:space-between;align-items:center"><span class="card-title">handСпасибо</span>
+      ${can ? `<button class="btn small ${pick ? 'ghost' : ''}" data-act="thx-pick" aria-expanded="${!!pick}">${pick ? 'Свернуть' : 'Сказать спасибо'}</button>` : `<span class="small">${x.thanksLeft ? '' : 'на сегодня всё'}</span>`}</div>
+    ${pick ? `<p class="small" style="margin:0">Кому? Получит пуш и зерно. Осталось ${x.thanksLeft} из 3 сегодня.</p>
+      <div class="chips">${others.map((m) => `<button class="chip ${S.thanksTo === m.id ? 'on' : ''}" data-act="thanks-to" data-v="${m.id}">${esc(m.nick)}</button>`).join('')}</div>
+      ${S.thanksTo ? `<div class="row"><label class="field grow" style="gap:0"><span class="hidden">За что спасибо</span><input id="thanks-text" maxlength="80" placeholder="За что? Можно пусто" aria-label="За что спасибо"></label><button class="btn" data-act="thanks-send">Спасибо</button></div>` : ''}` : ''}
+    ${toMe && !S.thxAll ? line(toMe) : ''}
+    ${x.thanks.length ? `<button class="linkbtn thx-more" data-act="thx-all" aria-expanded="${!!S.thxAll}">${S.thxAll ? 'Свернуть' : `Спасибо за неделю · ${x.thanks.length}`}</button>
+      ${S.thxAll ? `<div class="thanks-list">${x.thanks.map(line).join('')}</div>` : ''}` : (pick ? '' : '<p class="small" style="margin:0">За неделю спасибо ещё не было. Начни первым|первой.</p>')}
   </section>`;
 }
 
@@ -5657,10 +5669,13 @@ const actions = {
     await post('/api/me/profile', { profile: { today: { kind: 'sick', to: $('#sick-until').value || S.state.today } } });
     S.sheet = null; await loadMe(); await loadState(); toast('Выздоравливай! Зовы не будут беспокоить');
   }),
+  'thx-pick'() { S.thxPick = !S.thxPick; if (!S.thxPick) S.thanksTo = null; render(); },
+  'thx-all'() { S.thxAll = !S.thxAll; render(); },
+  'members-all'() { S.membersAll = !S.membersAll; render(); },
   'thanks-to'(el) { S.thanksTo = Number(el.dataset.v); render(); },
   'thanks-send': () => run(async () => {
     const r = await post('/api/thanks', { gang: S.activeGang, to: S.thanksTo, text: ($('#thanks-text') || {}).value || '' });
-    S.thanksTo = null; toast(`Спасибо отправлено. Осталось ${r.left} на сегодня`);
+    S.thanksTo = null; S.thxPick = false; toast(`Спасибо отправлено. Осталось ${r.left} на сегодня`);
     await Promise.all([loadGangExtra(), loadMe()]);
   }),
   gift: (el) => run(async () => { await post('/api/gift', { to: Number(el.dataset.id) }); toast('Поздравление отправлено'); await Promise.all([loadMe(), loadFeatures(), loadGangExtra()]); }),

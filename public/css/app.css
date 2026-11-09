@@ -722,6 +722,7 @@ button.quest:disabled { cursor: default; }
 .g-name { display: block; font-weight: 900; font-size: 15px; }
 .g-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .g-tags i { font-style: normal; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: var(--s1); color: var(--muted); }
+.g-tags-l { font-size: 12px; font-weight: 700; color: var(--muted); align-self: center; margin-right: 2px; }
 .g-tags.big i { font-size: 13px; padding: 4px 10px; }
 .g-hero { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 16px; background: color-mix(in srgb, var(--gc) 14%, #fff); }
 .g-hero .g-badge { width: 56px; height: 56px; font-size: 28px; border-radius: 18px; }
@@ -1767,3 +1768,5 @@ button.chip.ask-chip { cursor: pointer; }
 .near-more-head .gq-dot { position: static; }
 .near-more-body { display: grid; gap: 12px; padding: 0 10px 10px; }
 .near-more-body > .card { margin: 0; }
+
+.thx-card .thx-more { justify-self: start; }
