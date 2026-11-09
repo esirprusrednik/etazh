@@ -1799,3 +1799,35 @@ button.chip.ask-chip { cursor: pointer; }
 .wx-strip .grow { display: grid; gap: 2px; min-width: 0; }
 .wx-strip.wx-snow, .wx-strip.wx-thermo { background: var(--tint-v, #EEE8FD); }
 .wx-strip.wx-sun { background: var(--tint-y, #FFF4D6); }
+
+/* Морской бой: корабли поверх клеток */
+.board { position: relative; }
+.ships-layer { position: absolute; inset: 4px; display: grid; grid-template-columns: repeat(10, 1fr); grid-template-rows: repeat(10, 1fr); gap: 2px; pointer-events: none; z-index: 2; }
+.ship-slot { position: relative; min-width: 0; min-height: 0; }
+.ship-slot svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.ship-slot.ghost svg .hull-g { opacity: .5; filter: grayscale(.6); }
+.ship-slot.sunk svg .hull-g { filter: saturate(.4) brightness(.62) sepia(.3) contrast(1.1); }
+.ship-slot.sunk { z-index: 3; animation: sh-list 4s ease-in-out infinite alternate; }
+.ship-slot.boom { z-index: 3; }
+.bc.under.hit, .bc.under.sunk { background: rgba(160,210,255,.12) !important; }
+.bc.under.hit::after, .bc.under.sunk::after { display: none; }
+.board-wrap.opp .bc.hit { background: rgba(160,210,255,.12); }
+.board-wrap.opp .bc.hit::after { display: none; }
+@keyframes sh-list { from { transform: rotate(-1.2deg) translateY(0); } to { transform: rotate(1.2deg) translateY(1px); } }
+.ship-art .fl { transform-box: fill-box; transform-origin: 50% 100%; animation: fl-flick .42s ease-in-out infinite alternate; }
+.ship-art .fl2 { animation-duration: .33s; } .ship-art .fl3 { animation-duration: .27s; }
+.fl-glow { transform-box: fill-box; transform-origin: 50% 50%; animation: fl-glow .6s ease-in-out infinite alternate; }
+@keyframes fl-flick { 0% { transform: scale(1, 1) skewX(0); } 35% { transform: scale(.9, 1.14) skewX(-5deg); } 70% { transform: scale(1.07, .93) skewX(4deg); } 100% { transform: scale(.96, 1.08) skewX(-2deg); } }
+@keyframes fl-glow { from { opacity: .25; transform: scale(.9); } to { opacity: .5; transform: scale(1.12); } }
+.smk { fill: rgba(150,152,162,.5); transform-box: fill-box; transform-origin: 50% 50%; animation: smk 2.6s linear infinite; }
+@keyframes smk { 0% { transform: translate(0, 0) scale(.5); opacity: 0; } 15% { opacity: .75; } 100% { transform: translate(8px, -70px) scale(2.3); opacity: 0; } }
+.emb { fill: #FFB347; animation: emb 1.8s ease-out infinite; }
+@keyframes emb { 0% { transform: translate(0, 0); opacity: 1; } 100% { transform: translate(6px, -46px); opacity: 0; } }
+.ship-art .radar { transform-box: fill-box; transform-origin: 50% 50%; animation: radar 3s linear infinite; }
+.ship-art.sunk .radar { animation: none; }
+@keyframes radar { to { transform: rotate(360deg); } }
+.boom-art { width: 100%; height: 100%; overflow: visible; }
+.boom-art .bm1, .boom-art .bm2 { transform-box: fill-box; transform-origin: 50% 50%; animation: bm-pulse .5s ease-in-out infinite alternate; }
+.boom-art .bm2 { animation-duration: .37s; }
+@keyframes bm-pulse { from { transform: scale(.92) rotate(0); } to { transform: scale(1.05) rotate(6deg); } }
+@media (prefers-reduced-motion: reduce) { .ship-art *, .boom-art *, .ship-slot.sunk { animation: none !important; } }

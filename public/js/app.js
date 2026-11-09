@@ -1,6 +1,7 @@
 // Клиент «Этажа»: без фреймворков, рендер строками + делегирование событий (CSP запрещает inline-обработчики).
 import { officeSvg } from './building.js';
 import { GUIDE } from './guide.js';
+import { shipSvg, boomSvg, SHIP_DEFS } from './ships.js';
 import { crestSvg, crestOf, autoCrest, randomCrest, CREST_PARTS, TINCTURES, TINCTURE_NAMES, SHAPE_NAMES, DIV_NAMES, CHARGE_NAMES, TOP_NAMES } from './crest.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -3411,25 +3412,14 @@ const B_COLS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К'];
 const EMOTES = { lol: ['😂', 'Ха-ха!'], angry: ['😡', 'Ну всё!'], bored: ['😴', 'Скукота'], smart: ['🧠', 'Умный ход'], oops: ['😱', 'Ой-ой'], clap: ['👏', 'Браво'], mercy: ['🙏', 'Пощади'], easy: ['😎', 'Изи'] };
 
 // Части корпуса: нос, середина, корма — чтобы корабль выглядел кораблём, а не набором квадратов
-function hullParts(ships) {
-  const m = new Map();
-  for (const sh of ships) {
-    if (sh.length === 1) { m.set(sh[0][0] * 10 + sh[0][1], 'solo'); continue; }
-    const horiz = sh[0][1] === sh[1][1];
-    const sorted = [...sh].sort((p, q) => (horiz ? p[0] - q[0] : p[1] - q[1]));
-    sorted.forEach(([x, y], i) => m.set(x * 10 + y, `${horiz ? 'h' : 'v'} ${i === 0 ? 'bow' : i === sorted.length - 1 ? 'stern' : 'mid'}`));
-  }
-  return m;
-}
-
 // Поле 10×10. kind: 'opp' — по нему стреляю я; 'me' — мой флот и выстрелы соперника
 function renderBoard(v, kind) {
   const shots = kind === 'opp' ? v.myShots : v.oppShots;
   const shown = kind === 'me' ? v.myShips : (v.oppShips || v.oppSunk);
   const sunk = kind === 'opp' ? v.oppSunk : v.myShips.filter((sh) => sh.every(([x, y]) => v.oppShots.some((t) => t.x === x && t.y === y)));
-  const hull = hullParts(shown);
   const sunkAt = new Set(); sunk.forEach((sh) => sh.forEach(([x, y]) => sunkAt.add(x * 10 + y)));
   const shotAt = new Map(shots.map((t) => [t.x * 10 + t.y, t]));
+  const shipAt = new Set(); shown.forEach((sh) => sh.forEach(([x, y]) => shipAt.add(x * 10 + y)));
   const canShoot = kind === 'opp' && v.myTurn;
   const fresh = Date.now() < S.bFreshUntil ? S.bFresh : new Set();
   const pre = kind === 'opp' ? 'o' : 'm';
@@ -3438,22 +3428,34 @@ function renderBoard(v, kind) {
     const k = x * 10 + y;
     const t = shotAt.get(k);
     const cls = ['bc'];
-    const part = hull.get(k);
-    if (part) cls.push('ship', ...part.split(' '), kind === 'opp' && !sunkAt.has(k) ? 'ghost' : '');
+    if (shipAt.has(k)) cls.push('under');
     if (t) cls.push(t.r === 'miss' ? (t.auto ? 'miss auto' : 'miss') : sunkAt.has(k) ? 'sunk' : 'hit');
     if (fresh.has(`${pre}:${x},${y}`) && !(t && t.auto)) cls.push('fresh');
     if (v.last && ((kind === 'opp' && v.last.mine) || (kind === 'me' && !v.last.mine)) && v.last.x === x && v.last.y === y) cls.push('lastshot');
     const label = `${B_COLS[x]}${y + 1}`;
-    const inner = t && t.r !== 'miss' ? `<i>${sunkAt.has(k) ? '' : 'flame'}</i>` : '';
     cells.push(canShoot && !t
       ? `<button class="${cls.join(' ')} aim" data-act="bshoot" data-x="${x}" data-y="${y}" aria-label="Выстрел в ${label}"></button>`
-      : `<span class="${cls.join(' ').trim()}" aria-label="${label}${t ? (t.r === 'miss' ? ' мимо' : ' попадание') : ''}">${inner}</span>`);
+      : `<span class="${cls.join(' ').trim()}" aria-label="${label}${t ? (t.r === 'miss' ? ' мимо' : sunkAt.has(k) ? ' потоплен' : ' попадание') : ''}"></span>`);
   }
+  // Слой кораблей поверх клеток: свои — целиком, чужие — только потопленные (горят) и, после партии, уцелевшие
+  const art = [];
+  for (const sh of shown) {
+    const vertical = sh.length > 1 && sh[0][0] === sh[1][0];
+    const sorted = [...sh].sort((p, q) => (vertical ? p[1] - q[1] : p[0] - q[0]));
+    const [x0, y0] = sorted[0];
+    const isSunk = sh.every(([x, y]) => sunkAt.has(x * 10 + y));
+    const state = isSunk ? 'sunk' : kind === 'opp' ? 'ghost' : 'ok';
+    const hits = isSunk ? [] : sorted.map(([x, y], i) => (shotAt.has(x * 10 + y) ? i : -1)).filter((i) => i >= 0);
+    const area = vertical ? `grid-area:${y0 + 1} / ${x0 + 1} / span ${sh.length} / span 1` : `grid-area:${y0 + 1} / ${x0 + 1} / span 1 / span ${sh.length}`;
+    art.push(`<div class="ship-slot ${state}" style="${area}">${shipSvg(sh.length, vertical, state, hits)}</div>`);
+  }
+  // Попадания по чужим кораблям, которые ещё на плаву: видно только взрыв
+  if (kind === 'opp') for (const t of shots) if (t.r !== 'miss' && !sunkAt.has(t.x * 10 + t.y)) art.push(`<div class="ship-slot boom" style="grid-area:${t.y + 1} / ${t.x + 1}">${boomSvg(t.x + t.y)}</div>`);
   const shout = S.bShout && Date.now() < S.bShout.until && S.bShout.board === pre ? `<div class="b-shout ${S.bShout.cls}">${esc(S.bShout.text)}</div>` : '';
   return `<div class="board-wrap ${kind}">
     <div class="board-cols">${B_COLS.map((c) => `<span>${c}</span>`).join('')}</div>
     <div class="board-rows">${Array.from({ length: 10 }, (_, i) => `<span>${i + 1}</span>`).join('')}</div>
-    <div class="board ${canShoot ? 'armed' : ''}">${cells.join('')}</div>${shout}
+    <div class="board ${canShoot ? 'armed' : ''}">${cells.join('')}<div class="ships-layer">${art.join('')}</div></div>${shout}
   </div>`;
 }
 
@@ -3518,8 +3520,9 @@ function renderBattle() {
   const v = S.bv;
   const back = `<button class="linkbtn back" data-act="battle-back">‹ К переписке</button>`;
   if (!v) return back + '<div class="card"><p class="sub">Открываем поле…</p></div>';
+  const defs = SHIP_DEFS;
   if (v.status === 'setup') {
-    return `${back}${renderEmoteLayer(v)}${renderVersus(v)}
+    return `${defs}${back}${renderEmoteLayer(v)}${renderVersus(v)}
     <section class="b-sea">
       <div class="sea-title">${v.ready ? 'Флот расставлен' : 'Расставь флот'}</div>
       <p class="sea-sub">${v.ready ? (v.oppReady ? 'Начинаем…' : `Ждём, пока ${esc(v.opp.nick)} расставит корабли. Придёт уведомление.`) : 'Корабли стоят случайно. Не нравится — перемешай. Готов — жми «В бой!».'}</p>
@@ -3537,7 +3540,7 @@ function renderBattle() {
     : `<div class="b-banner wait">wait Ход ${esc(v.opp.nick)}. Придёт уведомление, когда выстрелит</div>`;
   const oppFleet = v.fleet.map((len) => ({ len, sunk: false }));
   for (const sh of v.oppSunk) { const f = oppFleet.find((x) => x.len === sh.length && !x.sunk); if (f) f.sunk = true; }
-  return `${back}${renderEmoteLayer(v)}${renderVersus(v)}
+  return `${defs}${back}${renderEmoteLayer(v)}${renderVersus(v)}
   ${banner}
   <section class="b-sea">
     <div class="row" style="justify-content:space-between"><span class="sea-title">Воды ${esc(v.opp.nick)}</span><span class="sea-sub">на плаву: ${v.oppLeft}</span></div>
