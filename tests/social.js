@@ -392,5 +392,21 @@ function startServer(day, extra = {}) {
       assert.ok(!f.items.some((x) => social.includes(x.id)), 'в выходные коллег не трогаем: ' + f.items.map((x) => x.id));
     });
   } finally { ss.stop(); }
+  // Воскресенье, 15 ноября, около 17:00: в понедельник дождь — строка погоды у того, кто в понедельник в офисе
+  const rainMon = { daily: { time: ['2026-11-15', '2026-11-16', '2026-11-17'], weather_code: [3, 63, 3], temperature_2m_max: [5, 4, 3], temperature_2m_min: [1, 2, 0],
+    apparent_temperature_min: [-2, -1, -3], precipitation_sum: [0, 8, 0], precipitation_probability_max: [10, 90, 10], snowfall_sum: [0, 0, 0], wind_gusts_10m_max: [20, 30, 20] } };
+  const su = startServer('2026-11-15', { WEATHER_FAKE: JSON.stringify(rainMon), TZ_OFFSET_HOURS: String(Math.round((Date.parse('2026-11-15T17:00:00Z') - Date.now()) / 3600e3)) });
+  try {
+    await su.ready;
+    await step('погода в воскресенье: в понедельник в офис — строка на «Рядом»', async () => {
+      const P = await new su.Client().login('sun1@mts.ru', 'воскресный');
+      const Q = await new su.Client().login('sun2@mts.ru', 'домосед');
+      await P.post('/api/me/profile', { profile: { plan: { 'Пн': 'office' } } });
+      await Q.post('/api/me/profile', { profile: { plan: { 'Пн': 'home' } } });
+      const wP = (await P.get('/api/me')).json.user.weather;
+      assert.ok(wP && wP.day === '2026-11-16' && /зонт/.test(wP.text), JSON.stringify(wP));
+      assert.equal((await Q.get('/api/me')).json.user.weather, null, 'в понедельник дома — без строки');
+    });
+  } finally { su.stop(); }
   console.log(`social: ${passed} ok`);
 })().catch((e) => { console.error(e); process.exit(1); });
