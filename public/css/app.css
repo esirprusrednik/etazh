@@ -2017,3 +2017,7 @@ button.chip.ask-chip { cursor: pointer; }
 .pr-head { display: flex; flex-direction: column; gap: 8px; }
 .pr-score { font-size: 13px; color: var(--muted); white-space: nowrap; }
 .pr-score b { color: var(--ink); font-size: 16px; }
+.pr-row { background: var(--tint-v-bg, var(--s1)); border-radius: 16px; padding: 10px 12px; }
+.pr-go { font-weight: 800; font-size: 13px; padding: 6px 12px; border-radius: 999px; background: var(--chip-on-bg); color: var(--chip-on-fg); }
+.pr-or { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; margin: 2px 0; }
+.pr-or::before, .pr-or::after { content: ''; flex: 1; height: 1px; background: var(--line, rgba(127,127,127,.25)); }

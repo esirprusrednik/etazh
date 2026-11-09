@@ -2368,7 +2368,6 @@ function renderGames() {
     ${renderBlitzCard()}
     ${group('Один на один')}
     ${renderDuelsCard()}
-    ${renderPracticeCard()}
     ${S.quiz && S.quiz.length || S.guess ? group('Про своих') : ''}
     ${renderQuiz()}
     ${gangChips}
@@ -2929,13 +2928,6 @@ function prCount(result) {
   all[P.game] = sc; store.set('practiceScore', all);
 }
 function prLevel(game) { return store.get('practiceLevel', {})[game] || 'hard'; }
-function renderPracticeCard() {
-  const games = [['rps', rpsDuo()], ['dice', 'dice'], ['ttt', 'xcircle'], ['sea', 'anchor']];
-  return `<section class="card duels-card pr-card"><div class="chats-head"><h3>target Тренировка с ботом</h3><span class="small">без зёрен и рейтинга</span></div>
-    <div class="duel-new n4">${games.map(([g, e]) => `<button class="duel-start" data-act="pr-start" data-v="${g}"><span>${e}</span><b>${hy(PR_GAMES[g])}</b></button>`).join('')}</div>
-    <p class="small" style="margin:0">Набей руку перед боем со своими. Бот играет честно: твой флот не видит, ходы не подглядывает.</p>
-  </section>`;
-}
 function renderPracticeHead() {
   const P = S.practice, sc = prScore(P.game);
   const lv = P.game === 'ttt' || P.game === 'sea';
@@ -3155,9 +3147,9 @@ function renderDuelsCard() {
   const nickOf = (id) => ((S.people || []).find((p) => p.id === id) || (S.crew && S.crew.list.find((p) => p.id === id)) || {}).nick || 'соперник';
   const waiting = items.filter((d) => d.myTurn).length + battles.filter((x) => x.myTurn).length;
   const games = [['duel-pick', 'rps', rpsDuo(), 'Камень, ножницы, бумага'], ['duel-pick', 'dice', 'dice', 'Кости'], ['duel-pick', 'ttt', 'xcircle', 'Крестики-нолики'], ['duel-pick', 'sea', 'anchor', 'Морской бой']];
-  return `<section class="card duels-card"><div class="chats-head"><h3>game Игры со своими</h3><span class="small">${waiting ? `${waiting} ${plural(waiting, 'ждёт', 'ждут', 'ждут')} твоего хода` : 'победа +2 зерна'}</span></div>
+  return `<section class="card duels-card"><div class="chats-head"><h3>game Сыграть</h3><span class="small">${waiting ? `${waiting} ${plural(waiting, 'ждёт', 'ждут', 'ждут')} твоего хода` : 'победа +2 зерна'}</span></div>
     <div class="duel-new n4">${games.map(([act, g, e, t]) => `<button class="duel-start" data-act="${act}" data-v="${g}"><span>${e}</span><b>${hy(t)}</b></button>`).join('')}</div>
-    ${items.length || battles.length ? '' : '<p class="small" style="margin:0">Выбери игру и соперника. В дуэлях можно на ставку 5 или 10 зёрен — победитель забирает обе. Морской бой — с расстановкой, быстрый или без спешки.</p>'}
+    ${items.length || battles.length ? '' : '<p class="small" style="margin:0">Выбери игру и соперника — или потренируйся с ботом. В дуэлях можно на ставку 5 или 10 зёрен — победитель забирает обе. Морской бой — с расстановкой, быстрый или без спешки.</p>'}
     ${battles.map((x) => `<button class="chat-row" data-act="battle-go" data-id="${x.id}" data-opp="${x.oppId}"><span class="duel-ico">anchor</span><span class="grow"><span class="chat-title">${esc(nickOf(x.oppId))}</span><span class="where">Морской бой · ${x.mode === 'fast' ? 'быстрая · ' : ''}${x.status === 'setup' ? 'расстановка' : x.myTurn ? 'твой ход!' : 'ход соперника'}</span></span>${x.myTurn ? '<span class="crew-badge">!</span>' : ''}</button>`).join('')}
     ${items.map((d) => `<button class="chat-row" data-act="dm-open" data-id="${d.opp.id}">${avatar(d.opp.look, 32)}<span class="grow"><span class="chat-title">${esc(d.opp.nick)}</span><span class="where">${{ rps: 'rock Камень, ножницы, бумага', dice: 'dice Кости', ttt: 'x Крестики-нолики' }[d.game]}${d.score ? ` · ${d.score.me}:${d.score.opp}` : ''}</span></span>${d.myTurn ? '<span class="crew-badge">!</span>' : ''}</button>`).join('')}</section>`;
 }
@@ -4193,6 +4185,8 @@ function renderSheet() {
       <button class="find-bar light" data-act="find-open">${ico('search', 18)}<span>Найти человека по нику или почте</span></button>
       ${(S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${p.crew ? '<span class="fav-star">★</span> ' : ''}${esc(p.nick)}</span><span class="where">${esc(p.gangs.map((g) => g.name).join(', ') || (p.crew ? 'подельник' : whereText(p)[0]))}</span></span><span aria-hidden="true">›</span></button>`).join('')}`);
     case 'duel-pick': return sheetWrap(`${{ rps: 'rock Камень, ножницы, бумага', dice: 'dice Кости', ttt: 'x Крестики-нолики', sea: 'anchor Морской бой' }[S.duelGame] || 'Дуэль'}: с кем?`, `
+      <button class="chat-row pr-row" data-act="pr-start" data-v="${S.duelGame}">${avatar(PR.BOT.look, 36)}<span class="grow"><span class="chat-title">Практика с ботом</span><span class="where">${S.duelGame === 'ttt' || S.duelGame === 'sea' ? 'два уровня · есть ачивки' : 'без зёрен и рейтинга'}</span></span><span class="pr-go">Играть</span></button>
+      <div class="pr-or"><span>или со своими</span></div>
       ${S.duelGame === 'sea' ? seaModes({ pick: S.seaMode || 'calm' }) : ''}
       <div class="duel-stake"><span class="small">Ставка:</span>${[0, 5, 10].map((x) => `<button class="chip ${(S.duelStake || 0) === x ? 'on' : ''}" data-act="duel-stake" data-v="${x}">${x ? x + ' зёрен' : 'без ставки'}</button>`).join('')}</div>
       ${(S.people || []).length ? (S.people || []).map((p) => `<button class="chat-row" data-act="duel-go" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${p.crew ? '<span class="fav-star">★</span> ' : ''}${esc(p.nick)}</span><span class="where">${esc(whereText(p)[0])}</span></span><span aria-hidden="true">swords</span></button>`).join('') : '<p class="sub">Пока некого вызвать: найди своих по нику или вступи в банду.</p>'}
@@ -5434,7 +5428,7 @@ const actions = {
     S.sheet = null; S.tab = 'chats'; S.chatGang = false; S.battle = null; S.dm = to; S.dmView = null; render();
     await Promise.all([loadDm(), loadMe()]); window.scrollTo(0, 0);
   }),
-  'pr-start'(el) { prNew(el.dataset.v); sfx('open'); render(); window.scrollTo(0, 0); },
+  'pr-start'(el) { S.sheet = null; S.tab = 'games'; prNew(el.dataset.v); sfx('open'); render(); window.scrollTo(0, 0); },
   'pr-again'() { prNew(S.practice.game); sfx('open'); render(); window.scrollTo(0, 0); },
   'pr-back'() { S.practice = null; S.bv = null; S.bEmote = null; render(); window.scrollTo(0, 0); },
   'pr-level'(el) {
