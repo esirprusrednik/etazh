@@ -1859,12 +1859,19 @@ function renderNear() {
   return `${pageHead('Рядом', 'Где ты сегодня и кто из твоих людей рядом')}
     ${aboutCard}
     ${renderStatusBlock()}
+    ${renderWeatherStrip()}
     ${renderAdvent(true)}
     ${(S.people && !S.people.length) || !S.me.gangs.length ? findBar() : ''}
     ${renderQuickCalls()}
     ${renderBirthdays()}
     ${renderPeople()}
     ${renderNearMore()}`;
+}
+// Погода на завтра: строка под отметкой вечером накануне офисного дня. Дублирует пуш для тех, у кого пушей нет
+function renderWeatherStrip() {
+  const w = S.me && S.me.weather;
+  if (!w || store.get('weatherHidden', '') === w.day) return '';
+  return `<div class="wx-strip wx-${esc(w.icon)}">${ico(w.icon, 22)}<span class="grow"><b>Завтра в офис</b><span class="small">${esc(w.text.replace(/^Завтра:?\s*/, '').replace(/^./, (c) => c.toUpperCase()))}</span></span><button class="icon-btn" data-act="weather-hide" data-v="${esc(w.day)}" aria-label="Скрыть">${ico('x', 15)}</button></div>`;
 }
 // «Ещё полезное» на «Рядом»: дела дня, случайный кофе и «Совпадаем» свёрнуты в одну строку.
 // Дела с открытыми пунктами на сегодня стоят на виду — их человек завёл сам.
@@ -5463,6 +5470,7 @@ const actions = {
     if (g.to) requestAnimationFrame(() => setTimeout(() => { const t = findInGangTabs(g.to); if (t) t.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 150));
   },
   'match-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { matchShow: el.checked } }); await Promise.all([loadMe(), loadMatch()]); toast(el.checked ? 'Твои дни видны в «Совпадаем»' : 'Твои дни скрыты — и чужие тоже'); }),
+  'weather-hide'(el) { try { store.set('weatherHidden', el.dataset.v); } catch {} render(); },
   'weather-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { weather: el.checked } }); await loadMe(); toast(el.checked ? 'Напомню про погоду накануне офиса' : 'Про погоду больше не пишу'); }),
   'digest-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { digest: el.checked } }); await loadMe(); toast(el.checked ? 'Утренняя сводка включена' : 'Утреннюю сводку больше не пришлю'); }),
   'match-on': () => run(async () => { await post('/api/me/profile', { profile: { matchShow: true } }); await Promise.all([loadMe(), loadMatch()]); toast('Твои дни открыты коллегам'); }),

@@ -551,6 +551,8 @@ function createApi(db) {
         completion, affordable,
         id: u.id, nick: u.nick, beans: u.beans, look: u.look, profile: u.profile, shareOffice: !!u.share_office, quiet: !!u.quiet,
         welcomed: !!u.welcomed, isAdmin: u.isAdmin, owned, newbie: U.now() - (u.created_at || 0) < 7 * 864e5, status: statusName(u.look.status), streak, level,
+        // Погода на завтра для «Рядом»: с 15:00 накануне офисного дня, только если погода необычная
+        weather: weather && U.msk().hour >= 15 ? weather.adviceFor(u.id, u.profile) : null,
         nickChangeableAt: u.nick_changed_at ? u.nick_changed_at + 30 * 864e5 : null, nickFree: !!u.nick && !u.nick_free_used,
         gangs: myGangs(u.id).map((g) => ({ id: g.id, name: g.name, color: g.color, emoji: g.emoji || null, ...U.crestPub(g) }))
       },

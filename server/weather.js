@@ -93,7 +93,7 @@ function register(ctx) {
       if (sent && sent.day === day) continue;
       q('INSERT INTO weather_push (user_id, day) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET day = excluded.day').run(u.id, day);
       const a = adviceFor(u.id, u.profile);
-      if (a) fireAndForget(notify([u.id], { title: 'Погода на завтра', body: a.text, url: '/#inbox', tag: 'weather' }));
+      if (a) fireAndForget(notify([u.id], { title: 'Погода на завтра', body: a.text, url: '/#near', tag: 'weather' }));
     }
   }
   // Прогноз подтягиваем заранее, чтобы и сводка «Этажа» его знала

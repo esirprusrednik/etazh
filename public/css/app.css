@@ -1793,3 +1793,9 @@ button.chip.ask-chip { cursor: pointer; }
 .cw-where .dot { flex: none; margin: 0; }
 .cw-menu { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0 8px 44px; }
 .cw-hint { margin: 0; }
+
+/* Погода на завтра на «Рядом» */
+.wx-strip { display: flex; align-items: center; gap: 12px; padding: 10px 10px 10px 14px; border-radius: 18px; background: var(--tint-b, #E6F0FF); color: var(--ink); }
+.wx-strip .grow { display: grid; gap: 2px; min-width: 0; }
+.wx-strip.wx-snow, .wx-strip.wx-thermo { background: var(--tint-v, #EEE8FD); }
+.wx-strip.wx-sun { background: var(--tint-y, #FFF4D6); }
