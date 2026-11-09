@@ -492,7 +492,8 @@ function eyeAnat(shape, eyes, skin, gap = 0, lashes = false) {
     if (shape === 'hooded') g += `<path d="M${i - side * 0.6} ${top - 1} Q${cx} ${top - 2.4} ${o + side * 0.8} ${ty - 0.4} L${o + side * 0.8} ${ty + 0.2} Q${cx + side * 0.6} ${top + 0.6} ${i} ${48 - 0.6} Z" fill="${skin}"/><path d="M${i} ${48 - 0.6} Q${cx + side * 0.6} ${top + 0.6} ${o + side * 0.6} ${ty + 0.1}" fill="none" stroke="#22252D" stroke-width="1.1" stroke-linecap="round"/><path d="M${i - side * 0.4} ${top - 0.9} Q${cx} ${top - 2.2} ${o + side * 0.6} ${ty - 0.5}" fill="none" stroke="${shade(skin, -0.3)}" stroke-width=".9" stroke-linecap="round"/>`;
     return g;
   };
-  return one(43 + gap, 1) + one(57 - gap, -1);
+  // side — куда смотрит внешний уголок: у левого глаза влево (−1), у правого вправо (+1)
+  return one(43 + gap, -1) + one(57 - gap, 1);
 }
 function eyesLayer(shape, eyes, skin, gap = 0, lashes = false) {
   if (['normal', 'almond', 'narrow', 'hooded', 'down', 'up'].includes(shape || 'normal')) return eyeAnat(shape || 'normal', eyes, skin, gap, lashes);
