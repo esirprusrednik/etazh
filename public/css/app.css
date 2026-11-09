@@ -4,10 +4,10 @@
 :root {
   color-scheme: light;
   --font: Onest, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; --font-display: Unbounded, var(--font);
-  --page: #F2F4F8; --page-glow: none; --fg: #121A33; --fg-muted: #6B7594;
+  --page: #F2F4F8; --page-glow: none; --fg: #121A33; --fg-muted: #5C6584;
   --bg: #F2F4F8; --bg2: #1F2B57;
   --card: #FFFFFF; --card-bd: #E8EBF2; --card-sh: 0 1px 2px rgba(16,24,40,.05), 0 4px 14px rgba(16,24,40,.05);
-  --ink: #121A33; --muted: #6B7594; --line: #EEF0F5; --input: #FFFFFF;
+  --ink: #121A33; --muted: #5C6584; --line: #EEF0F5; --input: #FFFFFF;
   --s1: #F2F4F8; --s2: #E6E9F1;
   --tint-y: #FFF4D6; --tint-y-fg: #7A5200; --tint-b: #EAF0FF; --tint-b-fg: #24408E; --tint-g: #E7F6EC; --tint-g-fg: #1F5F2E;
   --tint-r: #FDECEA; --tint-r-fg: #9A1C14; --tint-v: #F0E9FF; --tint-v-fg: #4F2AA6;
@@ -18,7 +18,7 @@
   --red: #E5484D; --green: #1F7A3A; --violet: #6D3FD6;
   --good-bg: var(--tint-g); --good-fg: var(--tint-g-fg); --warn-bg: var(--tint-y); --warn-fg: var(--tint-y-fg); --bad-bg: var(--tint-r); --bad-fg: var(--tint-r-fg);
   --bub-me: #1F2B57; --bub-me-fg: #FFFFFF;
-  --tab-bg: rgba(255,255,255,.94); --tab-bd: #E8EBF2; --tab-fg: #8A93AD; --tab-on-bg: #1F2B57; --tab-on-fg: #FFFFFF;
+  --tab-bg: rgba(255,255,255,.94); --tab-bd: #E8EBF2; --tab-fg: #5C6584; --tab-on-bg: #1F2B57; --tab-on-fg: #FFFFFF;
   --strip-bg: #FFFFFF; --strip-fg: #4A5578; --link: #2A47B8; --overlay: rgba(16,22,44,.45); --toast-bg: #1F2B57; --toast-fg: #fff;
 }
 :root[data-theme="dark"] {
@@ -36,7 +36,7 @@
   --wallet-bg: rgba(255,210,63,.12); --wallet-fg: #FFD23F; --wallet-bd: rgba(255,210,63,.45);
   --green: #2FA84F;
   --bub-me: linear-gradient(135deg, #7B4BFF, #5B2FE0); --bub-me-fg: #FFFFFF;
-  --tab-bg: rgba(14,16,32,.92); --tab-bd: rgba(255,255,255,.06); --tab-fg: #6E7499; --tab-on-bg: rgba(255,210,63,.14); --tab-on-fg: #FFD23F;
+  --tab-bg: rgba(14,16,32,.92); --tab-bd: rgba(255,255,255,.06); --tab-fg: #A2A8CC; --tab-on-bg: rgba(255,210,63,.14); --tab-on-fg: #FFD23F;
   --strip-bg: rgba(255,255,255,.05); --strip-fg: #9CA3C7; --link: #FFD23F; --overlay: rgba(0,0,0,.6); --toast-bg: #2A2F55; --toast-fg: #fff;
 }
 * { box-sizing: border-box; }
@@ -317,7 +317,7 @@ body { font-weight: 500; }
 .battle-invite { display: flex; align-items: center; gap: 12px; width: calc(100% - 32px); margin: 0 16px 12px; padding: 12px 14px; border-radius: 18px; text-align: left; color: #fff; background: linear-gradient(135deg, #1E4FA8, #0E7490); box-shadow: 0 4px 0 #0B3A70; }
 .battle-invite b { display: block; font-size: 15px; }
 .battle-invite .small { color: #CFE6FF; display: block; }
-.battle-invite.hot { background: linear-gradient(135deg, #E5484D, #F97316); box-shadow: 0 4px 0 #A8322B; animation: b-pulse 1.6s ease-in-out infinite; }
+.battle-invite.hot { background: linear-gradient(135deg, #C9303A, #D9590B); box-shadow: 0 4px 0 #A8322B; animation: b-pulse 1.6s ease-in-out infinite; }
 .bi-ico { width: 38px; height: 38px; border-radius: 12px; background: rgba(255,255,255,.18); display: grid; place-items: center; font-size: 20px; flex: none; }
 @keyframes b-pulse { 50% { transform: translateY(-2px); } }
 .crew-turn { font-size: 15px; }
@@ -662,8 +662,9 @@ button.quest:disabled { cursor: default; }
 .ofl-row.cur .ofl-pick { font-weight: 900; }
 .ofl-pick { flex: 1; display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 4px; background: none; border: 0; font: inherit; font-size: 16px; font-weight: 700; color: var(--ink); text-align: left; cursor: pointer; }
 .ofl-dot { width: 14px; height: 14px; border-radius: 50%; flex: none; }
-.ofl-star { width: 44px; height: 44px; border: 0; background: none; font-size: 22px; color: #C9D1EA; cursor: pointer; }
-.ofl-star.on { color: #F4A72C; }
+.ofl-star { width: 44px; height: 44px; border: 0; background: none; font-size: 22px; color: var(--muted); cursor: pointer; }
+.ofl-star.on { color: #B86E00; }
+:root[data-theme="dark"] .ofl-star.on { color: #FFC93C; }
 
 /* Блиц */
 .bl-facts { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -691,7 +692,7 @@ button.quest:disabled { cursor: default; }
 .bl-opt.bad { background: #E5484D !important; color: #fff !important; }
 .bl-opt.dim { opacity: .45; }
 @media (prefers-reduced-motion: reduce) { .bl-time.hot { animation: none; } }
-.swatch.same { background: repeating-linear-gradient(45deg, #fff 0 4px, #EEF1F7 4px 8px); color: var(--ink); font-weight: 900; font-size: 16px; display: grid; place-items: center; }
+.swatch.same { background: repeating-linear-gradient(45deg, #fff 0 4px, #EEF1F7 4px 8px); color: #121A33; font-weight: 900; font-size: 16px; display: grid; place-items: center; }
 
 /* Заставка с приветствием */
 .splash { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; text-align: center; cursor: pointer; }
@@ -960,7 +961,7 @@ button.quest:disabled { cursor: default; }
 .hint { border-radius: 14px; background: var(--s1); padding: 0 12px; }
 .hint summary { list-style: none; cursor: pointer; min-height: 38px; display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 14px; color: var(--ink); }
 .hint summary::-webkit-details-marker { display: none; }
-.hint-q { width: 22px; height: 22px; border-radius: 50%; background: #3A86FF; color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 900; flex: none; }
+.hint-q { width: 22px; height: 22px; border-radius: 50%; background: #2563EB; color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 900; flex: none; }
 .hint[open] { padding-bottom: 8px; }
 .hint-body { font-size: 13px; line-height: 1.45; color: var(--ink); }
 .hint-body .ol { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; }
@@ -1068,7 +1069,7 @@ button.quest:disabled { cursor: default; }
 /* Голосовые */
 .mic-btn { flex: none; min-width: 48px; padding-left: 0; padding-right: 0; font-size: 20px; }
 .mic-btn.on { background: #E5484D; color: #fff; animation: rec-pulse 1s infinite; }
-.voice-hint { margin: 2px 0 0; font-size: 12px; opacity: .75; }
+.voice-hint { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
 .rec-bar { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 8px 10px; border-radius: 14px; background: var(--tint-r); color: var(--tint-r-fg); flex-wrap: wrap; }
 .rec-bar b { font-variant-numeric: tabular-nums; min-width: 34px; }
 .rec-dot { width: 12px; height: 12px; border-radius: 50%; background: #E5484D; animation: rec-pulse 1s infinite; }
@@ -1184,7 +1185,7 @@ body { background-image: var(--page-glow); background-repeat: no-repeat; backgro
 :root[data-theme="dark"] .loner { background: linear-gradient(180deg, var(--card), rgba(139,92,246,.14)); color: var(--ink); }
 :root[data-theme="dark"] .wars { background: linear-gradient(180deg, var(--card), rgba(229,72,77,.12)); color: var(--ink); }
 :root[data-theme="dark"] .tour-champ { background: radial-gradient(circle, rgba(255,210,63,.3), transparent 70%); }
-:root[data-theme="dark"] .ava-stage { background: radial-gradient(70% 90% at 50% 40%, rgba(255,210,63,.18), transparent 75%); }
+:root[data-theme="dark"] .ava-stage { background: radial-gradient(70% 90% at 50% 40%, rgba(255,210,63,.18), rgba(255,210,63,0) 75%), var(--card); }
 :root[data-theme="dark"] .qres.ok .qbar { background: var(--tint-g); }
 :root[data-theme="dark"] :is(.invite-app, .lg-mine, .tour-card, .about-card, .tr-strip, .my-gang, .loner, .wars) :is(b, .small:not(.btn), span:not(.btn *)) { color: inherit; }
 :root[data-theme="dark"] :is(.invite-app, .lg-mine, .tour-card, .about-card, .tr-strip, .my-gang) .small:not(.btn) { color: var(--muted); }
@@ -1622,7 +1623,8 @@ button.chip.ask-chip { cursor: pointer; }
 .bd-ico { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; flex: none; background: linear-gradient(140deg, #6D3FD6, #2E5BD8); color: #fff; }
 .bd-check { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; flex: none; border: 1.5px solid var(--line); color: #fff; }
 .bdg.on .bd-check { background: #8B5CF6; border-color: #8B5CF6; }
-.bdg.locked { cursor: default; opacity: .75; }
+.bdg.locked { cursor: default; }
+.bdg.locked .small { color: var(--muted); }
 .bdg.locked .bd-ico { background: var(--s1); color: var(--muted); }
 .bd-bar { display: block; height: 6px; border-radius: 4px; background: var(--s1); margin: 5px 0 2px; overflow: hidden; }
 .bd-bar i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #4F8BFF, #8B5CF6); }
@@ -1632,7 +1634,7 @@ button.chip.ask-chip { cursor: pointer; }
 .cbadge { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; font-size: 13px; font-weight: 700; background: linear-gradient(120deg, #6D3FD6, #2E5BD8); color: #fff; }
 .bdg .grow > .small { display: block; }
 .bdg .grow > .small + .small { margin-top: 2px; }
-.bdg .bd-hint { color: var(--ink); opacity: .7; }
+.bdg .bd-hint { color: var(--muted); }
 /* ----- Батарейка недели ----- */
 .battery-entry { background: linear-gradient(120deg, rgba(47,168,79,.14), var(--card) 70%); }
 .bt-ico { background: #2FA84F; }
@@ -1995,3 +1997,18 @@ button.chip.ask-chip { cursor: pointer; }
 .ava-foot { background: var(--card); border-top: 1px solid var(--card-bd); box-shadow: 0 -10px 24px rgba(16,24,40,.08); align-items: center; }
 :root[data-theme="dark"] .ava-foot { box-shadow: 0 -12px 28px rgba(0,0,0,.45); }
 .ava-foot .btn.ghost { background: var(--s2); color: var(--ink); box-shadow: none; border: 0; }
+
+/* Проверка контраста: всё, что раньше было светлым текстом «под тёмную тему» или бледным на белом */
+.b-banner.wait { background: var(--s2); color: var(--ink); }
+.b-banner.lose { background: rgba(229,72,77,.14); color: #A3222A; }
+:root[data-theme="dark"] .b-banner.lose { color: #FFD3D3; }
+:root:not([data-theme="dark"]) .streak { color: #A9470A; }
+.bd-hint { color: var(--muted) !important; }
+/* Красные счётчики: чуть темнее, чтобы белая цифра читалась */
+.badge, .crew-badge, .g-tabs i, .fb-count { background: #D42F35; }
+.lvl, .pring-num, .rps-vs.me { background: #1E8A3C; }
+.preset em { color: var(--tint-y-fg); }
+.ttl-ok { color: var(--tint-g-fg); }
+.ttl-wait { color: #B45309; } :root[data-theme="dark"] .ttl-wait { color: #FFB066; }
+
+.battle-invite.hot .small { color: #FFF1E6; }

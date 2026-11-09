@@ -2471,7 +2471,7 @@ function renderCanteen() {
     <div class="row" style="align-items:flex-end;justify-content:space-between;gap:10px">
       <div style="display:flex;flex-direction:column;gap:2px">
         <span class="big" style="color:${tone}">${esc(c.label)}</span>
-        <span style="font-size:13px;font-weight:700;color:${c.wait ? '#B45309' : '#1F5F2E'}">${c.wait ? `Очередь ≈ ${c.wait} мин` : 'Очереди нет'}</span>
+        <span class="${c.wait ? 'ttl-wait' : 'ttl-ok'}" style="font-size:13px;font-weight:700">${c.wait ? `Очередь ≈ ${c.wait} мин` : 'Очереди нет'}</span>
       </div>
       ${st.inCanteen
         ? '<button class="btn green" data-act="canteen-out">Поел</button>'
