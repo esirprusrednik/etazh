@@ -2,6 +2,7 @@
 import { officeSvg } from './building.js';
 import { GUIDE } from './guide.js';
 import { shipSvg, boomSvg, SHIP_DEFS } from './ships.js';
+import { DUEL_DEFS, handSvg, handDuo, dieSvg, tttMark, tttLine, confetti, raincloud } from './duelart.js';
 import { crestSvg, crestOf, autoCrest, randomCrest, CREST_PARTS, TINCTURES, TINCTURE_NAMES, SHAPE_NAMES, DIV_NAMES, CHARGE_NAMES, TOP_NAMES } from './crest.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -2805,43 +2806,79 @@ async function loadDuels(withId) {
 function duelHead(d) {
   const stakeTag = d.stake ? `<span class="duel-stake-tag">coin ${d.stake}${d.needPay ? ' — заплатишь первым ходом' : d.mine && !d.oppPaid && d.status === 'play' ? ' — соперник ещё не ответил' : ''}</span>` : '';
   const res = d.result === 'win' ? '<span class="duel-res win">trophy Победа</span>' : d.result === 'lose' ? `<span class="duel-res lose">${d.resigned ? 'Сдался' : 'Поражение'}</span>` : d.result === 'draw' ? '<span class="duel-res">Ничья</span>' : '';
-  const score = d.score ? `<span class="duel-score">${d.score.me} : ${d.score.opp}</span>` : '';
+  const score = '';
   const untouched = !d.mine && (d.game === 'ttt' ? !d.board.includes('me') : !d.rounds.some((r) => r.me));
   return `<div class="duel-head"><b>${{ rps: 'rock Камень, ножницы, бумага', dice: 'dice Кости', ttt: 'x Крестики-нолики' }[d.game]}</b>${score}${res}${d.status === 'play' ? `<button class="linkbtn small" data-act="duel-resign" data-id="${d.id}" data-soft="${untouched ? 1 : 0}">${untouched ? 'отказаться' : 'сдаться'}</button>` : ''}</div>${stakeTag}`;
 }
+// Эмоции на аватаре: рот и глаза поверх своего образа
+const MOOD = { win: { mouth: 'grin', eyeShape: 'happy' }, happy: { mouth: 'smile', eyeShape: 'happy' }, sad: { mouth: 'sad', eyeShape: 'tired' },
+  lose: { mouth: 'wow', eyeShape: 'tired' }, meh: { mouth: 'neutral' }, smirk: { mouth: 'smirk', eyeShape: 'sly' }, wow: { mouth: 'wow', eyeShape: 'wide' } };
+const moodLook = (look, m) => ({ ...(look || {}), ...(MOOD[m] || {}) });
+const HAND_ME = '#6D3FD6', HAND_OPP = '#E8780F';
+// Шапка дуэли: ты и соперник с эмоциями по ходу партии, кто думает — у того облачко «…»
+function duelVs(d, moods, fresh) {
+  const think = d.status === 'play' ? (d.myTurn ? 'me' : 'opp') : null;
+  const side = (who, look, nick) => `<div class="dvs-p ${who} mood-${moods[who]} ${fresh ? 'fresh' : ''}">
+    <span class="dvs-ava">${avatar(moodLook(look, moods[who]), 46)}${think === who ? '<i class="dvs-think"><b></b><b></b><b></b></i>' : ''}</span><span class="dvs-nick ellipsis">${nick}</span></div>`;
+  return `<div class="dvs">${side('me', S.me.look, 'ты')}<div class="dvs-mid">${d.score ? `<b>${d.score.me}</b><span>:</span><b>${d.score.opp}</b>` : '<span class="small">vs</span>'}</div>${side('opp', d.opp.look, esc(d.opp.nick))}</div>`;
+}
+function duelFx(d, fresh) {
+  if (!fresh || !d.result) return '';
+  return d.result === 'win' ? confetti() : d.result === 'lose' ? raincloud() : '';
+}
+function moodsOf(d, last) {
+  if (d.status === 'done') return d.result === 'win' ? { me: 'win', opp: 'lose' } : d.result === 'lose' ? { me: 'lose', opp: 'win' } : { me: 'meh', opp: 'meh' };
+  if (last && last.win) return last.win === 'me' ? { me: 'happy', opp: 'sad' } : last.win === 'opp' ? { me: 'sad', opp: 'happy' } : { me: 'meh', opp: 'meh' };
+  return { me: 'smirk', opp: 'smirk' };
+}
 function renderDuel(d) {
-  const fresh = S.duelAnim && S.duelAnim.id === d.id && S.duelAnim.seq === d.seq;
+  const fresh = !!(S.duelAnim && S.duelAnim.id === d.id && S.duelAnim.seq === d.seq && Date.now() < (S.duelAnim.until || 0));
   if (d.game === 'ttt') {
+    // Новые фишки: сравниваем с тем, что уже видели
+    S.tttSeen = S.tttSeen || {};
+    const prev = S.tttSeen[d.id];
+    if (!prev || prev.board !== d.board.join()) S.tttSeen[d.id] = { board: d.board.join(), fresh: prev ? d.board.map((c, i) => (c && !prev.board.split(',')[i] ? i : -1)).filter((i) => i >= 0) : [], until: Date.now() + 1500 };
+    const nw = S.tttSeen[d.id].until > Date.now() ? S.tttSeen[d.id].fresh : [];
     const cell = (c, i) => {
       const win = d.line && d.line.includes(i);
       const mark = c ? (c === 'me' ? d.mark : d.mark === 'x' ? 'o' : 'x') : null;
-      const svg = mark === 'x' ? '<svg viewBox="0 0 40 40"><path class="draw" d="M9 9 L31 31 M31 9 L9 31"/></svg>' : mark === 'o' ? '<svg viewBox="0 0 40 40"><circle class="draw" cx="20" cy="20" r="12"/></svg>' : '';
-      return `<button class="ttt-cell ${mark ? 'm-' + mark : ''} ${win ? 'win' : ''}" data-act="duel-cell" data-id="${d.id}" data-v="${i}" ${c || !d.myTurn ? 'disabled' : ''} aria-label="Клетка ${i + 1}">${svg}</button>`;
+      return `<button class="ttt-cell ${mark ? 'm-' + mark : ''} ${win ? 'win' : ''}" data-act="duel-cell" data-id="${d.id}" data-v="${i}" ${c || !d.myTurn ? 'disabled' : ''} aria-label="Клетка ${i + 1}${mark ? (mark === 'x' ? ', крестик' : ', нолик') : ''}">${tttMark(mark, nw.includes(i))}</button>`;
     };
-    return `<div class="duel ttt">${duelHead(d)}<div class="ttt-grid">${d.board.map(cell).join('')}</div>
-      <p class="small duel-hint">${d.status === 'play' ? (d.myTurn ? `Твой ход — ты ${d.mark === 'x' ? 'крестики' : 'нолики'}` : 'Ход соперника…') : ''}</p></div>`;
+    const moods = d.status === 'done' ? moodsOf(d) : { me: 'smirk', opp: 'smirk' };
+    return `<div class="duel ttt">${duelHead(d)}${duelVs(d, moods, fresh)}<div class="ttt-grid">${d.board.map(cell).join('')}${tttLine(d.line)}</div>
+      <p class="small duel-hint">${d.status === 'play' ? (d.myTurn ? `Твой ход — ты ${d.mark === 'x' ? 'крестики' : 'нолики'}` : 'Ход соперника…') : ''}</p>${duelFx(d, fresh)}</div>`;
   }
   const cur = d.rounds[d.rounds.length - 1];
   const done = d.rounds.filter((r) => r.win);
   const last = done[done.length - 1];
+  const moods = moodsOf(d, last);
   if (d.game === 'rps') {
-    const reveal = last ? `<div class="rps-reveal ${fresh ? 'anim' : ''}"><span class="rps-hand me">${RPS_EMO[last.me]}</span><span class="rps-vs ${last.win}">${last.win === 'me' ? 'бьёт' : last.win === 'opp' ? 'проигрывает' : '='}</span><span class="rps-hand opp">${RPS_EMO[last.opp]}</span></div>` : '';
-    return `<div class="duel rps">${duelHead(d)}${reveal}
-      ${d.status === 'play' ? (d.myTurn ? `<div class="rps-pick">${Object.keys(RPS_EMO).map((m) => `<button class="rps-btn" data-act="duel-rps" data-id="${d.id}" data-v="${m}"><span>${RPS_EMO[m]}</span><b>${RPS_NAME[m]}</b></button>`).join('')}</div>`
-        : `<p class="small duel-hint">${cur.me ? `Ты выбрал|выбрала ${RPS_EMO[cur.me]} — ждём соперника${cur.opp === 'hidden' ? '' : '…'}` : ''}</p>`) : ''}
-      <p class="small duel-hint">До ${d.winTo} побед. Ход соперника скрыт, пока не сходишь сам.</p></div>`;
+    const res = (who) => (!last ? '' : last.win === 'draw' ? 'draw' : last.win === who ? 'win' : 'lose');
+    let stage = '';
+    if (d.status === 'play' && cur.me && (!cur.opp || cur.opp === 'hidden')) {
+      // Сходил, ждём соперника: своя фигура и кулак соперника с вопросом
+      stage = `<div class="rps-stage wait"><span class="rh me">${handSvg(cur.me, HAND_ME)}</span><span class="rps-q">?</span><span class="rh opp">${handSvg('rock', HAND_OPP, 'wait')}</span></div>`;
+    } else if (last) {
+      stage = `<div class="rps-stage ${fresh ? 'anim' : ''}"><span class="rh me ${res('me')}">${handDuo(last.me, HAND_ME)}</span>
+        <span class="rps-vs ${last.win}">${last.win === 'me' ? 'бьёт' : last.win === 'opp' ? 'бита' : 'ничья'}</span><i class="rps-boom"></i>
+        <span class="rh opp ${res('opp')}">${handDuo(last.opp, HAND_OPP)}</span></div>`;
+    }
+    return `<div class="duel rps">${duelHead(d)}${duelVs(d, moods, fresh)}${stage}
+      ${d.status === 'play' ? (d.myTurn ? `<div class="rps-pick">${Object.keys(RPS_EMO).map((m, i) => `<button class="rps-btn" data-act="duel-rps" data-id="${d.id}" data-v="${m}" style="--i:${i}"><span class="rh me">${handSvg(m, HAND_ME)}</span><b>${RPS_NAME[m]}</b></button>`).join('')}</div>`
+        : `<p class="small duel-hint">${cur.me ? `Ты ${meG('выбрал', 'выбрала')}: ${RPS_NAME[cur.me].toLowerCase()} — ждём соперника` : ''}</p>`) : ''}
+      <p class="small duel-hint">До ${d.winTo} побед. Ход соперника скрыт, пока не сходишь сам.</p>${duelFx(d, fresh)}</div>`;
   }
   // Кости
-  const showMine = cur.me || (last && last.me);
   const rolling = S.duelRolling === d.id;
-  const pair = (v, who) => (v && v !== 'hidden' ? v.map((n) => dieFace(n, fresh && who === 'me' ? 'land' : '')).join('') : rolling && who === 'me' ? dieFace(1, 'spin') + dieFace(6, 'spin') : `${dieFace(0, 'blank')}${dieFace(0, 'blank')}`);
+  const pair = (v, who) => (v && v !== 'hidden' ? v.map((n, i) => dieSvg(n, fresh ? 'land' : '', i * 0.09 + (who === 'opp' ? 0.25 : 0))).join('') : rolling && who === 'me' ? dieSvg(1, 'roll') + dieSvg(6, 'roll', 0.1) : dieSvg(0, 'blank') + dieSvg(0, 'blank'));
   const shown = d.status === 'play' && cur.me ? { me: cur.me, opp: cur.opp } : last ? { me: last.me, opp: last.opp, win: last.win } : { me: null, opp: null };
-  return `<div class="duel dice">${duelHead(d)}
-    <div class="dice-row"><div class="dice-side"><span class="small">ты</span><div class="dice-pair">${pair(shown.me, 'me')}</div>${Array.isArray(shown.me) ? `<b>${shown.me[0] + shown.me[1]}</b>` : ''}</div>
-      <span class="dice-vs ${shown.win || ''}">${shown.win === 'me' ? '›' : shown.win === 'opp' ? '‹' : 'vs'}</span>
-      <div class="dice-side"><span class="small">${esc(d.opp.nick)}</span><div class="dice-pair">${pair(shown.opp, 'opp')}</div>${Array.isArray(shown.opp) ? `<b>${shown.opp[0] + shown.opp[1]}</b>` : ''}</div></div>
-    ${d.status === 'play' ? (d.myTurn ? `<button class="btn dice-roll" data-act="duel-roll" data-id="${d.id}">dice Бросить кости</button>` : `<p class="small duel-hint">${showMine ? 'Ждём бросок соперника…' : ''}</p>`) : ''}
-    <p class="small duel-hint">У кого сумма больше — тот взял раунд. До ${d.winTo} побед.</p></div>`;
+  const sum = (v, who) => (Array.isArray(v) ? `<b class="dice-sum ${fresh ? 'pop' : ''} ${shown.win === who ? 'won' : ''}">${v[0] + v[1]}</b>` : '<b class="dice-sum muted">—</b>');
+  return `<div class="duel dice">${duelHead(d)}${duelVs(d, moods, fresh)}
+    <div class="dice-table"><div class="dice-side"><div class="dice-pair">${pair(shown.me, 'me')}</div>${sum(shown.me, 'me')}</div>
+      <span class="dice-vs ${shown.win || ''}">${shown.win === 'me' ? '›' : shown.win === 'opp' ? '‹' : shown.win === 'draw' ? '=' : 'vs'}</span>
+      <div class="dice-side"><div class="dice-pair">${pair(shown.opp, 'opp')}</div>${sum(shown.opp, 'opp')}</div></div>
+    ${d.status === 'play' ? (d.myTurn ? `<button class="btn dice-roll" data-act="duel-roll" data-id="${d.id}">dice Бросить кости</button>` : `<p class="small duel-hint">${cur.me ? 'Ждём бросок соперника…' : ''}</p>`) : ''}
+    <p class="small duel-hint">У кого сумма больше — тот взял раунд. До ${d.winTo} побед.</p>${duelFx(d, fresh)}</div>`;
 }
 // Темп морского боя: два варианта-карточки. В личке — сразу вызов, в шторке «Игр» — выбор (on)
 function seaModes({ to = null, stake = 0, pick = null } = {}) {
@@ -2854,7 +2891,7 @@ function renderDuelsBox(f) {
   const items = S.duelsWith || [];
   // Если партия в морской бой уже идёт, её плашка выше, а плитку не показываем
   const sea = !S.battles.some((b) => b.oppId === f.id && b.status !== 'done');
-  return `<section class="card duels">
+  return `${DUEL_DEFS}<section class="card duels">
     <div class="chats-head"><h3>game Сыграть</h3><span class="small">победа +2 зерна</span></div>
     <div class="duel-stake"><span class="small">Ставка:</span>${[0, 5, 10].map((x) => `<button class="chip ${(S.duelStake || 0) === x ? 'on' : ''}" data-act="duel-stake" data-v="${x}">${x ? x + ' зёрен' : 'без ставки'}</button>`).join('')}</div>
     <div class="duel-new ${sea ? 'n4' : ''}">${[['rps', rpsDuo(), 'Камень, ножницы, бумага'], ['dice', 'dice', 'Кости'], ['ttt', 'xcircle', 'Крестики-нолики'], ...(sea ? [['sea', 'anchor', 'Морской бой']] : [])].map(([g, e, t]) => `<button class="duel-start ${g === 'sea' && S.dmSea ? 'on' : ''}" data-act="${g === 'sea' ? 'dm-sea' : 'duel-new'}" data-to="${f.id}" data-v="${g}"><span>${e}</span><b>${hy(t)}</b></button>`).join('')}</div>
@@ -3494,10 +3531,14 @@ setInterval(() => {
 function renderVersus(v) {
   const bubble = () => '';
   const myTurn = v.status === 'play' && v.myTurn, oppTurn = v.status === 'play' && !v.myTurn;
+  // Эмоции: кто попал — радуется, по кому попали — в шоке, потопили — грустит; после партии — победитель и проигравший
+  let mm = 'smirk', mo = 'smirk';
+  if (v.status === 'done') { mm = v.winner === 'me' ? 'win' : 'lose'; mo = v.winner === 'me' ? 'lose' : 'win'; }
+  else if (v.last && v.last.r && v.last.r !== 'miss') { const sunk = v.last.r === 'sunk'; if (v.last.mine) { mm = sunk ? 'win' : 'happy'; mo = sunk ? 'sad' : 'wow'; } else { mo = sunk ? 'win' : 'happy'; mm = sunk ? 'sad' : 'wow'; } }
   return `<section class="b-vs">
-    <div class="vs-side ${myTurn ? 'turn' : ''}">${bubble('mine')}<span class="vs-ava">${avatar(S.me.look, 52)}</span><span class="vs-name">ты</span>${v.clock ? `<span class="vs-clock" data-who="me">${fmtClock(clockNow(v, 'me'))}</span>` : ''}</div>
+    <div class="vs-side ${myTurn ? 'turn' : ''}">${bubble('mine')}<span class="vs-ava mood-${mm}">${avatar(moodLook(S.me.look, mm), 52)}</span><span class="vs-name">ты</span>${v.clock ? `<span class="vs-clock" data-who="me">${fmtClock(clockNow(v, 'me'))}</span>` : ''}</div>
     <div class="vs-mid"><div class="vs-score"><b>${v.score.me}</b><span>:</span><b>${v.score.opp}</b></div><div class="vs-cap">${v.status === 'setup' ? 'расстановка' : v.status === 'done' ? 'партия окончена' : myTurn ? 'твой ход' : 'ход соперника'}</div></div>
-    <div class="vs-side ${oppTurn ? 'turn' : ''}">${bubble('opp')}${tap(v.opp.id, `<span class="vs-ava">${avatar(v.opp.look, 52)}</span>`)}<span class="vs-name ellipsis">${esc(v.opp.nick)}</span>${v.clock ? `<span class="vs-clock" data-who="opp">${fmtClock(clockNow(v, 'opp'))}</span>` : ''}</div>
+    <div class="vs-side ${oppTurn ? 'turn' : ''}">${bubble('opp')}${tap(v.opp.id, `<span class="vs-ava mood-${mo}">${avatar(moodLook(v.opp.look, mo), 52)}</span>`)}<span class="vs-name ellipsis">${esc(v.opp.nick)}</span>${v.clock ? `<span class="vs-clock" data-who="opp">${fmtClock(clockNow(v, 'opp'))}</span>` : ''}</div>
   </section>`;
 }
 
@@ -5079,16 +5120,16 @@ const actions = {
   'duel-stake'(el) { S.duelStake = Number(el.dataset.v); sfx('pick'); render(); },
   'duel-rps': (el) => run(async () => {
     sfx('swish'); const d = await post(`/api/duels/${el.dataset.id}/move`, { move: el.dataset.v });
-    S.duelAnim = { id: d.id, seq: d.seq }; duelOutcomeSfx(d); await loadDuels(S.dm);
+    S.duelAnim = { id: d.id, seq: d.seq, until: Date.now() + 2600 }; duelOutcomeSfx(d); await loadDuels(S.dm);
   }),
   'duel-roll': (el) => run(async () => {
     const id = Number(el.dataset.id); S.duelRolling = id; sfx('dice'); render();
     const [d] = await Promise.all([post(`/api/duels/${id}/move`, {}), new Promise((r) => setTimeout(r, 750))]);
-    S.duelRolling = null; S.duelAnim = { id: d.id, seq: d.seq }; duelOutcomeSfx(d); await loadDuels(S.dm);
+    S.duelRolling = null; S.duelAnim = { id: d.id, seq: d.seq, until: Date.now() + 2600 }; duelOutcomeSfx(d); await loadDuels(S.dm);
   }),
   'duel-cell': (el) => run(async () => {
     sfx('scribble'); const d = await post(`/api/duels/${el.dataset.id}/move`, { cell: Number(el.dataset.v) });
-    duelOutcomeSfx(d); await loadDuels(S.dm);
+    S.duelAnim = { id: d.id, seq: d.seq, until: Date.now() + 2600 }; duelOutcomeSfx(d); await loadDuels(S.dm);
   }),
   'duel-resign': (el) => run(async () => {
     const soft = el.dataset.soft === '1';
@@ -6152,7 +6193,7 @@ setInterval(async () => {
     const after = sig();
     const nd = (S.duelsWith || []).find((d) => S.duelSeqSeen && S.duelSeqSeen[d.id] !== undefined && S.duelSeqSeen[d.id] !== d.seq);
     S.duelSeqSeen = Object.fromEntries((S.duelsWith || []).map((d) => [d.id, d.seq]));
-    if (nd) { S.duelAnim = { id: nd.id, seq: nd.seq }; if (nd.game === 'dice') sfx('dice'); else if (nd.game === 'rps') sfx('swish'); else sfx('scribble'); duelOutcomeSfx(nd); }
+    if (nd) { S.duelAnim = { id: nd.id, seq: nd.seq, until: Date.now() + 2600 }; if (nd.game === 'dice') sfx('dice'); else if (nd.game === 'rps') sfx('swish'); else sfx('scribble'); duelOutcomeSfx(nd); }
     if (after !== before) render();
   } catch {}
 }, 3500);
