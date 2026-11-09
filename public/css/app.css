@@ -1859,9 +1859,10 @@ button.chip.ask-chip { cursor: pointer; }
 .rh { display: block; line-height: 0; }
 .rh.opp { transform: scaleX(-1); }
 .rh .hand { width: 100%; height: auto; overflow: visible; display: block; }
-.hand .h-body { transform-box: fill-box; transform-origin: 8% 55%; }
+.hand .h-body { transform-box: fill-box; transform-origin: 50% 96%; }
 .rps-stage { position: relative; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 4px; }
-.rps-stage .rh { width: 100%; max-width: 104px; justify-self: center; }
+.rps-stage .rh { width: 100%; max-width: 66px; justify-self: center; }
+.rps-stage .rh .hand { transform: rotate(12deg); }
 .rps-stage .h-final { opacity: 1; } .rps-stage .h-fist { opacity: 0; }
 .rps-stage.anim .h-fist { animation: rps-fist 1.5s linear both; }
 .rps-stage.anim .h-final { animation: rps-final 1.5s linear both; }
@@ -1889,7 +1890,7 @@ button.chip.ask-chip { cursor: pointer; }
 .rps-stage.wait .rh.opp .hand { filter: brightness(.75) saturate(.6); }
 .rps-q { font-size: 30px; font-weight: 900; color: #FFD84D; animation: rps-bob 1.4s ease-in-out infinite; }
 @keyframes rps-bob { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-6%) rotate(-6deg); } }
-.rps-btn .rh { width: 100%; max-width: 70px; }
+.rps-btn .rh { width: 100%; max-width: 50px; }
 .rps-btn .h-body { animation: rps-idle 2.4s ease-in-out infinite; animation-delay: calc(var(--i) * -.8s); }
 .rps-btn:hover .h-body, .rps-btn:focus-visible .h-body { animation: rps-pump-1 .5s ease-in-out infinite alternate; }
 @keyframes rps-idle { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(4deg) translateY(-3%); } }

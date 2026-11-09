@@ -20,58 +20,88 @@ export const DUEL_DEFS = `<svg width="0" height="0" style="position:absolute" ar
 </defs></svg>`;
 export const SIDE = { me: { c: '#6D3FD6', dark: '#3A1E8C' }, opp: { c: '#E8780F', dark: '#8A4206' } };
 
-// Палец: сужается к кончику, кончик скруглён, сверху ноготь
-function finger(x1, y1, x2, y2, w1, w2, P) {
-  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
-  const a = [x1 + nx * w1 / 2, y1 + ny * w1 / 2], b = [x2 + nx * w2 / 2, y2 + ny * w2 / 2], c = [x2 - nx * w2 / 2, y2 - ny * w2 / 2], d = [x1 - nx * w1 / 2, y1 - ny * w1 / 2];
-  const f = (p) => p.map((v) => Math.round(v * 10) / 10).join(' ');
-  const tip = [x2 + dx / L * w2 * 0.55, y2 + dy / L * w2 * 0.55];
-  const nl = [x2 - dx / L * w2 * 0.15 + nx * w2 * 0.12, y2 - dy / L * w2 * 0.15 + ny * w2 * 0.12];
-  const ang = Math.atan2(dy, dx) * 180 / Math.PI;
-  return `<path d="M${f(a)} L${f(b)} Q${f(tip)} ${f(c)} L${f(d)} Z" fill="url(#${P.g})" stroke="${P.line}" stroke-width="1.3" stroke-linejoin="round"/>
-    <ellipse cx="${f([nl[0]])}" cy="${f([nl[1]])}" rx="${Math.round(w2 * 0.34 * 10) / 10}" ry="${Math.round(w2 * 0.24 * 10) / 10}" transform="rotate(${Math.round(ang)} ${f(nl)})" fill="${P.nail}" opacity=".9"/>
-    <path d="M${f([x1 + nx * w1 * 0.28, y1 + ny * w1 * 0.28])} L${f([x2 + nx * w2 * 0.26, y2 + ny * w2 * 0.26])}" stroke="${P.hi}" stroke-width="1.1" stroke-linecap="round" opacity=".7"/>`;
+// ===== Руки — фронтально, как в эмодзи ✊ ✋ ✌. viewBox 100×130, запястье внизу по центру =====
+const rr = (n) => Math.round(n * 10) / 10;
+// Палец: от основания (x1,y1) к кончику (x2,y2), ширина w у основания и w2 у кончика. Суставы — короткие дуги
+function digit(x1, y1, x2, y2, w, w2, P, joints = 2) {
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L, nx = -uy, ny = ux;
+  const a = [x1 + nx * w / 2, y1 + ny * w / 2], b = [x2 + nx * w2 / 2, y2 + ny * w2 / 2], c = [x2 - nx * w2 / 2, y2 - ny * w2 / 2], d = [x1 - nx * w / 2, y1 - ny * w / 2];
+  const t1 = [x2 + ux * w2 * 0.62 + nx * w2 * 0.38, y2 + uy * w2 * 0.62 + ny * w2 * 0.38], t2 = [x2 + ux * w2 * 0.62 - nx * w2 * 0.38, y2 + uy * w2 * 0.62 - ny * w2 * 0.38];
+  const f = (p) => `${rr(p[0])} ${rr(p[1])}`;
+  let o = `<path d="M${f(d)} L${f(a)} L${f(b)} C${f(t1)} ${f(t2)} ${f(c)} Z" fill="url(#${P.g})" stroke="${P.line}" stroke-width="1.2" stroke-linejoin="round"/>`;
+  // ноготь у кончика
+  const nc = [x2 - ux * w2 * 0.05, y2 - uy * w2 * 0.05], ang = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+  o += `<ellipse cx="${rr(nc[0])}" cy="${rr(nc[1])}" rx="${rr(w2 * 0.3)}" ry="${rr(w2 * 0.36)}" transform="rotate(${rr(ang)} ${rr(nc[0])} ${rr(nc[1])})" fill="${P.nail}" stroke="${P.lo}" stroke-width=".6" opacity=".95"/>`;
+  // складки суставов
+  for (let k = 1; k <= joints; k++) {
+    const t = k / (joints + 1) * 0.9, cx = x1 + dx * t, cy = y1 + dy * t, ww = (w + (w2 - w) * t) * 0.3;
+    o += `<path d="M${rr(cx + nx * ww)} ${rr(cy + ny * ww)} Q${rr(cx - ux * 1.6)} ${rr(cy - uy * 1.6)} ${rr(cx - nx * ww)} ${rr(cy - ny * ww)}" stroke="${P.lo}" stroke-width=".9" fill="none" stroke-linecap="round" opacity=".7"/>`;
+  }
+  // блик вдоль пальца
+  o += `<path d="M${rr(x1 + nx * w * 0.22 + dx * 0.1)} ${rr(y1 + ny * w * 0.22 + dy * 0.1)} L${rr(x2 + nx * w2 * 0.2 - ux * 2)} ${rr(y2 + ny * w2 * 0.2 - uy * 2)}" stroke="${P.hi}" stroke-width="1.4" stroke-linecap="round" opacity=".55"/>`;
+  return o;
 }
-// Согнутый палец (фаланга смотрит вперёд): скруглённый брусок с бликом на костяшке
-const curl = (x, y, w, P) => `<rect x="${x}" y="${y}" width="${w}" height="9.5" rx="4.75" fill="url(#${P.g2})" stroke="${P.line}" stroke-width="1.3"/>
-  <path d="M${x + w - 7} ${y + 2.3} q4 0 4.6 3" stroke="${P.hi}" stroke-width="1.2" fill="none" stroke-linecap="round" opacity=".8"/>`;
-const sleeve = (c) => `<path d="M-4 25 L28 23.5 C31.5 32 31.5 50 28 58.5 L-4 60 Z" fill="${c}"/>
-  <path d="M-4 25 L28 23.5 C31.5 32 31.5 50 28 58.5 L-4 60 Z" fill="none" stroke="rgba(0,0,0,.3)" stroke-width="1.2"/>
-  <path d="M22 24 L29 23.6 C32.6 32 32.6 50 29 58.4 L22 58.8 C25 50 25 32 22 24 Z" fill="rgba(0,0,0,.22)"/>
-  <path d="M-2 31 L20 30" stroke="rgba(255,255,255,.3)" stroke-width="1.8" stroke-linecap="round"/>`;
-const palm = (P, wide = 0) => `<path d="M28 27 C40 21.5 62 20.5 ${74 + wide} 24 C${82 + wide} 27 ${85 + wide} 34 ${85 + wide} 42 C${85 + wide} 50 ${81 + wide} 56 ${73 + wide} 58.5 C60 61 40 60 28 56 Z" fill="url(#${P.g})" stroke="${P.line}" stroke-width="1.3" stroke-linejoin="round"/>
-  <path d="M34 51 C46 55 62 55.5 72 53.5" stroke="${P.lo}" stroke-width="2.2" fill="none" stroke-linecap="round" opacity=".55"/>`;
-const thumbOver = (P, x2 = 80, y2 = 30) => `<path d="M44 29 C52 20.5 68 20 ${x2 - 2} ${y2 - 6} C${x2 + 4} ${y2 - 3} ${x2 + 3} ${y2 + 3} ${x2 - 3} ${y2 + 3} C66 ${y2 + 3} 56 33 46 34 Z" fill="url(#${P.g})" stroke="${P.line}" stroke-width="1.3" stroke-linejoin="round"/>
-  <ellipse cx="${x2 - 1.5}" cy="${y2 - 1.5}" rx="3" ry="2.2" fill="${P.nail}" transform="rotate(-10 ${x2 - 1.5} ${y2 - 1.5})"/>
-  <path d="M50 26 C57 22 66 21.5 74 23.5" stroke="${P.hi}" stroke-width="1.3" fill="none" stroke-linecap="round" opacity=".8"/>`;
-function fist(P) {
-  return palm(P) + [24, 32.5, 41, 49.5].map((y, i) => [y, i]).reverse().map(([y, i]) => curl(70, y, 22 - i * 1.4, P)).join('') + thumbOver(P);
+// Манжета рукава внизу
+const cuff = (c) => `<path d="M30 112 C30 106 70 106 70 112 L72 132 L28 132 Z" fill="${c}"/>
+  <path d="M29.5 113 C36 109 64 109 70.5 113 L71 118 C64 114.5 36 114.5 29 118 Z" fill="rgba(0,0,0,.22)"/>
+  <path d="M33 122 L67 122" stroke="rgba(255,255,255,.25)" stroke-width="1.6" stroke-linecap="round"/>`;
+// Ладонь с запястьем
+const palmF = (P) => `<path d="M33 112 C31 100 24 92 24 78 C24 64 30 56 50 56 C70 56 77 63 77 76 C77 92 70 100 67 112 Z" fill="url(#${P.g})" stroke="${P.line}" stroke-width="1.2" stroke-linejoin="round"/>
+  <path d="M38 98 C44 94 56 94 62 98" stroke="${P.lo}" stroke-width="1" fill="none" stroke-linecap="round" opacity=".6"/>
+  <path d="M34 80 C42 84 52 82 60 76" stroke="${P.lo}" stroke-width="1" fill="none" stroke-linecap="round" opacity=".5"/>`;
+// Кулак: четыре согнутых пальца — валики с костяшками сверху, большой палец лежит поперёк
+function fistF(P) {
+  let o = `<path d="M33 112 C31 102 22 94 22 80 C22 64 28 52 50 50 C72 52 79 62 79 78 C79 94 70 102 67 112 Z" fill="url(#${P.g2})" stroke="${P.line}" stroke-width="1.2" stroke-linejoin="round"/>`;
+  [[24.5, 46], [38.5, 42.5], [52.5, 42.5], [66, 46]].forEach(([x, y], i) => {
+    const w = i === 3 ? 13 : 14.5;
+    o += `<path d="M${x} ${y + 26} L${x} ${y + 7} C${x} ${y - 1} ${x + w} ${y - 1} ${x + w} ${y + 7} L${x + w} ${y + 26} Z" fill="url(#${P.g})" stroke="${P.line}" stroke-width="1.2" stroke-linejoin="round"/>
+      <path d="M${x + 2.5} ${y + 14} Q${x + w / 2} ${y + 16.5} ${x + w - 2.5} ${y + 14}" stroke="${P.lo}" stroke-width=".9" fill="none" opacity=".75"/>
+      <ellipse cx="${x + w / 2 - 1.5}" cy="${y + 5}" rx="${w * 0.22}" ry="1.8" fill="${P.hi}" opacity=".7"/>`;
+  });
+  // большой палец поперёк нижних фаланг
+  o += `<path d="M22 80 C22 70 34 66 48 68 C58 69.5 64 72 63 77 C62 82 54 82 46 81 C38 80.5 32 84 29 90 Z" fill="url(#${P.g})" stroke="${P.line}" stroke-width="1.2" stroke-linejoin="round"/>
+    <ellipse cx="58.5" cy="75.5" rx="4.2" ry="3.2" fill="${P.nail}" stroke="${P.lo}" stroke-width=".6"/>
+    <path d="M28 76 C34 71 42 70 50 70.5" stroke="${P.hi}" stroke-width="1.4" fill="none" stroke-linecap="round" opacity=".6"/>`;
+  return o;
 }
-function paper(P) {
-  return palm(P, -6) + finger(66, 53, 94, 57, 8, 6.4, P) + finger(68, 46, 102, 47.5, 8.6, 7, P) + finger(68, 38.5, 104, 37.5, 8.8, 7.2, P) + finger(66, 31, 98, 26, 8.4, 6.8, P)
-    + `<path d="M72 26 L72 56" stroke="url(#${P.g})" stroke-width="6"/>` + finger(52, 29, 66, 12, 9, 7.4, P);
+// Ладонь: пять пальцев чуть веером
+function paperF(P) {
+  return palmF(P)
+    + digit(69, 68, 79, 38, 13.5, 11.5, P) + digit(59.5, 62, 63, 20, 15, 13, P) + digit(48.5, 61, 48.5, 14, 15.5, 13.5, P) + digit(37, 64, 33.5, 22, 15, 13, P)
+    + digit(30, 88, 13, 67, 15.5, 13, P, 1);
 }
-function scissors(P) {
-  return finger(70, 33, 102, 18, 8.6, 7, P) + finger(70, 41, 104, 50, 8.6, 7, P) + palm(P, -2) + [41, 49.5].map((y, i) => [y, i]).reverse().map(([y, i]) => curl(68, y, 20 - i * 1.4, P)).join('') + thumbOver(P, 76, 38);
+// Знак «V»: указательный и средний разведены, безымянный и мизинец поджаты, большой палец сверху
+function scissorsF(P) {
+  let o = digit(56, 62, 68, 20, 15, 13, P) + digit(43, 62, 34, 18, 15, 13, P);
+  o += `<path d="M33 112 C31 102 23 94 23 80 C23 66 29 58 50 57 C71 58 78 66 78 79 C78 94 70 102 67 112 Z" fill="url(#${P.g2})" stroke="${P.line}" stroke-width="1.2" stroke-linejoin="round"/>`;
+  [[52, 56], [64, 59]].forEach(([x, y], i) => {
+    const w = i ? 11.5 : 13;
+    o += `<path d="M${x} ${y + 24} L${x} ${y + 7} C${x} ${y - 1} ${x + w} ${y - 1} ${x + w} ${y + 7} L${x + w} ${y + 24} Z" fill="url(#${P.g})" stroke="${P.line}" stroke-width="1.2" stroke-linejoin="round"/>
+      <ellipse cx="${x + w / 2 - 1.5}" cy="${y + 5}" rx="${w * 0.22}" ry="1.8" fill="${P.hi}" opacity=".7"/>`;
+  });
+  o += `<path d="M23 84 C23 74 34 70 48 72 C60 73.5 70 75 69 80 C68 85 58 85 49 84.5 C40 84 33 88 30 94 Z" fill="url(#${P.g})" stroke="${P.line}" stroke-width="1.2" stroke-linejoin="round"/>
+    <ellipse cx="64" cy="79" rx="4.2" ry="3.2" fill="${P.nail}" stroke="${P.lo}" stroke-width=".6"/>
+    <path d="M29 80 C35 75 43 74 51 74.5" stroke="${P.hi}" stroke-width="1.4" fill="none" stroke-linecap="round" opacity=".6"/>`;
+  return o;
 }
-const SHAPE = { rock: fist, paper, scissors };
+const SHAPE = { rock: fistF, paper: paperF, scissors: scissorsF };
 function palette(skin) {
   const id = 'dgs' + (++gid);
-  const P = { g: id, g2: id + 'b', hi: tone(skin, 0.45), lo: tone(skin, -0.25), line: tone(skin, -0.5), nail: tone(skin, 0.55) };
-  P.defs = `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${tone(skin, 0.28)}"/><stop offset=".55" stop-color="${skin}"/><stop offset="1" stop-color="${tone(skin, -0.16)}"/></linearGradient>
-    <linearGradient id="${id}b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${tone(skin, 0.12)}"/><stop offset="1" stop-color="${tone(skin, -0.2)}"/></linearGradient></defs>`;
+  const P = { g: id, g2: id + 'b', hi: tone(skin, 0.5), lo: tone(skin, -0.28), line: tone(skin, -0.42), nail: tone(skin, 0.6) };
+  P.defs = `<defs><radialGradient id="${id}" cx=".35" cy=".25" r=".95"><stop offset="0" stop-color="${tone(skin, 0.3)}"/><stop offset=".6" stop-color="${skin}"/><stop offset="1" stop-color="${tone(skin, -0.14)}"/></radialGradient>
+    <linearGradient id="${id}b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${tone(skin, -0.05)}"/><stop offset="1" stop-color="${tone(skin, -0.22)}"/></linearGradient></defs>`;
   return P;
 }
-// Рука игрока смотрит вправо (у соперника зеркалит CSS). skin — тон кожи с аватара, color — рукав
+const handBox = (inner, P, cls) => `<svg class="hand ${cls}" viewBox="0 0 100 134" aria-hidden="true">${P.defs}<ellipse cx="50" cy="131" rx="30" ry="3.4" fill="rgba(0,0,0,.28)" class="h-shadow"/><g class="h-body">${inner}</g></svg>`;
+// Рука игрока. skin — тон кожи с аватара, color — рукав
 export function handSvg(kind, color = SIDE.me.c, skin = '#E8B48A', cls = '') {
   const P = palette(skin);
-  return `<svg class="hand ${cls}" viewBox="-6 4 120 66" aria-hidden="true">${P.defs}<ellipse cx="56" cy="66" rx="40" ry="3.6" fill="rgba(0,0,0,.25)" class="h-shadow"/><g class="h-body">${sleeve(color)}${(SHAPE[kind] || fist)(P)}</g></svg>`;
+  return handBox(cuff(color) + (SHAPE[kind] || fistF)(P), P, cls);
 }
-// Рука для раунда: кулак качается три раза, на третий — фигура
+// Для раунда: кулак качается «раз-два-три», на третий — фигура
 export function handDuo(kind, color = SIDE.me.c, skin = '#E8B48A', cls = '') {
   const P = palette(skin);
-  return `<svg class="hand ${cls}" viewBox="-6 4 120 66" aria-hidden="true">${P.defs}<ellipse cx="56" cy="66" rx="40" ry="3.6" fill="rgba(0,0,0,.25)" class="h-shadow"/>
-    <g class="h-body"><g class="h-fist">${sleeve(color)}${fist(P)}</g><g class="h-final">${sleeve(color)}${(SHAPE[kind] || fist)(P)}</g></g></svg>`;
+  return handBox(`${cuff(color)}<g class="h-fist">${fistF(P)}</g><g class="h-final">${(SHAPE[kind] || fistF)(P)}</g>`, P, cls);
 }
 
 // ----- Кости: кубик в изометрии. Сверху — выпавшее число, по бокам — соседние грани -----
