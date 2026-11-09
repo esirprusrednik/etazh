@@ -3,7 +3,7 @@
 // Здесь только правила и «мозги» бота; рисует app.js теми же функциями, что и настоящие дуэли.
 
 export const BOT = {
-  id: 0, nick: 'Бот Этажа', bot: true,
+  id: 0, nick: 'Противник', bot: true,
   look: { preset: 'm', skin: '#C9D3E3', face: 'square', hairStyle: 'bald', eyes: '#3A86FF', mouth: 'smirk', outfit: 'cyber', hoodie: 'navy', mask: 'visor', hat: 'none', bg: 'slate', glasses: false, beard: 'none' }
 };
 
@@ -193,7 +193,7 @@ function shoot(st, who, x, y) {
   return r;
 }
 export function seaShoot(st, x, y) {
-  if (st.status !== 'play' || st.turn !== 'me') throw new Error('Сейчас ход бота');
+  if (st.status !== 'play' || st.turn !== 'me') throw new Error('Сейчас ход противника');
   return shoot(st, 'me', x, y);
 }
 

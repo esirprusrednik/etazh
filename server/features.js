@@ -138,9 +138,9 @@ const ACH = [
   A('duels', 'duel_sixes', 'common', 'Две шестёрки', 'Выбросить 6 и 6 в кости', 'duel_sixes', 1),
   A('duels', 'duel_ttt_draw', 'common', 'Боевая ничья', 'Сыграть вничью в крестики-нолики', 'duel_ttt_draw', 1),
   // Тренировка с сильным ботом: партии считает сервер, поэтому их нельзя нарисовать
-  A('duels', 'bot_ttt_draw', 'rare', 'Ничья с машиной', 'Свести вничью крестики-нолики с сильным ботом', 'bot_ttt_draw', 1),
-  A('duels', 'bot_sea1', 'rare', 'Человек против машины', 'Потопить флот сильного бота в морском бою', 'bot_sea_wins', 1, { series: 'bot_sea' }),
-  A('duels', 'bot_sea5', 'legendary', 'Гроза роботов', '5 раз потопить флот сильного бота', 'bot_sea_wins', 5, { series: 'bot_sea' }),
+  A('duels', 'bot_ttt_draw', 'rare', 'Ничья с машиной', 'Свести вничью крестики-нолики в практике с сильным противником', 'bot_ttt_draw', 1),
+  A('duels', 'bot_sea1', 'rare', 'Человек против машины', 'Потопить флот сильного противника в практике морского боя', 'bot_sea_wins', 1, { series: 'bot_sea' }),
+  A('duels', 'bot_sea5', 'legendary', 'Гроза машин', '5 раз потопить флот сильного противника в практике', 'bot_sea_wins', 5, { series: 'bot_sea' }),
   // смешные — за поражения и сдачу
   A('duels', 'duel_resign1', 'common', 'Белый флаг', 'Сдаться в дуэли. Бывает', 'duel_resign', 1, { secret: true, series: 'duel_resign' }),
   A('duels', 'duel_resign5', 'rare', 'Тактическое отступление', 'Сдаться 5 раз. Это не бегство, это манёвр', 'duel_resign', 5, { secret: true, series: 'duel_resign' }),

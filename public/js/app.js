@@ -2933,9 +2933,9 @@ function renderPracticeHead() {
   const lv = P.game === 'ttt' || P.game === 'sea';
   return `<button class="linkbtn back" data-act="pr-back">‹ К играм</button>
     <section class="card pr-head">
-      <div class="row" style="justify-content:space-between;gap:8px"><b>Тренировка: ${esc(PR_GAMES[P.game].toLowerCase())}</b><span class="pr-score" aria-label="Счёт против бота">ты <b>${sc.me}</b> : <b>${sc.opp}</b> бот</span></div>
+      <div class="row" style="justify-content:space-between;gap:8px"><b>Тренировка: ${esc(PR_GAMES[P.game].toLowerCase())}</b><span class="pr-score" aria-label="Счёт в практике">ты <b>${sc.me}</b> : <b>${sc.opp}</b> противник</span></div>
       ${lv ? `<div class="chips">${Object.entries(PR.LEVELS).map(([k, l]) => `<button class="chip ${P.level === k ? 'on' : ''}" data-act="pr-level" data-v="${k}" aria-pressed="${P.level === k}">${l}</button>`).join('')}</div>
-        <p class="small" style="margin:0">${P.game === 'ttt' ? (P.level === 'hard' ? 'Сильный бот не проигрывает. Сведёшь вничью — ачивка «Ничья с машиной».' : 'Лёгкий бот иногда зевает тройку.') : P.level === 'hard' ? 'Сильный бот считает, где корабли вероятнее, и добивает раненые. Потопишь его флот — ачивка.' : 'Лёгкий бот часто стреляет наугад.'}</p>` : '<p class="small" style="margin:0">Ни зёрен, ни рейтинга — счёт видишь только ты.</p>'}
+        <p class="small" style="margin:0">${P.game === 'ttt' ? (P.level === 'hard' ? 'Сильный противник не проигрывает. Сведёшь вничью — ачивка «Ничья с машиной».' : 'Лёгкий противник иногда зевает тройку.') : P.level === 'hard' ? 'Сильный противник считает, где корабли вероятнее, и добивает раненые. Потопишь его флот — ачивка.' : 'Лёгкий противник часто стреляет наугад.'}</p>` : '<p class="small" style="margin:0">Ни зёрен, ни рейтинга — счёт видишь только ты.</p>'}
     </section>`;
 }
 function renderPractice() {
@@ -3149,7 +3149,7 @@ function renderDuelsCard() {
   const games = [['duel-pick', 'rps', rpsDuo(), 'Камень, ножницы, бумага'], ['duel-pick', 'dice', 'dice', 'Кости'], ['duel-pick', 'ttt', 'xcircle', 'Крестики-нолики'], ['duel-pick', 'sea', 'anchor', 'Морской бой']];
   return `<section class="card duels-card"><div class="chats-head"><h3>game Сыграть</h3><span class="small">${waiting ? `${waiting} ${plural(waiting, 'ждёт', 'ждут', 'ждут')} твоего хода` : 'победа +2 зерна'}</span></div>
     <div class="duel-new n4">${games.map(([act, g, e, t]) => `<button class="duel-start" data-act="${act}" data-v="${g}"><span>${e}</span><b>${hy(t)}</b></button>`).join('')}</div>
-    ${items.length || battles.length ? '' : '<p class="small" style="margin:0">Выбери игру и соперника — или потренируйся с ботом. В дуэлях можно на ставку 5 или 10 зёрен — победитель забирает обе. Морской бой — с расстановкой, быстрый или без спешки.</p>'}
+    ${items.length || battles.length ? '' : '<p class="small" style="margin:0">Выбери игру и соперника — или потренируйся в практике. В дуэлях можно на ставку 5 или 10 зёрен — победитель забирает обе. Морской бой — с расстановкой, быстрый или без спешки.</p>'}
     ${battles.map((x) => `<button class="chat-row" data-act="battle-go" data-id="${x.id}" data-opp="${x.oppId}"><span class="duel-ico">anchor</span><span class="grow"><span class="chat-title">${esc(nickOf(x.oppId))}</span><span class="where">Морской бой · ${x.mode === 'fast' ? 'быстрая · ' : ''}${x.status === 'setup' ? 'расстановка' : x.myTurn ? 'твой ход!' : 'ход соперника'}</span></span>${x.myTurn ? '<span class="crew-badge">!</span>' : ''}</button>`).join('')}
     ${items.map((d) => `<button class="chat-row" data-act="dm-open" data-id="${d.opp.id}">${avatar(d.opp.look, 32)}<span class="grow"><span class="chat-title">${esc(d.opp.nick)}</span><span class="where">${{ rps: 'rock Камень, ножницы, бумага', dice: 'dice Кости', ttt: 'x Крестики-нолики' }[d.game]}${d.score ? ` · ${d.score.me}:${d.score.opp}` : ''}</span></span>${d.myTurn ? '<span class="crew-badge">!</span>' : ''}</button>`).join('')}</section>`;
 }
@@ -3834,7 +3834,7 @@ function renderBattle() {
   return `${defs}${back}${renderEmoteLayer(v)}${renderVersus(v)}
   ${banner}
   <section class="b-sea">
-    <div class="row" style="justify-content:space-between"><span class="sea-title">Воды ${esc(v.opp.nick)}</span><span class="sea-sub">на плаву: ${v.oppLeft}</span></div>
+    <div class="row" style="justify-content:space-between"><span class="sea-title">${v.practice ? 'Воды противника' : `Воды ${esc(v.opp.nick)}`}</span><span class="sea-sub">на плаву: ${v.oppLeft}</span></div>
     ${fleetBars(oppFleet)}
     ${renderBoard(v, 'opp')}
   </section>
@@ -4185,7 +4185,7 @@ function renderSheet() {
       <button class="find-bar light" data-act="find-open">${ico('search', 18)}<span>Найти человека по нику или почте</span></button>
       ${(S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${p.crew ? '<span class="fav-star">★</span> ' : ''}${esc(p.nick)}</span><span class="where">${esc(p.gangs.map((g) => g.name).join(', ') || (p.crew ? 'подельник' : whereText(p)[0]))}</span></span><span aria-hidden="true">›</span></button>`).join('')}`);
     case 'duel-pick': return sheetWrap(`${{ rps: 'rock Камень, ножницы, бумага', dice: 'dice Кости', ttt: 'x Крестики-нолики', sea: 'anchor Морской бой' }[S.duelGame] || 'Дуэль'}: с кем?`, `
-      <button class="chat-row pr-row" data-act="pr-start" data-v="${S.duelGame}">${avatar(PR.BOT.look, 36)}<span class="grow"><span class="chat-title">Практика с ботом</span><span class="where">${S.duelGame === 'ttt' || S.duelGame === 'sea' ? 'два уровня · есть ачивки' : 'без зёрен и рейтинга'}</span></span><span class="pr-go">Играть</span></button>
+      <button class="chat-row pr-row" data-act="pr-start" data-v="${S.duelGame}">${avatar(PR.BOT.look, 36)}<span class="grow"><span class="chat-title">Практика</span><span class="where">${S.duelGame === 'ttt' || S.duelGame === 'sea' ? 'два уровня · есть ачивки' : 'без зёрен и рейтинга'}</span></span><span class="pr-go">Играть</span></button>
       <div class="pr-or"><span>или со своими</span></div>
       ${S.duelGame === 'sea' ? seaModes({ pick: S.seaMode || 'calm' }) : ''}
       <div class="duel-stake"><span class="small">Ставка:</span>${[0, 5, 10].map((x) => `<button class="chip ${(S.duelStake || 0) === x ? 'on' : ''}" data-act="duel-stake" data-v="${x}">${x ? x + ' зёрен' : 'без ставки'}</button>`).join('')}</div>
@@ -5478,7 +5478,7 @@ const actions = {
   'pr-back'() { S.practice = null; S.bv = null; S.bEmote = null; render(); window.scrollTo(0, 0); },
   'pr-level'(el) {
     const all = store.get('practiceLevel', {}); all[S.practice.game] = el.dataset.v; store.set('practiceLevel', all);
-    sfx('pick'); prNew(S.practice.game); toast(`${PR.LEVELS[el.dataset.v]} бот — новая партия`); render();
+    sfx('pick'); prNew(S.practice.game); toast(`${PR.LEVELS[el.dataset.v]} уровень — новая партия`); render();
   },
   'duel-stake'(el) { S.duelStake = Number(el.dataset.v); sfx('pick'); render(); },
   'duel-rps': (el) => run(async () => {
@@ -5505,7 +5505,7 @@ const actions = {
   }),
   'duel-resign': (el) => run(async () => {
     if (el.dataset.id === 'bot') {
-      if (!confirmInline('duel-resign-bot', 'Нажми ещё раз — сдаёшься боту')) return;
+      if (!confirmInline('duel-resign-bot', 'Нажми ещё раз — сдаёшься')) return;
       if (S.practice.server) { await prMove({ resign: true }); sfx('lose'); return; }
       const st = S.practice.st; st.status = 'done'; st.result = 'lose'; st.resigned = true; st.turn = null; st.seq++; prCount('lose'); sfx('lose'); return;
     }
