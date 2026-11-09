@@ -493,5 +493,29 @@ function startServer(day, extra = {}) {
       assert.equal((await M.post('/api/botgame', { game: 'chess' })).status, 400);
     });
   } finally { sb.stop(); }
+  // Пятница, 20:00: «В понедельник в офисе» — по планам банды, с взаимностью
+  const se = startServer('2026-11-13', { TZ_OFFSET_HOURS: String(Math.round((Date.parse('2026-11-13T20:00:00Z') - Date.now()) / 3600e3)) });
+  try {
+    await se.ready;
+    await step('вечером: кто из банды в офисе в следующий рабочий день', async () => {
+      const A = await new se.Client().login('tm1@mts.ru', 'вечерний');
+      const B = await new se.Client().login('tm2@mts.ru', 'понедельничный');
+      const C = await new se.Client().login('tm3@mts.ru', 'домашний');
+      const D = await new se.Client().login('tm4@mts.ru', 'безплановый');
+      const g = (await A.post('/api/gangs', { name: 'Вечерние', access: 'open' })).json;
+      for (const X of [B, C, D]) await X.post(`/api/gangs/${g.id}/apply`);
+      await B.post('/api/me/profile', { shareOffice: true, profile: { plan: { 'Пн': 'office' }, home: 'smol' } });
+      await C.post('/api/me/profile', { profile: { plan: { 'Пн': 'home' } } });
+      let t = (await A.get('/api/state')).json.tomorrow;
+      assert.ok(t && t.locked && t.label === 'в понедельник', JSON.stringify(t));
+      assert.equal(t.filled, 2);
+      await A.post('/api/me/profile', { profile: { plan: { 'Пн': 'office', 'Вт': 'home' } } });
+      t = (await A.get('/api/state')).json.tomorrow;
+      assert.equal(t.day, '2026-11-16');
+      assert.deepEqual(t.office.map((p) => p.nick), ['понедельничный']);
+      assert.equal(t.mine, 'office');
+      assert.equal(t.unknown, 0, 'скрывшие офис не считаются');
+    });
+  } finally { se.stop(); }
   console.log(`social: ${passed} ok`);
 })().catch((e) => { console.error(e); process.exit(1); });

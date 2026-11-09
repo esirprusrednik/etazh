@@ -660,6 +660,38 @@ function register(ctx) {
     return { days: cols, rows, best: best ? { label: best.label, office: best.office, total: rows.length, today: best.day === today() } : null, hidden: gangMembers(gangId).length - members.length };
   }
 
+  // Вечером (после 19:00): кто из банд будет в офисе в следующий рабочий день — по плану недели.
+  // Та же взаимность, что у графика: видит только тот, кто сам заполнил план. Скрывшие офис — не в списке
+  const DAY_ACC = ['в воскресенье', 'в понедельник', 'во вторник', 'в среду', 'в четверг', 'в пятницу', 'в субботу'];
+  function nextWorkday(d) {
+    let n = addDays(d, 1);
+    for (let i = 0; i < 20 && (HOL.holidayName(n) || !(HOL.isWeekday(n) || HOL.isWorkSaturday(n))); i++) n = addDays(n, 1);
+    return n;
+  }
+  function gangTomorrow(meId) {
+    const t = today(), day = nextWorkday(t);
+    const label = day === addDays(t, 1) ? 'завтра' : DAY_ACC[new Date(day + 'T12:00:00Z').getUTCDay()];
+    const me = userRow(meId);
+    const myProf = readProfile(me.profile);
+    const mine = cellFor(myProf, meId, day);
+    const seen = new Set([meId]); const members = [];
+    for (const g of myGangs(meId)) for (const m of gangMembers(g.id)) { if (!seen.has(m.id)) { seen.add(m.id); members.push(m); } }
+    if (!members.length) return { day, label, mine, office: [], total: 0, noGang: true };
+    if (!planFilled(myProf)) {
+      return { day, label, mine, locked: true, filled: members.filter((m) => planFilled(readProfile(m.profile))).length, total: members.length, office: [] };
+    }
+    const office = [];
+    let unknown = 0;
+    for (const m of members) {
+      if (!m.share_office) continue; // скрыл, где работает, — не показываем и не считаем
+      const prof = readProfile(m.profile);
+      const c = cellFor(prof, m.id, day);
+      if (c === 'office') { const o = prof.home ? officeById(prof.home) : null; office.push({ id: m.id, nick: m.nick, look: lookOf(m), office: o ? o.name : null }); }
+      else if (c === 'unknown') unknown++;
+    }
+    return { day, label, mine, office, total: members.length, unknown };
+  }
+
   // ---------- Дни рождения ----------
   function bdayInDays(bday) {
     if (!/^\d{2}\.\d{2}$/.test(bday || '')) return null;
@@ -1104,7 +1136,7 @@ function register(ctx) {
     return { total: list.length, left: list.filter((id) => !done.has(id)).length };
   }
   const activeToday = (uid) => counter(uid, 'last_active') >= Number(today().replace(/-/g, ''));
-  return { streak: (uid) => counter(uid, 'day_streak'), setQuestProviders: (p) => Object.assign(prov, p), onEvent, cleanup, tick, pairNow, questSummary, myPair, activeToday, cellFor };
+  return { streak: (uid) => counter(uid, 'day_streak'), setQuestProviders: (p) => Object.assign(prov, p), onEvent, cleanup, tick, pairNow, questSummary, myPair, activeToday, cellFor, gangTomorrow };
 }
 
 module.exports = { register, ACH, QUESTS };

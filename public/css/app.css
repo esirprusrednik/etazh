@@ -2021,3 +2021,9 @@ button.chip.ask-chip { cursor: pointer; }
 .pr-go { font-weight: 800; font-size: 13px; padding: 6px 12px; border-radius: 999px; background: var(--chip-on-bg); color: var(--chip-on-fg); }
 .pr-or { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; margin: 2px 0; }
 .pr-or::before, .pr-or::after { content: ''; flex: 1; height: 1px; background: var(--line, rgba(127,127,127,.25)); }
+.tmr { display: flex; flex-direction: column; gap: 10px; }
+.tmr h3 { margin: 0; }
+.tmr-list { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.tmr-p { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 72px; flex: none; background: none; font-size: 12px; font-weight: 700; color: var(--ink); }
+.tmr-p span, .tmr-p small { max-width: 72px; }
+.tmr-p small { font-size: 10px; color: var(--muted); font-weight: 600; }

@@ -760,6 +760,8 @@ function createApi(db) {
     const canteenOpen = ci ? q('SELECT * FROM canteen WHERE user_id = ? AND done_at IS NULL AND at > ? ORDER BY at DESC LIMIT 1').get(u.id, U.now() - 60 * 60e3) : null;
     return {
       now: U.now(), msk: U.msk().hhmm, night: U.isAfterCheckinCutoff(),
+      // Вечером — кто из банд в офисе в следующий рабочий день
+      tomorrow: U.isAfterCheckinCutoff() && features ? features.gangTomorrow(u.id) : null,
       beans: q('SELECT beans FROM users WHERE id = ?').get(u.id).beans,
       checkin: ci ? { office: ci.office_id, name: office.name, at: ci.at, since: U.msk(ci.at).hhmm } : null,
       today: U.msk().day, build: BUILD,

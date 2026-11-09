@@ -1898,9 +1898,28 @@ function renderOfficeList() {
     <p class="small" style="margin:8px 0 0">★ — «мой офис»: он будет на главной кнопке, отмечаться в одно касание.${cur ? ' Зёрна за отметку — один раз в день.' : ''}</p>`;
 }
 
+// Вечером: кто из банд в офисе в следующий рабочий день (по плану недели)
+function renderTomorrow() {
+  const t = S.state && S.state.tomorrow;
+  if (!t || t.noGang) return '';
+  const cap = t.label.charAt(0).toUpperCase() + t.label.slice(1);
+  const mine = { office: 'ты — в офисе', home: 'ты — дома', vacation: 'ты — в отпуске', sick: 'ты — на больничном', off: 'выходной' }[t.mine] || 'твой план не указан';
+  const plan = '<button class="linkbtn small" data-act="open-sec" data-v="work">План недели</button>';
+  if (t.locked) {
+    return `<section class="card tmr"><div class="row" style="justify-content:space-between;gap:8px"><h3>office ${esc(cap)} в офисе</h3>${plan}</div>
+      <p class="sub" style="margin:0">Заполни свой план недели — и увидишь, кто из банды ${esc(t.label)} в офисе. Уже заполнили: ${t.filled} из ${t.total}.</p></section>`;
+  }
+  const offices = new Set(t.office.map((p) => p.office).filter(Boolean));
+  const list = t.office.length
+    ? `<div class="tmr-list">${t.office.map((p) => `<button class="tmr-p" data-act="person" data-id="${p.id}">${avatar(p.look, 40)}<span class="ellipsis">${esc(p.nick)}</span>${offices.size > 1 && p.office ? `<small class="ellipsis">${esc(p.office)}</small>` : ''}</button>`).join('')}</div>`
+    : `<p class="sub" style="margin:0">По планам ${esc(t.label)} из банды в офисе никого.${t.unknown ? ' Но не все заполнили план.' : ''}</p>`;
+  return `<section class="card tmr"><div class="row" style="justify-content:space-between;gap:8px"><h3>office ${esc(cap)} в офисе${t.office.length ? ` · ${t.office.length}` : ''}</h3>${plan}</div>
+    ${list}
+    <p class="small" style="margin:0">${esc(mine)}${t.unknown && t.office.length ? ` · ещё ${t.unknown} без плана на этот день` : ''}</p></section>`;
+}
 function renderStatusBlock() {
   const st = S.state;
-  if (st.night) return `${renderToday()}<div class="card"><h2>Офисы засыпают</h2><p class="sub">После 19:00 отметки сбрасываются. Утром отметься снова — увидишь, кто из твоих рядом.</p></div>`;
+  if (st.night) return `${renderToday()}<div class="card"><h2>Офисы засыпают</h2><p class="sub">После 19:00 отметки сбрасываются. Утром отметься снова — увидишь, кто из твоих рядом.</p></div>${renderTomorrow()}`;
   if (!st.checkin) {
     return `${renderToday()}<div class="card">
       <h2>${['home', 'vacation', 'sick', 'slack'].includes(st.presence.where) ? 'Всё-таки в офисе?' : 'Где ты сегодня?'}</h2>
@@ -2407,7 +2426,7 @@ function renderOffice() {
   const st = S.state;
   if (!st) return '<div class="card"><p class="sub">Загружаем…</p></div>';
   if (st.night) {
-    return `${renderToday()}${renderBirthdays()}<div class="card"><h2>Офисы засыпают</h2><p class="sub">После 19:00 отметки сбрасываются. Утром отметься снова — увидишь, кто из банды рядом и есть ли очередь в столовой.</p></div>${renderCoffee()}${renderGangNow()}`;
+    return `${renderToday()}${renderBirthdays()}<div class="card"><h2>Офисы засыпают</h2><p class="sub">После 19:00 отметки сбрасываются. Утром отметься снова — увидишь, кто из банды рядом и есть ли очередь в столовой.</p></div>${renderTomorrow()}${renderCoffee()}${renderGangNow()}`;
   }
   if (!st.checkin) {
     return `${renderToday()}<div class="card">
