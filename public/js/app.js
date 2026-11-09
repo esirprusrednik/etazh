@@ -4566,6 +4566,40 @@ function blast(ctx, { at = 0, vol = 0.5, len = 0.9, crackle = 6, rv = 0.4 } = {}
   for (let i = 0; i < crackle; i++) noise(ctx, { at: at + 0.04 + Math.random() * len * 0.6, dur: 0.02 + Math.random() * 0.03, vol: vol * 0.15 * Math.random(), type: 'bandpass', f: 1800 + Math.random() * 1500, q: 1.5, rv, pan: Math.random() * 1.4 - 0.7 });
 }
 const boom = (ctx, at, vol = 0.5, len = 0.7) => blast(ctx, { at, vol, len, crackle: 2, rv: 0.25 });
+// Глубокий взрыв: суб-удар с падающим тоном, рокот и сатурация. Сатурация нужна, чтобы низ слышали
+// и динамики телефона — они не играют ниже 150 Гц, но слышат обертоны, и мозг «достраивает» бас
+const satCurve = (k) => { const n = 1024, c = new Float32Array(n); for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; c[i] = Math.tanh(k * x) / Math.tanh(k); } return c; };
+function deepBoom(ctx, { at = 0, vol = 0.6, len = 1.2, f0 = 90, drive = 3, bright = 1800, rv = 0.35, pan = null } = {}) {
+  const t = ctx.currentTime + at;
+  const mix = ctx.createGain(), sh = ctx.createWaveShaper(), tone = ctx.createBiquadFilter(), out = ctx.createGain();
+  sh.curve = satCurve(drive); sh.oversample = '2x';
+  tone.type = 'lowpass'; tone.Q.value = 0.7; tone.frequency.setValueAtTime(bright, t); tone.frequency.exponentialRampToValueAtTime(140, t + len * 0.6);
+  out.gain.setValueAtTime(vol, t);
+  mix.connect(sh).connect(tone).connect(out); sndOut(ctx, out, rv, pan);
+  // Суб: удар грудью — тон падает в самый низ
+  [[f0, 0.9], [f0 * 0.62, 0.6]].forEach(([f, a]) => {
+    const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine';
+    o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(Math.max(18, f * 0.28), t + len * 0.55);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(a, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + len * 0.75);
+    o.connect(g).connect(mix); o.start(t); o.stop(t + len);
+  });
+  // Тело: тёмный шум, фильтр закрывается — «бу-у-ум», а не «пш-ш»
+  const src = ctx.createBufferSource(), lp = ctx.createBiquadFilter(), ng = ctx.createGain();
+  src.buffer = noiseBuf(ctx, len, 1.4); lp.type = 'lowpass'; lp.Q.value = 1.1;
+  lp.frequency.setValueAtTime(700, t); lp.frequency.exponentialRampToValueAtTime(55, t + len * 0.9);
+  ng.gain.value = 0.9; src.connect(lp).connect(ng).connect(mix); src.start(t);
+  // Рокот после удара: медленно катится и уходит
+  const rs = ctx.createBufferSource(), rl = ctx.createBiquadFilter(), rg = ctx.createGain();
+  rs.buffer = noiseBuf(ctx, len * 1.6, 0.8); rl.type = 'lowpass'; rl.frequency.value = 160; rl.Q.value = 0.8;
+  rg.gain.setValueAtTime(0.0001, t); rg.gain.exponentialRampToValueAtTime(0.7, t + 0.12); rg.gain.exponentialRampToValueAtTime(0.0001, t + len * 1.6);
+  rs.connect(rl).connect(rg).connect(mix); rs.start(t);
+}
+// Выстрел пушки: глухой толчок, без шипения
+const cannon = (ctx, at = 0) => deepBoom(ctx, { at, vol: 0.32, len: 0.55, f0: 75, drive: 2.2, bright: 900, rv: 0.25, pan: -0.3 });
+// Обломки: низкий треск и стук, не высокое шуршание
+function debris(ctx, { at = 0, n = 5, spread = 0.7, vol = 0.12 } = {}) {
+  for (let i = 0; i < n; i++) noise(ctx, { at: at + 0.05 + Math.random() * spread, dur: 0.03 + Math.random() * 0.05, vol: vol * (0.4 + Math.random() * 0.6), type: 'bandpass', f: 280 + Math.random() * 650, q: 2, rv: 0.3, pan: Math.random() * 1.2 - 0.6 });
+}
 // Пузырьки: короткие синусы с подъёмом тона
 function bubbles(ctx, { at = 0, n = 6, spread = 0.5, vol = 0.05 } = {}) {
   for (let i = 0; i < n; i++) { const f = 350 + Math.random() * 600; tone(ctx, { f, f2: f * 1.9, type: 'sine', at: at + Math.random() * spread, dur: 0.05 + Math.random() * 0.04, vol: vol * (0.5 + Math.random() * 0.5), atk: 0.003, rv: 0.25, pan: Math.random() - 0.5 }); }
@@ -4671,14 +4705,25 @@ const SOUNDS = {
   coin: (c) => { bell(c, { f: 1976, vol: 0.04, dur: 0.5 }); bell(c, { f: 2637, at: 0.07, vol: 0.045, dur: 1.0, rv: 0.4 }); noise(c, { at: 0.07, dur: 0.15, vol: 0.02, type: 'highpass', f: 7000, rv: 0.4 }); },
   danger: (c) => { tick(c, { f: 1500, body: 600, vol: 0.12 }); tone(c, { f: 200, f2: 130, type: 'sine', at: 0.01, dur: 0.16, vol: 0.08, atk: 0.003 }); },
   error: (c) => { tone(c, { f: 330, f2: 300, type: 'triangle', dur: 0.11, vol: 0.06, atk: 0.004 }); tone(c, { f: 262, f2: 230, type: 'triangle', at: 0.13, dur: 0.18, vol: 0.06, atk: 0.004 }); },
-  // Морской бой
-  splash: (c) => { noise(c, { dur: 0.55, vol: 0.18, type: 'lowpass', f: 3500, f2: 300, q: 0.6, shape: 1.6, rv: 0.3 }); noise(c, { dur: 0.25, vol: 0.08, type: 'highpass', f: 2500, rv: 0.3 }); bubbles(c, { at: 0.15, n: 7, spread: 0.45 }); },
-  hit: (c) => { noise(c, { dur: 0.03, vol: 0.2, type: 'highpass', f: 1500 }); blast(c, { vol: 0.42, len: 0.8 }); },
+  // Морской бой: сначала выстрел пушки, через четверть секунды — что случилось у цели
+  splash: (c) => {
+    cannon(c);
+    deepBoom(c, { at: 0.26, vol: 0.34, len: 0.8, f0: 62, drive: 1.6, bright: 600, rv: 0.4, pan: 0.25 }); // снаряд уходит в воду
+    noise(c, { at: 0.27, dur: 0.6, vol: 0.14, type: 'lowpass', f: 1400, f2: 180, q: 0.7, shape: 1.8, rv: 0.4, pan: 0.25 });
+    bubbles(c, { at: 0.5, n: 5, spread: 0.5, vol: 0.035 });
+  },
+  hit: (c) => {
+    cannon(c);
+    deepBoom(c, { at: 0.24, vol: 0.75, len: 1.4, f0: 95, drive: 4, bright: 2200, rv: 0.4, pan: 0.2 });
+    debris(c, { at: 0.26, n: 5 });
+  },
   sunk: (c) => {
-    blast(c, { vol: 0.55, len: 1.3, crackle: 10 });
-    blast(c, { at: 0.35, vol: 0.3, len: 0.9, crackle: 4 });
-    brass(c, { f: 73, at: 0.5, dur: 1.1, vol: 0.05, dark: true, wah: 1.3, rv: 0.4 }); // стон металла
-    bubbles(c, { at: 0.9, n: 10, spread: 0.8, vol: 0.04 });
+    cannon(c);
+    deepBoom(c, { at: 0.24, vol: 0.85, len: 2.0, f0: 100, drive: 5, bright: 2600, rv: 0.5, pan: 0.15 });
+    deepBoom(c, { at: 0.75, vol: 0.55, len: 1.6, f0: 70, drive: 3.5, bright: 1400, rv: 0.5, pan: 0.35 }); // детонация погреба
+    debris(c, { at: 0.3, n: 9, spread: 1.2, vol: 0.14 });
+    brass(c, { f: 49, at: 1.0, dur: 1.4, vol: 0.05, dark: true, wah: 1.1, rv: 0.45 }); // стон металла
+    bubbles(c, { at: 1.6, n: 8, spread: 0.9, vol: 0.03 });
   },
   // Грустный тромбон: «вау-вау-вау-ваааа»
   lose: (c) => [[294, 0, 0.36], [277, 0.4, 0.36], [262, 0.8, 0.36], [247, 1.2, 1.1]].forEach(([f, at, dur], i) => brass(c, { f, at, dur, vol: 0.1, dark: true, wah: i === 3 ? 6 : 0, vib: i === 3 ? 0.015 : 0, rv: 0.35 })),
