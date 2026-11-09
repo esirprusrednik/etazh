@@ -28,20 +28,30 @@ setInterval(() => {
 }, 60e3).unref();
 
 // ---------- Внешний вид аватара: допустимые значения ----------
+const HAIR_COLORS = ['#0F0E12', '#2B1D14', '#4A3326', '#6B3E26', '#8C6A4F', '#B5532A', '#C2412F', '#CFAE74', '#E0B04B', '#F2E6C9', '#6E6A66', '#9AA3B5', '#7C4DFF', '#FF6FA8'];
 const LOOK = {
   preset: ['m', 'f'],
   hairStyle: ['short', 'long', 'tail', 'curly', 'bob', 'bun', 'side', 'mohawk', 'afro', 'bald',
     'undercut', 'quiff', 'crop', 'slick', 'buzz', 'manbun', 'waves', 'bangs', 'lob', 'pixie', 'ponytail', 'braid', 'buns', 'anime'],
-  hair: ['#2B1D14', '#6B3E26', '#E0B04B', '#C2412F', '#9AA3B5', '#F2E6C9', '#7C4DFF', '#FF6FA8'],
+  // Натуральные цвета: чёрный, тёмно-каштановый, тёмно-русый, каштановый, русый, медный, рыжий, пшеничный, блонд, платина, «соль с перцем», седой; яркие — в конце
+  hair: HAIR_COLORS,
   face: ['oval', 'round', 'square', 'long', 'heart'],
   mouth: ['smile', 'grin', 'smirk', 'neutral', 'sad', 'wow'],
   beard: ['none', 'stubble', 'beard', 'mustache', 'goatee'],
-  eyes: ['#22252D', '#6B4226', '#3A7BD5', '#3C8D5A', '#8A8F9C'],
-  skin: ['#FBE3CF', '#F6D3B3', '#E8B48A', '#C98E62', '#8D5A3B', '#5E3A26'],
+  eyes: ['#22252D', '#6B4226', '#8A6A2E', '#A8762A', '#3C8D5A', '#3A7BD5', '#6E8BA6', '#8A8F9C'],
+  skin: ['#FBE3CF', '#F6D3B3', '#EBC3A0', '#E8B48A', '#D7A774', '#C98E62', '#A86F48', '#8D5A3B', '#704530', '#5E3A26'],
   // Одежда, головной убор, маска — каждый своим цветом из общей палитры
   hoodie: ['red', 'blue', 'green', 'violet', 'navy', 'black', 'white', 'beige', 'yellow', 'pink', 'orange', 'khaki', 'burgundy', 'grey'],
   hatColor: ['same', 'red', 'blue', 'green', 'violet', 'navy', 'black', 'white', 'beige', 'yellow', 'pink', 'orange', 'khaki', 'burgundy', 'grey'],
-  eyeShape: ['normal', 'tired', 'sly', 'wide', 'anime'],
+  // Анатомия: круглые, миндаль, узкие, нависшее веко, опущенные и приподнятые уголки. tired/sly/wide — старые «взгляды», остаются для совместимости и эмоций
+  eyeShape: ['normal', 'almond', 'narrow', 'hooded', 'down', 'up', 'tired', 'sly', 'wide', 'anime'],
+  eyeGap: ['close', 'normal', 'wide'],
+  browShape: ['auto', 'straight', 'arch', 'peak', 'thin', 'thick', 'uni'],
+  age: ['0', '1', '2'],
+  hairline: ['normal', 'high', 'receding', 'm'],
+  part: ['left', 'right'],
+  lips: ['thin', 'normal', 'full'],
+  mole: ['none', 'cheekL', 'cheekR', 'lip', 'chin'],
   outfit: ['hoodie', 'tee', 'dev', 'shirt', 'suit', 'jacket', 'puffer', 'dress', 'cami', 'biker', 'cyber', 'armor', 'vampire', 'nysweater', 'telnyashka'],
   neck: ['none', 'tie', 'tie_crooked', 'bow', 'badge', 'beads', 'chain', 'tie_gold', 'chain_gold', 'snake', 'garland'],
   hat: ['none', 'beanie', 'cap', 'headset', 'laurel', 'knight', 'royal', 'fedora', 'ushanka', 'tricorn', 'dedmoroz', 'kokoshnik', 'wreath', 'shawl'],
@@ -62,10 +72,11 @@ const LOOK = {
   pet: ['none', 'corgi', 'pug', 'frenchie', 'parrot'],
   capBadge: ['none', 'star', 'bolt', 'heart', 'crown', 'paw', 'e', 'one'],
   // Отдельный цвет бороды и усов; same — как волосы
-  beardColor: ['same', '#2B1D14', '#6B3E26', '#E0B04B', '#C2412F', '#9AA3B5', '#F2E6C9', '#7C4DFF', '#FF6FA8'],
-  mustacheColor: ['same', '#2B1D14', '#6B3E26', '#E0B04B', '#C2412F', '#9AA3B5', '#F2E6C9', '#7C4DFF', '#FF6FA8']
+  beardColor: ['same', ...HAIR_COLORS],
+  mustacheColor: ['same', ...HAIR_COLORS],
+  browColor: ['same', ...HAIR_COLORS]
 };
-const LOOK_ENUMS = ['capBadge', 'preset', 'face', 'eyes', 'mouth', 'beard', 'hairStyle', 'hair', 'skin', 'hoodie', 'eyeShape', 'outfit', 'neck', 'hat', 'prop', 'bg', 'eyeSize', 'nose', 'ears', 'makeup', 'earrings', 'glassesStyle', 'glassesColor', 'lensColor', 'pet', 'beardColor', 'mustacheColor', 'hatColor', 'mask'];
+const LOOK_ENUMS = ['eyeGap', 'browShape', 'browColor', 'age', 'hairline', 'part', 'lips', 'mole', 'capBadge', 'preset', 'face', 'eyes', 'mouth', 'beard', 'hairStyle', 'hair', 'skin', 'hoodie', 'eyeShape', 'outfit', 'neck', 'hat', 'prop', 'bg', 'eyeSize', 'nose', 'ears', 'makeup', 'earrings', 'glassesStyle', 'glassesColor', 'lensColor', 'pet', 'beardColor', 'mustacheColor', 'hatColor', 'mask'];
 // Платные детали: значение слота → предмет Лавки, который нужно купить
 const PAID_PARTS = Object.fromEntries(SHOP.filter((it) => it.kind === 'part').map((it) => [`${it.slot}:${it.value}`, it.id]));
 // Собрать внешность из присланного: только допустимые значения и только купленные платные детали
@@ -78,7 +89,7 @@ function applyLook(base, l, owned) {
     if (need && !owned.has(need)) throw bad('Эта деталь продаётся в Лавке.');
     look[k] = l[k];
   }
-  for (const k of ['glasses', 'phones', 'freckles']) if (l[k] !== undefined) look[k] = !!l[k];
+  for (const k of ['glasses', 'phones', 'freckles', 'lashes', 'dimples']) if (l[k] !== undefined) look[k] = !!l[k];
   // Борода — только у «М», макияж — только у «Ж»
   if (look.preset === 'f') look.beard = 'none'; else look.makeup = 'none';
   // Капюшон убран из конструктора — у кого был, просто без головного убора
@@ -90,7 +101,7 @@ const NICK_PRICE = 50;
 // иначе у коллег, которые неделями не закрывают вкладку, остаётся старая отрисовка (например, аватаров)
 const BUILD = (() => {
   const fs = require('node:fs'), path = require('node:path'), h = require('node:crypto').createHash('sha1');
-  for (const f of ['js/app.js', 'js/building.js', 'js/crest.js', 'css/app.css']) { try { h.update(fs.readFileSync(path.join(__dirname, '..', 'public', f))); } catch {} }
+  for (const f of ['js/app.js', 'js/building.js', 'js/crest.js', 'js/ships.js', 'js/duelart.js', 'css/app.css']) { try { h.update(fs.readFileSync(path.join(__dirname, '..', 'public', f))); } catch {} }
   return h.digest('hex').slice(0, 10);
 })();
 const DEFAULT_LOOK = { preset: 'm', face: 'oval', eyes: '#22252D', mouth: 'smile', beard: 'none', freckles: false, eyeShape: 'normal', outfit: 'hoodie', neck: 'none', hat: 'none', prop: 'none', bg: 'auto', hairStyle: 'short', hair: '#2B1D14', skin: '#E8B48A', hoodie: 'blue', glasses: false, phones: false, status: null, frame: null, crown: false,
@@ -141,7 +152,7 @@ function fullName(prof, scope) {
 
 // Заполненность профиля. Первый шаг — ник — засчитан сразу: начатое дело люди доводят до конца охотнее.
 // Имя, фамилия и день рождения в процент не входят: личные данные — по желанию (но имена коллег видит только тот, кто указал своё).
-const LOOK_KEYS = ['face', 'hairStyle', 'hair', 'skin', 'eyes', 'hoodie', 'mouth', 'beard', 'glasses', 'phones', 'freckles', 'preset', 'eyeShape', 'outfit', 'neck', 'hat', 'prop', 'bg', 'eyeSize', 'nose', 'ears', 'makeup', 'earrings', 'glassesStyle', 'glassesColor', 'lensColor', 'pet', 'beardColor', 'mustacheColor', 'hatColor', 'mask'];
+const LOOK_KEYS = ['eyeGap', 'browShape', 'browColor', 'age', 'hairline', 'part', 'lips', 'mole', 'lashes', 'dimples', 'face', 'hairStyle', 'hair', 'skin', 'eyes', 'hoodie', 'mouth', 'beard', 'glasses', 'phones', 'freckles', 'preset', 'eyeShape', 'outfit', 'neck', 'hat', 'prop', 'bg', 'eyeSize', 'nose', 'ears', 'makeup', 'earrings', 'glassesStyle', 'glassesColor', 'lensColor', 'pet', 'beardColor', 'mustacheColor', 'hatColor', 'mask'];
 function profileCompletion(look, prof, hasPush) {
   const steps = [
     { id: 'nick', label: 'Выбрать ник', done: true },

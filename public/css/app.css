@@ -1979,3 +1979,8 @@ button.chip.ask-chip { cursor: pointer; }
 .quiz-res.fresh.warn .qr-ava { animation: mood-shake .6s ease-in-out 1; }
 .quiz-res.fresh .note { animation: popIn .4s cubic-bezier(.2,1.6,.4,1); }
 @media (prefers-reduced-motion: reduce) { .bl-me *, .quiz-res *, .bl-streak { animation: none !important; } .duel-fx .confetti { display: none; } }
+
+/* Конструктор: «Внешность» и «Стиль» */
+.ava-group { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 14px; background: var(--s1); }
+.ava-group button { border: 0; border-radius: 10px; padding: 8px; font: inherit; font-weight: 800; color: var(--muted); background: none; cursor: pointer; }
+.ava-group button.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12); }

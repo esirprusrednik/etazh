@@ -468,7 +468,34 @@ function maskLayer(m, g, c) {
   }
   return '';
 }
-function eyesLayer(shape, eyes, skin) {
+// Глаза по анатомии: разрез (миндаль, узкие, нависшее веко, опущенные/приподнятые уголки) и посадка.
+// Белок — форма разреза, радужка поверх, а всё вне разреза закрывает кожа (вырез evenodd) — радужка не вылезает за веко
+const EYE_GAP = { close: 1.2, normal: 0, wide: -1.3 };
+function eyeAnat(shape, eyes, skin, gap = 0, lashes = false) {
+  const H = { normal: 3.8, almond: 3.1, narrow: 1.75, hooded: 3.2, down: 3.1, up: 3.1 }[shape] || 3.8;
+  const tilt = { down: 2.3, up: -2.3 }[shape] || 0;
+  const w = shape === 'normal' ? 4.2 : 4.7;
+  const one = (cx, side) => {
+    const o = cx + side * w, i = cx - side * w, ty = 48 + tilt; // внешний и внутренний уголки
+    const top = shape === 'normal' ? 48 - H * 1.05 : 48 - H * 1.12, bot = shape === 'normal' ? 48 + H * 1.05 : 48 + H * 0.82;
+    const d = shape === 'normal'
+      ? `M${i} 48 C${i} ${top} ${o} ${top} ${o} 48 C${o} ${bot} ${i} ${bot} ${i} 48 Z`
+      : `M${i} 48.2 C${i + side * 1.6} ${top} ${o - side * 2.2} ${top} ${o} ${ty} C${o - side * 2} ${bot} ${i + side * 1.4} ${bot} ${i} 48.2 Z`;
+    const ix = cx + 0.4, ir = shape === 'narrow' ? 2.45 : 2.75;
+    let g = `<path d="${d}" fill="#fff"/><circle cx="${ix}" cy="48.3" r="${ir}" fill="${eyes}"/><circle cx="${ix}" cy="48.3" r="${ir * 0.47}" fill="#111"/><circle cx="${ix + 1}" cy="47.2" r=".85" fill="#fff"/>`;
+    g += `<path d="M${cx - 6.4} 42.6 H${cx + 6.4} V53.4 H${cx - 6.4} Z ${d}" fill="${skin}" fill-rule="evenodd"/>`;
+    // Линия верхнего века — даёт форму глазу даже в маленьком кружке
+    const lid = shape === 'normal' ? `M${i} 48 C${i} ${top} ${o} ${top} ${o} 48` : `M${i} 48.2 C${i + side * 1.6} ${top} ${o - side * 2.2} ${top} ${o} ${ty}`;
+    g += `<path d="${lid}" fill="none" stroke="#22252D" stroke-width="${lashes ? 1.5 : 1}" stroke-linecap="round"/>`;
+    if (lashes) g += `<path d="M${o} ${ty} L${o + side * 1.6} ${ty - 1.6} M${o - side * 1.6} ${top + 1.2} L${o - side * 1.9} ${top - 0.6}" stroke="#22252D" stroke-width="1.1" stroke-linecap="round"/>`;
+    // Нависшее веко: складка кожи над разрезом
+    if (shape === 'hooded') g += `<path d="M${i - side * 0.6} ${top - 1} Q${cx} ${top - 2.4} ${o + side * 0.8} ${ty - 0.4} L${o + side * 0.8} ${ty + 0.2} Q${cx + side * 0.6} ${top + 0.6} ${i} ${48 - 0.6} Z" fill="${skin}"/><path d="M${i} ${48 - 0.6} Q${cx + side * 0.6} ${top + 0.6} ${o + side * 0.6} ${ty + 0.1}" fill="none" stroke="#22252D" stroke-width="1.1" stroke-linecap="round"/><path d="M${i - side * 0.4} ${top - 0.9} Q${cx} ${top - 2.2} ${o + side * 0.6} ${ty - 0.5}" fill="none" stroke="${shade(skin, -0.3)}" stroke-width=".9" stroke-linecap="round"/>`;
+    return g;
+  };
+  return one(43 + gap, 1) + one(57 - gap, -1);
+}
+function eyesLayer(shape, eyes, skin, gap = 0, lashes = false) {
+  if (['normal', 'almond', 'narrow', 'hooded', 'down', 'up'].includes(shape || 'normal')) return eyeAnat(shape || 'normal', eyes, skin, gap, lashes);
   if (shape === 'anime') {
     // Аниме-глаза (Лавка): большие, с двумя бликами и ресницами
     const one = (x) => `<ellipse cx="${x}" cy="48" rx="4.6" ry="5.4" fill="#fff"/><ellipse cx="${x}" cy="48.6" rx="3.6" ry="4.6" fill="${eyes}"/><ellipse cx="${x}" cy="50" rx="2.6" ry="3" fill="${shade(eyes, 0.35)}" opacity=".7"/><circle cx="${x}" cy="48.6" r="1.5" fill="#111"/><ellipse cx="${x - 1.4}" cy="46.4" rx="1.4" ry="1.7" fill="#fff"/><circle cx="${x + 1.4}" cy="51" r=".7" fill="#fff"/><path d="M${x - 5} 46 Q${x} 41.6 ${x + 5} 45.6" fill="none" stroke="#1A1A22" stroke-width="1.6" stroke-linecap="round"/>`;
@@ -532,6 +559,8 @@ function bgLayer(bg, skin, u) {
       + '<rect x="62" y="5" width="34" height="34" rx="2" fill="none" stroke="#fff" stroke-width="2.4"/><path d="M79 5v34M62 22h34" stroke="#fff" stroke-width="1.8"/><rect x="60" y="38.5" width="38" height="2.6" rx="1" fill="#C3CEDB"/>'
       + '<path d="M9 40 Q2 30 7 20 Q12 28 11 38 Z M12 39 Q12 24 20 16 Q20 30 15 40 Z M10 41 Q6 32 1 30 Q4 38 9 42 Z" fill="#3E9B58"/><path d="M12 40 Q14 30 21 26" fill="none" stroke="#2F7A44" stroke-width="1"/>'
       + '<path d="M5 41h14l-2 14H7z" fill="#E07A3E"/><rect x="4" y="40" width="16" height="3" rx="1" fill="#C9662F"/>'
+      // Тумба под растением: горшок стоит, а не висит
+      + '<rect x="-5" y="55" width="30" height="12" fill="#D3DCE7"/><rect x="-5" y="54" width="31" height="2.4" rx="1" fill="#B8C4D3"/><rect x="3" y="58.6" width="10" height="1.4" rx=".7" fill="#9AA8BA"/>'
       + '<rect x="-5" y="66" width="110" height="40" fill="#C9A27A"/><rect x="-5" y="66" width="110" height="2.4" fill="#B08560"/>';
   }
   if (bg === 'meeting') {
@@ -540,7 +569,9 @@ function bgLayer(bg, skin, u) {
       + '<rect x="9" y="22" width="5" height="8" fill="#7C6BD6"/><rect x="16" y="17" width="5" height="13" fill="#3A86FF"/><rect x="23" y="12" width="5" height="18" fill="#2FA84F"/><path d="M8 20 L17 15 L24 11 L31 9" fill="none" stroke="#E5484D" stroke-width="1.4"/><path d="M29 9.6l2.4-.8-.6 2.4" fill="none" stroke="#E5484D" stroke-width="1.2"/>'
       + '<rect x="32" y="14" width="8" height="8" fill="#FFE27A" transform="rotate(6 36 18)"/><rect x="32" y="23" width="8" height="8" fill="#FF9EC0" transform="rotate(-5 36 27)"/><path d="M3 34h40" stroke="#8F82C7" stroke-width="2"/>'
       + '<circle cx="85" cy="16" r="9" fill="#fff" stroke="#8F82C7" stroke-width="2"/><path d="M85 10.5V16l4 2.4" fill="none" stroke="#3B3170" stroke-width="1.6" stroke-linecap="round"/><circle cx="85" cy="16" r="1" fill="#3B3170"/>'
-      + '<rect x="72" y="32" width="8" height="8" fill="#9BE3C1" transform="rotate(-8 76 36)"/><rect x="83" y="34" width="8" height="8" fill="#FFE27A" transform="rotate(7 87 38)"/>'
+      // Стикеры — на пробковой доске, а не на голой стене
+      + '<rect x="68" y="29" width="28" height="18" rx="1.5" fill="#D6B48A" stroke="#A9835A" stroke-width="1.4"/>'
+      + '<rect x="71" y="32" width="8" height="8" fill="#9BE3C1" transform="rotate(-8 75 36)"/><rect x="84" y="33" width="8" height="8" fill="#FFE27A" transform="rotate(7 88 37)"/><circle cx="75" cy="32.6" r=".9" fill="#E5484D"/><circle cx="88" cy="33.6" r=".9" fill="#3A86FF"/>'
       + '<rect x="-5" y="64" width="110" height="40" fill="#8C6A4E"/><rect x="-5" y="64" width="110" height="2.6" fill="#A8835F"/>'
       + '<path d="M5 58h7v7H5z" fill="#fff"/><path d="M12 59.5q3 0 3 2.5t-3 2.5" fill="none" stroke="#fff" stroke-width="1.2"/><path d="M86 58h7v7h-7z" fill="#E5484D"/><path d="M93 59.5q3 0 3 2.5t-3 2.5" fill="none" stroke="#E5484D" stroke-width="1.2"/>';
   }
@@ -549,8 +580,8 @@ function bgLayer(bg, skin, u) {
     return R('#F6E3CC') + '<path d="M0 -5v110M10 -5v110M20 -5v110M80 -5v110M90 -5v110" stroke="#EFD5B6" stroke-width="3"/>'
       + `${lin(`bh${u}`, '#9ED0FF', '#D9EEFF')}<rect x="66" y="6" width="26" height="26" rx="1.5" fill="url(#bh${u})"/><circle cx="85" cy="13" r="3.4" fill="#FFE38A"/><path d="M66 27 Q74 21 80 26 Q86 22 92 27V32H66z" fill="#8BC79A"/><path d="M79 6v26M66 19h26" stroke="#fff" stroke-width="1.6"/>`
       + '<path d="M62 3h34" stroke="#A0703F" stroke-width="2" stroke-linecap="round"/><path d="M63 4 Q66 20 63 36 L68 36 Q70 20 68 4 Z M95 4 Q92 20 95 36 L90 36 Q88 20 90 4 Z" fill="#E5484D"/>'
-      + '<rect x="6" y="8" width="20" height="15" rx="1" fill="#fff" stroke="#B9844F" stroke-width="2"/><path d="M8.5 21l5-6 3.5 4 2.5-2.5 4.5 4.5z" fill="#6BB0E8"/><circle cx="21" cy="12" r="1.8" fill="#FFC93C"/>'
-      + '<path d="M7 30h10l-3 7h-4z" fill="#FFD27A"/><path d="M12 37v28" stroke="#6B4A2F" stroke-width="1.6"/><ellipse cx="12" cy="31" rx="9" ry="5" fill="#FFE9A8" opacity=".35"/>'
+      + '<path d="M8 8 L16 3 L24 8" fill="none" stroke="#8A6A4A" stroke-width=".7"/><circle cx="16" cy="3" r=".9" fill="#6B4A2F"/><rect x="6" y="8" width="20" height="15" rx="1" fill="#fff" stroke="#B9844F" stroke-width="2"/><path d="M8.5 21l5-6 3.5 4 2.5-2.5 4.5 4.5z" fill="#6BB0E8"/><circle cx="21" cy="12" r="1.8" fill="#FFC93C"/>'
+      + '<path d="M7 30h10l-3 7h-4z" fill="#FFD27A"/><path d="M12 37v15" stroke="#6B4A2F" stroke-width="1.6"/><ellipse cx="12" cy="31" rx="9" ry="5" fill="#FFE9A8" opacity=".35"/>'
       + '<path d="M-5 58 Q-5 52 4 52 L96 52 Q105 52 105 58 L105 104 L-5 104 Z" fill="#5B7DB1"/><path d="M-5 58 Q-5 52 4 52 L96 52 Q105 52 105 58" fill="none" stroke="#4A6A9C" stroke-width="2"/>'
       + '<rect x="2" y="56" width="16" height="14" rx="4" fill="#F4A72C" transform="rotate(-8 10 63)"/><rect x="82" y="56" width="16" height="14" rx="4" fill="#E85D75" transform="rotate(8 90 63)"/>';
   }
@@ -575,6 +606,41 @@ function bgLayer(bg, skin, u) {
   return '';
 }
 
+// Брови: форма и толщина — одна из самых узнаваемых черт. auto — как раньше: «М» густые прямые, «Ж» тонкие дугой
+function browsLayer(shape, sex, color, dy = 0, gap = 0) {
+  const sh = shape && shape !== 'auto' ? shape : sex === 'f' ? 'arch' : 'straight';
+  const L = (d, w) => `<path d="${d}" fill="none" stroke="${color}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  const y = (v) => v + dy, a = gap, b = -gap;
+  const pair = (fn, w) => L(fn(1, a) + ' ' + fn(-1, b), w);
+  // fn(side, shift): side 1 — левая бровь (внутренний край справа, у переносицы)
+  const P = {
+    straight: (s, k) => `M${50 - s * 11.8 + k} ${y(42)} Q${50 - s * 7 + k} ${y(40.6)} ${50 - s * 2.4 + k} ${y(41.4)}`,
+    thick: (s, k) => `M${50 - s * 11.8 + k} ${y(42)} Q${50 - s * 7 + k} ${y(40.2)} ${50 - s * 2.4 + k} ${y(41.2)}`,
+    arch: (s, k) => `M${50 - s * 11.4 + k} ${y(42.4)} Q${50 - s * 7.8 + k} ${y(38.6)} ${50 - s * 2.8 + k} ${y(41)}`,
+    thin: (s, k) => `M${50 - s * 11.4 + k} ${y(42.2)} Q${50 - s * 7.6 + k} ${y(39.2)} ${50 - s * 2.8 + k} ${y(41)}`,
+    peak: (s, k) => `M${50 - s * 11.6 + k} ${y(42.6)} L${50 - s * 6.6 + k} ${y(39.2)} L${50 - s * 2.6 + k} ${y(41.2)}`,
+    uni: (s, k) => `M${50 - s * 11.8 + k} ${y(42)} Q${50 - s * 7 + k} ${y(40.4)} ${50 - s * 2.4 + k} ${y(41.4)}`
+  };
+  const W = { straight: sex === 'f' ? 2 : 2.9, thick: 3.9, arch: sex === 'f' ? 1.6 : 2.3, thin: 1.15, peak: sex === 'f' ? 1.8 : 2.6, uni: 3.2 }[sh];
+  let o = pair(P[sh] || P.straight, W);
+  if (sh === 'uni') o += L(`M${47.6 + a} ${y(41.6)} Q50 ${y(42.2)} ${52.4 + b} ${y(41.6)}`, 1.6);
+  return o;
+}
+// Возраст: 1 — «гусиные лапки» и лёгкие мешки, 2 — плюс носогубные складки и морщины на лбу
+function ageLayer(age, skin, gap = 0) {
+  if (!age || age === '0') return '';
+  const c = shade(skin, -0.32), L = (d, w = 0.8, op = 0.65) => `<path d="${d}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" opacity="${op}"/>`;
+  let o = L(`M${37 + gap} 47 l-2 -1.2 M${37 + gap} 48.6 l-2.2 .2 M${37.2 + gap} 50 l-2 1.2 M${63 - gap} 47 l2 -1.2 M${63 - gap} 48.6 l2.2 .2 M${62.8 - gap} 50 l2 1.2`, 0.7)
+    + L(`M${39.6 + gap} 52.6 Q${43 + gap} 54 ${46.4 + gap} 52.6 M${53.6 - gap} 52.6 Q${57 - gap} 54 ${60.4 - gap} 52.6`, 0.75, 0.5);
+  if (age === '2') o += L('M44.2 52.6 Q41.4 56 43 60.4 M55.8 52.6 Q58.6 56 57 60.4', 1, 0.6) + L('M42 34.6 Q50 33.4 58 34.6 M43.6 37 Q50 36 56.4 37', 0.7, 0.45);
+  return o;
+}
+// Приметы: родинка и ямочки
+function marksLayer(mole, dimples, skin) {
+  const at = { cheekL: [39, 56], cheekR: [61.4, 55], lip: [54.6, 59.4], chin: [52.4, 65] }[mole];
+  return (at ? `<circle cx="${at[0]}" cy="${at[1]}" r=".95" fill="${shade(skin, -0.55)}"/>` : '')
+    + (dimples ? `<path d="M41 58.6 q.6 1.4 1.6 1.6 M59 58.6 q-.6 1.4 -1.6 1.6" fill="none" stroke="${shade(skin, -0.3)}" stroke-width=".8" stroke-linecap="round"/>` : '');
+}
 // Нос: шесть форм. Видимый даже в маленьком кружке: тень сбоку, кончик и ноздри
 function noseLayer(n, skin, sex) {
   const c = shade(skin, -0.42), sh = shade(skin, -0.22), hi = shade(skin, 0.35);
@@ -626,13 +692,47 @@ function glassesLayer(style, color, lensColor, u, W) {
     + (style === 'aviator' ? `<path d="M48.6 44 L51.4 44" stroke="${frame}" stroke-width=".8"/>` : '');
 }
 // Питомец рядом — внизу слева, поверх плеча
+// Собака сидит у плеча целиком: тело с грудкой, передние лапы, голова. Порода — уши, морда и окрас
+function dogSit(o) {
+  const { c, d, chest, ears, muzzle, eyesY = 77.4, extra = '' } = o;
+  return `<g>
+    <path d="M6.6 104 Q4.6 92 9 86 Q17 80.4 25 86 Q29.4 92 27.4 104 Z" fill="${c}"/>
+    <path d="M12.4 104 Q11.4 92 17 88 Q22.6 92 21.6 104 Z" fill="${chest}"/>
+    <rect x="10.6" y="93" width="5" height="11.4" rx="2.5" fill="${c}"/><rect x="18.4" y="93" width="5" height="11.4" rx="2.5" fill="${c}"/>
+    <ellipse cx="13.1" cy="103.4" rx="3.1" ry="1.8" fill="${chest}"/><ellipse cx="20.9" cy="103.4" rx="3.1" ry="1.8" fill="${chest}"/>
+    <path d="M10 86.6 Q17 90 24 86.6" fill="none" stroke="${d}" stroke-width=".8" opacity=".6"/>
+    ${ears.back || ''}
+    <ellipse cx="17" cy="76.4" rx="${o.hw || 9.4}" ry="${o.hh || 8.2}" fill="${c}"/>
+    ${ears.front || ''}${extra}
+    ${muzzle}
+    <circle cx="12.9" cy="${eyesY}" r="1.75" fill="#1E1A18"/><circle cx="21.1" cy="${eyesY}" r="1.75" fill="#1E1A18"/>
+    <circle cx="13.4" cy="${eyesY - 0.6}" r=".55" fill="#fff"/><circle cx="21.6" cy="${eyesY - 0.6}" r=".55" fill="#fff"/>
+  </g>`;
+}
 function petLayer(p) {
   if (p === 'corgi') {
-    return '<g transform="translate(4 -5)"><ellipse cx="17" cy="97" rx="12" ry="8" fill="#E39A45"/><ellipse cx="17" cy="99" rx="6" ry="5.4" fill="#FFF6EA"/>'
-      + '<path d="M8.6 75 L7.4 62.6 L15.2 71.6 Z M25.4 75 L26.6 62.6 L18.8 71.6 Z" fill="#E39A45"/><path d="M9.6 73 L8.8 65.4 L13.6 71 Z M24.4 73 L25.2 65.4 L20.4 71 Z" fill="#F7B8B8"/>'
-      + '<ellipse cx="17" cy="79" rx="9" ry="8" fill="#E39A45"/><path d="M17 72 Q14 79 12.4 84 Q17 88 21.6 84 Q20 79 17 72 Z" fill="#FFF6EA"/>'
-      + '<circle cx="13.4" cy="78" r="1.3" fill="#1E1A18"/><circle cx="20.6" cy="78" r="1.3" fill="#1E1A18"/><circle cx="13.8" cy="77.6" r=".4" fill="#fff"/><circle cx="21" cy="77.6" r=".4" fill="#fff"/>'
-      + '<ellipse cx="17" cy="82" rx="1.7" ry="1.2" fill="#1E1A18"/><path d="M17 83.2 Q17 85 15.6 85.4 M17 83.2 Q17 85 18.4 85.4" fill="none" stroke="#1E1A18" stroke-width=".6" stroke-linecap="round"/><path d="M16.2 85.4 Q17 88 17.8 85.4 Z" fill="#F07A8A"/></g>';
+    // Вельш-корги: рыжий с белой грудкой и белой полосой на морде, большие острые уши, вытянутая морда
+    return dogSit({ c: '#E39A45', d: '#B8742C', chest: '#FFF6EA', hw: 9, hh: 7.8,
+      ears: { back: '<path d="M8.4 74 L6.8 60.4 L15.4 69.4 Z M25.6 74 L27.2 60.4 L18.6 69.4 Z" fill="#E39A45"/><path d="M9.4 72 L8.6 63.6 L13.6 69.2 Z M24.6 72 L25.4 63.6 L20.4 69.2 Z" fill="#F4B8A8"/>' },
+      extra: '<path d="M17 69 Q15.4 75 13 80.4 Q17 84.6 21 80.4 Q18.6 75 17 69 Z" fill="#FFF6EA"/>',
+      muzzle: '<ellipse cx="17" cy="81.4" rx="4.4" ry="3" fill="#FFF6EA"/><ellipse cx="17" cy="80.2" rx="1.7" ry="1.2" fill="#1E1A18"/><path d="M17 81.4 Q17 83 15.6 83.4 M17 81.4 Q17 83 18.4 83.4" fill="none" stroke="#1E1A18" stroke-width=".6" stroke-linecap="round"/><path d="M16.2 83.4 Q17 85.6 17.8 83.4 Z" fill="#F07A8A"/>' });
+  }
+  if (p === 'frenchie') {
+    // Французский бульдог: крупная квадратная голова, широкие стоячие уши-«локаторы» со скруглёнными кончиками,
+    // короткая плоская морда со складкой над носом, глаза широко, тёмный тигровый окрас с белой грудкой
+    const c = '#3E3A3F', d = '#2A272B';
+    return dogSit({ c, d, chest: '#F1EEEA', hw: 10.4, hh: 8.6, eyesY: 77,
+      ears: { back: `<path d="M9 72.6 Q2.6 69.6 3 63.4 Q3.6 59.4 8 60.6 Q14.4 62.8 15.6 69.4 Z M25 72.6 Q31.4 69.6 31 63.4 Q30.4 59.4 26 60.6 Q19.6 62.8 18.4 69.4 Z" fill="${c}"/><path d="M9.4 70.2 Q5.2 68 5.4 64 Q6.2 62 9 63 Q12.6 64.8 13.4 68.8 Z M24.6 70.2 Q28.8 68 28.6 64 Q27.8 62 25 63 Q21.4 64.8 20.6 68.8 Z" fill="#D9A3A3"/>` },
+      extra: `<path d="M17 69.6 V75" stroke="#F1EEEA" stroke-width="2.4" stroke-linecap="round"/><path d="M8 75 Q12 72.6 16 74.6 M26 75 Q22 72.6 18 74.6" fill="none" stroke="${d}" stroke-width=".7"/>`,
+      muzzle: `<path d="M11.6 80.4 Q17 77.6 22.4 80.4 Q22.6 85 17 85.6 Q11.4 85 11.6 80.4 Z" fill="${d}"/><path d="M13.4 79.2 Q17 77.6 20.6 79.2" fill="none" stroke="#5A555B" stroke-width=".8"/>
+        <path d="M15 80.4 Q17 79.4 19 80.4 Q18.6 82 17 82.2 Q15.4 82 15 80.4 Z" fill="#111"/><path d="M17 82.2 V83.6 M17 83.6 Q15.4 84.4 14.2 83.4 M17 83.6 Q18.6 84.4 19.8 83.4" fill="none" stroke="#111" stroke-width=".6" stroke-linecap="round"/>` });
+  }
+  if (p === 'pug') {
+    // Мопс: палевый, чёрная маска, маленькие висячие ушки, складки на лбу, приплюснутая морда
+    return dogSit({ c: '#DCBD8E', d: '#B8966A', chest: '#E9D2AE', hw: 9.8, hh: 8.4,
+      ears: { front: '<path d="M8 71.6 Q5.6 72.4 6.4 77 Q8.8 77 10.4 74 Z M26 71.6 Q28.4 72.4 27.6 77 Q25.2 77 23.6 74 Z" fill="#2E2622"/>' },
+      extra: '<path d="M12.4 72.6 Q17 70.8 21.6 72.6 M13.4 74.4 Q17 73 20.6 74.4" fill="none" stroke="#9C7A52" stroke-width=".8" stroke-linecap="round"/>',
+      muzzle: '<ellipse cx="17" cy="81.6" rx="6" ry="4.4" fill="#3A2E28"/><path d="M14.4 79.6 Q17 78.4 19.6 79.6" fill="none" stroke="#5E4E44" stroke-width=".8"/><ellipse cx="17" cy="80.6" rx="1.7" ry="1.1" fill="#111"/><path d="M15.6 84.4 Q17 86.6 18.4 84.4 Z" fill="#F07A8A"/>' });
   }
   if (p === 'parrot') {
     // Попугай ара на правом плече (слева от зрителя питомцы уже заняты корги и мопсом)
@@ -792,13 +892,14 @@ function avatarInner(look = {}) {
   const ek = (EAR_SCALE[look.ears] || 1) * (sex === 'f' ? 0.9 : 1);
   const shape = look.eyeShape === 'happy' ? 'normal' : look.eyeShape;
   // Ж — верхнее веко с ресницами и тонкие брови дугой; М — густые прямые брови
-  const lash = sex === 'f' ? '<path d="M38.8 47.4 Q43 42.9 47.2 46.8 M61.2 47.4 Q57 42.9 52.8 46.8" fill="none" stroke="#1A1A22" stroke-width="1.5" stroke-linecap="round"/><path d="M38.9 47.2 Q37.6 46.6 37 45.4 M61.1 47.2 Q62.4 46.6 63 45.4" fill="none" stroke="#1A1A22" stroke-width="1.2" stroke-linecap="round"/>' : '';
+  const lash = sex === 'f' && !['normal', 'almond', 'narrow', 'hooded', 'down', 'up'].includes(shape || 'normal') ? '<path d="M38.8 47.4 Q43 42.9 47.2 46.8 M61.2 47.4 Q57 42.9 52.8 46.8" fill="none" stroke="#1A1A22" stroke-width="1.5" stroke-linecap="round"/><path d="M38.9 47.2 Q37.6 46.6 37 45.4 M61.1 47.2 Q62.4 46.6 63 45.4" fill="none" stroke="#1A1A22" stroke-width="1.2" stroke-linecap="round"/>' : '';
   const liner = mk.liner ? '<path d="M38.8 47.6 L36 46 M61.2 47.6 L64 46" stroke="#1A1A22" stroke-width="1.5" stroke-linecap="round"/>' : '';
   const shadow = mk.shadow ? `<ellipse cx="43" cy="45.4" rx="5.4" ry="3.2" fill="${mk.shadow}" opacity="${mk.shadowOp}"/><ellipse cx="57" cy="45.4" rx="5.4" ry="3.2" fill="${mk.shadow}" opacity="${mk.shadowOp}"/>` : '';
   const browY = shape === 'tired' ? 1.2 : shape === 'wide' ? -1.4 : 0;
-  const brows = sex === 'f'
-    ? `<path d="M38.8 ${42.2 + browY} Q42.4 ${38.8 + browY} 47.2 ${41 + browY} M52.8 ${41 + browY} Q57.6 ${38.8 + browY} 61.2 ${42.2 + browY}" fill="none" stroke="${brow}" stroke-width="1.6" stroke-linecap="round"/>`
-    : `<path d="M38.2 ${42 + browY} Q43 ${40.4 + browY} 47.6 ${41.4 + browY} M52.4 ${41.4 + browY} Q57 ${40.4 + browY} 61.8 ${42 + browY}" fill="none" stroke="${brow}" stroke-width="2.9" stroke-linecap="round"/>`;
+  const gapK = EYE_GAP[look.eyeGap] || 0;
+  const lashOn = look.lashes !== undefined ? !!look.lashes : sex === 'f';
+  const browC = look.browColor && look.browColor !== 'same' ? shade(look.browColor, -0.1) : brow;
+  const brows = browsLayer(look.browShape, sex, browC, browY, gapK * 0.6);
   const jaw = '';
   const blushOp = mk.blush || (sex === 'f' ? 0.26 : 0.14);
   const lip = mk.lip || (sex === 'f' ? '#C9707C' : shade(skin, -0.28));
@@ -817,7 +918,13 @@ function avatarInner(look = {}) {
   // маска аквалангиста и кибервизор закрывают глаза — очки под ними прячутся; капюшон закрывает уши — серьги не видны
   const helmet = hat === 'knight';
   const brimY = { cap: 39, fedora: 36, beanie: 40, tricorn: 40, ushanka: 40, dedmoroz: 40, shawl: 100 }[hat];
-  const hairBackC = brimY && hairBack ? `<clipPath id="hb${u}"><rect x="0" y="${brimY}" width="100" height="100"/></clipPath><g clip-path="url(#hb${u})">${fit(hairBack)}</g>` : fit(hairBack);
+  // Линия роста волос: залысины, высокий лоб, «М» — вырезаем из передних прядей. Пробор справа — зеркалим причёску
+  const mir = (svg) => (look.part === 'right' && svg ? `<g transform="translate(100 0) scale(-1 1)">${svg}</g>` : svg);
+  // Залысины и высокий лоб: поверх передних прядей кладём кожу, обрезанную по контуру головы, и мягкую линию роста
+  const HL = { high: [[50, 33.8, 12.6, 3.4]], receding: [[38.6, 33.4, 4.6, 4.8], [61.4, 33.4, 4.6, 4.8]], m: [[38.8, 31.4, 6.2, 6.6], [61.2, 31.4, 6.2, 6.6], [50, 35.6, 6.4, 1.6]] }[look.hairline];
+  const hlLayer = HL && hairFront && !capped && hs !== 'bald' ? `<clipPath id="hc${u}"><path d="${g.d}"/></clipPath><g clip-path="url(#hc${u})">${HL.map(([x, y, rx, ry]) => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="${skin}"/>`).join('')}</g>` : '';
+  const hairFrontC = mir(fit(hairFront)) + hlLayer;
+  const hairBackC = brimY && hairBack ? `<clipPath id="hb${u}"><rect x="0" y="${brimY}" width="100" height="100"/></clipPath><g clip-path="url(#hb${u})">${mir(fit(hairBack))}</g>` : mir(fit(hairBack));
   const eyesCovered = helmet || look.mask === 'scuba' || look.mask === 'visor';
   const earsCovered = helmet || hat === 'ushanka' || hat === 'shawl';
   const showGlasses = look.glasses && !eyesCovered;
@@ -830,15 +937,15 @@ function avatarInner(look = {}) {
     <path d="${g.d}" fill="${skin}"/>
     ${jaw}
     <ellipse cx="38" cy="54.6" rx="3.6" ry="2.6" fill="#FF7A8A" opacity="${blushOp}"/><ellipse cx="62" cy="54.6" rx="3.6" ry="2.6" fill="#FF7A8A" opacity="${blushOp}"/>
-    ${freckles}
-    <g transform="translate(50 48) scale(${es.toFixed(3)}) translate(-50 -48)">${shadow}${eyesLayer(shape, eyes, skin)}${lash}${liner}</g>
+    ${freckles}${ageLayer(look.age, skin, gapK)}${marksLayer(look.mole, look.dimples, skin)}
+    <g transform="translate(50 48) scale(${es.toFixed(3)}) translate(-50 -48)">${shadow}${eyesLayer(shape, eyes, skin, gapK, lashOn)}${lash}${liner}</g>
     ${brows}
     ${noseLayer(look.nose, skin, sex)}
     ${beardL.under}
-    <g transform="translate(0 1.4)">${(MOUTHS[look.mouth] || MOUTHS.smile)(lip, line)}</g>${beardL.over}
+    <g transform="translate(0 1.4)"><g transform="translate(50 57.6) scale(${{ thin: '0.97 0.72', full: '1.06 1.3' }[look.lips] || '1 1'}) translate(-50 -57.6)">${(MOUTHS[look.mouth] || MOUTHS.smile)(lip, line)}</g></g>${beardL.over}
     ${helmet ? '' : maskLayer(look.mask, g)}
     ${earsCovered ? '' : earringsLayer(look.earrings, exL, exR, 49 + 5 * ek - 0.8)}
-    ${helmet ? '' : fit(hairFront)}
+    ${helmet ? '' : hairFrontC}
     ${showGlasses && capped ? glassesLayer(look.glassesStyle, look.glassesColor, look.lensColor, u, rx) : ''}
     ${capped ? fit(hatLayer(hat, hatC, sex, look.capBadge)) : ''}
     ${showGlasses && !capped ? glassesLayer(look.glassesStyle, look.glassesColor, look.lensColor, u, rx) : ''}
@@ -853,7 +960,7 @@ function avatarInner(look = {}) {
 function avatar(look = {}, size = 42, zoom = false) {
   const ring = FRAMES[look.frame] || '#FFFFFF';
   return `<span class="ava ${look.frame === 'fr_champ' ? 'champ' : ''}" style="width:${size + 6}px;height:${size + 6}px;border:3px solid ${ring}">
-  <svg width="${size}" height="${size}" viewBox="${zoom ? '24 28 52 52' : '0 0 100 100'}" aria-hidden="true">${avatarInner(look)}</svg></span>`;
+  <svg width="${size}" height="${size}" viewBox="${{ eyes: '34.5 31 31 31', mouth: '36 45 28 28', hair: '14 6 72 72', top: '22 16 56 56' }[zoom] || (zoom ? '24 28 52 52' : '0 0 100 100')}" aria-hidden="true">${avatarInner(look)}</svg></span>`;
 }
 
 // Нажатие на аватар открывает карточку коллеги
@@ -4551,10 +4658,21 @@ const PET_NAMES = { none: 'Без питомца', corgi: 'Корги', pug: 'М
 const LENS_NAMES = { clear: 'Прозрачные', grey: 'Серые', brown: 'Коричневые', blue: 'Голубые', green: 'Зелёные', pink: 'Розовые', yellow: 'Жёлтые' };
 const LENS_SWATCH = { clear: 'repeating-linear-gradient(45deg,#fff 0 4px,#E3E8F2 4px 8px)', grey: '#555B68', brown: '#7A5232', blue: '#4A86E0', green: '#3A9A68', pink: '#F08BB4', yellow: '#F2C230' };
 const HAT_NAMES = { none: 'Без шапки', beanie: 'Шапка', cap: 'Кепка', headset: 'Гарнитура', laurel: 'Лавровый венок', knight: 'Рыцарский шлем', royal: 'Корона', fedora: 'Шляпа', ushanka: 'Ушанка', tricorn: 'Треуголка капитана', dedmoroz: 'Шапка Деда Мороза', kokoshnik: 'Кокошник Снегурочки', wreath: 'Весенний венок', shawl: 'Расписной платок' };
-const EYE_NAMES = { normal: 'Обычные', tired: 'После совещания', sly: 'Хитрые', wide: 'Удивлённые', anime: 'Аниме' };
+const EYE_NAMES = { normal: 'Круглые', almond: 'Миндаль', narrow: 'Узкие', hooded: 'Нависшее веко', down: 'Опущенные уголки', up: 'Приподнятые уголки', tired: 'После совещания', sly: 'Хитрые', wide: 'Удивлённые', anime: 'Аниме' };
+const EYE_ANAT = ['normal', 'almond', 'narrow', 'hooded', 'down', 'up', 'anime'];
+const BROW_NAMES = { auto: 'Как у всех', straight: 'Прямые', arch: 'Дугой', peak: 'Домиком', thin: 'Тонкие', thick: 'Густые', uni: 'Сросшиеся' };
+const GAP_NAMES = { close: 'Близко', normal: 'Обычно', wide: 'Широко' };
+const AGE_NAMES = { 0: 'Без морщин', 1: 'Лёгкие у глаз', 2: 'Выраженные' };
+const HAIRLINE_NAMES = { normal: 'Обычная', high: 'Высокий лоб', receding: 'Залысины', m: 'Глубокие залысины' };
+const PART_NAMES = { left: 'Слева', right: 'Справа' };
+const LIPS_NAMES = { thin: 'Тонкие', normal: 'Средние', full: 'Пухлые' };
+const MOLE_NAMES = { none: 'Нет', cheekL: 'Щека слева', cheekR: 'Щека справа', lip: 'Над губой', chin: 'Подбородок' };
+const HAIR_COLOR_NAMES = { '#0F0E12': 'Чёрный', '#2B1D14': 'Тёмно-каштановый', '#4A3326': 'Тёмно-русый', '#6B3E26': 'Каштановый', '#8C6A4F': 'Русый', '#B5532A': 'Медный', '#C2412F': 'Рыжий', '#CFAE74': 'Пшеничный', '#E0B04B': 'Блонд', '#F2E6C9': 'Платина', '#6E6A66': 'Соль с перцем', '#9AA3B5': 'Седой', '#7C4DFF': 'Фиолетовый', '#FF6FA8': 'Розовый' };
 const PROP_NAMES = { none: 'Ничего', torch: 'Факел', phone: 'Телефон', mimosa: 'Букет мимозы', pancakes: 'Стопка блинов', mug: 'Кружка', papers: 'Квартальный отчёт', sign: 'Табличка', laptop: 'Ноутбук', mug_best: 'Лучший сотрудник', trophy: 'Кубок Лиги' };
-const AVA_CATS = [['face', 'Лицо'], ['hair', 'Волосы'], ['eyes', 'Глаза'], ['mouth', 'Рот'], ['beard', 'Борода'], ['makeup', 'Макияж'], ['outfit', 'Одежда'], ['acc', 'Аксессуары'], ['bg', 'Фон'], ['meme', 'Мемы']];
-const DEF_LOOK = { hatColor: 'same', mask: 'none', glassesColor: 'black', lensColor: 'clear', pet: 'none', eyeSize: 'm', nose: 'button', ears: 'normal', makeup: 'none', earrings: 'none', glassesStyle: 'classic', beardColor: 'same', mustacheColor: 'same' };
+// Две группы: «Внешность» — кто ты (по этому узнают), «Стиль» — что на тебе надето и вокруг
+const AVA_CATS = [['face', 'Лицо'], ['eyes', 'Глаза и брови'], ['hair', 'Волосы'], ['mouth', 'Рот'], ['beard', 'Борода'], ['makeup', 'Макияж'], ['age', 'Возраст и приметы'], ['outfit', 'Одежда'], ['acc', 'Аксессуары'], ['pet', 'Питомец'], ['bg', 'Фон'], ['meme', 'Мемы']];
+const AVA_LOOKS = ['face', 'eyes', 'hair', 'mouth', 'beard', 'makeup', 'age'];
+const DEF_LOOK = { eyeGap: 'normal', browShape: 'auto', browColor: 'same', age: '0', hairline: 'normal', part: 'left', lips: 'normal', mole: 'none', hatColor: 'same', mask: 'none', glassesColor: 'black', lensColor: 'clear', pet: 'none', eyeSize: 'm', nose: 'button', ears: 'normal', makeup: 'none', earrings: 'none', glassesStyle: 'classic', beardColor: 'same', mustacheColor: 'same' };
 const GLASS_COLOR_NAMES = { black: 'Чёрная', tortoise: 'Черепаховая', gold: 'Золото', silver: 'Серебро', red: 'Красная', navy: 'Синяя', pink: 'Розовая' };
 const GLASS_SWATCH = { black: '#262A36', tortoise: 'linear-gradient(135deg,#4A2A16,#A7652E 45%,#6B3B1C 70%,#C88A45)', gold: 'linear-gradient(135deg,#FFF1B8,#D6AA3E 50%,#8E6B1C)', silver: 'linear-gradient(135deg,#fff,#C9CED8 50%,#7E8594)', red: '#C8323C', navy: '#2E4F93', pink: '#F08BB4', clear: 'repeating-linear-gradient(45deg,#fff 0 4px,#E3E8F2 4px 8px)' };
 const NOSE_NAMES = { button: 'Кнопка', straight: 'Прямой', wide: 'Широкий', long: 'Длинный', snub: 'Курносый', roman: 'С горбинкой' };
@@ -4594,7 +4712,9 @@ function randomLook() {
   const L = S.cat.look, pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
   const free = (k) => L[k].filter((v) => !partLocked(k, v));
   const r = {};
-  for (const k of ['preset', 'face', 'skin', 'eyes', 'hairStyle', 'hair', 'hoodie', 'mouth', 'eyeShape', 'outfit']) r[k] = pick(free(k));
+  for (const k of ['preset', 'face', 'skin', 'eyes', 'hairStyle', 'hoodie', 'outfit', 'nose', 'eyeGap', 'browShape', 'lips']) r[k] = pick(free(k));
+  r.hair = pick(L.hair.slice(0, 12)); r.mouth = pick(['smile', 'neutral', 'smirk', 'grin']); r.eyeShape = pick(EYE_ANAT.slice(0, 6));
+  r.age = pick(['0', '0', '1', '2']); r.hairline = Math.random() < 0.7 ? 'normal' : pick(L.hairline); r.part = pick(L.part);
   r.beard = Math.random() < 0.35 ? pick(free('beard').filter((v) => v !== 'none')) : 'none';
   r.neck = Math.random() < 0.45 ? pick(free('neck').filter((v) => v !== 'none')) : 'none';
   r.hat = Math.random() < 0.25 ? pick(free('hat').filter((v) => v !== 'none')) : 'none';
@@ -4691,9 +4811,10 @@ function renderAvatarEditor() {
     const lock = partLocked(key, v);
     return `<button class="ava-tile ${(d[key] || DEF_LOOK[key]) === v ? 'on' : ''} ${lock ? 'paid' : ''}" data-act="ava-set" data-k="${key}" data-v="${v}">${avatar(view({ ...d, [key]: v, frame: null, crown: false, ...(zoom ? { pet: 'none', prop: 'none' } : {}) }), 60, zoom)}<span>${hy(names[v] || v)}</span>${lock ? `<em>${lock.award ? 'trophy Лига' : `${lock.price} ${BEAN}`}</em>` : ''}</button>`;
   }).join('')}</div>`;
-  const tog = (k, label) => `<button class="chip ${d[k] ? 'on' : ''}" data-act="ava-toggle" data-k="${k}">${label}</button>`;
+  const tog = (k, label) => `<button class="chip ${(d[k] ?? (k === 'lashes' && d.preset === 'f')) ? 'on' : ''}" data-act="ava-toggle" data-k="${k}">${label}</button>`;
   const sex = d.preset === 'f' ? 'f' : 'm';
-  const hairSw = (key) => `<div class="row" style="flex-wrap:wrap;gap:8px"><button class="swatch same ${!d[key] || d[key] === 'same' ? 'on' : ''}" data-act="ava-set" data-k="${key}" data-v="same" aria-label="Как волосы" title="Как волосы">=</button>${L.hair.map((v) => `<button class="swatch ${d[key] === v ? 'on' : ''}" style="background:${v}" data-act="ava-set" data-k="${key}" data-v="${v}" aria-label="${key} ${v}"></button>`).join('')}</div>`;
+  const hairSw = (key) => `<div class="row" style="flex-wrap:wrap;gap:8px"><button class="swatch same ${!d[key] || d[key] === 'same' ? 'on' : ''}" data-act="ava-set" data-k="${key}" data-v="same" aria-label="Как волосы" title="Как волосы">=</button>${L.hair.map((v) => `<button class="swatch ${d[key] === v ? 'on' : ''}" style="background:${v}" data-act="ava-set" data-k="${key}" data-v="${v}" aria-label="${HAIR_COLOR_NAMES[v] || v}" title="${HAIR_COLOR_NAMES[v] || ''}"></button>`).join('')}</div>`;
+  const hairColors = (key) => `<div class="row" style="flex-wrap:wrap;gap:8px">${L.hair.map((v) => `<button class="swatch ${d[key] === v ? 'on' : ''}" style="background:${v}" data-act="ava-set" data-k="${key}" data-v="${v}" aria-label="${HAIR_COLOR_NAMES[v] || v}" title="${HAIR_COLOR_NAMES[v] || ''}"></button>`).join('')}</div>`;
   const chipsOf = (key, vals, names) => `<div class="chips">${vals.map((v) => `<button class="chip ${(d[key] || DEF_LOOK[key]) === v ? 'on' : ''}" data-act="ava-set" data-k="${key}" data-v="${v}">${names[v] || v}</button>`).join('')}</div>`;
   // Очки: «без очков» + оправы; выбор оправы сам включает очки
   const glassesTiles = `<div class="ava-tiles">${['none', ...GLASSES_ORDER[sex]].map((v) => {
@@ -4701,16 +4822,25 @@ function renderAvatarEditor() {
     return `<button class="ava-tile ${on ? 'on' : ''}" data-act="ava-glasses" data-v="${v}">${avatar({ ...d, glasses: v !== 'none', glassesStyle: v === 'none' ? d.glassesStyle : v, frame: null, crown: false, pet: 'none', prop: 'none' }, 60, true)}<span>${GLASSES_NAMES[v]}</span></button>`;
   }).join('')}</div>`;
   const body = {
-    face: `<div class="chips">${['m', 'f'].map((v) => `<button class="chip ${d.preset === v ? 'on' : ''}" data-act="ava-set" data-k="preset" data-v="${v}">${v === 'm' ? 'М' : 'Ж'}</button>`).join('')}${tog('freckles', 'Веснушки')}</div>
+    face: `<div class="chips">${['m', 'f'].map((v) => `<button class="chip ${d.preset === v ? 'on' : ''}" data-act="ava-set" data-k="preset" data-v="${v}">${v === 'm' ? 'М' : 'Ж'}</button>`).join('')}</div>
       <p class="small" style="margin:0">«М» — шире челюсть и плечи, густые брови. «Ж» — мягкий подбородок, высокие скулы, ресницы.</p>
       <div class="field">Форма лица${tiles('face', L.face, FACE_NAMES, true)}</div>
       <div class="field">Нос${tiles('nose', L.nose, NOSE_NAMES, true)}</div>
       <div class="field">Уши${chipsOf('ears', L.ears, EARS_NAMES)}</div>
       <div class="field">Тон кожи${sw('skin', L.skin)}</div>`,
-    hair: `<div class="field">Причёска${tiles('hairStyle', HAIR_ORDER[sex].concat(L.hairStyle.filter((v) => !HAIR_ORDER[sex].includes(v))), HAIR_NAMES)}</div><div class="field">Цвет волос${sw('hair', L.hair)}</div>
+    hair: `<div class="field">Причёска${tiles('hairStyle', HAIR_ORDER[sex].concat(L.hairStyle.filter((v) => !HAIR_ORDER[sex].includes(v))), HAIR_NAMES, 'hair')}</div><div class="field">Цвет волос${hairColors('hair')}</div>
+      ${d.hairStyle !== 'bald' ? `<div class="field">Линия роста волос${tiles('hairline', L.hairline, HAIRLINE_NAMES, 'top')}</div><div class="field">Пробор и чёлка${chipsOf('part', L.part, PART_NAMES)}</div>` : ''}
       <p class="small" style="margin:0">Цвет бороды и усов настраивается отдельно — во вкладке «Борода».</p>`,
-    eyes: `<div class="field">Взгляд${tiles('eyeShape', L.eyeShape, EYE_NAMES, true)}</div><div class="field">Размер глаз${chipsOf('eyeSize', L.eyeSize, EYESIZE_NAMES)}</div><div class="field">Цвет глаз${sw('eyes', L.eyes)}</div>`,
-    mouth: `<div class="field">Выражение${tiles('mouth', L.mouth, MOUTH_NAMES, true)}</div>`,
+    eyes: `<div class="field">Форма глаз${tiles('eyeShape', EYE_ANAT, EYE_NAMES, 'eyes')}</div>
+      <div class="field">Посадка${chipsOf('eyeGap', L.eyeGap, GAP_NAMES)}</div><div class="field">Размер${chipsOf('eyeSize', L.eyeSize, EYESIZE_NAMES)}</div>
+      <div class="chips">${tog('lashes', 'Выразительные ресницы')}</div>
+      <div class="field">Цвет глаз${sw('eyes', L.eyes)}</div>
+      <div class="field">Брови${tiles('browShape', L.browShape, BROW_NAMES, 'eyes')}</div><div class="field">Цвет бровей${hairSw('browColor')}</div>`,
+    age: `<div class="field">Возраст${tiles('age', L.age, AGE_NAMES, true)}</div>
+      <div class="field">Родинка${tiles('mole', L.mole, MOLE_NAMES, true)}</div><div class="chips">${tog('freckles', 'Веснушки')}${tog('dimples', 'Ямочки')}</div>
+      <p class="small" style="margin:0">Седину выбирай в цвете волос: «Соль с перцем» или «Седой».</p>`,
+    pet: `<div class="field">Питомец рядом${tiles('pet', L.pet, PET_NAMES)}</div>`,
+    mouth: `<div class="field">Губы${chipsOf('lips', L.lips, LIPS_NAMES)}</div><div class="field">Обычное выражение${tiles('mouth', ['smile', 'neutral', 'smirk', 'grin'], MOUTH_NAMES, 'mouth')}</div><p class="small" style="margin:0">Грусть и удивление аватар покажет сам — в играх и мемах.</p>`,
     beard: `<div class="field">Борода и усы${tiles('beard', L.beard, BEARD_NAMES, true)}</div>
       <div class="field">Цвет бороды${hairSw('beardColor')}</div><div class="field">Цвет усов${hairSw('mustacheColor')}</div>
       <p class="small" style="margin:0">«=» — как волосы. Седая борода при тёмных волосах, рыжие усы — пожалуйста.</p>`,
@@ -4719,7 +4849,7 @@ function renderAvatarEditor() {
     acc: `<div class="field">Очки${glassesTiles}</div>${d.glasses ? `<div class="field">Цвет оправы<div class="row" style="flex-wrap:wrap;gap:8px">${L.glassesColor.map((v) => `<button class="swatch gc ${(d.glassesColor || 'black') === v ? 'on' : ''}" style="background:${GLASS_SWATCH[v]}" data-act="ava-set" data-k="glassesColor" data-v="${v}" aria-label="${GLASS_COLOR_NAMES[v]}" title="${GLASS_COLOR_NAMES[v]}"></button>`).join('')}</div></div>
       <div class="field">Цвет стёкол<div class="row" style="flex-wrap:wrap;gap:8px">${L.lensColor.map((v) => `<button class="swatch gc ${(d.lensColor || 'clear') === v ? 'on' : ''}" style="background:${LENS_SWATCH[v]}" data-act="ava-set" data-k="lensColor" data-v="${v}" aria-label="${LENS_NAMES[v]}" title="${LENS_NAMES[v]}"></button>`).join('')}</div></div>` : ''}<div class="field">Серьги${tiles('earrings', L.earrings, EARRING_NAMES, true)}</div><div class="field">На шее${tiles('neck', L.neck, NECK_NAMES)}</div><div class="field">На голове${tiles('hat', L.hat, HAT_NAMES)}</div>${d.hat === 'cap' ? `<div class="field">Значок на кепке${tiles('capBadge', L.capBadge || ['none'], CAP_BADGE_NAMES)}</div>` : ''}${d.hat && d.hat !== 'none' && d.hat !== 'headset' ? `<div class="field">Цвет головного убора<div class="row" style="flex-wrap:wrap;gap:8px"><button class="swatch same ${!d.hatColor || d.hatColor === 'same' ? 'on' : ''}" data-act="ava-set" data-k="hatColor" data-v="same" title="Как одежда" aria-label="Как одежда">=</button>${L.hoodie.map((v) => `<button class="swatch ${d.hatColor === v ? 'on' : ''}" style="background:${HOODIE[v]}" data-act="ava-set" data-k="hatColor" data-v="${v}" title="${COLOR_NAMES[v]}" aria-label="${COLOR_NAMES[v]}"></button>`).join('')}</div></div>` : ''}<div class="field">Маска${tiles('mask', L.mask, MASK_NAMES, true)}</div><div class="chips">${tog('phones', 'Наушники')}</div>
       <div class="field">В руке${tiles('prop', ['none', 'mug', 'mug_best', 'phone', 'torch', 'mimosa', 'pancakes'], { none: 'Ничего', mug: 'Кружка', mug_best: 'Лучший сотрудник', phone: 'Телефон', torch: 'Факел', mimosa: 'Букет мимозы', pancakes: 'Стопка блинов' })}</div>
-      <div class="field">Питомец рядом${tiles('pet', L.pet, PET_NAMES)}</div>`,
+`,
     bg: `<div class="field">Фон${tiles('bg', L.bg, BG_NAMES)}</div><p class="small" style="margin:0">«Под кожу» сам подбирает цвет, на котором лицо не сливается с фоном.</p>`,
     meme: `<div class="field">В руках${tiles('prop', ['none', 'papers', 'sign', 'laptop', 'trophy'], PROP_NAMES)}</div><p class="small" style="margin:0">Детали с ценой можно примерить бесплатно, а сохранить — после покупки в Лавке. Корона и рамки — тоже в Лавке.</p>`
   }[cat];
@@ -4730,7 +4860,8 @@ function renderAvatarEditor() {
     </div>
     <div class="presets">${AVA_PRESETS.map((pr) => { const cost = Object.entries(pr.look).reduce((a, [k, v]) => { const it = partLocked(k, v); return a + (it ? it.price : 0); }, 0);
       return `<button class="preset ${pr.legend ? 'legend' : ''}" data-act="ava-preset" data-v="${pr.id}">${avatar({ ...d, ...pr.look, frame: null, crown: false }, 52)}<span>${pr.legend ? 'star ' : ''}${esc(pr.name)}</span>${cost ? `<em>${cost} ${BEAN}</em>` : ''}</button>`; }).join('')}</div>
-    <div class="cats" role="tablist">${AVA_CATS.filter(([id]) => (id !== 'makeup' || d.preset === 'f') && (id !== 'beard' || d.preset !== 'f')).map(([id, label]) => `<button class="cat ${cat === id ? 'on' : ''}" role="tab" aria-selected="${cat === id}" data-act="ava-cat" data-v="${id}">${label}</button>`).join('')}</div>
+    <div class="ava-group" role="tablist"><button class="${AVA_LOOKS.includes(cat) ? 'on' : ''}" data-act="ava-cat" data-v="face">Внешность</button><button class="${AVA_LOOKS.includes(cat) ? '' : 'on'}" data-act="ava-cat" data-v="outfit">Стиль</button></div>
+    <div class="cats" role="tablist">${AVA_CATS.filter(([id]) => AVA_LOOKS.includes(id) === AVA_LOOKS.includes(cat)).filter(([id]) => (id !== 'makeup' || d.preset === 'f') && (id !== 'beard' || d.preset !== 'f')).map(([id, label]) => `<button class="cat ${cat === id ? 'on' : ''}" role="tab" aria-selected="${cat === id}" data-act="ava-cat" data-v="${id}">${label}</button>`).join('')}</div>
     ${hideBar ? `<div class="hide-bar"><span class="small">В превью:</span>${hideBar}<span class="small">— на аватар не влияет</span></div>` : ''}
     <div class="cat-body">${body}</div>
     <div class="ava-foot">
@@ -5760,7 +5891,7 @@ const actions = {
   'ava-set'(el) { S.draft = { ...S.draft, [el.dataset.k]: el.dataset.v }; render(); },
   'ava-glasses'(el) { const v = el.dataset.v; S.draft = v === 'none' ? { ...S.draft, glasses: false } : { ...S.draft, glasses: true, glassesStyle: v }; render(); },
   'ava-hide'(el) { const c = el.dataset.c; S.avaHide = S.avaHide || {}; S.avaHide[c] = { ...(S.avaHide[c] || {}), [el.dataset.k]: el.dataset.v === '1' }; render(); },
-  'ava-toggle'(el) { S.draft = { ...S.draft, [el.dataset.k]: !S.draft[el.dataset.k] }; render(); },
+  'ava-toggle'(el) { const k = el.dataset.k; const cur = S.draft[k] ?? (k === 'lashes' && S.draft.preset === 'f'); S.draft = { ...S.draft, [k]: !cur }; render(); },
   'ava-preset'(el) { const pr = AVA_PRESETS.find((x) => x.id === el.dataset.v); S.draft = { ...S.draft, ...pr.look }; toast(`Образ «${pr.name}»`); render(); },
   'ava-random'() { S.draft = { ...S.draft, ...randomLook() }; if (navigator.vibrate) navigator.vibrate(10); render(); },
   'ava-reset'() { S.draft = S.avaMode === 'vacation' && S.me.profile.vacationLook ? { ...S.me.look, ...S.me.profile.vacationLook } : { ...S.me.look }; render(); },
