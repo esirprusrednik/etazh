@@ -4321,22 +4321,13 @@ const SOUNDS = {
   send: (c) => { tick(c, { vol: 0.1 }); whoosh(c, { at: 0.02 }); tone(c, { f: 420, f2: 1400, type: 'sine', at: 0.03, dur: 0.3, vol: 0.022, pan: 0.4 }); },
   swish: (c) => whoosh(c, { dur: 0.3, vol: 0.18, from: 700, to: 4500, pan: 0.6, pan2: -0.6 }),
   // Итоги действий: мягкие колокольчики вместо писка
-  // Лифт приехал: мотор кабины сбрасывает обороты, щелчок реле и лязг тормоза, один металлический «динь»,
-  // потом привод дверей — гул, шорох роликов и мягкий стук створок
+  // Лифт приехал: один металлический «динь», затем привод дверей — гул, шорох роликов и мягкий стук створок
   lift: (c) => {
-    tone(c, { f: 96, f2: 62, type: 'sawtooth', dur: 0.8, vol: 0.022, atk: 0.04 });
-    tone(c, { f: 192, f2: 124, type: 'triangle', dur: 0.8, vol: 0.03, atk: 0.04 });
-    tone(c, { f: 1150, f2: 700, type: 'sine', dur: 0.75, vol: 0.006, atk: 0.05 });
-    noise(c, { dur: 0.8, vol: 0.05, type: 'bandpass', f: 320, f2: 160, q: 1.4, shape: 0.6 });
-    tick(c, { at: 0.74, f: 3400, body: 900, vol: 0.12 }); tick(c, { at: 0.775, f: 2200, body: 600, vol: 0.09 });
-    noise(c, { at: 0.8, dur: 0.12, vol: 0.14, type: 'lowpass', f: 380, f2: 90, q: 1.2, shape: 3 });
-    tone(c, { f: 70, f2: 45, type: 'sine', at: 0.8, dur: 0.14, vol: 0.07, atk: 0.003 });
-    noise(c, { at: 0.81, dur: 0.05, vol: 0.05, type: 'bandpass', f: 1800, q: 3, shape: 4 });
     [[1, 1], [1.004, 0.7], [2.76, 0.35], [5.4, 0.16], [8.93, 0.06]].forEach(([k, a], n) =>
-      tone(c, { f: 1245 * k, type: 'sine', at: 0.98, dur: 1.6 / (1 + n * 0.5), vol: 0.05 * a, atk: 0.002, rv: 0.3 }));
-    tone(c, { f: 240, f2: 300, type: 'triangle', at: 1.45, dur: 0.75, vol: 0.018, atk: 0.12 });
-    noise(c, { at: 1.45, dur: 0.75, vol: 0.035, type: 'bandpass', f: 520, f2: 760, q: 1.1, shape: 0.8, pan: -0.5, pan2: 0.5 });
-    noise(c, { at: 2.14, dur: 0.1, vol: 0.08, type: 'lowpass', f: 260, f2: 100, q: 0.8, shape: 3 });
+      tone(c, { f: 1245 * k, type: 'sine', dur: 1.6 / (1 + n * 0.5), vol: 0.05 * a, atk: 0.002, rv: 0.3 }));
+    tone(c, { f: 240, f2: 300, type: 'triangle', at: 0.47, dur: 0.75, vol: 0.018, atk: 0.12 });
+    noise(c, { at: 0.47, dur: 0.75, vol: 0.035, type: 'bandpass', f: 520, f2: 760, q: 1.1, shape: 0.8, pan: -0.5, pan2: 0.5 });
+    noise(c, { at: 1.16, dur: 0.1, vol: 0.08, type: 'lowpass', f: 260, f2: 100, q: 0.8, shape: 3 });
   },
   confirm: (c) => { tick(c, { vol: 0.08 }); bell(c, { f: 1047, at: 0.01, vol: 0.04, dur: 0.6 }); bell(c, { f: 1568, at: 0.08, vol: 0.035, dur: 0.8 }); },
   coin: (c) => { bell(c, { f: 1976, vol: 0.04, dur: 0.5 }); bell(c, { f: 2637, at: 0.07, vol: 0.045, dur: 1.0, rv: 0.4 }); noise(c, { at: 0.07, dur: 0.15, vol: 0.02, type: 'highpass', f: 7000, rv: 0.4 }); },
@@ -4383,7 +4374,7 @@ const SOUNDS = {
 };
 // Вибрация под стать звуку: короткий «тик» на нажатия, узор — на события
 const BUZZ = { bugle: [50, 40, 50, 40, 50, 40, 260], tap: 8, tab: 10, on: 6, off: 6, pick: 5, open: 8, close: 6, expand: 5, collapse: 5, send: 14, confirm: [12, 40, 18], danger: [25, 50, 25], error: [35, 45, 35],
-  lift: [40, 40, 20, 160, 25, 400, 30], vote: 10, coin: [8, 30, 8], click: 8, tick: 4, splash: 15, hit: [30, 40, 60], sunk: [40, 30, 90], lose: [80, 60, 160], chicken: [30, 40, 30], fanfare: [60, 60, 60, 60, 200], waveHorn: [40, 60, 40, 60, 200], waveCrowd: [10, 30, 20, 30, 40, 30, 80], waveFull: [20, 30, 40, 30, 80, 60, 200] };
+  lift: [25, 420, 30], vote: 10, coin: [8, 30, 8], click: 8, tick: 4, splash: 15, hit: [30, 40, 60], sunk: [40, 30, 90], lose: [80, 60, 160], chicken: [30, 40, 30], fanfare: [60, 60, 60, 60, 200], waveHorn: [40, 60, 40, 60, 200], waveCrowd: [10, 30, 20, 30, 40, 30, 80], waveFull: [20, 30, 40, 30, 80, 60, 200] };
 let lastSfx = { name: '', at: 0 };
 function sfx(name, arg) {
   const now = performance.now();
