@@ -4685,6 +4685,8 @@ const HAIR_COLOR_NAMES = { '#0F0E12': 'Чёрный', '#2B1D14': 'Тёмно-к�
 const PROP_NAMES = { none: 'Ничего', torch: 'Факел', phone: 'Телефон', mimosa: 'Букет мимозы', pancakes: 'Стопка блинов', mug: 'Кружка', papers: 'Квартальный отчёт', sign: 'Табличка', laptop: 'Ноутбук', mug_best: 'Лучший сотрудник', trophy: 'Кубок Лиги' };
 // Две группы: «Внешность» — кто ты (по этому узнают), «Стиль» — что на тебе надето и вокруг
 const AVA_CATS = [['face', 'Лицо'], ['eyes', 'Глаза и брови'], ['hair', 'Волосы'], ['mouth', 'Рот'], ['beard', 'Борода'], ['makeup', 'Макияж'], ['age', 'Возраст и приметы'], ['outfit', 'Одежда'], ['acc', 'Аксессуары'], ['pet', 'Питомец'], ['bg', 'Фон'], ['meme', 'Мемы']];
+// Что по умолчанию снимаем в превью вкладки, чтобы оно не закрывало выбираемую часть
+const COVER_AUTO = { face: ['hat', 'hair', 'mask'], hair: ['hat', 'mask'], eyes: ['glasses', 'hat', 'mask', 'hair'], mouth: ['mask', 'beard', 'glasses'], beard: ['mask'], makeup: ['mask', 'glasses'], age: ['hat', 'mask', 'glasses'] };
 const AVA_LOOKS = ['face', 'eyes', 'hair', 'mouth', 'beard', 'makeup', 'age'];
 const DEF_LOOK = { eyeGap: 'normal', browShape: 'auto', browColor: 'same', age: '0', hairline: 'normal', part: 'left', lips: 'normal', mole: 'none', hatColor: 'same', mask: 'none', glassesColor: 'black', lensColor: 'clear', pet: 'none', eyeSize: 'm', nose: 'button', ears: 'normal', makeup: 'none', earrings: 'none', glassesStyle: 'classic', beardColor: 'same', mustacheColor: 'same' };
 const GLASS_COLOR_NAMES = { black: 'Чёрная', tortoise: 'Черепаховая', gold: 'Золото', silver: 'Серебро', red: 'Красная', navy: 'Синяя', pink: 'Розовая' };
@@ -4807,18 +4809,21 @@ function renderAvatarEditor() {
   const d = S.draft, L = S.cat.look;
   const cat = (S.avaCat === 'makeup' && d.preset !== 'f') || (S.avaCat === 'beard' && d.preset === 'f') ? 'face' : (S.avaCat || 'face');
   const sw = (key, vals) => `<div class="row" style="flex-wrap:wrap;gap:8px">${vals.map((v) => `<button class="swatch ${d[key] === v ? 'on' : ''}" style="background:${HOODIE[v] || v}" data-act="ava-set" data-k="${key}" data-v="${v}" aria-label="${COLOR_NAMES[v] || key + ' ' + v}" title="${COLOR_NAMES[v] || ''}"></button>`).join('')}</div>`;
-  // Превью без лишнего: на «Лице» не мешают шапка и волосы, на «Волосах» — шапка, на «Глазах» — очки.
-  // Это только показ: в сохранённый аватар ничего не попадает. Кнопками над вкладками можно вернуть
-  const auto = { face: { hat: true, hair: true }, hair: { hat: true }, eyes: { glasses: true } }[cat] || {};
+  // Превью без лишнего: то, что закрывает выбираемую часть, по умолчанию снято — шапка не прячет брови,
+  // маска не закрывает рот, очки не мешают глазам. Это только показ: в сохранённый аватар ничего не попадает.
+  // Кнопками над вкладкой можно вернуть или, наоборот, снять ещё что-то
+  const auto = Object.fromEntries((COVER_AUTO[cat] || []).map((k) => [k, true]));
   const hide = { ...auto, ...((S.avaHide || {})[cat] || {}) };
-  const view = (l) => ({ ...l, ...(hide.hat ? { hat: 'none', phones: false, crown: false } : {}), ...(hide.hair ? { hairStyle: 'bald' } : {}), ...(hide.glasses ? { glasses: false } : {}), ...(hide.beard ? { beard: 'none' } : {}) });
+  const view = (l) => ({ ...l, ...(hide.hat ? { hat: 'none', phones: false, crown: false } : {}), ...(hide.hair ? { hairStyle: 'bald' } : {}), ...(hide.glasses ? { glasses: false } : {}), ...(hide.beard ? { beard: 'none' } : {}), ...(hide.mask ? { mask: 'none' } : {}) });
   const hasHat = (d.hat && d.hat !== 'none') || d.phones;
   const hideChip = (k, on, off) => `<button class="chip ${hide[k] ? 'on' : ''}" data-act="ava-hide" data-k="${k}" data-c="${cat}" data-v="${hide[k] ? '0' : '1'}">${hide[k] ? on : off}</button>`;
-  const hideBar = [
-    hasHat && (cat === 'face' || cat === 'hair') ? hideChip('hat', 'Шапка скрыта', 'Скрыть шапку') : '',
-    d.hairStyle !== 'bald' && cat === 'face' ? hideChip('hair', 'Волосы скрыты', 'Скрыть волосы') : '',
-    d.glasses && (cat === 'eyes' || cat === 'face') ? hideChip('glasses', 'Очки скрыты', 'Скрыть очки') : '',
-    d.preset !== 'f' && d.beard && d.beard !== 'none' && (cat === 'face' || cat === 'mouth') ? hideChip('beard', 'Борода скрыта', 'Скрыть бороду') : ''
+  const lookTab = AVA_LOOKS.includes(cat);
+  const hideBar = !lookTab ? '' : [
+    hasHat ? hideChip('hat', 'Головной убор скрыт', 'Скрыть головной убор') : '',
+    d.hairStyle !== 'bald' && cat !== 'hair' && cat !== 'mouth' && cat !== 'beard' ? hideChip('hair', 'Волосы скрыты', 'Скрыть волосы') : '',
+    d.glasses ? hideChip('glasses', 'Очки скрыты', 'Скрыть очки') : '',
+    d.mask && d.mask !== 'none' ? hideChip('mask', 'Маска скрыта', 'Скрыть маску') : '',
+    d.preset !== 'f' && d.beard && d.beard !== 'none' && cat !== 'beard' && cat !== 'eyes' && cat !== 'hair' ? hideChip('beard', 'Борода скрыта', 'Скрыть бороду') : ''
   ].filter(Boolean).join('');
   const offSeason = (key, v) => { const pt = (S.cat.parts || []).find((x) => x.slot === key && x.value === v); return pt && ((pt.season && !pt.on) || pt.award) && !(S.me.owned || []).includes(pt.id) && d[key] !== v && !(pt.award && pt.slot !== 'neck'); };
   const tiles = (key, vals, names, zoom = false) => `<div class="ava-tiles">${vals.filter((v) => !offSeason(key, v)).map((v) => {
@@ -4833,7 +4838,7 @@ function renderAvatarEditor() {
   // Очки: «без очков» + оправы; выбор оправы сам включает очки
   const glassesTiles = `<div class="ava-tiles">${['none', ...GLASSES_ORDER[sex]].map((v) => {
     const on = v === 'none' ? !d.glasses : d.glasses && (d.glassesStyle || 'classic') === v;
-    return `<button class="ava-tile ${on ? 'on' : ''}" data-act="ava-glasses" data-v="${v}">${avatar({ ...d, glasses: v !== 'none', glassesStyle: v === 'none' ? d.glassesStyle : v, frame: null, crown: false, pet: 'none', prop: 'none' }, 60, true)}<span>${GLASSES_NAMES[v]}</span></button>`;
+    return `<button class="ava-tile ${on ? 'on' : ''}" data-act="ava-glasses" data-v="${v}">${avatar({ ...d, glasses: v !== 'none', glassesStyle: v === 'none' ? d.glassesStyle : v, frame: null, crown: false, pet: 'none', prop: 'none', mask: 'none' }, 60, true)}<span>${GLASSES_NAMES[v]}</span></button>`;
   }).join('')}</div>`;
   const body = {
     face: `<div class="chips">${['m', 'f'].map((v) => `<button class="chip ${d.preset === v ? 'on' : ''}" data-act="ava-set" data-k="preset" data-v="${v}">${v === 'm' ? 'М' : 'Ж'}</button>`).join('')}</div>
