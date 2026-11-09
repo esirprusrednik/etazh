@@ -137,6 +137,10 @@ const ACH = [
   A('duels', 'duel_comeback', 'rare', 'Камбэк', 'Проигрывать 0:1 и всё равно выиграть', 'duel_comeback', 1),
   A('duels', 'duel_sixes', 'common', 'Две шестёрки', 'Выбросить 6 и 6 в кости', 'duel_sixes', 1),
   A('duels', 'duel_ttt_draw', 'common', 'Боевая ничья', 'Сыграть вничью в крестики-нолики', 'duel_ttt_draw', 1),
+  // Тренировка с сильным ботом: партии считает сервер, поэтому их нельзя нарисовать
+  A('duels', 'bot_ttt_draw', 'rare', 'Ничья с машиной', 'Свести вничью крестики-нолики с сильным ботом', 'bot_ttt_draw', 1),
+  A('duels', 'bot_sea1', 'rare', 'Человек против машины', 'Потопить флот сильного бота в морском бою', 'bot_sea_wins', 1, { series: 'bot_sea' }),
+  A('duels', 'bot_sea5', 'legendary', 'Гроза роботов', '5 раз потопить флот сильного бота', 'bot_sea_wins', 5, { series: 'bot_sea' }),
   // смешные — за поражения и сдачу
   A('duels', 'duel_resign1', 'common', 'Белый флаг', 'Сдаться в дуэли. Бывает', 'duel_resign', 1, { secret: true, series: 'duel_resign' }),
   A('duels', 'duel_resign5', 'rare', 'Тактическое отступление', 'Сдаться 5 раз. Это не бегство, это манёвр', 'duel_resign', 5, { secret: true, series: 'duel_resign' }),
@@ -329,7 +333,7 @@ function register(ctx) {
     'day_streak', 'active_days', 'quest_all', 'polls', 'poll_votes', 'blitz', 'blitz_best', 'early', 'dm_people', 'thanks_people', 'recruits', 'big_lunch',
     'st_hide', 'st_unfindable', 'st_incognito', 'st_night', 'st_ghost', 'st_slack', 'st_lone',
     'duels_started', 'duel_wins', 'duel_wins_rps', 'duel_wins_dice', 'duel_wins_ttt', 'duel_rivals', 'duel_streak_best', 'duel_pots', 'duel_comeback', 'duel_sixes', 'duel_snake',
-    'duel_resign', 'duel_resign_lead', 'duel_declined', 'duel_lost3', 'duel_ttt_draw', 'waves', 'wave_full', 'todo_clean'];
+    'duel_resign', 'duel_resign_lead', 'duel_declined', 'duel_lost3', 'duel_ttt_draw', 'bot_ttt_draw', 'bot_sea_wins', 'waves', 'wave_full', 'todo_clean'];
   function countersOf(uid, u) {
     const c = Object.fromEntries(COUNTER_KEYS.map((k) => [k, 0]));
     for (const r of q('SELECT key, n FROM counters WHERE user_id = ?').all(uid)) if (r.key in c) c[r.key] = r.n;
@@ -554,6 +558,10 @@ function register(ctx) {
       if (type === 'quiz_ok') bump(uid, 'quiz_ok');
       if (type === 'quiz_any') { bump(uid, 'quiz_any'); stat('quiz_answers'); completeQuest(uid, 'quiz'); completeQuest(uid, 'wquiz'); }
       // Морской бой: в зачёт идут только победы потоплением всего флота — сдача соперника не считается
+      if (type === 'bot_game') {
+        if (data.game === 'ttt' && data.result === 'draw') flag(uid, 'bot_ttt_draw');
+        if (data.game === 'sea' && data.result === 'win') bump(uid, 'bot_sea_wins');
+      }
       if (type === 'duel') bump(uid, 'duels_started');
       if (type === 'duel_roll' && Array.isArray(data.dice)) {
         if (data.dice[0] === 6 && data.dice[1] === 6) flag(uid, 'duel_sixes');
@@ -584,7 +592,7 @@ function register(ctx) {
         if (data.newRival) bump(uid, 'sea_rivals');
         addBeans(uid, 'sea_win');
       }
-      checkAchievements(uid);
+      return checkAchievements(uid);
     } catch (e) {
       console.error('[features]', type, e.message);
     }

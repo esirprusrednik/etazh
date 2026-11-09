@@ -1603,6 +1603,7 @@ function createApi(db) {
   gevents = require('./gevents').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, rateLimit, readProfile, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   treasury = require('./treasury').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError });
   crestvote = require('./crestvote').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, crestClean });
+  require('./botgames').register({ db, q, route, requireUser, bad, U, HttpError, rateLimit, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   duels = require('./duels').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, addBeans, spendBeans, publicLook, canDm: (u, t) => (crew ? crew.canDm(u, t) : false), onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   gangwar = require('./gangwar').register({ db, q, route, requireUser, requireAdmin, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, spendBeans, battle, publicLook });
   league = require('./league').register({ db, q, route, requireUser, U, addBeans, notify, fireAndForget });

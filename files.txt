@@ -59,6 +59,7 @@ server/crestvote.js
 server/friday.js
 server/gangwar.js
 server/wartopics.js
+server/botgames.js
 server/duels.js
 server/tourney.js
 server/treasury.js

@@ -2943,14 +2943,15 @@ function renderPracticeHead() {
     <section class="card pr-head">
       <div class="row" style="justify-content:space-between;gap:8px"><b>Тренировка: ${esc(PR_GAMES[P.game].toLowerCase())}</b><span class="pr-score" aria-label="Счёт против бота">ты <b>${sc.me}</b> : <b>${sc.opp}</b> бот</span></div>
       ${lv ? `<div class="chips">${Object.entries(PR.LEVELS).map(([k, l]) => `<button class="chip ${P.level === k ? 'on' : ''}" data-act="pr-level" data-v="${k}" aria-pressed="${P.level === k}">${l}</button>`).join('')}</div>
-        <p class="small" style="margin:0">${P.game === 'ttt' ? (P.level === 'hard' ? 'Сильный бот не проигрывает: свести вничью — уже успех.' : 'Лёгкий бот иногда зевает тройку.') : P.level === 'hard' ? 'Сильный бот считает, где корабли вероятнее, и добивает раненые.' : 'Лёгкий бот часто стреляет наугад.'}</p>` : '<p class="small" style="margin:0">Ни зёрен, ни рейтинга — счёт видишь только ты.</p>'}
+        <p class="small" style="margin:0">${P.game === 'ttt' ? (P.level === 'hard' ? 'Сильный бот не проигрывает. Сведёшь вничью — ачивка «Ничья с машиной».' : 'Лёгкий бот иногда зевает тройку.') : P.level === 'hard' ? 'Сильный бот считает, где корабли вероятнее, и добивает раненые. Потопишь его флот — ачивка.' : 'Лёгкий бот часто стреляет наугад.'}</p>` : '<p class="small" style="margin:0">Ни зёрен, ни рейтинга — счёт видишь только ты.</p>'}
     </section>`;
 }
 function renderPractice() {
   const P = S.practice;
   // Если между делом открывали настоящую партию, вернуть на экран свою тренировочную
-  if (P.game === 'sea') { if (!S.bv || !S.bv.practice) S.bv = PR.seaView(P.st, prScore('sea')); return renderBattle(); }
-  const d = PR.duelView(P.st);
+  if (P.server && !(P.game === 'sea' ? P.sv : P.dv)) return `${renderPracticeHead()}<div class="card"><p class="sub">Расставляем фигуры…</p></div>`;
+  if (P.game === 'sea') { if (!S.bv || !S.bv.practice) S.bv = P.server ? P.sv : PR.seaView(P.st, prScore('sea')); return renderBattle(); }
+  const d = P.server ? P.dv : PR.duelView(P.st);
   return `${renderPracticeHead()}<section class="card duels">${DUEL_DEFS}${renderDuel(d)}
     ${d.status === 'done' ? '<button class="btn wide" data-act="pr-again">Ещё партию</button>' : ''}</section>`;
 }
@@ -2958,11 +2959,39 @@ function prNew(game) {
   const prev = S.practice && S.practice.game === game ? S.practice : null;
   // В крестиках-ноликах первый ход по очереди: то ты, то бот
   const first = game === 'ttt' && prev && prev.first === 'me' ? 'opp' : 'me';
-  S.practice = { game, level: prLevel(game), first, counted: false, st: game === 'sea' ? PR.newSea() : PR.newDuel(game, { first }) };
+  const level = prLevel(game);
   S.bResigned = false; S.bEmote = null; S.duelAnim = null;
+  // Сильный бот в крестиках и морском бое играет на сервере: за победу над ним дают ачивки, их нельзя нарисовать в браузере
+  if ((game === 'ttt' || game === 'sea') && level === 'hard') {
+    const P = S.practice = { game, level, first, counted: false, server: true, id: null, dv: null, sv: null };
+    S.bv = null;
+    post('/api/botgame', { game, first }).then((r) => { if (S.practice !== P) return; P.id = r.id; prPlay(P, r); }).catch((e) => { if (S.practice === P) { toast(e.message); S.practice = null; render(); } });
+    return;
+  }
+  S.practice = { game, level, first, counted: false, st: game === 'sea' ? PR.newSea() : PR.newDuel(game, { first }) };
   if (game === 'sea') { S.bv = null; setBattleView(PR.seaView(S.practice.st, prScore('sea'))); }
   if (game === 'ttt' && first === 'opp') prTttBot();
 }
+// Ответ сервера: виды после каждого шага. Первый показываем сразу, ходы бота — с паузой, как живые
+function prApply(P, v) {
+  if (P.game === 'sea') { v.score = prScore('sea'); if (v.status === 'done') { prCount(v.winner === 'me' ? 'win' : 'lose'); v.score = prScore('sea'); } P.sv = v; setBattleView(v); }
+  else { P.dv = v; if (v.status !== 'play' || !v.myTurn) prDuelDone(v); else S.duelAnim = { id: 'bot', seq: v.seq, until: Date.now() + 2600 }; }
+}
+function prPlay(P, r, first = true) {
+  const steps = r.steps || [];
+  steps.forEach((v, i) => setTimeout(() => {
+    if (S.practice !== P) return;
+    if (P.game === 'ttt' && i > 0) sfx('marker');
+    prApply(P, v);
+    if (P.game === 'sea' && v.last && v.last.r === 'sunk' && !v.last.mine && v.status === 'play' && Math.random() < 0.4) prBotEmote(['easy', 'smart', 'lol']);
+    render();
+    if (i === steps.length - 1) {
+      setTimeout(() => { if (S.practice === P) render(); }, 1700);
+      if (r.ach && r.ach.length) Promise.all([loadFeatures(), loadMe()]).then(render).catch(() => {});
+    }
+  }, i === 0 && first ? 0 : i * (P.game === 'sea' ? 950 : 750)));
+}
+const prMove = (body) => { const P = S.practice; return post(`/api/botgame/${P.id}/move`, body).then((r) => prPlay(P, r)); };
 function prDuelDone(d) {
   S.duelAnim = { id: 'bot', seq: d.seq, until: Date.now() + 2600 };
   if (d.status === 'done') prCount(d.result);
@@ -5430,6 +5459,7 @@ const actions = {
     S.duelRolling = null; S.duelAnim = { id: d.id, seq: d.seq, until: Date.now() + 2600 }; S.duelSeqSeen = { ...(S.duelSeqSeen || {}), [d.id]: d.seq }; sfx('diceLand'); duelOutcomeSfx(d); await loadDuels(S.dm);
   }),
   'duel-cell': (el) => run(async () => {
+    if (el.dataset.id === 'bot' && S.practice.server) { sfx('marker'); await prMove({ cell: Number(el.dataset.v) }); return; }
     if (el.dataset.id === 'bot') { sfx('marker'); PR.tttMe(S.practice.st, Number(el.dataset.v)); prDuelDone(PR.duelView(S.practice.st)); prTttBot(); return; }
     sfx('marker'); const d = await post(`/api/duels/${el.dataset.id}/move`, { cell: Number(el.dataset.v) });
     S.duelAnim = { id: d.id, seq: d.seq, until: Date.now() + 2600 }; S.duelSeqSeen = { ...(S.duelSeqSeen || {}), [d.id]: d.seq }; duelOutcomeSfx(d); await loadDuels(S.dm);
@@ -5437,6 +5467,7 @@ const actions = {
   'duel-resign': (el) => run(async () => {
     if (el.dataset.id === 'bot') {
       if (!confirmInline('duel-resign-bot', 'Нажми ещё раз — сдаёшься боту')) return;
+      if (S.practice.server) { await prMove({ resign: true }); sfx('lose'); return; }
       const st = S.practice.st; st.status = 'done'; st.result = 'lose'; st.resigned = true; st.turn = null; st.seq++; prCount('lose'); sfx('lose'); return;
     }
     const soft = el.dataset.soft === '1';
@@ -5632,17 +5663,33 @@ const actions = {
     if (prSea()) { if (Math.random() < 0.5) prBotEmote(['lol', 'clap', 'bored', 'easy', 'mercy']); return; }
     post(`/api/battle/${S.battle}/emote`, { e }).catch(() => {});
   },
-  bshuffle: () => run(async () => { if (prSea()) { PR.seaShuffle(S.practice.st); sfx('pick'); setBattleView(PR.seaView(S.practice.st, prScore('sea'))); return; } setBattleView(await post(`/api/battle/${S.battle}/shuffle`)); }),
-  bready: () => run(async () => { if (prSea()) { PR.seaStart(S.practice.st); setBattleView(PR.seaView(S.practice.st, prScore('sea'))); return; } setBattleView(await post(`/api/battle/${S.battle}/ready`)); }),
+  bshuffle: () => run(async () => { if (prSea() && S.practice.server) { await prMove({ shuffle: true }); sfx('pick'); return; } if (prSea()) { PR.seaShuffle(S.practice.st); sfx('pick'); setBattleView(PR.seaView(S.practice.st, prScore('sea'))); return; } setBattleView(await post(`/api/battle/${S.battle}/shuffle`)); }),
+  bready: () => run(async () => { if (prSea() && S.practice.server) { await prMove({ start: true }); return; } if (prSea()) { PR.seaStart(S.practice.st); setBattleView(PR.seaView(S.practice.st, prScore('sea'))); return; } setBattleView(await post(`/api/battle/${S.battle}/ready`)); }),
   bresign: () => run(async () => {
     const playing = S.bv && S.bv.status === 'play';
     if (!confirmTwice('bresign', playing ? 'Нажми ещё раз, чтобы сдаться' : 'Нажми ещё раз, чтобы отказаться')) return;
     S.bResigned = true;
+    if (prSea() && S.practice.server) { await prMove({ resign: true }); sfx('chicken'); return; }
     if (prSea()) { PR.seaResign(S.practice.st); prCount('lose'); setBattleView(PR.seaView(S.practice.st, prScore('sea'))); sfx('chicken'); return; }
     S.bv = await post(`/api/battle/${S.battle}/resign`); S.bvAt = Date.now();
     sfx('chicken');
   }),
   bshoot: (el) => {
+    if (prSea() && S.practice.server) {
+      const P = S.practice; if (S.bBusy) return; S.bBusy = true;
+      run(async () => {
+        try {
+          const r = await post(`/api/botgame/${P.id}/move`, { x: Number(el.dataset.x), y: Number(el.dataset.y) });
+          const v = r.steps[0], mine = v.last && v.last.mine ? v.last.r : 'miss';
+          const t = { miss: 'Мимо', hit: 'Ранил|Ранила! Стреляй ещё', sunk: 'Потопил|Потопила! Стреляй ещё' }[mine];
+          S.bShout = { text: v.status === 'done' ? 'Победа!' : t, cls: v.status === 'done' ? 'sunk' : mine, until: Date.now() + 1400, board: 'o' };
+          sfx(v.status === 'done' ? 'sunk' : mine === 'miss' ? 'splash' : mine);
+          if (mine === 'sunk' && v.status === 'play' && Math.random() < 0.35) prBotEmote(['oops', 'angry', 'clap']);
+          prPlay(P, r);
+        } finally { S.bBusy = false; }
+      });
+      return;
+    }
     if (prSea()) {
       const P = S.practice;
       run(async () => {

@@ -444,5 +444,54 @@ function startServer(day, extra = {}) {
       { const rr = await M.post(`/api/crew/${R.id}/messages`, { type: 'text', text: 'привет' }); assert.equal(rr.status, 200, JSON.stringify(rr.json)); }
     });
   } finally { sc.stop(); }
+  // Тренировка с сильным ботом: партию ведёт сервер, ачивки — только за честную ничью или победу
+  const sb = startServer('2026-11-10');
+  try {
+    await sb.ready;
+    const PR = await import('../public/js/practice.js');
+    await step('сильный бот: ничья в крестики-нолики даёт ачивку, флот бота не утекает, победа в морском бою — ачивка', async () => {
+      const M = await new sb.Client().login('bot1@mts.ru', 'тренер_флота');
+      let r = (await M.post('/api/botgame', { game: 'ttt', first: 'me' })).json;
+      let v = r.steps[r.steps.length - 1];
+      // Играем за себя тем же минимаксом: доска «наоборот», и бот считает ход за нас
+      let ach = [];
+      while (v.status === 'play') {
+        const flip = v.board.map((c) => (c === 'me' ? 'opp' : c === 'opp' ? 'me' : null));
+        const cell = PR.botTtt(flip, 'hard');
+        const mv = await M.post(`/api/botgame/${r.id}/move`, { cell });
+        assert.equal(mv.status, 200, JSON.stringify(mv.json));
+        v = mv.json.steps[mv.json.steps.length - 1]; ach = mv.json.ach;
+      }
+      assert.equal(v.result, 'draw');
+      assert.ok(ach.includes('bot_ttt_draw'), JSON.stringify(ach));
+      assert.equal((await M.post(`/api/botgame/${r.id}/move`, { cell: 0 })).status, 400, 'после конца не ходим');
+      // Морской бой: флот бота клиенту не отдаётся
+      r = (await M.post('/api/botgame', { game: 'sea' })).json;
+      assert.equal(r.steps[0].oppShips, null);
+      assert.ok(!JSON.stringify(r).includes('botShips'));
+      await M.post(`/api/botgame/${r.id}/move`, { start: true });
+      // Подсматриваем флот бота прямо в базе (в тесте можно) и топим его
+      const { DatabaseSync } = require('node:sqlite');
+      const db = new DatabaseSync(path.join(sb.dir, 'db.sqlite'));
+      const ships = JSON.parse(db.prepare('SELECT state FROM bot_games WHERE id = ?').get(r.id).state).botShips;
+      db.close();
+      let last = null;
+      for (const [x, y] of ships.flat()) {
+        if (last && last.status === 'done') break;
+        const mv = await M.post(`/api/botgame/${r.id}/move`, { x, y });
+        if (mv.status !== 200) continue; // клетка могла открыться сама
+        last = mv.json.steps[mv.json.steps.length - 1]; ach = mv.json.ach;
+      }
+      // Ни одного промаха — бот так и не выстрелил
+      assert.equal(last.winner, 'me');
+      assert.ok(ach.includes('bot_sea1'), JSON.stringify(ach));
+      assert.ok(last.oppShips, 'после партии флот бота показываем');
+      // Сдача ачивок не даёт
+      r = (await M.post('/api/botgame', { game: 'ttt' })).json;
+      const rs = (await M.post(`/api/botgame/${r.id}/move`, { resign: true })).json;
+      assert.deepEqual(rs.ach, []);
+      assert.equal((await M.post('/api/botgame', { game: 'chess' })).status, 400);
+    });
+  } finally { sb.stop(); }
   console.log(`social: ${passed} ok`);
 })().catch((e) => { console.error(e); process.exit(1); });
