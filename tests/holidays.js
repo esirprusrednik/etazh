@@ -77,12 +77,11 @@ function startServer(day) {
     const g = (await A.post('/api/gangs', { name: 'Ёлка', access: 'open' })).json;
     for (const x of [B, C, D]) await x.post(`/api/gangs/${g.id}/apply`);
 
-    await step('сводка «Этажа»: адвент, Санта и задания дня', async () => {
+    await step('сводка «Этажа»: адвент и Санта (заданий дня больше нет)', async () => {
       const it = (await A.get('/api/inbox')).json.items;
       const kinds = it.map((x) => x.kind);
-      assert.ok(kinds.includes('advent') && kinds.includes('santa') && kinds.includes('quests'), kinds.join(','));
+      assert.ok(kinds.includes('advent') && kinds.includes('santa') && !kinds.includes('quests'), kinds.join(','));
       assert.ok(it.find((x) => x.kind === 'santa').go.act === 'gang-open');
-      assert.equal(it.find((x) => x.kind === 'quests').push, false, 'задания дня сами по себе пуш не заслуживают');
     });
 
     await step('адвент: окошко открывается только после задания, +2 зерна', async () => {

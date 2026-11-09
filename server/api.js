@@ -1,6 +1,6 @@
 const { config } = require('./config');
 const U = require('./util');
-const { CREST, GANG_AREAS, GANG_INTERESTS, GANG_EMOJI, MOODS_F, MOODS, CALLS, SIGNALS, SHOP, EARN, GANG_DEPOSIT, GANG_COLORS, MEMES, MEME_EMOS } = require('./catalog');
+const { CREST, GANG_AREAS, GANG_INTERESTS, GANG_EMOJI, MOODS_F, MOODS, CALLS, SIGNALS, SHOP, EARN, GANG_DEPOSIT, GANG_COLORS, MEMES, MEME_EMOS, STREAK_BEANS, streakBeans } = require('./catalog');
 const { sendLoginLink } = require('./mailer');
 const { sendPush } = require('./webpush');
 
@@ -274,6 +274,25 @@ function createApi(db) {
   }
 
   // ---------- Зёрна ----------
+  // Серия: сколько рабочих дней подряд была отметка — в офисе или «из дома» (по журналу зёрен, он хранится всегда).
+  // Выходные и праздники серию не рвут. Если сегодня ещё не отмечался — считаем до вчера: серия жива, пока не кончился день
+  function markStreak(uid) {
+    const days = new Set(q("SELECT DISTINCT day FROM ledger WHERE user_id = ? AND reason IN ('checkin', 'home') ORDER BY day DESC LIMIT 120").all(uid).map((r) => r.day));
+    let n = 0, d = U.msk().day;
+    if (!days.has(d)) d = addDays(d, -1);
+    for (let guard = 0; guard < 150; guard++, d = addDays(d, -1)) {
+      if (!weekdayName(d)) continue;
+      if (days.has(d)) n++; else break;
+    }
+    return n;
+  }
+  // Награда за сегодняшнюю отметку: серия до вчера + сегодняшний день
+  const todayMarkBeans = (uid) => streakBeans(markStreak(uid) + 1);
+  // Серия для всплывающего окна: сколько дней подряд, сколько дали сегодня и сколько дадут завтра
+  function streakInfo(uid) {
+    const n = markStreak(uid);
+    return { streak: n, streakBeans: STREAK_BEANS, today: streakBeans(n), tomorrow: streakBeans(n + 1) };
+  }
   function addBeans(userId, reason, amountOverride) {
     const rule = EARN[reason];
     const amount = amountOverride || (rule ? rule.amount : 0);
@@ -520,15 +539,7 @@ function createApi(db) {
     const u = currentUser(req);
     if (!u) return { user: null, vapidKey: config.vapid.publicKey || null, domains: config.allowedDomains };
     const owned = q('SELECT item_id FROM owned WHERE user_id = ?').all(u.id).map((r) => r.item_id);
-    // Серия: сколько рабочих дней подряд была отметка в офисе (по журналу зёрен, он хранится всегда)
-    const days = new Set(q("SELECT DISTINCT day FROM ledger WHERE user_id = ? AND reason = 'checkin' ORDER BY day DESC LIMIT 90").all(u.id).map((r) => r.day));
-    let streak = 0;
-    let d = U.msk().day;
-    if (!days.has(d)) d = addDays(d, -1);
-    for (let guard = 0; guard < 120; guard++, d = addDays(d, -1)) {
-      if (!weekdayName(d)) continue;
-      if (days.has(d)) streak++; else break;
-    }
+    const streak = markStreak(u.id);
     const earned = q('SELECT COALESCE(SUM(amount), 0) AS s FROM ledger WHERE user_id = ? AND amount > 0').get(u.id).s;
     const level = 1 + Math.floor(Math.sqrt(earned / 15));
     const completion = profileCompletion(u.look, u.profile, !!q('SELECT 1 FROM push_subs WHERE user_id = ?').get(u.id));
@@ -688,11 +699,17 @@ function createApi(db) {
     q('UPDATE users SET look = ?, profile = ?, share_office = ?, quiet = ? WHERE id = ?').run(JSON.stringify(look), JSON.stringify(prof), share, quiet, u.id);
     let homeBeans = 0;
     if (body.profile && body.profile.today && body.profile.today.kind === 'home') {
-      if (weekdayName(U.msk().day) && !q('SELECT 1 FROM ledger WHERE user_id = ? AND day = ? AND reason = ?').get(u.id, U.msk().day, 'checkin')) homeBeans = addBeans(u.id, 'home') || 0;
+      if (weekdayName(U.msk().day) && !q('SELECT 1 FROM ledger WHERE user_id = ? AND day = ? AND reason = ?').get(u.id, U.msk().day, 'checkin')) homeBeans = addBeans(u.id, 'home', todayMarkBeans(u.id)) || 0;
       if (features) features.onEvent('home', u.id);
     }
+    // План недели заполнен (от 3 дней) — +5 раз в неделю
+    let planBeans = 0;
+    if (body.profile && body.profile.plan && Object.keys(prof.plan || {}).length >= 3) {
+      const d = U.msk().day, monday = addDays(d, -((new Date(d + 'T12:00:00Z').getUTCDay() + 6) % 7));
+      if (!q("SELECT 1 FROM ledger WHERE user_id = ? AND reason = 'plan' AND day >= ?").get(u.id, monday)) planBeans = addBeans(u.id, 'plan') || 0;
+    }
     if (features) features.onEvent('profile', u.id, { look: body.look !== undefined && Object.keys(body.look || {}).length > 0, slack: !!(body.profile && body.profile.today && body.profile.today.kind === 'slack') });
-    return { ok: true, beans: homeBeans };
+    return { ok: true, beans: homeBeans, planBeans, ...(homeBeans ? streakInfo(u.id) : {}) };
   });
 
   // Главный экран: офис, столовая, банда сейчас, счётчики новых событий
@@ -764,10 +781,10 @@ function createApi(db) {
     // запись в журнале нужна для серии дней в офисе
     let got = 0;
     if (q('SELECT 1 FROM ledger WHERE user_id = ? AND day = ? AND reason = ?').get(u.id, U.msk().day, 'home')) q('INSERT INTO ledger (user_id, amount, reason, day, at) VALUES (?, 0, ?, ?, ?)').run(u.id, 'checkin', day, U.now());
-    else got = addBeans(u.id, 'checkin');
+    else got = addBeans(u.id, 'checkin', todayMarkBeans(u.id));
     if (features) features.onEvent('checkin', u.id, { office: office.id });
     if (u.share_office) pushEvent(office.id, u.id, `${u.nick} в офисе`, 'office');
-    return { ok: true, beans: got };
+    return { ok: true, beans: got, ...(got ? streakInfo(u.id) : {}) };
   });
 
   route('POST', '/api/checkout', async (req) => {
@@ -1593,7 +1610,7 @@ function createApi(db) {
     battery: (uid) => !!(battery && battery.pending(uid)),
     blitz: (uid) => { const set = blitz && blitz.activeSet(); return !!(set && !q('SELECT 1 FROM blitz_runs WHERE user_id = ? AND set_id = ?').get(uid, set.id)); }
   });
-  inbox = require('./inbox').register({ db, q, route, requireUser, U, notify, fireAndForget, myGangs, readProfile, weekdayName, features, blitz, advent, santa, duels, gevents, polls, weather, friday, wave, battery: () => battery, todos: () => todos });
+  inbox = require('./inbox').register({ markStreak, db, q, route, requireUser, U, notify, fireAndForget, myGangs, readProfile, weekdayName, features, blitz, advent, santa, duels, gevents, polls, weather, friday, wave, battery: () => battery, todos: () => todos });
   feedback = require('./feedback').register({ db, q, route, requireUser, requireAdmin, bad, U, addBeans, notify, fireAndForget, HttpError, BUILD });
 
   // Разово шифруем старую переписку, лежащую в базе открытым текстом (повторный запуск ничего не меняет)

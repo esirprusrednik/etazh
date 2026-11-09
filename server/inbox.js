@@ -4,7 +4,9 @@
 //   человек сегодня ещё не заходил, включил «Утреннюю сводку» и в сводке есть что-то кроме заданий дня.
 // То, что и так приходит пушем сразу (ход в бою, дуэль, кофе-ответ), в утренний пуш не попадает.
 
-const PUSH_FROM = 11.5, PUSH_TO = 13; // окно отправки по Москве: 11:30–13:00
+const PUSH_FROM = 10.5, PUSH_TO = 11.5; // «Не забудь отметиться» — по будням 10:30–11:30 по Москве
+const LUNCH_FROM = 14, LUNCH_TO = 14.75; // «Как обед?» — тем, кто сегодня в офисе, 14:00–14:45
+const { streakBeans } = require('./catalog');
 
 function register(ctx) {
   const { db, q, route, requireUser, U, notify, fireAndForget, myGangs, readProfile, weekdayName, features, blitz, advent, santa } = ctx;
@@ -123,23 +125,41 @@ function register(ctx) {
     return { items: items(u) };
   });
 
-  // Утренняя сводка пушем
+  db.exec('CREATE TABLE IF NOT EXISTS lunch_push (user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, day TEXT NOT NULL)');
+  const markedToday = (uid, day) => !!q("SELECT 1 FROM ledger WHERE user_id = ? AND day = ? AND reason IN ('checkin', 'home')").get(uid, day)
+    || !!q('SELECT 1 FROM checkins WHERE user_id = ? AND day = ?').get(uid, day);
+  // Напоминалки: утром — «отметься» (с серией и суммой), после обеда — «оцени столовую», если сегодня в офисе
   function tick() {
     const now = U.msk(), h = now.hour + now.minute / 60, day = now.day;
-    if (h < PUSH_FROM || h >= PUSH_TO || !weekdayName(day)) return;
-    if (new Date(day + 'T12:00:00Z').getUTCDay() === 5) return; // в пятницу приходит сводка недели
-    for (const r of q('SELECT DISTINCT user_id AS id FROM push_subs').all()) {
-      const u = q('SELECT * FROM users WHERE id = ? AND nick IS NOT NULL').get(r.id);
-      if (!u) continue;
-      const sent = q('SELECT day FROM inbox_push WHERE user_id = ?').get(u.id);
-      if (sent && sent.day === day) continue;
-      q('INSERT INTO inbox_push (user_id, day) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET day = excluded.day').run(u.id, day);
-      if (readProfile(u.profile).digest === false) continue;
-      if (features && features.activeToday(u.id)) continue;
-      const list = items({ ...u, look: JSON.parse(u.look || '{}') }).filter((x) => x.push);
-      if (!list.length) continue;
-      const body = list.slice(0, 2).map((x) => x.title).join(' · ') + (list.length > 2 ? ` и ещё ${list.length - 2}` : '');
-      fireAndForget(notify([u.id], { title: 'Этаж: что ждёт сегодня', body, url: '/#inbox', tag: 'inbox-digest' }));
+    if (!weekdayName(day)) return;
+    if (h >= PUSH_FROM && h < PUSH_TO) {
+      for (const r of q('SELECT DISTINCT user_id AS id FROM push_subs').all()) {
+        const u = q('SELECT * FROM users WHERE id = ? AND nick IS NOT NULL').get(r.id);
+        if (!u) continue;
+        const sent = q('SELECT day FROM inbox_push WHERE user_id = ?').get(u.id);
+        if (sent && sent.day === day) continue;
+        q('INSERT INTO inbox_push (user_id, day) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET day = excluded.day').run(u.id, day);
+        const prof = readProfile(u.profile);
+        if (prof.digest === false || markedToday(u.id, day)) continue;
+        // В отпуске, на больничном или уже сказал «из дома» — не дёргаем
+        if (prof.today && (prof.today.day === day || (prof.today.kind === 'sick' && prof.today.to >= day))) continue;
+        if ((prof.vacations || []).some((v) => v.from <= day && v.to >= day)) continue;
+        const n = ctx.markStreak ? ctx.markStreak(u.id) : 0;
+        const amt = streakBeans(n + 1);
+        const body = n >= 2 ? `Серия ${n} дн. — сегодня +${amt} зёрен. Не дай ей сгореть` : `Офис или из дома — одно нажатие, и банда знает, где ты. +${amt} зёрен`;
+        fireAndForget(notify([u.id], { title: 'Не забудь отметиться', body, url: '/#near', tag: 'checkin-remind' }));
+      }
+    }
+    if (h >= LUNCH_FROM && h < LUNCH_TO) {
+      for (const r of q('SELECT DISTINCT c.user_id AS id, c.office_id AS office FROM checkins c JOIN push_subs s ON s.user_id = c.user_id WHERE c.day = ?').all(day)) {
+        const sent = q('SELECT day FROM lunch_push WHERE user_id = ?').get(r.id);
+        if (sent && sent.day === day) continue;
+        q('INSERT INTO lunch_push (user_id, day) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET day = excluded.day').run(r.id, day);
+        const u = q('SELECT profile FROM users WHERE id = ?').get(r.id);
+        if (!u || readProfile(u.profile).digest === false) continue;
+        if (q('SELECT 1 FROM canteen_rates WHERE day = ? AND user_id = ?').get(day, r.id)) continue;
+        fireAndForget(notify([r.id], { title: 'Как обед?', body: 'Оцени столовую одним нажатием — коллеги поймут, идти ли завтра', url: '/#rate', tag: 'lunch-rate' }));
+      }
     }
   }
   setInterval(() => { try { tick(); } catch (e) { console.error('inbox', e); } }, 5 * 60e3).unref();

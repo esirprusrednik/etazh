@@ -174,6 +174,7 @@ const QUESTS = [
   { id: 'wguess', name: 'Сыграй в «Кто из наших?»', go: 'games', to: '.guess', need: 'gang4', weekend: true },
   { id: 'look', name: 'Обнови образ в конструкторе', go: 'look', weekend: true }
 ];
+const QUESTS_ON = false;
 const QUEST_POOL_PICK = 3;
 const WEEKEND_PICK = 2;
 // Самые полезные — первыми: если доступны, попадают в набор раньше случайных
@@ -411,6 +412,7 @@ function register(ctx) {
   const isWeekend = (d) => !weekdayName(d);
   // Набор заданий на сегодня: создаётся один раз, дальше берётся из базы. Для «Напиши в личку» запоминаем человека
   function questsFor(uid) {
+    if (!QUESTS_ON) return []; // задания дня выключены: вместо них — серия дней с растущей наградой за отметку
     const d = today();
     const row = q('SELECT list FROM quest_days WHERE user_id = ? AND day = ?').get(uid, d);
     const target = QUEST_POOL_PICK + 1;
@@ -1094,7 +1096,7 @@ function register(ctx) {
     return { total: list.length, left: list.filter((id) => !done.has(id)).length };
   }
   const activeToday = (uid) => counter(uid, 'last_active') >= Number(today().replace(/-/g, ''));
-  return { setQuestProviders: (p) => Object.assign(prov, p), onEvent, cleanup, tick, pairNow, questSummary, myPair, activeToday, cellFor };
+  return { streak: (uid) => counter(uid, 'day_streak'), setQuestProviders: (p) => Object.assign(prov, p), onEvent, cleanup, tick, pairNow, questSummary, myPair, activeToday, cellFor };
 }
 
 module.exports = { register, ACH, QUESTS };

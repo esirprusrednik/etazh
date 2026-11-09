@@ -61,25 +61,25 @@ const mskToday = () => new Date(Date.now() + SHIFT_H * 3600e3).toISOString().sli
   await c.post('/api/gangs/join', { code: g.code });
   for (const x of [a, b, c, d]) await x.post('/api/me/profile', { shareOffice: true });
 
-  await step('ачивки и задания: отметка даёт «Первый шаг» и задание дня', async () => {
+  await step('ачивки: отметка даёт «Первый шаг»; заданий дня больше нет', async () => {
     await a.post('/api/checkin', { office: 'smol' });
     const f = (await a.get('/api/features')).json;
     assert.ok(f.achievements.find((x) => x.id === 'first_checkin').got);
     assert.ok(f.achievements.find((x) => x.id === 'gang').got);
-    assert.ok(f.quests.items.find((x) => x.id === 'where').done, 'отметка закрывает «Отметься»');
-    assert.equal(f.quests.items.length, 4, 'в рабочий день: «Отметься» и три из пула');
-    assert.deepEqual((await a.get('/api/features')).json.quests.items.map((x) => x.id), f.quests.items.map((x) => x.id), 'набор на день не меняется');
+    assert.equal(f.quests.items.length, 0, 'задания дня выключены — вместо них серия дней');
   });
 
-  await step('задания дня: «из дома» тоже засчитывает отметку, без банды — «вступи в банду»', async () => {
+  await step('«из дома» — зёрна по серии, один раз в день; план недели — +5 раз в неделю', async () => {
     const r = (await c.post('/api/me/profile', { profile: { today: { kind: 'home' } } })).json;
-    assert.equal(r.beans, 5, '«из дома» — +5, как офис');
+    assert.equal(r.beans, 3, '«из дома» — по серии, как офис: первый день +3');
+    assert.equal(r.streak, 1);
     assert.equal((await c.post('/api/me/profile', { profile: { today: { kind: 'home' } } })).json.beans, 0, 'второй раз за день — без зёрен');
     assert.equal((await c.post('/api/checkin', { office: 'smol' })).json.beans, 0, 'после «из дома» отметка в офисе зёрна не даёт');
-    assert.ok((await c.get('/api/features')).json.quests.items.find((x) => x.id === 'where').done);
-    const lone = await new Client().login('lone@mts.ru', 'одинокий_волк');
-    const ids = (await lone.get('/api/features')).json.quests.items.map((x) => x.id);
-    assert.deepEqual(ids, ['where', 'join']);
+    // План недели: от трёх дней — +5 раз в неделю
+    let pr = (await c.post('/api/me/profile', { profile: { plan: { Пн: 'office', Вт: 'home', Ср: 'office' } } })).json;
+    assert.equal(pr.planBeans, 5);
+    pr = (await c.post('/api/me/profile', { profile: { plan: { Пн: 'office', Вт: 'office', Ср: 'office' } } })).json;
+    assert.equal(pr.planBeans, 0, 'второй раз за неделю — без зёрен');
   });
 
   await step('спасибо: лимит 3 в день, себе нельзя, чужой банде нельзя, получатель +1', async () => {

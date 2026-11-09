@@ -89,7 +89,8 @@ const SHOP = [
 // Начисления зёрен и дневные лимиты (раздел 6 ТЗ)
 const EARN = {
   welcome: { amount: Number(process.env.WELCOME_BEANS || 50), perDay: 1 },
-  checkin: { amount: 5, perDay: 1 },
+  checkin: { amount: 5, perDay: 1 },  // сумма растёт с серией — см. STREAK_BEANS
+  plan: { amount: 5, perDay: 1 },     // заполнил план недели (раз в неделю — проверяется отдельно)
   advent: { amount: 2, perDay: 1 },   // окошко адвент-календаря
   home: { amount: 5, perDay: 1 },     // «Сегодня из дома» — столько же, сколько отметка в офисе; вместе — не больше 5 в день
   canteen: { amount: 2, perDay: 2 },
@@ -156,4 +157,7 @@ const CREST = {
   top: ['none', 'crown', 'laurel', 'wings', 'stars', 'helm']
 };
 
-module.exports = { CREST, GANG_AREAS, OLD_GANG_AREAS, GANG_INTERESTS, GANG_EMOJI, MOODS_F, MOODS, CALLS, SIGNALS, SHOP, EARN, GANG_DEPOSIT, GANG_COLORS, MEMES, MEME_EMOS };
+// Серия рабочих дней в Этаже: чем дольше подряд, тем больше зёрен за отметку. С 5-го дня — максимум
+const STREAK_BEANS = [3, 4, 5, 6, 8];
+const streakBeans = (n) => STREAK_BEANS[Math.max(1, Math.min(n || 1, STREAK_BEANS.length)) - 1];
+module.exports = { STREAK_BEANS, streakBeans, CREST, GANG_AREAS, OLD_GANG_AREAS, GANG_INTERESTS, GANG_EMOJI, MOODS_F, MOODS, CALLS, SIGNALS, SHOP, EARN, GANG_DEPOSIT, GANG_COLORS, MEMES, MEME_EMOS };

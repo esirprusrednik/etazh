@@ -1232,6 +1232,27 @@ setInterval(() => {
 }, 1000);
 
 // Пятничная пятиминутка: три вопроса недели; ответил — видишь ответы банды и ставишь реакции
+// Окно серии: после отметки (офис или «из дома») — сколько дней подряд, сколько дали, сколько будет завтра
+function showStreak(r) {
+  if (!r || !r.beans || !r.streak) return;
+  const n = r.streak, max = r.streakBeans.length, pos = Math.min(n, max);
+  const lines = n === 1 ? 'Серия началась. Завтра будет больше' : n < max ? `${n} ${plural(n, 'день', 'дня', 'дней')} подряд. Завтра +${r.tomorrow}` : `${n} ${plural(n, 'день', 'дня', 'дней')} подряд — максимум зёрен каждый день. Так держать`;
+  const el = document.createElement('div');
+  el.className = 'streak-pop'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', `Серия ${n}, плюс ${r.beans} зёрен`);
+  el.innerHTML = `<div class="sp-card">
+    <div class="sp-fire">${ico('flame', 54)}</div>
+    <div class="sp-title">${n === 1 ? 'Первый день серии' : `Серия ${n} ${plural(n, 'день', 'дня', 'дней')}`}</div>
+    <div class="sp-beans">+${r.beans} зёрен</div>
+    <div class="sp-steps">${r.streakBeans.map((b, i) => `<span class="${i < pos ? 'on' : ''} ${i === pos - 1 ? 'now' : ''}"><i>${i < pos ? ico('flame', 16) : i + 1}</i><em>+${b}</em></span>`).join('')}</div>
+    <p>${esc(lines)}. Пропустишь рабочий день — серия начнётся заново, выходные не считаются.</p>
+    <button class="btn wide" data-act="streak-close">Отлично</button></div>`;
+  document.body.appendChild(el);
+  sfx('charge');
+  const close = () => el.remove();
+  el.addEventListener('click', (e) => { if (e.target === el || e.target.closest('[data-act="streak-close"]')) close(); });
+  setTimeout(close, 9000);
+}
+
 // Блок мог уехать в другую вкладку банды («Чат», «Жизнь», «Банда») — ищем по очереди и переключаем
 function findInGangTabs(sel) {
   let t = document.querySelector(sel);
@@ -1675,7 +1696,7 @@ function renderApp() {
           <span class="nick-row"><span class="nick">${esc(me.nick)}</span><span class="chev" aria-hidden="true">›</span></span>
           <span class="row" style="gap:6px">
             ${me.status ? `<span class="status-chip">${esc(me.status)}</span>` : ''}
-            ${me.streak ? `<span class="streak" title="Дней подряд с отметкой в офисе">${FLAME}${me.streak} ${plural(me.streak, 'день', 'дня', 'дней')}</span>` : ''}
+            ${me.streak ? `<span class="streak" title="Рабочих дней подряд с отметкой — в офисе или из дома">${FLAME}${me.streak} ${plural(me.streak, 'день', 'дня', 'дней')}</span>` : ''}
           </span>
         </span>
       </button>
@@ -1766,7 +1787,7 @@ function renderStatusBlock() {
         <button class="btn ghost" data-act="open" data-v="sick">thermo Болею</button>
         <button class="btn ghost" data-act="open" data-v="vacation">sun В отпуске</button>
         <button class="btn ghost" data-act="today" data-v="slack">Отлыниваю</button></div>`}
-      <p class="small">Отметка в офисе — до 19:00. +5 зёрен в день — за офис или «из дома», что раньше. Твои люди увидят, где ты.</p>
+      <p class="small">Отметка в офисе — до 19:00. Зёрна за отметку растут с серией дней: от +3 до +8. Твои люди увидят, где ты.</p>
     </div>`;
   }
   const here = (S.people || []).filter((r) => r.where === 'office' && r.office === st.checkin.office).length;
@@ -2100,7 +2121,6 @@ function renderChats() {
   const dmList = dms.length ? dms.map(row).join('')
     : '<p class="sub chats-empty">Голуби скучают. Напиши кому-нибудь — лично можно любому, кто не закрыл личку: найди по нику или открой карточку человека.</p>';
   return `${pageHead('Чаты', 'Моя банда и личка')}
-    ${renderInboxRow()}
     ${findBar()}
     ${(S.invites || []).length ? `<section class="card"><h3>Тебя зовут в банду</h3>${S.invites.map((i) => `<div class="person2">${gangBadge(i.gang, 38)}
       <div class="grow" style="min-width:0"><div style="font-weight:900">${esc(i.gang.name)}</div><div class="where">${i.gang.members} ${plural(i.gang.members, 'человек', 'человека', 'человек')} · зовёт ${esc(i.from)}</div></div>
@@ -2196,9 +2216,9 @@ function renderSanta() {
 function renderGames() {
   const gangChips = S.me.gangs.length > 1 ? `<div class="chips dark">${S.me.gangs.map((g) => `<button class="chip ${g.id === S.activeGang ? 'on' : ''}" data-act="gang-select" data-v="${g.id}">${esc(g.name)}</button>`).join('')}</div>` : '';
   const group = (title) => `<div class="g-group">${title}</div>`;
-  return `${pageHead('Игры', 'Задания, квизы и бои со своими. За всё дают зёрна, их тратят в Лавке')}
+  return `${pageHead('Игры', 'Блиц, квизы и бои со своими. За победы — зёрна, их тратят в Лавке')}
     ${renderAdvent()}
-    ${renderQuests()}
+    
     ${renderBlitzCard()}
     ${group('Один на один')}
     ${renderDuelsCard()}
@@ -2241,12 +2261,12 @@ function renderOffice() {
   const st = S.state;
   if (!st) return '<div class="card"><p class="sub">Загружаем…</p></div>';
   if (st.night) {
-    return `${renderToday()}${renderBirthdays()}<div class="card"><h2>Офисы засыпают</h2><p class="sub">После 19:00 отметки сбрасываются. Утром отметься снова — увидишь, кто из банды рядом и есть ли очередь в столовой.</p></div>${renderQuests()}${renderCoffee()}${renderGangNow()}`;
+    return `${renderToday()}${renderBirthdays()}<div class="card"><h2>Офисы засыпают</h2><p class="sub">После 19:00 отметки сбрасываются. Утром отметься снова — увидишь, кто из банды рядом и есть ли очередь в столовой.</p></div>${renderCoffee()}${renderGangNow()}`;
   }
   if (!st.checkin) {
     return `${renderToday()}<div class="card">
       <h2>${['home', 'vacation', 'sick', 'slack'].includes(st.presence.where) ? 'Всё-таки в офисе?' : 'Где ты сегодня?'}</h2>
-      <p class="sub">Отметься — и увидишь свой офис: кто из банды рядом и есть ли очередь в столовой. +5 зёрен в день — за офис или «из дома».</p>
+      <p class="sub">Отметься — и увидишь свой офис: кто из банды рядом и есть ли очередь в столовой. Зёрна растут с серией дней: от +3 до +8.</p>
       ${officePicker()}
       <p class="small">Отметка действует до 19:00 или пока не нажмёшь «${meG('Ушёл', 'Ушла')}». Видно только офис, где ты ${meG('отметился', 'отметилась')}.</p>
       ${['home', 'vacation', 'sick', 'slack'].includes(st.presence.where) ? '' : `<div class="today-grid">
@@ -2255,7 +2275,7 @@ function renderOffice() {
         <button class="btn ghost" data-act="open" data-v="vacation">sun В отпуске</button>
         <button class="btn ghost" data-act="today" data-v="slack">Отлыниваю</button></div>
         <p class="small">Не отметишься и ничего не выберешь — после 11:00 банда увидит шуточный статус вроде «в астрале».</p>`}
-    </div>${renderBirthdays()}${renderQuests()}${renderCompletion()}${renderQuiz()}${renderCoffee()}${renderGangNow()}`;
+    </div>${renderBirthdays()}${renderCompletion()}${renderQuiz()}${renderCoffee()}${renderGangNow()}`;
   }
   const here = st.gangNow.rows.filter((r) => r.where === 'office' && r.office === st.checkin.office).length;
   const hour = Number(st.msk.slice(0, 2));
@@ -2276,7 +2296,7 @@ function renderOffice() {
     </div>
   </section>
   ${renderBirthdays()}
-  ${renderQuests()}
+  
   ${renderCompletion()}
   ${renderQuiz()}
   ${renderQuickCalls()}
@@ -4864,7 +4884,8 @@ const actions = {
     const r = await post('/api/checkin', { office: el.dataset.v });
     try { store.set('recentOffices', [el.dataset.v, ...recentOffices().filter((id) => id !== el.dataset.v)].slice(0, 5)); } catch {}
     S.officeQ = '';
-    if (r.beans) toast(`+${r.beans} зёрен за отметку`);
+    if (r.streak && S.me) S.me.streak = r.streak;
+    if (r.streak) showStreak(r); else if (r.beans) toast(`+${r.beans} зёрен за отметку`);
     await refresh({ all: true });
   }),
   checkout: () => run(async () => { await post('/api/checkout'); toast('Хорошего вечера!'); await refresh(); }),
@@ -5608,13 +5629,14 @@ const actions = {
     const r = await post('/api/me/profile', { profile: { today: el.dataset.v ? { kind: el.dataset.v } : null } });
     await loadMe(); await loadState();
     if (el.dataset.v === 'slack') toast('Признание засчитано ');
-    if (el.dataset.v === 'home') { toast(r.beans ? `Отмечено: сегодня из дома · +${r.beans} зёрен` : 'Отмечено: сегодня из дома'); loadFeatures().then(render).catch(() => {}); }
+    if (el.dataset.v === 'home') { if (r.streak) showStreak(r); else toast('Отмечено: сегодня из дома'); loadFeatures().then(render).catch(() => {}); }
   }),
   'plan-day': (el) => run(async () => {
     const plan = { ...S.me.profile.plan };
     const cur = plan[el.dataset.v];
     if (!cur) plan[el.dataset.v] = 'office'; else if (cur === 'office') plan[el.dataset.v] = 'home'; else delete plan[el.dataset.v];
-    await post('/api/me/profile', { profile: { plan } }); await loadMe();
+    const r = await post('/api/me/profile', { profile: { plan } }); await loadMe();
+    if (r.planBeans) toast(`План недели готов · +${r.planBeans} зёрен. Банда видит твои офисные дни`);
   }),
   'sick-now': () => run(async () => {
     await post('/api/me/profile', { profile: { today: { kind: 'sick', to: $('#sick-until').value || S.state.today } } });
@@ -6047,6 +6069,8 @@ document.addEventListener('visibilitychange', async () => {
 // Ссылки из пушей: #gang/ID, #crew/ID, #battle/ID, #feed, #feedback
 function applyHash(hash) {
   if (hash.startsWith('#gang/')) { S.tab = 'chats'; S.chatGang = true; S.dm = null; S.activeGang = Number(hash.slice(6)) || S.activeGang; }
+  if (hash === '#near') { S.tab = 'near'; S.chatGang = false; S.dm = null; }
+  if (hash === '#rate') { S.tab = 'office'; S.chatGang = false; S.dm = null; setTimeout(() => { const c = document.querySelector('.food'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 800); }
   if (hash === '#todos') { S.tab = 'near'; S.chatGang = false; S.dm = null; setTimeout(() => { const c = document.querySelector('.todos'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 600); }
   if (hash === '#battery') { S.sheet = 'battery'; S.bt = { step: 0, answers: [] }; get('/api/battery').then((b) => { S.battery = b; render(); }).catch(() => {}); }
   if (hash.startsWith('#wave/')) { S.tab = 'chats'; S.chatGang = true; S.dm = null; S.activeGang = Number(hash.slice(6)) || S.activeGang; S.waveScroll = true; }

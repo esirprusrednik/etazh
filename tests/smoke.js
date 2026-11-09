@@ -116,10 +116,11 @@ async function waitUp() {
     assert.equal((await new Client().login('d@mts.ru')).constructor, Client);
   });
 
-  await step('отметка в офисе +5 один раз в день', async () => {
+  await step('отметка в офисе: зёрна по серии (первый день +3), один раз в день, окно серии', async () => {
     const r = await a.post('/api/checkin', { office: 'smol' });
     if (r.status === 400 && /завтра/.test(r.json.error)) return console.log('    (после 19:00 МСК — пропуск)');
-    assert.equal(r.json.beans, 5);
+    assert.equal(r.json.beans, 3, 'первый день серии — +3');
+    assert.equal(r.json.streak, 1); assert.equal(r.json.tomorrow, 4); assert.deepEqual(r.json.streakBeans, [3, 4, 5, 6, 8]);
     await a.post('/api/checkin', { office: 'mark' });
     const again = await a.post('/api/checkin', { office: 'smol' });
     assert.equal(again.json.beans, 0);
