@@ -7028,3 +7028,51 @@ boot().catch((e) => { root.innerHTML = `<div class="onb"><div class="card"><h2>�
 
 // Для проверки сочетаний деталей аватара (скриншоты-матрицы)
 window.__etazhAvatar = avatar;
+
+// ---------- Подсказка прокрутки ----------
+// Где есть что листать — полосы с карточками, вкладки, шторки, переписка — у края появляется маленькая
+// стрелка и покачивается в сторону прокрутки. Долистал до конца — пропадает. Нажатие листает дальше.
+// Стрелки живут в отдельном слое поверх страницы и не меняют вёрстку самих полос.
+const SCROLLERS = '.sheet, .chat, .presets, .cats, .scenes, .chips.scroll-x, .fav-strip, .bracket, .match-strip, .tmr-list, .shop-strip, .shop-tabs, .b-emotes, .war-rivals, .hero-list';
+let hintRaf = 0;
+const hintLayer = (() => { const d = document.createElement('div'); d.id = 'scroll-hints'; d.setAttribute('aria-hidden', 'true'); document.body.appendChild(d); return d; })();
+function scheduleHints() { if (!hintRaf) hintRaf = requestAnimationFrame(() => { hintRaf = 0; drawHints(); }); }
+function drawHints() {
+  const out = [];
+  const sheet = document.querySelector('.sheet');
+  // Нижняя панель вкладок закрывает край экрана — стрелки над ней не рисуем
+  const nav = !sheet && document.querySelector('nav.tabs');
+  const vw = window.innerWidth, vh = nav ? Math.min(window.innerHeight, nav.getBoundingClientRect().top) : window.innerHeight;
+  const els = [...document.querySelectorAll(SCROLLERS)];
+  // Под открытой шторкой страницу не подсказываем — только то, что внутри шторки
+  els.forEach((el, i) => {
+    if (sheet && el !== sheet && !sheet.contains(el)) return;
+    const r = el.getBoundingClientRect();
+    if (r.width < 40 || r.height < 20) return;
+    // Видимая часть: экран, а внутри шторки — ещё и сама шторка
+    let top = Math.max(0, r.top), bottom = Math.min(vh, r.bottom), left = Math.max(0, r.left), right = Math.min(vw, r.right);
+    if (sheet && el !== sheet) { const s = sheet.getBoundingClientRect(); top = Math.max(top, s.top); bottom = Math.min(bottom, s.bottom); }
+    if (bottom - top < 16 || right - left < 30) return;
+    const horiz = el.scrollWidth - el.clientWidth > 6 && getComputedStyle(el).overflowX !== 'hidden';
+    if (horiz) {
+      const y = Math.round((top + bottom) / 2 - 13);
+      if (el.scrollLeft + el.clientWidth < el.scrollWidth - 6) out.push(`<button class="sh-arrow r" style="left:${Math.round(right - 30)}px;top:${y}px" data-hint="${i}" data-dir="r">›</button>`);
+      if (el.scrollLeft > 6) out.push(`<button class="sh-arrow l" style="left:${Math.round(left + 4)}px;top:${y}px" data-hint="${i}" data-dir="l">‹</button>`);
+    } else if (el.scrollHeight - el.clientHeight > 12 && el.scrollTop + el.clientHeight < el.scrollHeight - 12) {
+      out.push(`<button class="sh-arrow d" style="left:${Math.round((left + right) / 2 - 13)}px;top:${Math.round(bottom - 34)}px" data-hint="${i}" data-dir="d">›</button>`);
+    }
+  });
+  const html = out.join('');
+  if (hintLayer.innerHTML !== html) { hintLayer.innerHTML = html; hintLayer._els = els; }
+  else hintLayer._els = els;
+}
+hintLayer.addEventListener('click', (e) => {
+  const b = e.target.closest('.sh-arrow'); if (!b) return;
+  const el = (hintLayer._els || [])[Number(b.dataset.hint)]; if (!el) return;
+  const d = b.dataset.dir;
+  if (d === 'd') el.scrollBy({ top: el.clientHeight * 0.7, behavior: 'smooth' });
+  else el.scrollBy({ left: (d === 'r' ? 1 : -1) * el.clientWidth * 0.7, behavior: 'smooth' });
+});
+document.addEventListener('scroll', scheduleHints, true);
+window.addEventListener('resize', scheduleHints);
+new MutationObserver((list) => { if (list.some((m) => m.target !== hintLayer && !hintLayer.contains(m.target))) scheduleHints(); }).observe(document.body, { childList: true, subtree: true });

@@ -2095,3 +2095,14 @@ s.was, .st-price s { opacity: .65; font-weight: 600; }
 .shop-top, .deal, .shop-sec, .shop-strip, .shop-tabs, .shop-body, .shop-try, .mini-item { flex-shrink: 0; }
 .shop-try { top: 56px; }
 .shop-body .btn.small, .deal .btn.small { white-space: nowrap; flex: none; }
+/* ----- Подсказка прокрутки ----- */
+#scroll-hints { position: fixed; inset: 0; pointer-events: none; z-index: 40; }
+.sh-arrow { position: absolute; width: 26px; height: 26px; border-radius: 50%; border: 0; padding: 0; display: grid; place-items: center; pointer-events: auto; cursor: pointer;
+  font: 900 18px/1 system-ui, sans-serif; color: var(--ink); background: var(--card); box-shadow: 0 2px 8px rgba(10,16,35,.22); opacity: .92; }
+.sh-arrow.r { animation: shR 1.4s ease-in-out infinite; }
+.sh-arrow.l { animation: shL 1.4s ease-in-out infinite; }
+.sh-arrow.d { transform: rotate(90deg); animation: shD 1.4s ease-in-out infinite; }
+@keyframes shR { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(4px); } }
+@keyframes shL { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-4px); } }
+@keyframes shD { 0%, 100% { transform: rotate(90deg) translateX(0); } 50% { transform: rotate(90deg) translateX(4px); } }
+@media (prefers-reduced-motion: reduce) { .sh-arrow { animation: none !important; } }
