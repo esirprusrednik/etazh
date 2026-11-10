@@ -3800,6 +3800,7 @@ function renderBoard(v, kind) {
   // не начинались заново и не мелькали дважды, продолжаем анимацию с того места, где она была
   const fAgo = Math.max(0, Date.now() - (S.bFreshUntil - 1400));
   const cells = [];
+  const lastOppShot = kind === 'me' ? [...v.oppShots].reverse().find((t) => !t.auto) : null;
   for (let y = 0; y < 10; y++) for (let x = 0; x < 10; x++) {
     const k = x * 10 + y;
     const t = shotAt.get(k);
@@ -3807,7 +3808,7 @@ function renderBoard(v, kind) {
     if (shipAt.has(k)) cls.push('under');
     if (t) cls.push(t.r === 'miss' ? (t.auto ? 'miss auto' : 'miss') : sunkAt.has(k) ? 'sunk' : 'hit');
     if (fresh.has(`${pre}:${x},${y}`) && !(t && t.auto)) cls.push('fresh');
-    if (v.last && ((kind === 'opp' && v.last.mine) || (kind === 'me' && !v.last.mine)) && v.last.x === x && v.last.y === y) cls.push('lastshot');
+    if (kind === 'opp' ? v.last && v.last.mine && v.last.x === x && v.last.y === y : lastOppShot && lastOppShot.x === x && lastOppShot.y === y) cls.push('lastshot');
     const label = `${B_COLS[x]}${y + 1}`;
     cells.push(canShoot && !t
       ? `<button class="${cls.join(' ')} aim" data-act="bshoot" data-x="${x}" data-y="${y}" aria-label="Выстрел в ${label}"></button>`
@@ -3829,8 +3830,6 @@ function renderBoard(v, kind) {
   if (kind === 'opp') for (const t of shots) if (t.r !== 'miss' && !sunkAt.has(t.x * 10 + t.y)) art.push(`<div class="ship-slot boom" style="grid-area:${t.y + 1} / ${t.x + 1}">${boomSvg(t.x + t.y)}</div>`);
   const shout = S.bShout && Date.now() < S.bShout.until && S.bShout.board === pre ? `<div class="b-shout ${S.bShout.cls}" style="animation-delay:-${Math.max(0, Date.now() - (S.bShout.until - 1400))}ms">${esc(S.bShout.text)}</div>` : '';
   return `<div class="board-wrap ${kind}">
-    <div class="board-cols">${B_COLS.map((c) => `<span>${c}</span>`).join('')}</div>
-    <div class="board-rows">${Array.from({ length: 10 }, (_, i) => `<span>${i + 1}</span>`).join('')}</div>
     <div class="board ${canShoot ? 'armed' : ''}">${cells.join('')}<div class="ships-layer">${art.join('')}</div></div>${shout}
   </div>`;
 }
@@ -3839,7 +3838,12 @@ function fleetLeft(ships, shots) {
   const hit = new Set(shots.filter((t) => t.r !== 'miss').map((t) => t.x * 10 + t.y));
   return ships.map((sh) => ({ len: sh.length, sunk: sh.every(([x, y]) => hit.has(x * 10 + y)) }));
 }
-const fleetBars = (arr) => `<div class="fleet">${arr.sort((a, b) => b.len - a.len).map((s) => `<span class="fl ${s.sunk ? 'sunk' : ''}" title="${s.len}-палубный${s.sunk ? ', потоплен' : ''}">${'<i></i>'.repeat(s.len)}</span>`).join('')}</div>`;
+// Флот по классам: «▮▮▮▮ 1/1  ▮▮▮ 2/2 …» — сколько кораблей каждой длины ещё на плаву. Потопленный класс гаснет
+const fleetBars = (arr) => {
+  const g = {};
+  for (const sh of arr) { const x = g[sh.len] || (g[sh.len] = { len: sh.len, total: 0, alive: 0 }); x.total++; if (!sh.sunk) x.alive++; }
+  return `<div class="fleet">${Object.values(g).sort((a, b) => b.len - a.len).map((x) => `<span class="fl ${x.alive ? (x.alive < x.total ? 'hurt' : '') : 'gone'}" title="${x.len}-палубные: на плаву ${x.alive} из ${x.total}"><span class="fl-ship">${'<i></i>'.repeat(x.len)}</span><b>${x.alive}</b><small>/${x.total}</small></span>`).join('')}</div>`;
+};
 
 // Часы быстрой партии: сервер присылает остаток, дальше тикаем сами до следующего ответа
 function clockNow(v, who) {
@@ -3925,7 +3929,9 @@ function renderBattle() {
   for (const sh of v.oppSunk) { const f = oppFleet.find((x) => x.len === sh.length && !x.sunk); if (f) f.sunk = true; }
   // Во время партии свой флот — мини-картой рядом с баннером: поле соперника и своё положение на одном экране.
   // Нажатие на мини-карту разворачивает своё поле целиком (и обратно)
-  const lastOpp = v.last && !v.last.mine ? `${B_COLS[v.last.x]}${v.last.y + 1} — ${v.last.r === 'miss' ? 'мимо' : v.last.r === 'sunk' ? 'потопил' : 'попал'}` : null;
+  // Последний выстрел соперника — даже если после него стрелял ты (он подсвечен на мини-карте)
+  const lo = [...v.oppShots].reverse().find((t) => !t.auto);
+  const lastOpp = lo ? (lo.r === 'miss' ? 'мимо' : v.myShips.some((sh) => sh.some(([x, y]) => x === lo.x && y === lo.y) && sh.every(([x, y]) => v.oppShots.some((t) => t.x === x && t.y === y))) ? 'потопил корабль' : 'попал') : null;
   const compact = !done && !S.bMineBig;
   const mineMini = compact ? `<section class="b-mini" data-act="b-mine-big" role="button" aria-label="Показать моё поле крупно">
     <div class="b-mini-board">${renderBoard(v, 'me')}</div>
