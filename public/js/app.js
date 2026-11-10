@@ -19,7 +19,7 @@ const store = {
 };
 
 const S = {
-  me: null, cat: null, vapidKey: null, domains: ['mts.ru'],
+  me: null, cat: null, vapidKey: null,
   state: null, gang: null, events: null, shop: null,
   tab: 'near', activeGang: store.get('activeGang', null), people: null, chats: null, chatGang: false,
   sheet: null, compose: null, signal: null,

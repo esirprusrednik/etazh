@@ -161,7 +161,7 @@ function register(ctx) {
   });
   route('POST', '/api/tourney/register', async (req, body) => {
     const u = requireUser(req);
-    if ((u.company || 'mts') !== 'mts') throw bad('Кубок пока разыгрывается только среди банд МТС.');
+    if ((u.company || 'mts') !== 'mts') throw bad('Кубок в твоей компании пока не разыгрывается.');
     const t = current();
     const g = q('SELECT g.* FROM gangs g JOIN gang_members m ON m.gang_id = g.id WHERE m.user_id = ? AND g.hidden = 0 ORDER BY m.joined_at LIMIT 1').get(u.id);
     if (!g || g.owner_id !== u.id) throw bad('Записывает банду владелец.');
