@@ -72,7 +72,8 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/auth/verify' && req.method === 'GET') {
       const cookie = api.verifyLogin(query.t);
       if (!cookie) return send(res, 302, '', { Location: '/?login=expired' });
-      return send(res, 302, '', { Location: '/', 'Set-Cookie': cookie, 'Cache-Control': 'no-store' });
+      const hash = /^[A-Z0-9]{6}$/.test(query.j || '') ? `#join=${query.j}` : /^[A-Z0-9]{6}$/.test(query.c || '') ? `#crew=${query.c}` : '';
+      return send(res, 302, '', { Location: '/' + hash, 'Set-Cookie': cookie, 'Cache-Control': 'no-store' });
     }
 
     // Подтверждение заявки компании, которой ещё нет в Этаже

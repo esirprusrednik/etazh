@@ -514,7 +514,10 @@ function createApi(db) {
     const code = String(require('node:crypto').randomInt(0, 1e6)).padStart(6, '0');
     q('INSERT INTO login_tokens (token_hash, email_hash, code_hash, expires_at, company) VALUES (?, ?, ?, ?, ?)')
       .run(U.sha256(token), emailHash, U.sha256(emailHash + ':' + code), U.now() + config.loginTokenMinutes * 60e3, company);
-    const link = `${config.baseUrl}/auth/verify?t=${token}`;
+    // Пришёл по приглашению в банду или «стань подельником» — код едет в ссылке из письма:
+    // письмо часто открывают в другом браузере, где приглашение из адресной строки потерялось бы
+    const inv = [['j', body.join], ['c', body.crew]].filter(([, v]) => /^[A-Za-z0-9]{6}$/.test(String(v || ''))).map(([k, v]) => `&${k}=${String(v).toUpperCase()}`).join('');
+    const link = `${config.baseUrl}/auth/verify?t=${token}${inv}`;
     try {
       await sendLoginLink(email, link, code);
     } catch (e) {
@@ -571,7 +574,7 @@ function createApi(db) {
       user: {
         completion, affordable,
         id: u.id, nick: u.nick, company: companyOf(u), companyName: (U.companyInfo(companyOf(u)) || {}).name || '', beans: u.beans, look: u.look, profile: u.profile, shareOffice: !!u.share_office, quiet: !!u.quiet,
-        welcomed: !!u.welcomed, isAdmin: u.isAdmin, owned, newbie: U.now() - (u.created_at || 0) < 7 * 864e5, status: statusName(u.look.status), streak, level,
+        welcomed: !!u.welcomed, isAdmin: u.isAdmin, owned, newbie: U.now() - (u.created_at || 0) < 7 * 864e5, newbie3: U.now() - (u.created_at || 0) < 3 * 864e5, status: statusName(u.look.status), streak, level,
         // Погода на завтра для «Рядом»: с 15:00 накануне офисного дня, только если погода необычная
         weather: weather && U.msk().hour >= 15 ? weather.adviceFor(u.id, u.profile) : null,
         nickChangeableAt: u.nick_changed_at ? u.nick_changed_at + 30 * 864e5 : null, nickFree: !!u.nick && !u.nick_free_used,
@@ -1816,6 +1819,30 @@ function createApi(db) {
   } catch (e) { try { db.exec('ROLLBACK'); } catch {} console.error('seal migrate', e.message); }
 
   // ---------- Обработчик ----------
+  // Пачка GET-запросов одним махом: клиент собирает запросы одного мгновения (старт, обновление, смена вкладки)
+  // и шлёт их вместе — вместо 10–30 отдельных. Каждый выполняется как обычный GET с теми же проверками
+  route('POST', '/api/batch', async (req, body) => {
+    const paths = Array.isArray(body.paths) ? body.paths.slice(0, 40) : [];
+    const out = [];
+    for (const raw of paths) {
+      try {
+        const url = new URL(String(raw), 'http://x');
+        if (!url.pathname.startsWith('/api/') || url.pathname === '/api/batch') throw new HttpError(400, 'Не тот адрес.');
+        const r = routes.find((x) => x.method === 'GET' && x.re.test(url.pathname));
+        if (!r) throw new HttpError(404, 'Не найдено.');
+        const m = r.re.exec(url.pathname);
+        const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
+        const sub = Object.create(req); sub.method = 'GET'; sub.url = url.pathname + url.search;
+        const res = await viewerCtx.run({}, () => r.handler(sub, {}, Object.fromEntries(url.searchParams), params));
+        if (res && (res._raw || res._setCookie)) throw new HttpError(400, 'Этот запрос — только отдельно.');
+        out.push({ s: 200, j: res === undefined ? {} : res });
+      } catch (e) {
+        out.push(e instanceof HttpError ? { s: e.status, j: { error: e.message } } : (console.error('[batch]', e), { s: 500, j: { error: 'Что-то сломалось. Попробуй ещё раз.' } }));
+      }
+    }
+    return { r: out };
+  }, { maxBody: 16 * 1024 });
+
   async function handle(req, res, pathname, query) {
     const r = routes.find((x) => x.method === req.method && x.re.test(pathname));
     if (!r) throw new HttpError(404, 'Не найдено.');

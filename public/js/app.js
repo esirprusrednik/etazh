@@ -44,7 +44,27 @@ async function api(method, url, body) {
   if (!res.ok) throw new Error(json.error || 'Сервер не ответил. Проверь интернет.');
   return json;
 }
-const get = (u) => api('GET', u);
+// GET-запросы одного мгновения уходят одной пачкой: на старте вместо ~30 запросов — один, при смене вкладки — тоже
+const BATCH = { q: [], t: 0 };
+function get(u) {
+  return new Promise((resolve, reject) => {
+    BATCH.q.push({ u, resolve, reject });
+    if (!BATCH.t) BATCH.t = setTimeout(flushBatch, 0);
+  });
+}
+async function flushBatch() {
+  const q = BATCH.q; BATCH.q = []; BATCH.t = 0;
+  if (q.length === 1) { api('GET', q[0].u).then(q[0].resolve, q[0].reject); return; }
+  let r;
+  try { r = (await api('POST', '/api/batch', { paths: q.map((x) => x.u) })).r; }
+  catch (e) { q.forEach((x) => x.reject(e)); return; }
+  q.forEach((x, i) => {
+    const it = r[i] || { s: 500, j: {} };
+    if (it.s === 401) { S.me = null; render(); }
+    if (it.s >= 200 && it.s < 300) x.resolve(it.j);
+    else x.reject(new Error(it.j.error || 'Сервер не ответил. Проверь интернет.'));
+  });
+}
 const post = (u, b = {}) => api('POST', u, b);
 
 let toastTimer;
@@ -1917,7 +1937,7 @@ function renderApp() {
     ${S.newBuild ? '<button class="upd-bar" data-act="reload">spark Вышло обновление — нажми, чтобы обновить</button>' : ''}
     <main>
       ${showBanner ? `<div class="banner">
-        <div class="grow"><div style="font-weight:900;font-size:15px">Установи на телефон</div><div style="font-size:12px;font-weight:600">${wrapBrowser() ? 'Лучше через Chrome — так телефон не ругается' : 'Иконка на экране — и придут зовы банды'}</div></div>
+        <div class="grow"><div style="font-weight:900;font-size:15px">Установи на телефон</div><div style="font-size:12px;font-weight:600">${wrapBrowser() ? 'Лучше через Chrome — так телефон не ругается' : isIOS() ? 'На iPhone без этого не придёт ни одно уведомление: ни зов, ни «Неделя банды»' : 'Иконка на экране — и придут зовы банды'}</div></div>
         <button class="btn small blue" data-act="open" data-v="install">Как?</button>
         <button class="x" style="background:none" data-act="install-hide" aria-label="Скрыть на сутки">×</button>
       </div>` : ''}
@@ -2010,6 +2030,7 @@ function renderStatusBlock() {
   if (!st.checkin) {
     return `${renderToday()}<div class="card">
       <h2>${['home', 'vacation', 'sick', 'slack'].includes(st.presence.where) ? 'Всё-таки в офисе?' : 'Где ты сегодня?'}</h2>
+      ${st.presence.where === 'idle' ? `<p class="sub st-joke">Пока банда видит про тебя: <b>«${esc((S.cat.idleJokes || [])[st.presence.joke] || 'в астрале')}»</b></p>` : ''}
       ${officePicker()}
       ${['home', 'vacation', 'sick', 'slack'].includes(st.presence.where) ? '' : `<div class="today-grid">
         <button class="btn ghost" data-act="today" data-v="home">home Из дома</button>
@@ -2020,17 +2041,12 @@ function renderStatusBlock() {
     </div>`;
   }
   const here = (S.people || []).filter((r) => r.where === 'office' && r.office === st.checkin.office).length;
-  const hour = Number(st.msk.slice(0, 2));
-  return `<section class="office-card">
-    <div class="office-pic">${officeSvg({ office: st.checkin.office, crowd: here, hour, label: esc('Офис ' + st.checkin.name) })}</div>
-    <div class="office-info">
-      <div class="row" style="align-items:flex-start;justify-content:space-between;gap:8px">
-        <div style="display:flex;flex-direction:column;gap:2px"><span class="eyebrow">Ты в офисе</span><span class="office-name">${esc(st.checkin.name)}</span></div>
-        <button class="icon-btn" data-act="open" data-v="office" aria-label="Сменить офис">${ico('swap', 16)}</button>
-      </div>
-      <span class="small">с ${st.checkin.since || ''} · твоих здесь <b style="color:var(--tint-g-fg)">${here}</b> · до 19:00</span>
-      <button class="btn small ghost" style="align-self:flex-start" data-act="checkout">${meG('Ушёл домой', 'Ушла домой')}</button>
-    </div>
+  // На «Рядом» отметка — одной строкой: картинка офиса живёт на вкладке «Офис», здесь важнее зовы и люди
+  return `<section class="st-strip st-office">
+    <span class="st-ico">${ico('office', 20)}</span>
+    <span class="grow"><b>${esc(st.checkin.name)}</b><span class="small">с ${st.checkin.since || ''} · твоих здесь <b>${here}</b></span></span>
+    <button class="icon-btn" data-act="open" data-v="office" aria-label="Сменить офис">${ico('swap', 16)}</button>
+    <button class="btn small ghost" data-act="checkout">${meG('Ушёл', 'Ушла')}</button>
   </section>`;
 }
 
@@ -2084,20 +2100,27 @@ function renderPeople() {
 
 function renderNear() {
   if (!S.state) return '<div class="card"><p class="sub">Загружаем…</p></div>';
-  const aboutCard = S.me.newbie && !store.get('aboutSeen') ? `<button class="about-card" data-act="open" data-v="about"><span aria-hidden="true"></span><span class="grow"><b>Что это вообще такое?</b><span class="small">Этаж за 30 секунд: зачем он и что тут есть</span></span><span class="chev" aria-hidden="true">›</span></button>` : '';
+  const aboutCard = S.me.newbie3 && !store.get('aboutSeen') ? `<button class="about-card" data-act="open" data-v="about"><span aria-hidden="true"></span><span class="grow"><b>Что это вообще такое?</b><span class="small">Этаж за 30 секунд: зачем он и что тут есть</span></span><span class="chev" aria-hidden="true">›</span></button>` : '';
   const pr = S.me.look.prank && S.me.look.prank.until > Date.now() ? S.me.look.prank : null;
   const prankStrip = pr ? `<div class="prank-strip">${avatar(S.me.look, 34)}<span class="grow"><b>${esc(pr.from)} тебя ${pr.f ? 'разыграла' : 'разыграл'}</b><span class="small">${{ coffee: 'Кофе на одежде', sticker: 'Стикер на лбу', phones: 'Наушники с рок-музыкой' }[pr.v] || 'Подлянка'} — до ${new Date(pr.until).toTimeString().slice(0, 5)}</span></span><button class="btn small" data-act="prank-off">Снять</button></div>` : '';
   return `${pageHead('Рядом', 'Где ты сегодня и кто из твоих людей рядом')}
     ${prankStrip}${aboutCard}
     ${renderStatusBlock()}
-    ${renderWeatherStrip()}
-    ${renderWeekNote()}
-    ${renderAdvent(true)}
+    ${renderPushNudge()}
     ${(S.people && !S.people.length) || !S.me.gangs.length ? findBar() : ''}
     ${renderQuickCalls()}
-    ${renderBirthdays()}
+    ${renderWeatherStrip()}
+    ${renderWeekNote()}
     ${renderPeople()}
+    ${renderBirthdays()}
+    ${renderAdvent(true)}
     ${renderNearMore()}`;
+}
+// Установил, но уведомления не включил — зовы и сводки не дойдут. Особенно важно на iPhone: там пуши только так
+function renderPushNudge() {
+  if (!isStandalone() || !('Notification' in window) || Notification.permission !== 'default' || !S.vapidKey) return '';
+  if (store.get('pushNudgeHidden', 0) > Date.now()) return '';
+  return `<section class="st-strip"><span class="st-ico">${ico('alert', 20)}</span><span class="grow"><b>Уведомления выключены</b><span class="small">Без них не дойдут зовы банды и «Неделя банды»</span></span><button class="btn small blue" data-act="push-enable">Включить</button><button class="icon-btn" data-act="push-nudge-hide" aria-label="Скрыть на неделю">${ico('x', 15)}</button></section>`;
 }
 // Погода на завтра: строка под отметкой вечером накануне офисного дня. Дублирует пуш для тех, у кого пушей нет
 function renderWeatherStrip() {
@@ -2253,7 +2276,7 @@ function renderBoardNew() {
     <p class="small" style="margin:0">Объявление видят все. «Я тоже» придёт тебе пушем, дальше — в личке. Не дольше двух недель, потом исчезнет само.</p>
     <button class="btn" data-act="board-save">Повесить</button>`;
 }
-const findBar = () => `<button class="find-bar" data-act="find-open">${ico('search', 18)}<span>Найти своих: по нику, имени или почте</span></button>`;
+const findBar = () => `<button class="find-bar" data-act="find-open">${ico('search', 18)}<span>Найти: ник, имя или почта</span></button>`;
 
 function renderFind() {
   const f = S.find || {};
@@ -2370,7 +2393,7 @@ function renderChats() {
   const gangList = gangs.length ? gangs.map(row).join('')
     : '<p class="sub chats-empty">Ты пока ни в одной банде. Сколоти свою — у неё будет общий чат и зовы на кофе и обед.</p><button class="btn" data-act="open" data-v="gang-new">Сколотить банду</button>';
   const favs = c.favorites || [];
-  const favStrip = `<div class="fav-head"><span class="small"><b>★ Подельники</b> — избранные контакты: им можно писать всегда</span><button class="linkbtn" data-act="open" data-v="crew">${favs.length ? 'все' : '＋ добавить'}</button></div>
+  const favStrip = `<div class="fav-head"><span class="small"><b>★ Подельники</b> · им можно писать всегда</span><button class="linkbtn" data-act="open" data-v="crew">${favs.length ? 'все' : '＋ добавить'}</button></div>
     ${favs.length ? `<div class="fav-strip">${favs.map((f) => { const [, col] = whereText(f); return `<button class="fav" data-act="dm-open" data-id="${f.id}"><span class="ava-ring" style="border-color:${col}">${avatar(f.look, 40)}</span><span class="ellipsis">${nk(f)}</span></button>`; }).join('')}</div>` : ''}`;
   const dmList = dms.length ? dms.map(row).join('')
     : '<p class="sub chats-empty">Голуби скучают. Напиши кому-нибудь — лично можно любому, кто не закрыл личку: найди по нику или открой карточку человека.</p>';
@@ -2389,13 +2412,19 @@ function renderChats() {
 function renderOfficeTab() {
   const st = S.state;
   if (!st) return '<div class="card"><p class="sub">Загружаем…</p></div>';
-  const where = st.checkin ? `Ты в офисе «${esc(st.checkin.name)}»` : 'Отметься на вкладке «Рядом», чтобы видеть свой офис';
+  const where = st.checkin ? `Ты в офисе «${esc(st.checkin.name)}»` : 'Доска, «Кто знает?» и что нового на этаже';
   return `${pageHead('Офис', where)}
-    ${st.checkin && st.canteen ? renderCanteen() : `<section class="card empty"><div class="empty-ico">lunch</div><p class="sub">Загрузка столовой, обед компанией и сигналы видны тем, кто отметился в офисе.</p><button class="btn" data-act="tab" data-v="near">Отметиться</button></section>`}
+    ${st.checkin && st.canteen ? renderCanteen() : officeGate()}
     ${st.checkin ? renderLunches() : ''}
-    ${renderExperts()}
     ${renderBoardCard()}
+    ${renderExperts()}
     ${renderFeed()}`;
+}
+// До отметки — одна строка вместо трёх пустых карточек. Вечером не зовём отмечаться: отметки откроются утром
+function officeGate() {
+  const st = S.state;
+  if (st.night) return `<section class="st-strip"><span class="st-ico">${ico('moon', 20)}</span><span class="grow"><b>Офисы спят до утра</b><span class="small">Столовая, обед компанией и сигналы откроются после утренней отметки</span></span></section>`;
+  return `<section class="st-strip"><span class="st-ico">${ico('lunch', 20)}</span><span class="grow"><b>Столовая и сигналы</b><span class="small">Видны тем, кто отметился в офисе</span></span><button class="btn small" data-act="tab" data-v="near">Отметиться</button></section>`;
 }
 
 // ===== Вкладка «Игры»: задания, квизы, морской бой, кофе, ачивки, Лавка =====
@@ -2731,10 +2760,9 @@ function renderToday() {
       <button class="btn ghost" data-act="today" data-v="">Ладно, работаю</button>
     </section>${next}`;
   }
-  if (p.where === 'idle') {
-    return `<section class="card">
-      <p class="sub">Ты не ${meG('отметился', 'отметилась')}, и банда видит про тебя шутку: <b>«${esc((S.cat.idleJokes || [])[p.joke] || 'в астрале')}»</b>. Выбери статус или отметься в офисе.</p>
-    </section>${next}`;
+  if (p.where === 'idle') return next; // шутка про «не отметился» — подзаголовком в карточке «Где ты сегодня?»
+  if (p.where === 'home' && !p.planned) {
+    return `<section class="st-strip"><span class="st-ico">${ico('home', 20)}</span><span class="grow"><b>Сегодня из дома</b><span class="small">Банда видит «работает из дома». Приедешь — отметься в офисе</span></span><button class="btn small ghost" data-act="today" data-v="">Отменить</button></section>${next}`;
   }
   if (p.where === 'home') {
     return `<section class="card">
@@ -3296,7 +3324,7 @@ function renderDuelsCard() {
   const games = [['duel-pick', 'rps', rpsDuo(), 'Камень, ножницы, бумага'], ['duel-pick', 'dice', 'dice', 'Кости'], ['duel-pick', 'ttt', 'xcircle', 'Крестики-нолики'], ['duel-pick', 'sea', 'anchor', 'Морской бой']];
   return `<section class="card duels-card"><div class="chats-head"><h3>game Сыграть</h3><span class="small">${waiting ? `${waiting} ${plural(waiting, 'ждёт', 'ждут', 'ждут')} твоего хода` : 'победа +2 зерна'}</span></div>
     <div class="duel-new n4">${games.map(([act, g, e, t]) => `<button class="duel-start" data-act="${act}" data-v="${g}"><span>${e}</span><b>${hy(t)}</b></button>`).join('')}</div>
-    ${items.length || battles.length ? '' : '<p class="small" style="margin:0">Выбери игру и соперника — или потренируйся в практике. В дуэлях можно на ставку 5 или 10 зёрен — победитель забирает обе. Морской бой — с расстановкой, быстрый или без спешки.</p>'}
+    ${items.length || battles.length ? '' : (S.gHelp ? '<p class="small" style="margin:0">Нажми игру — дальше выбери соперника или «Практику» с компьютером. В дуэлях можно играть на ставку 5 или 10 зёрен — победитель забирает обе. Морской бой — быстрый или без спешки. <button class="linkbtn small" data-act="g-help">Скрыть</button></p>' : '<button class="linkbtn small g-help" data-act="g-help">Как играть?</button>')}
     ${battles.map((x) => `<button class="chat-row" data-act="battle-go" data-id="${x.id}" data-opp="${x.oppId}"><span class="duel-ico">anchor</span><span class="grow"><span class="chat-title">${esc(nickOf(x.oppId))}</span><span class="where">Морской бой · ${x.mode === 'fast' ? 'быстрая · ' : ''}${x.status === 'setup' ? 'расстановка' : x.myTurn ? 'твой ход!' : 'ход соперника'}</span></span>${x.myTurn ? '<span class="crew-badge">!</span>' : ''}</button>`).join('')}
     ${items.map((d) => `<button class="chat-row" data-act="dm-open" data-id="${d.opp.id}">${avatar(d.opp.look, 32)}<span class="grow"><span class="chat-title">${nk(d.opp)}</span><span class="where">${{ rps: 'rock Камень, ножницы, бумага', dice: 'dice Кости', ttt: 'x Крестики-нолики' }[d.game]}${d.score ? ` · ${d.score.me}:${d.score.opp}` : ''}</span></span>${d.myTurn ? '<span class="crew-badge">!</span>' : ''}</button>`).join('')}</section>`;
 }
@@ -4061,7 +4089,7 @@ function renderFeed() {
         </div>`).join('') : '<p class="sub">Пока тихо. Заметил, что холодно, на кухне яблоки или кофе закончился — сообщи всем на этаже.</p>'}
         <p class="small">Пожарная тревога и эвакуация — только по официальным каналам АХО и охраны, не здесь.</p>
       </section>`
-    : '<section class="card"><h3>alert Сигналы офиса</h3><p class="sub">Отметься в офисе, чтобы видеть и отправлять сигналы: холодно, еда на кухне, кофе закончился.</p></section>';
+    : ''; // до отметки сигналы не показываем: плашка сверху вкладки уже объясняет, что откроется
   const off = new Set(store.get('feedOff', []));
   const onlyClose = !!store.get('feedClose', false);
   const kinds = [['office', 'В офисе'], ['join', 'Новички'], ['ach', 'Ачивки'], ['shop', 'Покупки']];
@@ -5716,7 +5744,7 @@ const actions = {
     if (!$('#consent').checked) { S.onb.error = 'Отметь согласие с политикой и правилами.'; return render(); }
     S.busy = true; S.onb.error = ''; render();
     try {
-      const r = await post('/api/auth/request', { email, consent: true });
+      const r = await post('/api/auth/request', { email, consent: true, join: store.get('pendingJoin', null) || undefined, crew: store.get('pendingCrew', null) || undefined });
       // Компании ещё нет в Этаже — сервер прислал письмо для подтверждения заявки
       S.onb = { ...S.onb, step: r.access ? 'access' : 'sent', error: '', devLink: r.devLink || null, devCode: r.devCode || null };
     } catch (e) { S.onb.error = e.message; }
@@ -6374,6 +6402,8 @@ const actions = {
     if (g.to) requestAnimationFrame(() => setTimeout(() => { const t = findInGangTabs(g.to); if (t) t.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 150));
   },
   'match-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { matchShow: el.checked } }); await Promise.all([loadMe(), loadMatch()]); toast(el.checked ? 'Твои дни видны в «Совпадаем»' : 'Твои дни скрыты — и чужие тоже'); }),
+  'push-nudge-hide'() { try { store.set('pushNudgeHidden', Date.now() + 7 * 864e5); } catch {} render(); },
+  'g-help'() { S.gHelp = !S.gHelp; render(); },
   'weeknote-hide'(el) { try { store.set('weekNoteHidden', el.dataset.v); } catch {} render(); },
   'monday-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { monday: el.checked } }); await loadMe(); toast(el.checked ? 'В понедельник пришлю, что у банды на неделе' : 'Понедельничную сводку больше не пришлю'); }),
   'focus-set': (el) => run(async () => {
@@ -7052,10 +7082,22 @@ document.addEventListener('keydown', (e) => {
 
 // ---------- Обновление в фоне ----------
 const typing = () => { const a = document.activeElement; return a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA'); };
+// Фоновое обновление: раз в 20 секунд, а если три раза подряд ничего не поменялось — раз в минуту
+const POLL = { idle: 0, at: 0, sig: '' };
+const pollSig = () => JSON.stringify([S.state && S.state.badges, S.state && S.state.checkin, (S.people || []).map((p) => p.id + p.where + (p.office || '') + (p.focus || '') + (p.unread || 0)), (S.inbox || []).length]);
 setInterval(async () => {
   if (document.hidden || !S.me || !S.me.nick || typing() || S.sheet) return;
-  try { await refresh(); render(); } catch {}
+  if (POLL.idle >= 3 && Date.now() - POLL.at < 60000) return;
+  POLL.at = Date.now();
+  try {
+    await refresh();
+    const sig = pollSig();
+    POLL.idle = sig === POLL.sig ? POLL.idle + 1 : 0; POLL.sig = sig;
+    render();
+  } catch {}
 }, 20000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) POLL.idle = 0; });
+document.addEventListener('click', () => { POLL.idle = 0; }, true);
 // Морской бой: опрашиваем часто, чтобы выстрел соперника появился почти сразу. В быстрой партии — раз в секунду
 let battleTick = 0;
 setInterval(async () => {
@@ -7307,10 +7349,19 @@ function drawHints() {
     const y = window.scrollY, rest = document.documentElement.scrollHeight - window.innerHeight - y;
     const navTop = nav.getBoundingClientRect().top;
     if (document.documentElement.scrollHeight - window.innerHeight > window.innerHeight * 0.6) {
-      const pos = `left:${Math.round(vw - 52)}px;top:${Math.round(navTop - 50)}px`;
+      // Кнопка у самого края и не поверх кнопок: ищем свободное место снизу вверх, не нашли — не показываем
+      const busy = (x, yy) => document.elementsFromPoint(x, yy).some((n) => !n.closest('#scroll-hints') && n.closest('button, a, input, select, textarea, label, [data-act]'));
+      let top = null;
+      for (let k = 0; k < 5 && top === null; k++) {
+        const t = navTop - 44 - k * 46, x0 = vw - 38;
+        if (t < 80) break;
+        if (![[x0 + 2, t + 2], [x0 + 32, t + 2], [x0 + 2, t + 32], [x0 + 32, t + 32], [x0 + 17, t + 17]].some(([x, yy]) => busy(x, yy))) top = t;
+      }
+      const pos = top === null ? null : `left:${Math.round(vw - 38)}px;top:${Math.round(top)}px`;
       // Прошёл половину страницы (или полтора экрана) — ведём наверх, иначе — вниз
       const maxY = document.documentElement.scrollHeight - window.innerHeight;
-      if (y > Math.min(window.innerHeight * 1.2, maxY * 0.5)) out.push(`<button class="sh-arrow pg up" style="${pos}" data-dir="top" aria-label="Наверх">›</button>`);
+      if (!pos) { /* места нет — без кнопки */ }
+      else if (y > Math.min(window.innerHeight * 1.2, maxY * 0.5)) out.push(`<button class="sh-arrow pg up" style="${pos}" data-dir="top" aria-label="Наверх">›</button>`);
       else if (rest > 200) out.push(`<button class="sh-arrow pg d" style="${pos}" data-dir="bottom" aria-label="В конец страницы">›</button>`);
     }
   }

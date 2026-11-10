@@ -675,6 +675,24 @@ function startServer(day, extra = {}) {
       assert.equal(m.cohorts.length, 5); assert.equal(m.cohorts[4].n, 6);
       assert.notEqual((await A.get('/api/admin/metrics')).status, 200);
     });
+    await step('пачка запросов: одним POST — как отдельные GET, ошибки по отдельности', async () => {
+      const r = (await A.post('/api/batch', { paths: ['/api/me', '/api/people', '/api/nope', '/api/admin/metrics', '/api/batch'] })).json.r;
+      assert.equal(r.length, 5);
+      assert.equal(r[0].s, 200); assert.equal(r[0].j.user.nick, 'понедельник');
+      assert.equal(r[1].s, 200); assert.ok(Array.isArray(r[1].j.people));
+      assert.equal(r[2].s, 404); assert.notEqual(r[3].s, 200); assert.equal(r[4].s, 400);
+      const anon = (await new sm.Client().post('/api/batch', { paths: ['/api/people'] })).json.r;
+      assert.equal(anon[0].s, 401);
+    });
+    await step('приглашение в банду едет в ссылке из письма', async () => {
+      const X = new sm.Client();
+      const r = (await X.post('/api/auth/request', { email: 'newbie@mts.ru', consent: true, join: 'abc123' })).json;
+      assert.ok(r.devLink.endsWith('&j=ABC123'), r.devLink);
+      const res = await fetch(r.devLink, { redirect: 'manual' });
+      assert.equal(res.headers.get('location'), '/#join=ABC123');
+      const r2 = (await X.post('/api/auth/request', { email: 'newbie2@mts.ru', consent: true, join: '<script>' })).json;
+      assert.ok(!r2.devLink.includes('&j='));
+    });
   } finally { sm.stop(); }
   console.log(`social: ${passed} ok`);
 })().catch((e) => { console.error(e); process.exit(1); });
