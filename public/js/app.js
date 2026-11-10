@@ -4579,7 +4579,7 @@ function actx() {
 }
 // Записанные звуки: живой оркестр (сэмплы VS Chamber Orchestra, CC0), сведённые в короткие фразы.
 // Грузятся один раз при первом звуке; пока не загрузились или без сети — играет синтезированная версия
-const SAMPLE_URLS = { bugle: '/sounds/battle.mp3', lose: '/sounds/lose.mp3' };
+const SAMPLE_URLS = { bugle: '/sounds/battle.mp3', lose: '/sounds/lose.mp3', fanfare: '/sounds/win.mp3' };
 const sampleBuf = {};
 function loadSamples(c) {
   for (const [k, url] of Object.entries(SAMPLE_URLS)) {
@@ -4912,6 +4912,7 @@ const SOUNDS = {
   cuckoo: (c) => { [[659, 0], [523, 0.22], [659, 0.62], [523, 0.84]].forEach(([f, at]) => { tone(c, { f, type: 'sine', at, dur: 0.18, vol: 0.09, atk: 0.01, rv: 0.35 }); tone(c, { f: f * 2, type: 'sine', at, dur: 0.1, vol: 0.015, rv: 0.2 }); }); noise(c, { at: 0, dur: 0.05, vol: 0.02, type: 'bandpass', f: 1800, q: 3 }); },
   // Победа: литавры и медный аккорд
   fanfare: (c) => {
+    if (playSample(c, 'fanfare')) return;
     [0, 0.18, 0.36].forEach((at, i) => { tone(c, { f: 98, f2: 92, type: 'sine', at, dur: 0.5, vol: 0.14 - i * 0.02, atk: 0.003, rv: 0.4 }); noise(c, { at, dur: 0.12, vol: 0.08, type: 'lowpass', f: 600, rv: 0.4 }); });
     [[392, 0.6, 0.14], [523, 0.76, 0.14], [659, 0.92, 0.14]].forEach(([f, at, dur]) => brass(c, { f, at, dur, vol: 0.08, rv: 0.35 }));
     [523, 659, 784, 1047].forEach((f) => brass(c, { f, at: 1.1, dur: 1.0, vol: 0.05, vib: 0.008, rv: 0.45 }));

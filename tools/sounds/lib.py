@@ -34,8 +34,8 @@ def offset(pattern):
         try: ds.append(round(hz2midi(pitch(load(f))) - n))
         except Exception: pass
     vals, cnt = np.unique(ds, return_counts=True); return int(vals[np.argmax(cnt)]) if len(vals) else 0
-def note(pattern, midi, dur=None, vel=1.0, fade=0.08):
-    b = bank(pattern); off = offset(pattern)
+def note(pattern, midi, dur=None, vel=1.0, fade=0.08, off=None):
+    b = bank(pattern); off = offset(pattern) if off is None else off
     n, f = min(b, key=lambda x: abs(x[0] + off - midi))
     a = load(f); ratio = 2 ** ((midi - (n + off)) / 12)
     if abs(ratio - 1) > 1e-3:

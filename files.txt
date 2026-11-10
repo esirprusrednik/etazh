@@ -29,6 +29,7 @@ public/js/duelart.js
 public/js/practice.js
 public/sounds/battle.mp3
 public/sounds/lose.mp3
+public/sounds/win.mp3
 public/sounds/CREDITS.txt
 public/js/theme.js
 public/fonts/onest.woff

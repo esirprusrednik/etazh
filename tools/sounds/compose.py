@@ -64,3 +64,35 @@ m.add(hit('Percussion/timpsnaretenor_ff.wav', dur=.4, fade=.2), 2.82, 0.3, -0.2)
 m.add(hit('Percussion/BDrumNewhit_v7_rr1_Sum.wav', dur=.6), 2.98, 0.3)
 m.add(hit('Percussion/susCymb1-hitstick_f_rr1.wav', dur=.7, fade=.5), 3.14, 0.45, 0.3)
 print(m.render('lose.mp3', wet=0.2))
+
+# ===== Победа =====
+m = Mix(4.0)
+D6, Fs6, A6, D7 = 86, 90, 93, 98
+GL = 'Percussion/Glock/*'; HP = 'Strings/Harp/*'
+# «та-та-та» трубы и валторн, под ними малый барабан
+for at in (0.0, 0.11, 0.22):
+    m.add(note(TS, D5), at, 1.5, 0.1); m.add(note(H, D4, .12, fade=.04), at, 0.6, -0.1)
+    m.add(hit('Percussion/timpsnaretenor_f.wav', dur=.25, fade=.15), at, 0.25, -0.3)
+# «ТА» — фа-диез, весь медный хор и литавра
+F1 = 0.36
+m.add(note(TV, Fs5, .32, fade=.08), F1, 1.3, 0.1)
+for n in (D4, Fs4, A4): m.add(note(H, n, .32, fade=.08), F1, 0.45, 0.2)
+for n in (D3, A3): m.add(note(TB, n, .32, fade=.08), F1, 0.5, -0.2)
+m.add(note(TU, D2, .32, fade=.08), F1, 0.7)
+m.add(timp(3, D2, dur=.6), F1, 0.8)
+# «ТААААМ» — ля, тутти с тарелкой, арфа взлетает, колокольчики сверкают
+T2 = 0.7
+m.add(note(TV, A5, 1.9, fade=.7), T2, 0.8, 0.1)
+m.add(note(TV, D5, 1.9, fade=.7), T2, 0.5, -0.05)
+for n in (D4, Fs4, A4): m.add(note(H, n, 1.9, fade=.7), T2, 0.45, 0.25)
+for n in (D3, Fs3, A3): m.add(note(TB, n, 1.9, fade=.7), T2, 0.45, -0.25)
+m.add(note(TU, D2, 1.9, fade=.7), T2, 0.75)
+m.add(env(note(VT, D5, 2.3, fade=.9), [(0, 1), (2.3, .6)]), T2, 0.35, 0.35)
+m.add(env(note(VT, A4, 2.3, fade=.9), [(0, 1), (2.3, .6)]), T2, 0.3, 0.4)
+m.add(env(note(CT, D3, 2.3, fade=.9), [(0, 1), (2.3, .6)]), T2, 0.4, -0.35)
+m.add(hit('Percussion/BDrumNewhit_v7_rr1_Sum.wav'), T2, 0.9)
+m.add(hit('Percussion/susCymb1-hit_fff_rr1.wav', dur=2.6, fade=1.4), T2, 0.5, 0.3)
+m.add(timp(3, D2, dur=1.4), T2, 1.0); m.add(timp(2, A1, .8, dur=1.0), T2 + .22, 1.0); m.add(timp(3, D2, dur=1.4), T2 + .36, 1.0)
+for i, n in enumerate([D4, Fs4, A4, D5, Fs5, A5, D6]): m.add(note(HP, n, 1.4, fade=.6), T2 + .02 + i * .045, 0.5, -0.4 + i * .12)
+for i, n in enumerate([D6, Fs6, A6, D7]): m.add(note(GL, n, 1.6, fade=.8, off=0), T2 + .35 + i * .09, 0.35, 0.3)
+print(m.render('win.mp3', wet=0.28))
