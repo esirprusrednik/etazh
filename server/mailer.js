@@ -142,4 +142,19 @@ async function sendLoginLink(email, link, code) {
   await sendSmtp({ to: email, subject, text });
 }
 
-module.exports = { sendLoginLink, sendSmtp, buildMessage };
+// Почта компании, которой ещё нет в Этаже: подтвердить, что ящик твой, — тогда заявка уйдёт модератору
+async function sendAccessCheck(email, link) {
+  const text = ['Привет!', '', 'Ты хочешь войти в Этаж, но для твоей компании он пока не открыт.', 'Подтверди почту — и модератор получит заявку:', link, '',
+    'Ссылка работает сутки. Если это был не ты — просто удали письмо.', '', 'Когда Этаж откроют для твоей компании, придёт письмо со ссылкой для входа.'].join('\n');
+  if (config.mailMode === 'console') { console.log(`[mail:console] Заявка: ${link}`); return; }
+  await sendSmtp({ to: email, subject: 'Этаж: подтверди заявку', text });
+}
+// Компанию открыли: письмо со ссылкой и кодом для входа (живут сутки)
+async function sendInvite(email, link, code) {
+  const text = ['Привет!', '', 'Этаж открыт для твоей компании. Чтобы войти, открой ссылку на телефоне:', link, '', `Или введи код в приложении: ${code}`, '',
+    'Ссылка и код работают сутки и только один раз.', '', 'Этаж — неофициальное приложение для своих. Почту мы не храним: после входа остаётся только её зашифрованный отпечаток.'].join('\n');
+  if (config.mailMode === 'console') { console.log(`[mail:console] Приглашение: ${link} · код ${code}`); return; }
+  await sendSmtp({ to: email, subject: 'Этаж открыт для твоей компании', text });
+}
+
+module.exports = { sendLoginLink, sendAccessCheck, sendInvite, sendSmtp, buildMessage };

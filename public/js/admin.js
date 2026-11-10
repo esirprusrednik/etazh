@@ -87,12 +87,27 @@ function topicsCard(t) {
     <button class="btn small ghost" data-a="tour-start">Запустить турнир сейчас</button></div>`;
 }
 
+// Заявки компаний, которых ещё нет в Этаже: домен и сколько людей подтвердили почту (адресов модератор не видит)
+function accessCard(a) {
+  if (!a) return '';
+  const day = (t) => new Date(t).toLocaleDateString('ru-RU');
+  return `<div class="card"><h2>Заявки новых компаний</h2>
+    <p class="small">Каждый подтвердил рабочую почту письмом. Открыть — заведём компанию с первым офисом и всем пришлём ссылку для входа. Отказать — адреса удалятся, новые заявки с этого домена не принимаются.</p>
+    ${a.requests.length ? a.requests.map((r) => `<div class="item" style="flex-wrap:wrap;gap:8px"><div class="grow"><b>@${esc(r.domain)}</b><div class="small">человек: ${r.people} · первая заявка ${day(r.first_at)}, последняя ${day(r.last_at)}</div></div>
+      <label class="field" style="width:150px">Компания<input id="ac-n-${esc(r.domain)}" maxlength="40" placeholder="Название"></label>
+      <label class="field" style="width:150px">Первый офис<input id="ac-o-${esc(r.domain)}" maxlength="40" placeholder="Например, Главный"></label>
+      <div class="row" style="gap:4px"><button class="btn small" data-a="access-open" data-d="${esc(r.domain)}">Открыть</button><button class="btn small ghost" data-a="access-reject" data-d="${esc(r.domain)}">Отказать</button></div></div>`).join('') : '<p class="sub">Новых заявок нет.</p>'}
+    ${a.companies.length ? `<p class="small">Открыты по заявкам: ${a.companies.map((c) => `${esc(c.name)} (@${esc(c.domains)})`).join(', ')}</p>` : ''}</div>`;
+}
+
 async function load() {
   try {
     const [d, m, qz, food, fb] = await Promise.all([call('GET', '/api/admin/overview'), call('GET', '/api/admin/metrics').catch(() => null), call('GET', '/api/admin/quizzes').catch(() => ({ items: [] })), call('GET', '/api/admin/food').catch(() => ({ offices: [] })), call('GET', '/api/admin/feedback').catch(() => ({ items: [] }))]);
     const tp = await call('GET', '/api/admin/topics').catch(() => ({ items: [], inactive: [] }));
+    const ac = await call('GET', '/api/admin/access').catch(() => null);
     root.innerHTML = `
     <div class="card"><h2>Сводка</h2><p class="sub">Пользователей: <b>${d.users}</b> · отмечались сегодня: <b>${d.activeToday}</b> · банд: <b>${d.gangs}</b></p></div>
+    ${accessCard(ac)}
     ${feedbackCard(fb)}
     ${m ? metricsCard(m) : ''}
     ${quizCard(qz.items)}
@@ -141,6 +156,13 @@ document.addEventListener('click', async (e) => {
     } else if (b.dataset.a === 'coffee-now') {
       const r = await call('POST', '/api/admin/coffee-now');
       alert(`Составлено пар: ${r.pairs}`);
+    } else if (b.dataset.a === 'access-open') {
+      const d = b.dataset.d;
+      const r = await call('POST', '/api/admin/access/open', { domain: d, name: document.getElementById('ac-n-' + d).value, office: document.getElementById('ac-o-' + d).value });
+      alert(`Компания открыта. Писем со ссылкой отправлено: ${r.sent}`);
+    } else if (b.dataset.a === 'access-reject') {
+      if (!confirm(`Отказать @${b.dataset.d}? Адреса удалятся.`)) return;
+      await call('POST', '/api/admin/access/reject', { domain: b.dataset.d });
     } else if (b.dataset.a === 'office') {
       const id = b.dataset.id;
       await call('POST', '/api/admin/office', { id, seats: Number(document.getElementById('s-' + id).value), share_p: Number(document.getElementById('p-' + id).value) });

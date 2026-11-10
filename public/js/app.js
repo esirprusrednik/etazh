@@ -1149,7 +1149,7 @@ function reloadIfStale() {
 
 async function loadMe() {
   const r = await get('/api/me');
-  S.me = r.user; S.cat = r.catalog; S.vapidKey = r.vapidKey; S.domains = r.domains; if (r.companies) S.companies = r.companies;
+  S.me = r.user; S.cat = r.catalog; S.vapidKey = r.vapidKey;
   noteBuild(r.build);
   if (S.me && S.me.gangs.length && !S.me.gangs.some((g) => g.id === S.activeGang)) S.activeGang = S.me.gangs[0].id;
 }
@@ -1747,18 +1747,23 @@ function aboutHtml({ cta = true } = {}) {
   </div>`;
 }
 
-// Компания на входе: МТС или Роснефть. Сервер всё равно определяет компанию по домену почты
-function loginCos() { return S.companies && S.companies.length ? S.companies : [{ id: 'mts', name: 'МТС', domain: 'mts.ru' }]; }
-function loginCo() { const cs = loginCos(); return cs.find((c) => c.id === S.loginCompany) || cs[0]; }
-function loginCompanyChips() {
-  const cs = loginCos(); if (cs.length < 2) return '';
-  const cur = loginCo().id;
-  return `<div class="co-pick" role="radiogroup" aria-label="Компания">${cs.map((c) => `<button class="chip${c.id === cur ? ' on' : ''}" role="radio" aria-checked="${c.id === cur}" data-act="login-co" data-id="${esc(c.id)}">${esc(c.name)}</button>`).join('')}</div>`;
-}
 function renderLogin() {
   const o = S.onb;
   const params = new URLSearchParams(location.search);
   const expired = params.get('login') === 'expired';
+  const acc = params.get('access');
+  if (o.step === 'access') {
+    return `<div class="onb">
+      <div class="logo">Этаж<span>.</span></div>
+      <div class="card">
+        <h2>Подтверди почту</h2>
+        <p class="sub">Для твоей компании Этаж пока не открыт. Мы отправили письмо на <b>${esc(o.email)}</b> — открой ссылку из него, и модератор получит заявку.</p>
+        <p class="sub">Когда Этаж откроют для твоей компании, придёт письмо со ссылкой для входа. Адрес храним зашифрованным только до решения.</p>
+        ${o.devLink ? `<div class="note warn">Режим разработки: письмо не отправлялось. <a href="${esc(o.devLink)}">Подтвердить</a></div>` : ''}
+        <button class="linkbtn" data-act="onb-back">Ввести другую почту</button>
+      </div>
+    </div>`;
+  }
   if (o.step === 'sent') {
     return `<div class="onb">
       <div class="logo">Этаж<span>.</span></div>
@@ -1779,11 +1784,11 @@ function renderLogin() {
     <p class="sub" >Неофициальное приложение для своих: кто из твоей банды в офисе, есть ли очередь в столовой, позвать на кофе одной кнопкой.</p>
     <details class="about-login"><summary>Что такое Этаж? За 30 секунд</summary>${aboutHtml({ cta: false })}</details>
     <div class="card">
-      <h2>Вход по рабочей почте</h2>
-      ${loginCompanyChips()}
-      <p class="sub">Только @${esc(loginCo().domain)}. Почту мы не храним — только её зашифрованный отпечаток. Остальные видят только твой ник.</p>
+      <h2>Вход по корпоративной почте</h2>
+      <p class="sub">Введи рабочую почту своей компании. Почту мы не храним — только её зашифрованный отпечаток. Остальные видят только твой ник.</p>
       ${expired ? '<div class="err">Ссылка устарела или уже использована. Запроси новую.</div>' : ''}
-      <label class="field">Рабочая почта<input id="email" type="email" inputmode="email" autocomplete="email" placeholder="name@${esc(loginCo().domain)}" value="${esc(o.email)}"></label>
+      ${acc === 'sent' ? '<div class="note">Заявка у модератора. Когда Этаж откроют для твоей компании, придёт письмо со ссылкой для входа.</div>' : acc === 'expired' ? '<div class="err">Ссылка для заявки устарела. Введи почту ещё раз.</div>' : ''}
+      <label class="field">Рабочая почта<input id="email" type="email" inputmode="email" autocomplete="email" placeholder="имя@вашакомпания.ru" value="${esc(o.email)}"></label>
       <label class="check"><input id="consent" type="checkbox"> <span>Согласен с <a href="/privacy.html" target="_blank" rel="noopener">политикой обработки данных</a> и <a href="/rules.html" target="_blank" rel="noopener">правилами</a></span></label>
       ${o.error ? `<div class="err">${esc(o.error)}</div>` : ''}
       <button class="btn wide" data-act="login-submit" ${S.busy ? 'disabled' : ''}>Получить ссылку для входа</button>
@@ -2236,7 +2241,7 @@ function renderFind() {
     return `<div class="find-row"><div class="person2">${tap(x.id, avatar(x.look, 40))}<div class="grow" style="min-width:0"><div style="font-weight:900">${nk(x)}</div>
       <div class="where ellipsis">${[x.company ? `из ${x.company}` : '', x.name, x.status, x.shared.length ? 'в банде ' + x.shared.join(', ') : ''].filter(Boolean).map(esc).join(' · ') || 'пока не в твоих бандах'}</div></div>${act}</div>
       ${inv ? `<div class="chips">${inv}</div>` : ''}</div>`;
-  }).join('') : `<p class="sub">${esc(f.hint || 'Никого не нашли')}</p>`) : '<p class="small">Ник — по части, например «енот». Имя — только если человек открыл его всем. Почта — целиком, например ivanov@mts.ru. Коллег из другой компании ищем только по нику целиком или по почте. Мы сравниваем отпечаток и сами адреса не храним.</p>';
+  }).join('') : `<p class="sub">${esc(f.hint || 'Никого не нашли')}</p>`) : '<p class="small">Ник — по части, например «енот». Имя — только если человек открыл его всем. Почта — целиком, например ivanov@вашакомпания.ru. Коллег из другой компании ищем только по нику целиком или по почте. Мы сравниваем отпечаток и сами адреса не храним.</p>';
   return `<div class="row"><label class="field grow" style="gap:0"><span class="hidden">Ник, имя или почта</span><input id="find-q" maxlength="80" autocapitalize="off" autocomplete="off" placeholder="Ник, имя или рабочая почта" value="${esc(f.q || '')}" aria-label="Ник, имя или рабочая почта"></label><button class="btn" data-act="find-go">Найти</button></div>
     ${res}
     <p class="small" style="margin:0">Позвать можно только в свою банду — человек сам решит, вступать ли. Не хочешь, чтобы тебя находили, — выключи в профиле: «Приватность, звук и уведомления».</p>`;
@@ -5635,22 +5640,15 @@ async function run(fn, { rerender = true } = {}) {
 }
 
 const actions = {
-  'login-co'(el) {
-    const e = $('#email'); if (e) S.onb.email = e.value.trim();
-    S.loginCompany = el.dataset.id; S.onb.error = ''; render();
-  },
   async 'login-submit'() {
     const email = $('#email').value.trim();
     S.onb.email = email;
-    const co = loginCo(), dom = email.toLowerCase().split('@')[1] || '';
-    const other = loginCos().find((c) => c.domain === dom);
-    if (other && other.id !== co.id) { S.loginCompany = other.id; }
-    else if (email.includes('@') && !other) { S.onb.error = `Нужна почта @${co.domain}.`; return render(); }
     if (!$('#consent').checked) { S.onb.error = 'Отметь согласие с политикой и правилами.'; return render(); }
     S.busy = true; S.onb.error = ''; render();
     try {
       const r = await post('/api/auth/request', { email, consent: true });
-      S.onb = { ...S.onb, step: 'sent', error: '', devLink: r.devLink || null, devCode: r.devCode || null };
+      // Компании ещё нет в Этаже — сервер прислал письмо для подтверждения заявки
+      S.onb = { ...S.onb, step: r.access ? 'access' : 'sent', error: '', devLink: r.devLink || null, devCode: r.devCode || null };
     } catch (e) { S.onb.error = e.message; }
     S.busy = false; render();
   },

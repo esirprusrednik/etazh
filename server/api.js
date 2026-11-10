@@ -215,6 +215,7 @@ const DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт'];
 
 function createApi(db) {
   let features = null;
+  let access = null;
   let league = null;
   let gevents = null;
   let crestvote = null;
@@ -329,7 +330,6 @@ function createApi(db) {
   // ---------- Офис и столовая ----------
   const offices = (company) => q('SELECT * FROM offices ' + (company ? 'WHERE company = ? ' : '') + 'ORDER BY sort').all(...(company ? [company] : []));
   const companyOf = (x) => (x && x.company) || 'mts';
-  const companiesPub = () => Object.entries(COMPANIES).map(([id, c]) => ({ id, name: c.name, domain: c.domains[0] }));
   const officeById = (id) => q('SELECT * FROM offices WHERE id = ?').get(id);
 
   function activeCheckin(userId) {
@@ -501,8 +501,9 @@ function createApi(db) {
     const email = U.normalizeEmail(body.email);
     rateLimit('auth-ip:' + req.ip, 10, 15 * 60e3);
     const company = U.companyByEmail(email);
-    if (!company) throw bad(`Вход только с рабочей почты: ${Object.values(COMPANIES).map((c) => '@' + c.domains[0]).join(' или ')}.`);
     if (body.consent !== true) throw bad('Нужно согласие с политикой и правилами.');
+    // Компании ещё нет в Этаже — заявка модератору через подтверждение почты
+    if (!company) return access.request(email, req);
     const emailHash = U.hashEmail(email);
     rateLimit('auth-mail:' + emailHash, 3, 15 * 60e3);
     const token = U.randomToken(32);
@@ -553,7 +554,7 @@ function createApi(db) {
 
   route('GET', '/api/me', async (req) => {
     const u = currentUser(req);
-    if (!u) return { user: null, vapidKey: config.vapid.publicKey || null, domains: config.allowedDomains, companies: companiesPub() };
+    if (!u) return { user: null, vapidKey: config.vapid.publicKey || null };
     const owned = q('SELECT item_id FROM owned WHERE user_id = ?').all(u.id).map((r) => r.item_id);
     const streak = markStreak(u.id);
     const earned = q('SELECT COALESCE(SUM(amount), 0) AS s FROM ledger WHERE user_id = ? AND amount > 0').get(u.id).s;
@@ -565,7 +566,7 @@ function createApi(db) {
     return {
       user: {
         completion, affordable,
-        id: u.id, nick: u.nick, company: companyOf(u), companyName: (COMPANIES[companyOf(u)] || {}).name || '', beans: u.beans, look: u.look, profile: u.profile, shareOffice: !!u.share_office, quiet: !!u.quiet,
+        id: u.id, nick: u.nick, company: companyOf(u), companyName: (U.companyInfo(companyOf(u)) || {}).name || '', beans: u.beans, look: u.look, profile: u.profile, shareOffice: !!u.share_office, quiet: !!u.quiet,
         welcomed: !!u.welcomed, isAdmin: u.isAdmin, owned, newbie: U.now() - (u.created_at || 0) < 7 * 864e5, status: statusName(u.look.status), streak, level,
         // Погода на завтра для «Рядом»: с 15:00 накануне офисного дня, только если погода необычная
         weather: weather && U.msk().hour >= 15 ? weather.adviceFor(u.id, u.profile) : null,
@@ -1144,7 +1145,7 @@ function createApi(db) {
         id: g.id, name: g.name,
         pending: !!q("SELECT 1 FROM gang_invites WHERE gang_id = ? AND to_id = ? AND status = 'pending'").get(g.id, r.id)
       }));
-      return { id: r.id, nick: r.nick, look: publicLook({ look: r.look }), company: companyOf(r) !== companyOf(u) ? (COMPANIES[companyOf(r)] || {}).name || null : null, name: companyOf(r) !== companyOf(u) ? '' : fullName(prof, 'all'), status: statusName(JSON.parse(r.look || '{}').status), shared: shared.map((g) => g.name), invitable };
+      return { id: r.id, nick: r.nick, look: publicLook({ look: r.look }), company: companyOf(r) !== companyOf(u) ? (U.companyInfo(companyOf(r)) || {}).name || null : null, name: companyOf(r) !== companyOf(u) ? '' : fullName(prof, 'all'), status: statusName(JSON.parse(r.look || '{}').status), shared: shared.map((g) => g.name), invitable };
     });
     return { items, hint: items.length ? '' : 'Никого не нашли. Человек мог отключить поиск в настройках — тогда позови его ссылкой' };
   });
@@ -1688,6 +1689,10 @@ function createApi(db) {
     return { ok: true };
   });
 
+  // ---------- Заявки новых компаний ----------
+  const adminIds = () => q('SELECT id, email_hash FROM users').all().filter((r) => adminHashes.has(r.email_hash)).map((r) => r.id);
+  access = require('./access').register({ db, q, route, U, config, bad, HttpError, rateLimit, notify, fireAndForget, requireAdmin, adminIds });
+
   // ---------- Функции второго этапа ----------
   features = require('./features').register({
     db, q, route, requireUser, requireAdmin, bad, U, config, addBeans, spendBeans, notify, fireAndForget,
@@ -1838,7 +1843,7 @@ function createApi(db) {
     if (voice) voice.cleanup();
   }
 
-  return { handle, verifyLogin, cleanup, HttpError };
+  return { handle, verifyLogin, confirmAccess: (t) => access.confirm(t), cleanup, HttpError };
 }
 
 function readJson(req, limit = 64 * 1024) {

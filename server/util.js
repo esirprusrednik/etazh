@@ -44,8 +44,13 @@ function companyByEmail(email) {
   const domain = e.split('@')[1];
   const { COMPANIES } = require('./catalog');
   for (const [id, c] of Object.entries(COMPANIES)) if (c.domains.includes(domain)) return id;
+  for (const [id, c] of Object.entries(EXTRA_COMPANIES)) if (c.domains.includes(domain)) return id;
   return config.allowedDomains.includes(domain) ? 'mts' : null;
 }
+// Компании, открытые модератором по заявкам (лежат в базе, подгружаются при старте и после решения)
+let EXTRA_COMPANIES = {};
+function setExtraCompanies(map) { EXTRA_COMPANIES = map || {}; }
+function companyInfo(id) { const { COMPANIES } = require('./catalog'); return COMPANIES[id] || EXTRA_COMPANIES[id] || null; }
 function emailDomainAllowed(email) { return !!companyByEmail(email); }
 
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -144,7 +149,7 @@ function unseal(v) {
   } catch { return '[не удалось расшифровать]'; }
 }
 
-module.exports = { companyByEmail, seal, unseal,
+module.exports = { companyByEmail, setExtraCompanies, companyInfo, seal, unseal,
   fem, g, crestPub,
   now, msk, isAfterCheckinCutoff, isQuietHour,
   b64url, fromB64url, randomToken, sha256, hashEmail, normalizeEmail, emailDomainAllowed, shortCode,

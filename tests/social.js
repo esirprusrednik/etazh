@@ -414,7 +414,7 @@ function startServer(day, extra = {}) {
     await sc.ready;
     await step('компании: Роснефть входит по @rosneft.ru, видит только Софийку и свои банды', async () => {
       const anon = (await new sc.Client().get('/api/me')).json;
-      assert.deepEqual(anon.companies.map((c) => c.id), ['mts', 'rosneft']);
+      assert.equal(anon.companies, undefined, 'список компаний наружу не отдаём');
       const bad = await new sc.Client().post('/api/auth/request', { email: 'x@gmail.com', consent: true });
       assert.equal(bad.status, 400);
       const M = await new sc.Client().login('co1@mts.ru', 'мтсник');
@@ -572,5 +572,38 @@ function startServer(day, extra = {}) {
       db.close();
     });
   } finally { sl.stop(); }
+  // Новая компания: незнакомый домен → письмо-подтверждение → заявка модератору → открыли → вход в свою область
+  const sa = startServer('2026-11-10', { ADMIN_EMAILS: 'boss@mts.ru' });
+  try {
+    await sa.ready;
+    await step('заявка новой компании: подтверждение почты, модератор открывает, человек входит в свою компанию', async () => {
+      const bad = await new sa.Client().post('/api/auth/request', { email: 'vasya@yandex.ru', consent: true });
+      assert.equal(bad.status, 400, 'личная почта не годится');
+      const X = new sa.Client();
+      const r = (await X.post('/api/auth/request', { email: 'olga@newco.ru', consent: true })).json;
+      assert.ok(r.access && r.devLink, JSON.stringify(r));
+      const res = await fetch(r.devLink, { redirect: 'manual' });
+      assert.equal(res.headers.get('location'), '/?access=sent');
+      const again = await fetch(r.devLink, { redirect: 'manual' });
+      assert.equal(again.headers.get('location'), '/?access=expired', 'ссылка одноразовая');
+      const A = await new sa.Client().login('boss@mts.ru', 'модератор');
+      const list = (await A.get('/api/admin/access')).json;
+      assert.equal(list.requests.length, 1); assert.equal(list.requests[0].domain, 'newco.ru'); assert.equal(list.requests[0].people, 1);
+      assert.ok(!JSON.stringify(list).includes('olga'), 'адресов модератор не видит');
+      assert.equal((await new sa.Client().get('/api/admin/access')).status !== 200, true);
+      const op = (await A.post('/api/admin/access/open', { domain: 'newco.ru', name: 'НьюКо', office: 'Главный' })).json;
+      assert.equal(op.sent, 1);
+      const O = await new sa.Client().login('olga@newco.ru', 'ольга_ньюко');
+      const me = (await O.get('/api/me')).json;
+      assert.equal(me.user.companyName, 'НьюКо');
+      assert.deepEqual(me.catalog.offices.map((o) => o.name), ['Главный']);
+      // Отказ: адреса удаляются, новые заявки с домена не принимаются
+      const Y = new sa.Client();
+      const r2 = (await Y.post('/api/auth/request', { email: 'p@spamco.ru', consent: true })).json;
+      await fetch(r2.devLink, { redirect: 'manual' });
+      await A.post('/api/admin/access/reject', { domain: 'spamco.ru' });
+      assert.equal((await new sa.Client().post('/api/auth/request', { email: 'q@spamco.ru', consent: true })).status, 400);
+    });
+  } finally { sa.stop(); }
   console.log(`social: ${passed} ok`);
 })().catch((e) => { console.error(e); process.exit(1); });

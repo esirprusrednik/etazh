@@ -75,6 +75,11 @@ const server = http.createServer(async (req, res) => {
       return send(res, 302, '', { Location: '/', 'Set-Cookie': cookie, 'Cache-Control': 'no-store' });
     }
 
+    // Подтверждение заявки компании, которой ещё нет в Этаже
+    if (pathname === '/auth/access' && req.method === 'GET') {
+      return send(res, 302, '', { Location: api.confirmAccess(query.t) ? '/?access=sent' : '/?access=expired', 'Cache-Control': 'no-store' });
+    }
+
     // Ссылка-приглашение в банду: etazh.example.ru/g/ABC123
     const g = /^\/g\/([A-Za-z0-9]{6})$/.exec(pathname);
     if (g) return send(res, 302, '', { Location: `/#join=${g[1].toUpperCase()}` });
