@@ -5,10 +5,14 @@
 # Файлы качаются по одному с raw.githubusercontent.com — это работает, даже когда github.com недоступен.
 set -e
 D=/opt/etazh
-get() { curl -fsSL --retry 5 --retry-delay 2 --retry-all-errors --connect-timeout 20 "$1" -o "$2"; }
+# Закрытый репозиторий: токен GitHub (только чтение) лежит в /root/.etazh-gh-token. Нет файла — качаем без него.
+TOKEN_FILE=/root/.etazh-gh-token
+AUTH=()
+if [ -s "$TOKEN_FILE" ]; then AUTH=(-H "Authorization: Bearer $(tr -d ' \r\n' < "$TOKEN_FILE")"); fi
+get() { curl -fsSL "${AUTH[@]}" --retry 5 --retry-delay 2 --retry-all-errors --connect-timeout 20 "$1" -o "$2"; }
 # raw.githubusercontent.com отдаёт ветку main из кэша до 5 минут после пуша — тогда ставится старая версия.
 # Поэтому сначала узнаём номер последнего коммита и качаем файлы ровно этого коммита (такие ссылки не устаревают).
-SHA=$(curl -fsSL --connect-timeout 10 -H 'Accept: application/vnd.github.sha' https://api.github.com/repos/esirprusrednik/etazh/commits/main 2>/dev/null || true)
+SHA=$(curl -fsSL "${AUTH[@]}" --connect-timeout 10 -H 'Accept: application/vnd.github.sha' https://api.github.com/repos/esirprusrednik/etazh/commits/main 2>/dev/null || true)
 if echo "$SHA" | grep -Eq '^[0-9a-f]{40}$'; then
   RAW=https://raw.githubusercontent.com/esirprusrednik/etazh/$SHA
   echo "==> Версия: ${SHA:0:7}"
