@@ -618,5 +618,63 @@ function startServer(day, extra = {}) {
       assert.equal((await new sa.Client().post('/api/auth/request', { email: 'q@spamco.ru', consent: true })).status, 400);
     });
   } finally { sa.stop(); }
+  // Понедельник: неделя банды, «В фокусе», шаблоны зовов, метрики модератора
+  const sm = startServer('2026-11-16', { ADMIN_EMAILS: 'boss2@mts.ru' });
+  try {
+    await sm.ready;
+    const A = await new sm.Client().login('wk1@mts.ru', 'понедельник');
+    const B = await new sm.Client().login('wk2@mts.ru', 'отпускник');
+    const C = await new sm.Client().login('wk3@mts.ru', 'простуженный');
+    const D = await new sm.Client().login('wk4@mts.ru', 'именинник');
+    const E = await new sm.Client().login('wk5@mts.ru', 'скрытный');
+    const g = (await A.post('/api/gangs', { name: 'Понедельничные', access: 'open' })).json;
+    for (const X of [B, C, D, E]) await X.post(`/api/gangs/${g.id}/apply`);
+    await step('неделя банды: отпуск, «болею» и дни рождения в первый рабочий день', async () => {
+      await B.post('/api/me/profile', { shareOffice: true, profile: { vacations: [{ from: '2026-11-18', to: '2026-11-27' }] } });
+      await C.post('/api/me/profile', { shareOffice: true, profile: { today: { kind: 'sick', to: '2026-11-18' } } });
+      await D.post('/api/me/profile', { profile: { bday: '19.11', showBday: true } });
+      await E.post('/api/me/profile', { shareOffice: false, profile: { vacations: [{ from: '2026-11-16', to: '2026-11-20' }] } });
+      const w = (await A.get('/api/state')).json.weekNote;
+      assert.ok(w, 'в понедельник есть сводка');
+      assert.deepEqual(w.vac.map((x) => [x.nick, x.text]), [['отпускник', 'с 18.11']]);
+      assert.deepEqual(w.sick.map((x) => [x.nick, x.text]), [['простуженный', 'до 18.11']]);
+      assert.deepEqual(w.bday.map((x) => [x.nick, x.text]), [['именинник', 'чт 19.11']]);
+      assert.ok(!JSON.stringify(w).includes('скрытный'), 'кто скрыл, где работает, — не попадает');
+    });
+    await step('«В фокусе»: банда видит, пуши не идут, зов сообщает', async () => {
+      assert.equal((await B.post('/api/me/profile', { profile: { focus: 45 } })).status, 400);
+      await B.post('/api/me/profile', { profile: { focus: 60 } });
+      const me = (await B.get('/api/me')).json.user;
+      assert.ok(me.profile.focus > Date.now() + 55 * 60e3);
+      const row = (await A.get('/api/people')).json.people.find((p) => p.nick === 'отпускник');
+      assert.ok(row && row.focus, JSON.stringify(row));
+      const r = (await A.post(`/api/gangs/${g.id}/messages`, { type: 'call', kind: 'coffee', to: B.id, opt: 'Сейчас' })).json;
+      assert.equal(r.focus, 1);
+      await B.post('/api/me/profile', { profile: { focus: null } });
+      assert.ok(!(await A.get('/api/people')).json.people.find((p) => p.nick === 'отпускник').focus);
+    });
+    await step('шаблоны зовов: проверка, без дублей, не больше четырёх', async () => {
+      const t = { kind: 'lunch', gang: g.id, opt: '13:00', to: D.id };
+      await A.post('/api/me/profile', { profile: { callTpl: [t, t, { kind: 'coffee', gang: g.id, opt: 'нет такого' }] } });
+      const list = (await A.get('/api/me')).json.user.profile.callTpl;
+      assert.equal(list.length, 2);
+      assert.equal(list[0].toNick, 'именинник');
+      assert.equal(list[1].opt, 'Сейчас', 'неизвестное время — первое из списка');
+      assert.equal((await A.post('/api/me/profile', { profile: { callTpl: [{ kind: 'boom', gang: g.id }] } })).status, 400);
+      assert.equal((await A.post('/api/me/profile', { profile: { callTpl: [{ kind: 'lunch', gang: 99999 }] } })).status, 400);
+      assert.equal((await A.post('/api/me/profile', { profile: { callTpl: Array(5).fill(t) } })).status, 400);
+    });
+    await step('метрики модератора: воронка, новички по неделям, разделы', async () => {
+      const M = await new sm.Client().login('boss2@mts.ru', 'модер');
+      await A.post('/api/seen', { k: 'games' }); await A.post('/api/seen', { k: 'games' }); await B.post('/api/seen', { k: 'games' });
+      await A.post('/api/seen', { k: 'чепуха' });
+      const m = (await M.get('/api/admin/metrics')).json;
+      assert.equal(m.funnel.nick, 6); assert.equal(m.funnel.gang, 5);
+      assert.equal(m.sections.find((x) => x.k === 'games').n, 2, 'человек считается раз в день');
+      assert.ok(!m.sections.find((x) => x.k === 'чепуха'));
+      assert.equal(m.cohorts.length, 5); assert.equal(m.cohorts[4].n, 6);
+      assert.notEqual((await A.get('/api/admin/metrics')).status, 200);
+    });
+  } finally { sm.stop(); }
   console.log(`social: ${passed} ok`);
 })().catch((e) => { console.error(e); process.exit(1); });

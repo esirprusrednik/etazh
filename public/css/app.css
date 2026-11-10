@@ -2145,3 +2145,30 @@ main { padding-bottom: 64px; }
 .b-vs.compact .vs-cap { display: none; }
 .b-vs.compact .vs-mid { padding-bottom: 0; }
 .pr-mini { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 4px; }
+
+/* Шаблоны зовов и «В фокусе» под быстрыми зовами */
+.qx { display: grid; gap: 8px; margin-top: 8px; }
+.qx-tpls { display: flex; flex-wrap: wrap; gap: 6px; }
+.qx-foot { display: flex; align-items: center; gap: 8px; }
+.qx .chip { display: inline-flex; align-items: center; gap: 6px; }
+.qx-tpl { padding: 0; min-width: 0; max-width: 100%; background: var(--card); border: 1px solid var(--card-bd); box-shadow: var(--card-sh); }
+.qx-tpl .qx-go { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 12px; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qx-tpl .qx-go svg { color: var(--gold, #F2B705); flex: none; }
+.qx-tpl.edit { border-style: dashed; }
+.qx-tpl.edit .qx-go svg { color: #E5484D; }
+.qx-focus { margin-left: auto; background: var(--card); border: 1px solid var(--card-bd); }
+.qx-focus.on { background: var(--tint-v); color: var(--tint-v-fg); border-color: transparent; }
+.qx-hint { flex: 1 1 auto; min-width: 0; opacity: .8; }
+.focus-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+/* Неделя банды */
+.wn .wn-row { display: flex; gap: 8px; align-items: flex-start; margin-top: 8px; line-height: 1.35; }
+.wn .wn-row svg { flex: none; margin-top: 2px; }
+/* «Уйдёт через 4 с · Отменить» */
+.undo-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 90; display: flex; align-items: center; gap: 10px; width: min(440px, calc(100vw - 32px)); padding: 10px 10px 10px 16px; border-radius: 16px; background: #1A2547; color: #fff; box-shadow: 0 10px 30px rgba(0,0,0,.35); font-weight: 700; }
+.undo-bar .grow { flex: 1; min-width: 0; }
+.undo-bar .btn { background: rgba(255,255,255,.16) !important; color: #fff !important; border: 1px solid rgba(255,255,255,.35); box-shadow: none; }
+/* Модератор: воронка и разделы */
+.adm-funnel { display: grid; gap: 6px; margin: 6px 0 10px; font-size: 13px; color: var(--ink); }
+.adm-funnel > div { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(60px, 1fr) auto; align-items: center; gap: 8px; }
+.adm-bar { height: 8px; border-radius: 99px; background: var(--s1); overflow: hidden; }
+.adm-bar i { display: block; height: 100%; background: var(--violet, #7C3AED); border-radius: inherit; }

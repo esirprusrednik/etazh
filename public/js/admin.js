@@ -19,8 +19,29 @@ function metricsCard(m) {
     <p class="small">Считаем только количества. Кто именно был активен, не хранится: в журнале псевдонимы, они удаляются через 35 дней.</p>
     <div class="adm-scroll"><table class="adm-table"><thead><tr><th>День</th>${cols.map(([, t]) => `<th>${t}</th>`).join('')}</tr></thead>
     <tbody>${m.rows.slice().reverse().map((r) => `<tr><td>${esc(r.day)}</td>${cols.map(([k]) => `<td>${r[k] || 0}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+    ${extraMetrics(m)}
     <div class="row" style="margin-top:10px"><button class="btn small ghost" data-a="coffee-now">Составить кофе-пары сейчас</button><span class="small">Обычно это происходит само по понедельникам в 10:00</span></div>
   </div>`;
+}
+
+const SECTION_NAMES = { near: 'Рядом', chats: 'Чаты', office: 'Офис', games: 'Игры', shop: 'Лавка', league: 'Лига', profile: 'Профиль' };
+function extraMetrics(m) {
+  if (!m.funnel) return '';
+  const f = m.funnel;
+  const steps = [['entered', 'Вошли по ссылке из письма'], ['nick', 'Выбрали ник'], ['names', 'Заполнили имя и фамилию'], ['gang', 'Вступили в банду'], ['checkin', 'Хоть раз отметились'], ['plan', 'Заполнили план недели'], ['push', 'Включили уведомления']];
+  const base = f.entered || 1;
+  const bar = (n) => `<span class="adm-bar"><i style="width:${Math.round((n / base) * 100)}%"></i></span>`;
+  const cell = (x) => (x == null ? '—' : x + '%');
+  return `<h3>Воронка — за всё время</h3>
+    <div class="adm-funnel">${steps.map(([k, t]) => `<div><span>${t}</span>${bar(f[k])}<b>${f[k]}</b></div>`).join('')}</div>
+    ${m.pending ? `<p class="small">Ещё ${m.pending} ждут открытия своей компании — «Заявки новых компаний» ниже.</p>` : ''}
+    <h3>Возвращаются ли новички</h3>
+    <p class="small">Неделя, когда человек выбрал ник, и доля тех, кто заходил через 1, 2 и 3 недели. «—» — неделя ещё не наступила или журнал уже стёрт (храним 35 дней).</p>
+    <div class="adm-scroll"><table class="adm-table"><thead><tr><th>Неделя с</th><th>Новых</th><th>+1 нед.</th><th>+2 нед.</th><th>+3 нед.</th></tr></thead>
+    <tbody>${m.cohorts.slice().reverse().map((c) => `<tr><td>${esc(c.week)}</td><td>${c.n}</td>${c.weeks.map((w) => `<td>${c.n ? cell(w) : '—'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+    <h3>Разделы за 7 дней</h3>
+    <p class="small">Сколько раз раздел открывали — каждый человек считается раз в день. Процент — от всех «человеко-дней» активности (${m.activeDays}). Считается с 10.11.2026.</p>
+    <div class="adm-funnel">${m.sections.slice().sort((a, b) => b.n - a.n).map((x) => `<div><span>${esc(SECTION_NAMES[x.k] || x.k)}</span><span class="adm-bar"><i style="width:${x.pct || 0}%"></i></span><b>${x.n}${x.pct == null ? '' : ` · ${x.pct}%`}</b></div>`).join('')}</div>`;
 }
 
 function foodCard(offices) {

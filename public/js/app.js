@@ -49,6 +49,19 @@ const post = (u, b = {}) => api('POST', u, b);
 
 let toastTimer;
 // top — показать сверху: для «нажми ещё раз», чтобы плашка не закрыла ту самую кнопку внизу экрана
+// Плашка «уйдёт через 4 с · Отменить»: действие выполняется, только если не отменили
+function undoBar(text, go, sec = 4) {
+  document.querySelectorAll('.undo-bar').forEach((x) => x.remove());
+  const el = document.createElement('div');
+  el.className = 'undo-bar';
+  el.setAttribute('role', 'status');
+  let left = sec;
+  const draw = () => { el.innerHTML = `<span class="grow">${esc(text)} ${left} с</span><button class="btn small ghost" type="button">Отменить</button>`; el.querySelector('button').onclick = () => { clearInterval(iv); el.remove(); toast('Не отправили'); }; };
+  draw();
+  document.body.appendChild(el);
+  const iv = setInterval(() => { left--; if (left <= 0) { clearInterval(iv); el.remove(); go(); } else draw(); }, 1000);
+}
+
 function toast(text, { top = false } = {}) {
   let el = $('.toast');
   if (!el) { el = document.createElement('div'); el.className = 'toast'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
@@ -1031,6 +1044,7 @@ const tap = (id, html) => `<button class="ava-btn" data-act="person" data-id="${
 const BEAN = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><ellipse cx="12" cy="12" rx="6" ry="9" transform="rotate(30 12 12)"/><path d="M9 6c3 3 3 9 6 12"/></svg>';
 const FLAME = '<svg width="13" height="13" viewBox="0 0 24 24" fill="#FF8A3D" aria-hidden="true"><path d="M12 2c1 4 5 5.5 5 11a5 5 0 0 1-10 0c0-2.5 1.2-4 2.5-5.2.2 1.7 1 2.7 2 3.2C11 8.5 11 5.5 12 2z"/></svg>';
 const ICONS = {
+  focus: 'M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3',
   pencil: 'M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z',
   rain: 'M16 13v6M8 13v6M12 15v6M20 16.6A5 5 0 0 0 18 7h-1.3A8 8 0 1 0 4 15.3',
   snow: 'M20 17.6A5 5 0 0 0 18 8h-1.3A8 8 0 1 0 4 16.3M8 16h.01M8 20h.01M12 18h.01M12 22h.01M16 16h.01M16 20h.01',
@@ -1695,6 +1709,16 @@ function markSeen(kind) {
 }
 
 // ---------- Рендер ----------
+// Метрики модератора: какой раздел открывали сегодня — по разу в день, только счётчик на сервере
+const SEEN = new Set();
+function trackSeen(k) {
+  if (!k) return;
+  const key = new Date().toDateString() + k;
+  if (SEEN.has(key)) return;
+  SEEN.add(key);
+  fetch('/api/seen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ k }) }).catch(() => {});
+}
+
 function render() {
   const keepScroll = window.scrollY;
   // Фоновое обновление не должно стирать то, что человек сейчас печатает
@@ -1713,7 +1737,7 @@ function render() {
   if (!S.me) root.innerHTML = iconize(renderLogin());
   else if (!S.me.nick) root.innerHTML = iconize(renderNick());
   else if (!(S.me.profile && S.me.profile.firstName && S.me.profile.lastName)) root.innerHTML = iconize(renderNameStep());
-  else root.innerHTML = iconize(renderApp());
+  else { root.innerHTML = iconize(renderApp()); trackSeen(S.tab); if (['shop', 'league', 'profile'].includes(S.sheet)) trackSeen(S.sheet); }
   window.scrollTo(0, keepScroll);
   if (S.beanFx && S.beanFx.fresh) runBeanFx();
   if (focused) {
@@ -2067,6 +2091,7 @@ function renderNear() {
     ${prankStrip}${aboutCard}
     ${renderStatusBlock()}
     ${renderWeatherStrip()}
+    ${renderWeekNote()}
     ${renderAdvent(true)}
     ${(S.people && !S.people.length) || !S.me.gangs.length ? findBar() : ''}
     ${renderQuickCalls()}
@@ -2544,6 +2569,36 @@ function renderQuickCalls() {
   return `<section class="qcalls" aria-label="Быстрые зовы банде">
     ${items.map(([k, label, bg, shade]) => `<button class="qcall" style="--c:${bg}" data-act="call-open" data-kind="${k}" data-gang="${gang}">${ico(k, 22)}${label}</button>`).join('')}
     <button class="qcall" style="--c:#6B7594" data-act="gang-open" data-id="${gang}">${ico('more', 22)}Ещё</button>
+  </section>${renderQuickExtra(gang)}`;
+}
+
+// Шаблоны зовов и «В фокусе» — под быстрыми зовами
+function tplLabel(t) {
+  const def = S.cat.calls[t.kind] || { label: t.kind };
+  return [def.label, t.opt, t.text, t.to ? t.toNick : null].filter(Boolean).join(' · ');
+}
+function renderQuickExtra(gang) {
+  const p = S.me.profile || {};
+  const tpls = (p.callTpl || []).filter((t) => S.me.gangs.some((g) => g.id === t.gang));
+  const f = p.focus && p.focus > Date.now() ? p.focus : null;
+  const focusBtn = f
+    ? `<button class="chip qx-focus on" data-act="focus-off">${ico('focus', 15)}В фокусе до ${hhmm(f)} · выйти</button>`
+    : `<button class="chip qx-focus" data-act="open" data-v="focus">${ico('focus', 15)}В фокус</button>`;
+  return `<div class="qx" aria-label="Шаблоны зовов">
+    ${tpls.length ? `<div class="qx-tpls">${tpls.map((t, i) => `<span class="chip qx-tpl${S.tplEdit ? ' edit' : ''}"><button class="qx-go" data-act="${S.tplEdit ? 'tpl-del' : 'tpl-send'}" data-i="${i}" aria-label="${S.tplEdit ? 'Удалить шаблон' : 'Отправить'}: ${esc(tplLabel(t))}">${ico(S.tplEdit ? 'x' : 'star', 14)}${esc(tplLabel(t))}</button></span>`).join('')}</div>` : ''}
+    <div class="qx-foot">${tpls.length ? `<button class="linkbtn small" data-act="tpl-edit">${S.tplEdit ? 'готово' : 'изменить'}</button>` : '<span class="small qx-hint">Свой зов можно сохранить шаблоном — кнопка в окне зова</span>'}
+${focusBtn}</div>
+  </div>`;
+}
+
+// Неделя банды: в первый рабочий день недели — отпуска, больничные и дни рождения
+function renderWeekNote() {
+  const w = S.state && S.state.weekNote;
+  if (!w || store.get('weekNoteHidden', '') === w.week) return '';
+  const row = (icon, title, list) => list.length ? `<div class="wn-row">${ico(icon, 16)}<span><b>${title}</b> ${list.map((x) => `${esc(x.nick)}${x.text ? ` <span class="small">${esc(x.text)}</span>` : ''}`).join(', ')}</span></div>` : '';
+  return `<section class="card wn">
+    <div class="row" style="justify-content:space-between"><span class="card-title">${ico('cal', 18)}Неделя банды</span><button class="icon-btn" data-act="weeknote-hide" data-v="${esc(w.week)}" aria-label="Скрыть">${ico('x', 15)}</button></div>
+    ${row('sun', 'В отпуске:', w.vac)}${row('thermo', 'Болеет:', w.sick)}${row('cake', 'День рождения:', w.bday)}
   </section>`;
 }
 
@@ -2621,7 +2676,13 @@ function renderSignalsMini() {
 
 const addDaysC = (d, n) => new Date(Date.parse(d + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
 const ddmm = (d) => (d ? `${d.slice(8, 10)}.${d.slice(5, 7)}` : '');
+const focusOn = (r) => !!(r && r.focus && r.focus > Date.now());
+const hhmm = (ts) => new Date(ts).toTimeString().slice(0, 5);
 function whereText(r) {
+  if (focusOn(r)) { const [t, c] = whereText1(r); return [`в фокусе до ${hhmm(r.focus)} · ${t}`, c]; }
+  return whereText1(r);
+}
+function whereText1(r) {
   const [t, c] = whereText0(r);
   return r.vacSoon ? [`с ${ddmm(r.vacSoon)} в отпуске · ${t}`, c] : [t, c];
 }
@@ -4324,6 +4385,14 @@ function renderSheet() {
     case 'coffee': return sheetWrap('Случайный кофе', `<div class="coffee-sheet">${renderCoffee()}</div><p class="small">Раз в неделю, в понедельник в 10:00, знакомим с коллегой из твоего офиса, который не в твоих бандах. Договориться о времени можно прямо здесь — кнопками.</p>${S.fx && S.fx.coffee && S.fx.coffee.optIn ? '<button class="linkbtn" data-act="coffee-off">Больше не участвовать</button>' : ''}`);
     case 'install': return sheetWrap('Установи на телефон', renderInstall());
     case 'compose': return sheetWrap(S.cat.calls[S.compose.kind].label, renderCompose());
+    case 'focus': return sheetWrap('В фокусе', `
+      <p class="sub">Пуши — зовы, личка, чат банды — не придут, пока ты в фокусе. Сообщения никуда не денутся, увидишь их после. Банда видит наушники и до скольки ты занят${meG('', 'а')}.</p>
+      <div class="focus-grid">
+        <button class="btn ghost" data-act="focus-set" data-v="30">30 минут</button>
+        <button class="btn ghost" data-act="focus-set" data-v="60">Час</button>
+        <button class="btn ghost" data-act="focus-set" data-v="120">Два часа</button>
+        <button class="btn ghost" data-act="focus-set" data-v="eod">До 19:00</button>
+      </div>`);
     case 'signal': return sheetWrap('Сигнал офиса', renderSignal());
     case 'office': return sheetWrap(S.state && S.state.checkin ? 'Сменить офис' : 'Выбери офис', renderOfficeList());
     case 'sick': return sheetWrap('Болею', `
@@ -4366,7 +4435,7 @@ function renderCompose() {
     ${def.opts.length ? `<div class="field">Когда / где<div class="chips">${def.opts.map((o) => `<button class="chip ${c.opt === o ? 'on' : ''}" data-act="c-opt" data-v="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>` : ''}
     ${def.textLabel ? `<label class="field">${esc(def.textLabel)}<input id="c-text" maxlength="40" placeholder="${esc(def.textHint)}" value="${esc(c.text || '')}"></label>` : ''}
     <button class="btn wide" data-act="call-send">Позвать</button>
-    <p class="small">Не больше 3 зовов в час.</p>`;
+    <div class="row" style="justify-content:space-between;gap:8px"><p class="small" style="margin:0">Не больше 3 зовов в час.</p><button class="linkbtn small" data-act="tpl-save">${ico('star', 14)}Сохранить шаблоном</button></div>`;
 }
 
 function renderSignal() {
@@ -5380,6 +5449,7 @@ function renderProfile() {
     <label class="check"><input type="checkbox" data-act="toggle" data-k="shareOffice" ${me.shareOffice ? 'checked' : ''}> <span>Показывать банде, где я: офис, дома или в отпуске</span></label>
     <label class="check"><input type="checkbox" data-act="toggle" data-k="quiet" ${me.quiet ? 'checked' : ''}> <span>Тихие часы 19:00–09:00 — не присылать зовы</span></label>
     <label class="check"><input type="checkbox" data-act="match-toggle" ${p.matchShow ? 'checked' : ''}> <span>«Совпадаем»: показывать коллегам, в какие дни я в офисе и дома (ник, имя, офис, общие интересы)</span></label>
+    <label class="check"><input type="checkbox" data-act="monday-toggle" ${p.monday !== false ? 'checked' : ''}> <span>Неделя банды: в первый рабочий день недели около 9:30 — пуш, кто из банды в отпуске, болеет и у кого день рождения</span></label>
     <label class="check"><input type="checkbox" data-act="weather-toggle" ${p.weather !== false ? 'checked' : ''}> <span>Погода на завтра: вечером накануне офисного дня — пуш, если ждёт дождь, снег, мороз или жара</span></label>
     <label class="check"><input type="checkbox" data-act="digest-toggle" ${p.digest !== false ? 'checked' : ''}> <span>Утренняя сводка: один пуш в рабочий день около 11:30, если есть дела и ты ещё не заходил${meG('', 'а')}</span></label>
     <label class="check"><input type="checkbox" data-act="findable-toggle" ${p.findable !== false ? 'checked' : ''}> <span>Меня можно найти по нику и рабочей почте — и позвать в банду</span></label>
@@ -5954,7 +6024,7 @@ const actions = {
     }
     const r = await post(`/api/gangs/${c.gang}/messages`, { type: 'call', kind: c.kind, to: c.to, opt: c.opt, text: c.text });
     S.sheet = null;
-    toast(r.away ? `Зов отправлен. ${r.away === 1 && c.to ? 'Человек в отпуске' : 'Кто-то в отпуске'} — пуш не придёт, увидит в чате` : r.quiet ? 'Отправлено. Сейчас тихие часы — у кого они включены, пуш не придёт' : 'Зов отправлен');
+    toast(r.away ? `Зов отправлен. ${r.away === 1 && c.to ? 'Человек в отпуске' : 'Кто-то в отпуске'} — пуш не придёт, увидит в чате` : r.focus ? `Зов отправлен. ${r.focus === 1 && c.to ? 'Человек' : 'Кто-то'} в фокусе — увидит позже` : r.quiet ? 'Отправлено. Сейчас тихие часы — у кого они включены, пуш не придёт' : 'Зов отправлен');
     await loadGang(); if (S.tab === 'chats' && S.chatGang) markSeen('chat');
   }),
   reply: (el) => run(async () => { const r = await post(`/api/messages/${el.dataset.id}/reply`, { label: el.dataset.v }); if (r.beans) toast(`+${r.beans} зерно`); await loadGang(); }),
@@ -6304,6 +6374,41 @@ const actions = {
     if (g.to) requestAnimationFrame(() => setTimeout(() => { const t = findInGangTabs(g.to); if (t) t.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 150));
   },
   'match-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { matchShow: el.checked } }); await Promise.all([loadMe(), loadMatch()]); toast(el.checked ? 'Твои дни видны в «Совпадаем»' : 'Твои дни скрыты — и чужие тоже'); }),
+  'weeknote-hide'(el) { try { store.set('weekNoteHidden', el.dataset.v); } catch {} render(); },
+  'monday-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { monday: el.checked } }); await loadMe(); toast(el.checked ? 'В понедельник пришлю, что у банды на неделе' : 'Понедельничную сводку больше не пришлю'); }),
+  'focus-set': (el) => run(async () => {
+    await post('/api/me/profile', { profile: { focus: el.dataset.v === 'eod' ? 'eod' : Number(el.dataset.v) } });
+    S.sheet = null; await loadMe();
+    toast(`В фокусе до ${hhmm(S.me.profile.focus)}. Пуши подождут`);
+  }),
+  'focus-off': () => run(async () => { await post('/api/me/profile', { profile: { focus: null } }); await loadMe(); toast('Снова на связи'); }),
+  'tpl-edit'() { S.tplEdit = !S.tplEdit; render(); },
+  'tpl-save': () => run(async () => {
+    saveComposeText();
+    const c = S.compose;
+    if (c.dm) throw new Error('Шаблоны — для зовов банде');
+    const list = (S.me.profile.callTpl || []).slice();
+    if (list.length >= 4) throw new Error('Не больше четырёх шаблонов. Удали лишний: «изменить» под быстрыми зовами');
+    const r = await post('/api/me/profile', { profile: { callTpl: [...list, { kind: c.kind, gang: c.gang, opt: c.opt, text: c.text, to: c.to }] } });
+    void r; await loadMe();
+    toast(S.me.profile.callTpl.length > list.length ? 'Шаблон сохранён — он под быстрыми зовами на «Рядом»' : 'Такой шаблон уже есть');
+  }),
+  'tpl-del': (el) => run(async () => {
+    const list = (S.me.profile.callTpl || []).slice();
+    list.splice(Number(el.dataset.i), 1);
+    await post('/api/me/profile', { profile: { callTpl: list } });
+    await loadMe(); if (!list.length) S.tplEdit = false;
+  }),
+  'tpl-send'(el) {
+    const t = (S.me.profile.callTpl || [])[Number(el.dataset.i)];
+    if (!t) return;
+    // Отправка в один тап, но с паузой на «Отменить» — чтобы случайное касание никого не дёрнуло
+    undoBar(`Зов «${tplLabel(t)}» уйдёт через`, () => run(async () => {
+      const r = await post(`/api/gangs/${t.gang}/messages`, { type: 'call', kind: t.kind, to: t.to, opt: t.opt, text: t.text || '' });
+      toast(r.focus ? 'Зов отправлен. Кто-то в фокусе — увидит позже' : r.away ? 'Зов отправлен. Кто-то в отпуске — пуш не придёт' : r.quiet ? 'Отправлено. Сейчас тихие часы — пуш может не прийти' : 'Зов отправлен');
+      if (S.gang && S.gang.gang.id === t.gang) await loadGang();
+    }));
+  },
   'weather-hide'(el) { try { store.set('weatherHidden', el.dataset.v); } catch {} render(); },
   'weather-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { weather: el.checked } }); await loadMe(); toast(el.checked ? 'Напомню про погоду накануне офиса' : 'Про погоду больше не пишу'); }),
   'digest-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { digest: el.checked } }); await loadMe(); toast(el.checked ? 'Утренняя сводка включена' : 'Утреннюю сводку больше не пришлю'); }),

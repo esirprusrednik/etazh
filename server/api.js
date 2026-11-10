@@ -451,10 +451,13 @@ function createApi(db) {
     return {
       id: member.id, nick: member.nick, name: fullName(prof, 'gang'), mood: (U.fem(look) && MOODS_F[prof.mood]) || MOODS[prof.mood] || '', where: pr.where, office: pr.office || null,
       until: pr.until || null, planned: !!pr.planned, joke: pr.joke ?? null, look, status: statusName(look.status),
-      charge: battery ? battery.asking(member.id) : false,
+      charge: battery ? battery.asking(member.id) : false, focus: focusUntil(prof),
       vacSoon: member.share_office && pr.where !== 'vacation' ? ((prof.vacations || []).find((v) => v.from > U.msk().day && dayDiff(U.msk().day, v.from) <= 5) || {}).from || null : null
     };
   }
+
+  // «В фокусе»: до этого времени пуши не приходят, банда видит наушники
+  const focusUntil = (prof) => (prof && prof.focus && prof.focus > U.now() ? prof.focus : null);
 
   const statusName = (id) => (SHOP.find((s) => s.id === id && s.kind === 'status') || {}).name || null;
 
@@ -472,6 +475,7 @@ function createApi(db) {
       if (!ignoreQuiet && quietNow && u.quiet) continue;
       // В отпуске зовы не беспокоят — увидит в чате, когда вернётся
       if (!ignoreQuiet && ['vacation', 'sick'].includes(presenceOf(readProfile(u.profile), activeCheckin(uid)).where)) continue;
+      if (!ignoreQuiet && focusUntil(readProfile(u.profile))) continue;
       const subs = q('SELECT * FROM push_subs WHERE user_id = ?').all(uid);
       for (const s of subs) {
         const r = await sendPush(s, payload);
@@ -710,6 +714,43 @@ function createApi(db) {
       if (p.digest !== undefined) prof.digest = !!p.digest;
       if (p.matchShow !== undefined) prof.matchShow = !!p.matchShow;
       if (p.weather !== undefined) prof.weather = !!p.weather;
+      if (p.monday !== undefined) prof.monday = !!p.monday;
+      if (p.focus !== undefined) {
+        if (p.focus === null) prof.focus = null;
+        else if (p.focus === 'eod') {
+          const m = U.msk();
+          const left = (19 * 60) - (m.hour * 60 + m.minute);
+          if (left <= 0) throw bad('Рабочий день уже закончился — пуши и так стихли.');
+          prof.focus = U.now() + left * 60e3;
+        } else if ([30, 60, 120].includes(Number(p.focus))) prof.focus = U.now() + Number(p.focus) * 60e3;
+        else throw bad('Фокус — на 30 минут, час, два или до конца дня.');
+      }
+      if (p.callTpl !== undefined) {
+        if (!Array.isArray(p.callTpl)) throw bad('Шаблоны — списком.');
+        const mine = new Set(myGangs(u.id).map((g) => g.id));
+        const list = [];
+        for (const t of p.callTpl.slice(0, 4)) {
+          const def = t && CALLS[t.kind];
+          if (!def) throw bad('Неизвестный зов.');
+          const gang = Number(t.gang);
+          if (!mine.has(gang)) throw bad('Шаблон — только для своей банды.');
+          const opt = def.opts.includes(t.opt) ? t.opt : def.opts[0] || null;
+          let text = def.textLabel ? U.cleanText(t.text, 40) || null : null;
+          const prob = text && U.moderationProblem(text);
+          if (prob) throw bad(prob);
+          let to = null, toNick = null;
+          if (t.to) {
+            const r = q('SELECT id, nick FROM users WHERE id = ?').get(Number(t.to));
+            if (!r || r.id === u.id || !isMember(gang, r.id)) throw bad('Этого человека нет в банде.');
+            to = r.id; toNick = r.nick;
+          }
+          const key = [t.kind, gang, opt, text, to].join('|');
+          if (list.some((x) => [x.kind, x.gang, x.opt, x.text, x.to].join('|') === key)) continue;
+          list.push({ kind: t.kind, gang, opt, text, to, toNick });
+        }
+        if (p.callTpl.length > 4) throw bad('Не больше четырёх шаблонов.');
+        prof.callTpl = list;
+      }
       if (p.findable !== undefined) prof.findable = !!p.findable;
       if (['all', 'gang', 'none'].includes(p.dmFrom)) prof.dmFrom = p.dmFrom;
     }
@@ -763,6 +804,7 @@ function createApi(db) {
       now: U.now(), msk: U.msk().hhmm, night: U.isAfterCheckinCutoff(),
       // Вечером — кто из банд в офисе в следующий рабочий день
       tomorrow: U.isAfterCheckinCutoff() && features ? features.gangTomorrow(u.id) : null,
+      weekNote: features ? features.weekNote(u.id) : null,
       beans: q('SELECT beans FROM users WHERE id = ?').get(u.id).beans,
       checkin: ci ? { office: ci.office_id, name: office.name, at: ci.at, since: U.msk(ci.at).hhmm } : null,
       today: U.msk().day, build: BUILD,
@@ -1340,7 +1382,8 @@ function createApi(db) {
       const r = q('SELECT profile FROM users WHERE id = ?').get(id);
       return r && ['vacation', 'sick'].includes(presenceOf(readProfile(r.profile), activeCheckin(id)).where);
     }).length;
-    return { ok: true, quiet: U.isQuietHour(), away };
+    const focus = recipients.filter((id) => { const r = q('SELECT profile FROM users WHERE id = ?').get(id); return r && focusUntil(readProfile(r.profile)); }).length;
+    return { ok: true, quiet: U.isQuietHour(), away, focus };
   });
 
   route('POST', '/api/messages/:id/reply', async (req, body, query, params) => {

@@ -692,6 +692,46 @@ function register(ctx) {
     return { day, label, mine, office, total: members.length, unknown };
   }
 
+  // ---------- Неделя банды: первый рабочий день недели ----------
+  // Кто из банд в отпуске, кто болеет и у кого день рождения на этой неделе. Только то, что банда и так видит:
+  // отпуск и «болею» — у тех, кто показывает, где работает; день рождения — у тех, кто его показывает
+  function isFirstWorkday(day) {
+    if (!weekdayName(day)) return false;
+    for (let d = mondayOf(day); d < day; d = addDays(d, 1)) if (weekdayName(d)) return false;
+    return true;
+  }
+  function weekNote(meId, { force = false } = {}) {
+    const t = today();
+    if (!force && !isFirstWorkday(t)) return null;
+    const sunday = addDays(mondayOf(t), 6);
+    const seen = new Set([meId]); const members = [];
+    for (const g of myGangs(meId)) for (const m of gangMembers(g.id)) { if (!seen.has(m.id)) { seen.add(m.id); members.push(m); } }
+    const vac = [], sick = [], bday = [];
+    for (const m of members) {
+      const prof = readProfile(m.profile);
+      if (m.share_office) {
+        const v = (prof.vacations || []).find((x) => x.to >= t && x.from <= sunday);
+        if (v) vac.push({ id: m.id, nick: m.nick, text: v.from <= t ? `до ${ddmm(v.to)}` : `с ${ddmm(v.from)}`, from: v.from });
+        else if (cellFor(prof, m.id, t) === 'sick') sick.push({ id: m.id, nick: m.nick, text: prof.today && prof.today.to > t ? `до ${ddmm(prof.today.to)}` : '' });
+      }
+      if (prof.showBday && prof.bday) {
+        const n = bdayInDays(prof.bday);
+        if (n !== null && addDays(t, n) <= sunday) {
+          const d = addDays(t, n);
+          bday.push({ id: m.id, nick: m.nick, text: n === 0 ? 'сегодня' : `${DAY_NAMES[new Date(d + 'T12:00:00Z').getUTCDay()].toLowerCase()} ${ddmm(d)}`, n });
+        }
+      }
+    }
+    if (!vac.length && !sick.length && !bday.length) return null;
+    vac.sort((a, b) => a.from.localeCompare(b.from)); bday.sort((a, b) => a.n - b.n);
+    return { week: mondayOf(t), vac, sick, bday };
+  }
+  const weekNoteText = (w) => [
+    w.vac.length && 'В отпуске: ' + w.vac.map((x) => `${x.nick} ${x.text}`).join(', '),
+    w.sick.length && 'Болеет: ' + w.sick.map((x) => `${x.nick}${x.text ? ' ' + x.text : ''}`).join(', '),
+    w.bday.length && 'ДР: ' + w.bday.map((x) => `${x.nick} — ${x.text}`).join(', ')
+  ].filter(Boolean).join(' · ');
+
   // ---------- Дни рождения ----------
   function bdayInDays(bday) {
     if (!/^\d{2}\.\d{2}$/.test(bday || '')) return null;
@@ -1019,8 +1059,67 @@ function register(ctx) {
     const prev = q('SELECT COUNT(DISTINCT uid) AS n FROM activity WHERE day >= ? AND day < ?').get(w1, w0).n;
     const kept = q(`SELECT COUNT(*) AS n FROM (SELECT DISTINCT uid FROM activity WHERE day >= ? AND day < ?) p
                     WHERE p.uid IN (SELECT uid FROM activity WHERE day >= ?)`).get(w1, w0, w0).n;
-    return { rows, wau, prevWau: prev, retention: prev ? Math.round((kept / prev) * 100) : null, coffeeWeek: q('SELECT COUNT(*) AS n FROM coffee_pairs WHERE week = ?').get(mondayOf(today())).n };
+    return { ...moreMetrics(), rows, wau, prevWau: prev, retention: prev ? Math.round((kept / prev) * 100) : null, coffeeWeek: q('SELECT COUNT(*) AS n FROM coffee_pairs WHERE week = ?').get(mondayOf(today())).n };
   });
+
+  // Какие разделы открывают: по разу на человека в день, без привязки к человеку — только счётчик
+  const SEEN_KEYS = ['near', 'chats', 'office', 'games', 'shop', 'league', 'profile'];
+  const seenTab = new Set();
+  route('POST', '/api/seen', async (req, body) => {
+    const u = requireUser(req);
+    const k = String(body.k || '');
+    if (!SEEN_KEYS.includes(k)) return { ok: true };
+    const key = today() + ':' + u.id + ':' + k;
+    if (!seenTab.has(key)) {
+      if (seenTab.size > 50000) seenTab.clear();
+      seenTab.add(key);
+      stat('tab_' + k);
+    }
+    return { ok: true };
+  });
+
+  // Воронка, удержание по неделям регистрации и разделы — только количества
+  function moreMetrics() {
+    const t = today();
+    const alias = (uid) => crypto.createHmac('sha256', config.emailPepper).update('activity:' + uid).digest('hex').slice(0, 16);
+    const users = q('SELECT id, nick, profile, created_at FROM users').all();
+    const has = (sql) => new Set(q(sql).all().map((r) => r.id));
+    const inGang = has('SELECT DISTINCT user_id AS id FROM gang_members');
+    const checked = has("SELECT user_id AS id FROM counters WHERE key = 'checkins' AND n > 0");
+    const pushed = has('SELECT DISTINCT user_id AS id FROM push_subs');
+    const f = { entered: users.length, nick: 0, names: 0, gang: 0, checkin: 0, plan: 0, push: 0 };
+    for (const u of users) {
+      if (!u.nick) continue;
+      const prof = readProfile(u.profile);
+      f.nick++;
+      if (prof.firstName && prof.lastName) f.names++;
+      if (inGang.has(u.id)) f.gang++;
+      if (checked.has(u.id)) f.checkin++;
+      if (planFilled(prof)) f.plan++;
+      if (pushed.has(u.id)) f.push++;
+    }
+    let pending = 0;
+    try { pending = q('SELECT COUNT(*) AS n FROM access_requests').get().n; } catch {}
+    const oldest = addDays(t, -34);
+    const cohorts = [];
+    for (let i = 4; i >= 0; i--) {
+      const mon = addDays(mondayOf(t), -7 * i);
+      const from = dayStartTs(mon), to = dayStartTs(addDays(mon, 7));
+      const ids = users.filter((u) => u.nick && u.created_at >= from && u.created_at < to).map((u) => alias(u.id));
+      const weeks = [1, 2, 3].map((k) => {
+        const w0 = addDays(mon, 7 * k), w1 = addDays(w0, 6);
+        if (!ids.length || w0 > t || w0 < oldest) return null;
+        const act = new Set(q('SELECT DISTINCT uid FROM activity WHERE day >= ? AND day <= ?').all(w0, w1).map((r) => r.uid));
+        return Math.round((ids.filter((a) => act.has(a)).length / ids.length) * 100);
+      });
+      cohorts.push({ week: ddmm(mon), n: ids.length, weeks });
+    }
+    const w0 = addDays(t, -6);
+    const activeDays = q('SELECT COUNT(*) AS n FROM activity WHERE day >= ?').get(w0).n;
+    const sections = SEEN_KEYS.map((k) => ({ k, n: (q('SELECT COALESCE(SUM(n), 0) AS n FROM stats WHERE key = ? AND day >= ?').get('tab_' + k, w0) || {}).n || 0 }))
+      .map((x) => ({ ...x, pct: activeDays ? Math.round((x.n / activeDays) * 100) : null }));
+    return { funnel: f, pending, cohorts, sections, activeDays };
+  }
 
   route('POST', '/api/admin/coffee-now', async (req) => {
     requireAdmin(req);
@@ -1044,6 +1143,17 @@ function register(ctx) {
           const mates = new Set();
           myGangs(r.id).forEach((g) => gangMembers(g.id).forEach((m) => { if (m.id !== r.id) mates.add(m.id); }));
           fireAndForget(notify([...mates], { title: 'День рождения в банде', body: `Сегодня день рождения у ${r.nick}! Поздравь и подари ${GIFT_BEANS} зёрен.`, url: '/', tag: `bday-${r.id}` }));
+        }
+      }
+      // Неделя банды: первый рабочий день недели, 9:30–12:00 — отпуска, больничные и дни рождения
+      const hm = now.hour * 60 + now.minute;
+      if (hm >= 570 && hm < 720 && isFirstWorkday(day) && meta.get('monday_week') !== mondayOf(day)) {
+        meta.set('monday_week', mondayOf(day));
+        for (const r of q('SELECT DISTINCT user_id AS id FROM push_subs').all()) {
+          const u = userRow(r.id);
+          if (!u || !u.nick || readProfile(u.profile).monday === false) continue;
+          const w = weekNote(u.id);
+          if (w) fireAndForget(notify([u.id], { title: 'Неделя банды', body: weekNoteText(w), url: '/#near', tag: 'monday' }));
         }
       }
       // Сводка недели: пятница с 16:00
@@ -1136,7 +1246,7 @@ function register(ctx) {
     return { total: list.length, left: list.filter((id) => !done.has(id)).length };
   }
   const activeToday = (uid) => counter(uid, 'last_active') >= Number(today().replace(/-/g, ''));
-  return { streak: (uid) => counter(uid, 'day_streak'), setQuestProviders: (p) => Object.assign(prov, p), onEvent, cleanup, tick, pairNow, questSummary, myPair, activeToday, cellFor, gangTomorrow };
+  return { streak: (uid) => counter(uid, 'day_streak'), setQuestProviders: (p) => Object.assign(prov, p), onEvent, cleanup, tick, pairNow, questSummary, myPair, activeToday, cellFor, gangTomorrow, weekNote, weekNoteText };
 }
 
 module.exports = { register, ACH, QUESTS };
