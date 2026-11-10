@@ -932,7 +932,8 @@ function createApi(db) {
     else out.crest = cur.crest || null;
     return out;
   }
-  const gangOffice = (gid) => q(`SELECT COUNT(*) AS n FROM gang_members m JOIN users u ON u.id = m.user_id
+  // После 19:00 отметки уже не действуют: «в офисе» у банды — 0, как и у отдельных людей
+  const gangOffice = (gid) => U.isAfterCheckinCutoff() ? 0 : q(`SELECT COUNT(*) AS n FROM gang_members m JOIN users u ON u.id = m.user_id
     WHERE m.gang_id = ? AND u.share_office = 1 AND EXISTS (SELECT 1 FROM checkins c WHERE c.user_id = u.id AND c.day = ? AND c.left_at IS NULL)`).get(gid, U.msk().day).n;
   // «Легенда ноября» — только пока идёт следующий месяц
   const legendLabel = (ym) => { const d = U.msk().day; const [y, m] = ym.split('-').map(Number); const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`; return d.slice(0, 7) === next ? `Легенда ${league.MONTHS_GEN[m - 1]}` : null; };

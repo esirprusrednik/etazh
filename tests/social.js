@@ -516,6 +516,19 @@ function startServer(day, extra = {}) {
       assert.equal(t.mine, 'office');
       assert.equal(t.unknown, 0, 'скрывшие офис не считаются');
     });
+    await step('после 19:00 в чатах у банды никто не «в офисе», даже если отметка не снята', async () => {
+      const B = await new se.Client().login('tm5@mts.ru', 'засидевшийся');
+      await B.post('/api/me/profile', { shareOffice: true });
+      await B.post('/api/gangs', { name: 'Поздние', access: 'open' });
+      const { DatabaseSync } = require('node:sqlite');
+      const db = new DatabaseSync(path.join(se.dir, 'db.sqlite'));
+      db.prepare("INSERT INTO checkins (user_id, office_id, day, at) SELECT ?, id, ?, ? FROM offices LIMIT 1").run(B.id, '2026-11-13', Date.now());
+      db.close();
+      const chats = (await B.get('/api/chats')).json;
+      const g = (chats.items || chats).find((x) => x.type === 'gang');
+      assert.ok(g, JSON.stringify(chats).slice(0, 200));
+      assert.equal(g.inOffice, 0);
+    });
   } finally { se.stop(); }
   // Лавка: товар дня, аренда эффекта ника, звук отметки, подарки и подлянки подельникам, пицца и флаг банды
   const sl = startServer('2026-11-10');
