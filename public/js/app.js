@@ -5336,8 +5336,18 @@ const SND_NAMES = { lift: 'лифт', fanfare: 'фанфары', chip: '8-бит
 const PRANK_ABOUT = { coffee: 'Кофейное пятно на одежде и опрокинутая кружка', sticker: 'Жёлтый стикер «Я ♥ понедельники» на лбу', phones: 'Розовые наушники и ноты вокруг головы' };
 const NFX_ABOUT = { gold: 'Ник переливается золотом', rainbow: 'Ник радугой', glitch: 'Ник с помехами, как в старом телевизоре' };
 // Как вещь выглядит на тебе: для деталей и рамок — твой аватар с ней
+// Примерка в Лавке: снимаем то, что закрывает примеряемую вещь — шапка не прячет причёску, очки не прячут глаза,
+// табличка в руках не прячет куртку, борода — галстук. Это только показ, на сохранённый аватар не влияет
+const TRY_UNCOVER = {
+  hairStyle: { hat: 'none', phones: false },
+  eyeShape: { glasses: false, mask: 'none' },
+  mask: { glasses: false },
+  neck: { beard: 'none' },
+  outfit: { prop: 'none' }
+};
+const tryLook = (it) => ({ ...S.me.look, ...(TRY_UNCOVER[it.slot] || {}), [it.slot]: it.value, frame: null, crown: false, prank: null });
 function shopPrev(it, size = 44, plain = false) {
-  if (it.kind === 'part') return avatar({ ...S.me.look, [it.slot]: it.value, frame: null, crown: false, prank: null }, size);
+  if (it.kind === 'part') return avatar(tryLook(it), size);
   if (it.kind === 'frame') return avatar({ ...S.me.look, frame: it.id, crown: false, prank: null }, size);
   if (it.kind === 'crown') return avatar({ ...S.me.look, crown: true, prank: null }, size);
   if (it.kind === 'prank') return avatar({ ...S.me.look, frame: null, crown: false, prank: { v: it.value, until: Date.now() + 6e4 } }, size);
@@ -5392,13 +5402,13 @@ function shopRow(it) {
 function shopTile(it) {
   const on = S.shopTry === it.id;
   return `<button class="shop-tile ${on ? 'on' : ''} ${it.owned ? 'own' : ''}" data-act="shop-try" data-v="${it.id}" data-item="${it.id}" aria-pressed="${on}">
-    ${avatar({ ...S.me.look, [it.slot]: it.value, frame: null, crown: false, prank: null }, 64)}
+    ${avatar(tryLook(it), 64)}
     <span class="st-name">${it.legend ? 'star ' : ''}${esc(it.name)}</span>
     <span class="st-price ${it.owned ? 'own' : S.shop.beans < it.price ? 'far' : ''}">${it.owned ? 'check твоё' : `${it.was ? `<s>${it.was}</s> ` : ''}${it.price} ${BEAN}`}</span></button>`;
 }
 function shopTryCard(items) {
   const it = items.find((x) => x.id === S.shopTry) || null;
-  const look = it ? { ...S.me.look, [it.slot]: it.value, frame: null, crown: false, prank: null } : { ...S.me.look, prank: null };
+  const look = it ? tryLook(it) : { ...S.me.look, prank: null };
   const cat = (x) => (x.slot === 'prop' ? 'meme' : x.slot === 'outfit' ? 'outfit' : x.slot === 'hairStyle' ? 'hair' : x.slot === 'eyeShape' ? 'eyes' : x.slot === 'pet' ? 'pet' : 'acc');
   const act = !it ? '<p class="small" style="margin:0">Нажми на любую вещь ниже — примеришь её здесь. Бесплатно и без покупки.</p>'
     : it.owned ? `<div class="row" style="gap:8px"><button class="btn small ghost" data-act="ava-open" data-cat="${cat(it)}">Надеть в конструкторе</button>${giftBtn(it)}</div>`
