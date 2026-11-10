@@ -2114,3 +2114,27 @@ s.was, .st-price s { opacity: .65; font-weight: 600; }
 main { padding-bottom: 64px; }
 /* Свежий выстрел после перерисовки продолжает анимацию, а не начинает заново */
 .bc.fresh, .bc.fresh::before, .bc.fresh::after { animation-delay: var(--ad, 0s) !important; }
+/* ----- Морской бой: свой флот мини-картой ----- */
+.b-mini { display: flex; gap: 12px; align-items: center; margin: 0 16px 10px; padding: 8px 10px; border-radius: 18px; color: #fff; cursor: pointer;
+  background: linear-gradient(180deg, #17406F 0%, #0E2C52 100%); box-shadow: 0 3px 0 #061833; }
+.b-mini .small { color: rgba(255,255,255,.78); }
+.b-mini-board { width: 112px; flex: none; }
+.b-mini-board .board-wrap { display: block; width: 112px; }
+.b-mini-board .board-cols, .b-mini-board .board-rows, .b-mini-board .b-shout { display: none; }
+.b-mini-board .board { gap: 1px; padding: 2px; border-radius: 8px; }
+.b-mini-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.b-mini-info .sea-title { font-size: 15px; }
+.b-mini .b-mini-more { color: rgba(255,255,255,.55); }
+.b-turn { font-size: 13px; font-weight: 900; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+.b-turn.go { background: #FFC93C; color: #3A2A00; animation: b-turn-pulse 1.6s ease-in-out infinite; }
+.b-turn.wait { background: rgba(255,255,255,.14); color: #fff; }
+@keyframes b-turn-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,201,60,.6); } 50% { box-shadow: 0 0 0 6px rgba(255,201,60,0); } }
+@media (prefers-reduced-motion: reduce) { .b-turn.go { animation: none; } }
+/* Компактная шапка морского боя во время партии */
+.b-vs.compact { padding-top: 8px; padding-bottom: 8px; }
+.b-vs.compact .vs-side { flex-direction: row; gap: 8px; }
+.b-vs.compact .vs-side:last-child { flex-direction: row-reverse; }
+.b-vs.compact .vs-score { font-size: 24px; }
+.b-vs.compact .vs-cap { display: none; }
+.b-vs.compact .vs-mid { padding-bottom: 0; }
+.pr-mini { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 4px; }

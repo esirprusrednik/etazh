@@ -3009,12 +3009,14 @@ function prCount(result) {
 function prLevel(game) { return store.get('practiceLevel', {})[game] || 'hard'; }
 function renderPracticeHead() {
   const P = S.practice, sc = prScore(P.game);
+  // Идёт морской бой — шапка в одну строку: экран нужен полю
+  if (P.game === 'sea' && S.bv && S.bv.status === 'play') return `<div class="pr-mini"><button class="linkbtn back" data-act="pr-back">‹ К играм</button><span class="pr-score">${PR.LEVELS[P.level]} · ты <b>${sc.me}</b> : <b>${sc.opp}</b> противник</span></div>`;
   const lv = P.game === 'ttt' || P.game === 'sea';
   return `<button class="linkbtn back" data-act="pr-back">‹ К играм</button>
     <section class="card pr-head">
       <div class="row" style="justify-content:space-between;gap:8px"><b>Тренировка: ${esc(PR_GAMES[P.game].toLowerCase())}</b><span class="pr-score" aria-label="Счёт в практике">ты <b>${sc.me}</b> : <b>${sc.opp}</b> противник</span></div>
       ${lv ? `<div class="chips">${Object.entries(PR.LEVELS).map(([k, l]) => `<button class="chip ${P.level === k ? 'on' : ''}" data-act="pr-level" data-v="${k}" aria-pressed="${P.level === k}">${l}</button>`).join('')}</div>
-        <p class="small" style="margin:0">${P.game === 'ttt' ? (P.level === 'hard' ? 'Сильный противник не проигрывает. Сведёшь вничью — ачивка «Ничья с машиной».' : 'Лёгкий противник иногда зевает тройку.') : P.level === 'hard' ? 'Сильный противник считает, где корабли вероятнее, и добивает раненые. Потопишь его флот — ачивка.' : 'Лёгкий противник часто стреляет наугад.'}</p>` : '<p class="small" style="margin:0">Ни зёрен, ни рейтинга — счёт видишь только ты.</p>'}
+        ${P.game === 'sea' && S.bv && S.bv.status === 'play' ? '' : `<p class="small" style="margin:0">${P.game === 'ttt' ? (P.level === 'hard' ? 'Сильный противник не проигрывает. Сведёшь вничью — ачивка «Ничья с машиной».' : 'Лёгкий противник иногда зевает тройку.') : P.level === 'hard' ? 'Сильный противник считает, где корабли вероятнее, и добивает раненые. Потопишь его флот — ачивка.' : 'Лёгкий противник часто стреляет наугад.'}</p>`}` : '<p class="small" style="margin:0">Ни зёрен, ни рейтинга — счёт видишь только ты.</p>'}
     </section>`;
 }
 function renderPractice() {
@@ -3872,10 +3874,12 @@ function renderVersus(v) {
   let mm = 'smirk', mo = 'smirk';
   if (v.status === 'done') { mm = v.winner === 'me' ? 'win' : 'lose'; mo = v.winner === 'me' ? 'lose' : 'win'; }
   else if (v.last && v.last.r && v.last.r !== 'miss') { const sunk = v.last.r === 'sunk'; if (v.last.mine) { mm = sunk ? 'win' : 'happy'; mo = sunk ? 'sad' : 'wow'; } else { mo = sunk ? 'win' : 'happy'; mm = sunk ? 'sad' : 'wow'; } }
-  return `<section class="b-vs">
-    <div class="vs-side ${myTurn ? 'turn' : ''}">${bubble('mine')}<span class="vs-ava mood-${mm}">${avatar(moodLook(S.me.look, mm), 52)}</span><span class="vs-name">ты</span>${v.clock ? `<span class="vs-clock" data-who="me">${fmtClock(clockNow(v, 'me'))}</span>` : ''}</div>
+  // Во время партии — компактная строка, чтобы поле соперника и свой флот поместились на одном экране
+  const cmp = v.status === 'play', AS = cmp ? 34 : 52;
+  return `<section class="b-vs ${cmp ? 'compact' : ''}">
+    <div class="vs-side ${myTurn ? 'turn' : ''}">${bubble('mine')}<span class="vs-ava mood-${mm}">${avatar(moodLook(S.me.look, mm), AS)}</span><span class="vs-name">ты</span>${v.clock ? `<span class="vs-clock" data-who="me">${fmtClock(clockNow(v, 'me'))}</span>` : ''}</div>
     <div class="vs-mid"><div class="vs-score"><b>${v.score.me}</b><span>:</span><b>${v.score.opp}</b></div><div class="vs-cap">${v.status === 'setup' ? 'расстановка' : v.status === 'done' ? 'партия окончена' : myTurn ? 'твой ход' : 'ход соперника'}</div></div>
-    <div class="vs-side ${oppTurn ? 'turn' : ''}">${bubble('opp')}${(v.practice ? (h) => h : (h) => tap(v.opp.id, h))(`<span class="vs-ava mood-${mo}">${avatar(moodLook(v.opp.look, mo), 52)}</span>`)}<span class="vs-name ellipsis">${nk(v.opp)}</span>${v.clock ? `<span class="vs-clock" data-who="opp">${fmtClock(clockNow(v, 'opp'))}</span>` : ''}</div>
+    <div class="vs-side ${oppTurn ? 'turn' : ''}">${bubble('opp')}${(v.practice ? (h) => h : (h) => tap(v.opp.id, h))(`<span class="vs-ava mood-${mo}">${avatar(moodLook(v.opp.look, mo), AS)}</span>`)}<span class="vs-name ellipsis">${nk(v.opp)}</span>${v.clock ? `<span class="vs-clock" data-who="opp">${fmtClock(clockNow(v, 'opp'))}</span>` : ''}</div>
   </section>`;
 }
 
@@ -3919,19 +3923,32 @@ function renderBattle() {
     : `<div class="b-banner wait">wait Ход ${nk(v.opp)}. Придёт уведомление, когда выстрелит</div>`;
   const oppFleet = v.fleet.map((len) => ({ len, sunk: false }));
   for (const sh of v.oppSunk) { const f = oppFleet.find((x) => x.len === sh.length && !x.sunk); if (f) f.sunk = true; }
+  // Во время партии свой флот — мини-картой рядом с баннером: поле соперника и своё положение на одном экране.
+  // Нажатие на мини-карту разворачивает своё поле целиком (и обратно)
+  const lastOpp = v.last && !v.last.mine ? `${B_COLS[v.last.x]}${v.last.y + 1} — ${v.last.r === 'miss' ? 'мимо' : v.last.r === 'sunk' ? 'потопил' : 'попал'}` : null;
+  const compact = !done && !S.bMineBig;
+  const mineMini = compact ? `<section class="b-mini" data-act="b-mine-big" role="button" aria-label="Показать моё поле крупно">
+    <div class="b-mini-board">${renderBoard(v, 'me')}</div>
+    <div class="b-mini-info"><span class="sea-title">Мой флот</span><span class="sea-sub">цел: <b>${v.myLeft}</b> из ${v.fleet.length}</span>
+      ${fleetBars(fleetLeft(v.myShips, v.oppShots))}
+      <span class="small">${lastOpp ? `Соперник: ${lastOpp}` : 'Соперник ещё не стрелял'}</span><span class="small b-mini-more">Нажми — крупно</span></div>
+  </section>` : '';
+  // Чей ход — прямо в заголовке поля соперника (во время партии отдельный баннер не нужен — экономим место)
+  const turnLine = done ? '' : v.myTurn ? '<span class="b-turn go">Твой ход — стреляй</span>' : `<span class="b-turn wait">${v.practice ? `${nk(v.opp)} целится…` : `Ход ${nk(v.opp)}`}</span>`;
   return `${defs}${back}${renderEmoteLayer(v)}${renderVersus(v)}
-  ${banner}
+  ${done || !compact ? banner : ''}
   <section class="b-sea">
-    <div class="row" style="justify-content:space-between"><span class="sea-title">${v.practice ? 'Воды противника' : `Воды ${nk(v.opp)}`}</span><span class="sea-sub">на плаву: ${v.oppLeft}</span></div>
+    <div class="row" style="justify-content:space-between;gap:8px"><span class="sea-title">${v.practice ? 'Воды противника' : `Воды ${nk(v.opp)}`}</span>${turnLine || `<span class="sea-sub">на плаву: ${v.oppLeft}</span>`}</div>
     ${fleetBars(oppFleet)}
     ${renderBoard(v, 'opp')}
   </section>
+  ${mineMini}
   ${renderEmoteBar()}
-  <section class="b-sea mine">
-    <div class="row" style="justify-content:space-between"><span class="sea-title">Мой флот</span><span class="sea-sub">цел: ${v.myLeft} из ${v.fleet.length}</span></div>
+  ${compact ? '' : `<section class="b-sea mine">
+    <div class="row" style="justify-content:space-between"><span class="sea-title">Мой флот</span><span class="sea-sub">цел: ${v.myLeft} из ${v.fleet.length}${!done ? ' · <button class="linkbtn" data-act="b-mine-big">свернуть</button>' : ''}</span></div>
     ${fleetBars(fleetLeft(v.myShips, v.oppShots))}
     ${renderBoard(v, 'me')}
-  </section>
+  </section>`}
   ${done && v.practice ? '<button class="btn wide" data-act="pr-again">Ещё партию</button>' : done ? `<button class="btn wide" data-act="battle-new" data-id="${v.opp.id}" data-mode="${v.mode}" data-stake="${v.stake || 0}">Реванш${v.mode === 'fast' ? ' · быстрая' : ''}</button>` : '<button class="linkbtn b-quit" data-act="bresign">Сдаться</button>'}`;
 }
 
@@ -6390,6 +6407,7 @@ const actions = {
   'splash-skip'() { if (S.splashDone) { sfx('lift'); S.splashDone(); } },
   close() { S.sheet = null; S.error = ''; render(); },
   'close-bg'(el, e) { if (e.target === el) actions.close(); },
+  'b-mine-big'() { S.bMineBig = !S.bMineBig; sfx('pick'); render(); if (S.bMineBig) setTimeout(() => { const m = document.querySelector('.b-sea.mine'); if (m) m.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 50); },
   'shop-gang'(el) { S.shopGang = Number(el.dataset.v); render(); },
   'shop-tab'(el) { S.shopTab = el.dataset.v; S.shopTry = null; sfx('pick'); render(); const b = document.querySelector('.shop-tabs'); if (b) b.scrollIntoView({ block: 'start', behavior: 'smooth' }); },
   'shop-try'(el) { S.shopTry = S.shopTry === el.dataset.v ? null : el.dataset.v; sfx('pick'); render(); const t = document.querySelector('.shop-try'); if (t && S.shopTry) t.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); },
