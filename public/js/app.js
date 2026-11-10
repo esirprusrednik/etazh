@@ -4571,11 +4571,27 @@ function actx() {
   const v = soundVol();
   if (!v) return null;
   try {
-    if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); const b = audioBus(audioCtx); master = b.out; wetIn = b.send; }
+    if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); const b = audioBus(audioCtx); master = b.out; wetIn = b.send; loadSamples(audioCtx); }
     if (audioCtx.state === 'suspended') audioCtx.resume();
     master.gain.value = Math.pow(v / 60, 1.6); // 60 — привычная громкость, выше — громче
     return audioCtx;
   } catch { return null; }
+}
+// Записанные звуки: живой оркестр (сэмплы VS Chamber Orchestra, CC0), сведённые в короткие фразы.
+// Грузятся один раз при первом звуке; пока не загрузились или без сети — играет синтезированная версия
+const SAMPLE_URLS = { bugle: '/sounds/battle.mp3', lose: '/sounds/lose.mp3' };
+const sampleBuf = {};
+function loadSamples(c) {
+  for (const [k, url] of Object.entries(SAMPLE_URLS)) {
+    if (sampleBuf[k] !== undefined) continue;
+    sampleBuf[k] = null;
+    fetch(url).then((r) => r.arrayBuffer()).then((b) => new Promise((ok, no) => c.decodeAudioData(b, ok, no))).then((buf) => { sampleBuf[k] = buf; }).catch(() => { delete sampleBuf[k]; });
+  }
+}
+function playSample(c, k, vol = 0.85) {
+  const buf = sampleBuf[k]; if (!buf) return false;
+  const src = c.createBufferSource(), g = c.createGain(); src.buffer = buf; g.gain.value = vol;
+  src.connect(g); sndOut(c, g, 0); src.start(); return true;
 }
 // Подключить узел к выходу: сухой сигнал + немного в реверб (rv 0…1). pan — стерео −1…1
 function sndOut(ctx, node, rv = 0, pan = null) {
@@ -4850,6 +4866,7 @@ const SOUNDS = {
   // Проигрыш: тромбон с туба «уа-уа-уа-уааа» с сурдиной, казу хихикает «ха-ха-ха», свисток падает,
   // и барабанщик добивает «ба-дум-тсс»
   lose: (c) => {
+    if (playSample(c, 'lose')) return;
     [[294, 0, 0.3], [277, 0.34, 0.3], [262, 0.68, 0.3], [247, 1.02, 0.95]].forEach(([f, at, dur], i) => {
       brass(c, { f, at, dur, vol: 0.09, dark: true, wah: i === 3 ? 5.5 : 3.5, vib: i === 3 ? 0.02 : 0, rv: 0.35 });
       brass(c, { f: f / 2, at, dur, vol: 0.07, dark: true, rv: 0.3 });
@@ -4864,6 +4881,7 @@ const SOUNDS = {
     crash(c, { at: 2.84, vol: 0.06, dur: 0.6, rv: 0.3 });
   },
   bugle: (c) => {
+    if (playSample(c, 'bugle')) return;
     // В бой! Литавры и малый барабан нарастают, удар тутти с тарелкой и большим барабаном,
     // валторны трубят призыв ля-ре-ЛЯ и держат высокое РЕ над тромбонами и струнными
     const D2 = 73.42, A2 = 110, D3 = 146.83, A3 = 220, D4 = 293.66, Fs4 = 369.99, A4 = 440, D5 = 587.33;

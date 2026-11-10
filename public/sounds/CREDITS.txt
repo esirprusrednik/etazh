@@ -1,0 +1,2 @@
+battle.mp3, lose.mp3 — сведены из сэмплов VS Chamber Orchestra: Community Edition
+(Versilian Studios, https://github.com/sgossner/VSCO-2-CE), лицензия CC0 1.0.

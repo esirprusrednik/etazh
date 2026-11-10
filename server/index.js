@@ -18,7 +18,7 @@ const PUBLIC = path.join(__dirname, '..', 'public');
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.woff': 'font/woff', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8'
+  '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.woff': 'font/woff', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8', '.mp3': 'audio/mpeg'
 };
 
 const SECURITY_HEADERS = {
@@ -48,7 +48,7 @@ function serveStatic(req, res, pathname) {
   fs.stat(file, (err, st) => {
     const target = !err && st.isFile() ? file : path.join(PUBLIC, 'index.html'); // SPA: всё неизвестное → index.html
     const ext = path.extname(target);
-    const isImg = ['.png', '.svg', '.ico', '.webp', '.jpg', '.woff', '.woff2'].includes(ext);
+    const isImg = ['.png', '.svg', '.ico', '.webp', '.jpg', '.woff', '.woff2', '.mp3'].includes(ext);
     const cache = isImg ? 'public, max-age=86400' : 'no-cache';
     fs.readFile(target, (e, buf) => {
       if (e) return send(res, 404, 'Not found');
