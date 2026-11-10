@@ -4579,7 +4579,9 @@ function actx() {
 }
 // Записанные звуки: живой оркестр (сэмплы VS Chamber Orchestra, CC0), сведённые в короткие фразы.
 // Грузятся один раз при первом звуке; пока не загрузились или без сети — играет синтезированная версия
-const SAMPLE_URLS = { bugle: '/sounds/battle.mp3', lose: '/sounds/lose.mp3', victory: '/sounds/win.mp3' };
+const SAMPLE_URLS = { bugle: '/sounds/battle.mp3', lose: '/sounds/lose.mp3', victory: '/sounds/win.mp3', fanfare: '/sounds/rally.mp3', gangHorn: '/sounds/horn.mp3' };
+// Громкость записей подогнана к остальным звукам: кульминации боя громче всего, но не оглушают
+const SAMPLE_VOL = { bugle: 0.62, lose: 0.75, victory: 0.53, fanfare: 0.26, gangHorn: 0.28 };
 const sampleBuf = {};
 function loadSamples(c) {
   for (const [k, url] of Object.entries(SAMPLE_URLS)) {
@@ -4588,14 +4590,17 @@ function loadSamples(c) {
     fetch(url).then((r) => r.arrayBuffer()).then((b) => new Promise((ok, no) => c.decodeAudioData(b, ok, no))).then((buf) => { sampleBuf[k] = buf; }).catch(() => { delete sampleBuf[k]; });
   }
 }
-function playSample(c, k, vol = 0.85) {
+function playSample(c, k, vol = SAMPLE_VOL[k] || 0.6) {
   const buf = sampleBuf[k]; if (!buf) return false;
   const src = c.createBufferSource(), g = c.createGain(); src.buffer = buf; g.gain.value = vol;
   src.connect(g); sndOut(c, g, 0); src.start(); return true;
 }
 // Подключить узел к выходу: сухой сигнал + немного в реверб (rv 0…1). pan — стерео −1…1
+// Поправка громкости отдельных звуков (см. SOUND_GAIN): выставляется в sfx() на время вызова
+let sfxGain = 1;
 function sndOut(ctx, node, rv = 0, pan = null) {
   let n = node;
+  if (sfxGain !== 1) { const g = ctx.createGain(); g.gain.value = sfxGain; n.connect(g); n = g; }
   if (pan !== null && ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.value = pan; n.connect(p); n = p; }
   n.connect(master);
   if (rv && wetIn) { const s = ctx.createGain(); s.gain.value = rv; n.connect(s).connect(wetIn); }
@@ -4801,7 +4806,8 @@ const SOUNDS = {
   },
   // Верный ответ — две ноты вверх с блеском; неверный — мягкое «бу-у» вниз
   right: (c) => { tone(c, { f: 784, type: 'triangle', dur: 0.12, vol: 0.07 }); tone(c, { f: 1175, type: 'triangle', at: 0.09, dur: 0.22, vol: 0.07, rv: 0.25 }); noise(c, { at: 0.1, dur: 0.12, vol: 0.03, type: 'highpass', f: 6000, rv: 0.2 }); },
-  wrong: (c) => { tone(c, { f: 330, f2: 220, type: 'triangle', dur: 0.3, vol: 0.08 }); tone(c, { f: 165, f2: 110, type: 'sine', dur: 0.3, vol: 0.05 }); },
+  // «Неверно»: два нисходящих тона в средних частотах — слышно и из динамика телефона
+  wrong: (c) => { tone(c, { f: 523, f2: 466, type: 'triangle', dur: 0.14, vol: 0.08, atk: 0.004 }); tone(c, { f: 392, f2: 330, type: 'triangle', at: 0.15, dur: 0.24, vol: 0.08, atk: 0.004 }); tone(c, { f: 196, f2: 165, type: 'sine', at: 0.15, dur: 0.24, vol: 0.04 }); },
   // Маркер по доске: короткий скрип двумя штрихами
   marker: (c) => { noise(c, { dur: 0.13, vol: 0.07, type: 'bandpass', f: 2600, f2: 3400, q: 3, shape: 0.8 }); noise(c, { at: 0.17, dur: 0.12, vol: 0.06, type: 'bandpass', f: 3200, f2: 2400, q: 3, shape: 0.8 }); },
   // Итоги действий: мягкие колокольчики вместо писка
@@ -4840,8 +4846,8 @@ const SOUNDS = {
   },
   confirm: (c) => { tick(c, { vol: 0.08 }); bell(c, { f: 1047, at: 0.01, vol: 0.04, dur: 0.6 }); bell(c, { f: 1568, at: 0.08, vol: 0.035, dur: 0.8 }); },
   coin: (c) => { bell(c, { f: 1976, vol: 0.04, dur: 0.5 }); bell(c, { f: 2637, at: 0.07, vol: 0.045, dur: 1.0, rv: 0.4 }); noise(c, { at: 0.07, dur: 0.15, vol: 0.02, type: 'highpass', f: 7000, rv: 0.4 }); },
-  danger: (c) => { tick(c, { f: 1500, body: 600, vol: 0.12 }); tone(c, { f: 200, f2: 130, type: 'sine', at: 0.01, dur: 0.16, vol: 0.08, atk: 0.003 }); },
-  error: (c) => { tone(c, { f: 330, f2: 300, type: 'triangle', dur: 0.11, vol: 0.06, atk: 0.004 }); tone(c, { f: 262, f2: 230, type: 'triangle', at: 0.13, dur: 0.18, vol: 0.06, atk: 0.004 }); },
+  danger: (c) => { tick(c, { f: 1500, body: 600, vol: 0.12 }); tone(c, { f: 420, f2: 300, type: 'triangle', at: 0.01, dur: 0.16, vol: 0.07, atk: 0.003 }); tone(c, { f: 200, f2: 130, type: 'sine', at: 0.01, dur: 0.16, vol: 0.05, atk: 0.003 }); },
+  error: (c) => { tone(c, { f: 660, f2: 600, type: 'triangle', dur: 0.11, vol: 0.06, atk: 0.004 }); tone(c, { f: 523, f2: 466, type: 'triangle', at: 0.13, dur: 0.18, vol: 0.06, atk: 0.004 }); tone(c, { f: 262, f2: 233, type: 'sine', at: 0.13, dur: 0.18, vol: 0.03 }); },
   // Морской бой: сначала выстрел пушки, через четверть секунды — что случилось у цели
   splash: (c) => {
     cannon(c);
@@ -4913,7 +4919,10 @@ const SOUNDS = {
   // Победа: литавры и медный аккорд
   // Победа в бою и дуэли — живой оркестр; без файла — синтезированные фанфары
   victory: (c) => { if (!playSample(c, 'victory')) SOUNDS.fanfare(c); },
+  // Гудок банды из Лавки: боевой рог — валторны с тубой
+  gangHorn: (c) => { if (!playSample(c, 'gangHorn')) SOUNDS.waveHorn(c); },
   fanfare: (c) => {
+    if (playSample(c, 'fanfare')) return;
     [0, 0.18, 0.36].forEach((at, i) => { tone(c, { f: 98, f2: 92, type: 'sine', at, dur: 0.5, vol: 0.14 - i * 0.02, atk: 0.003, rv: 0.4 }); noise(c, { at, dur: 0.12, vol: 0.08, type: 'lowpass', f: 600, rv: 0.4 }); });
     [[392, 0.6, 0.14], [523, 0.76, 0.14], [659, 0.92, 0.14]].forEach(([f, at, dur]) => brass(c, { f, at, dur, vol: 0.08, rv: 0.35 }));
     [523, 659, 784, 1047].forEach((f) => brass(c, { f, at: 1.1, dur: 1.0, vol: 0.05, vib: 0.008, rv: 0.45 }));
@@ -4929,7 +4938,6 @@ const SOUNDS = {
       noise(c, { at: t, dur: 0.04, vol: v * 0.6, type: 'lowpass', f: 380, q: 0.8, shape: 3 });
     });
   },
-  scribble: (c) => { noise(c, { dur: 0.09, vol: 0.09, f: 3000, q: 1.5 }); noise(c, { at: 0.1, dur: 0.09, vol: 0.08, f: 3600, q: 1.5 }); },
   chicken: (c) => {
     // «ко-ко-ко… кудах!»: короткие писклявые вскрики с резким подъёмом тона
     [0, 0.17, 0.34].forEach((at) => tone(c, { f: 620, f2: 1250, type: 'square', at, dur: 0.11, vol: 0.04, rv: 0.15 }));
@@ -4937,6 +4945,8 @@ const SOUNDS = {
     tone(c, { f: 1500, f2: 520, type: 'sawtooth', at: 0.72, dur: 0.38, vol: 0.04, rv: 0.2 });
   }
 };
+// Выравнивание громкости: морской бой был на 20 дБ громче дуэлей, кости — почти не слышны
+const SOUND_GAIN = { hit: 0.2, sunk: 0.22, splash: 0.53, dice: 4.7, diceLand: 4 };
 // Вибрация под стать звуку: короткий «тик» на нажатия, узор — на события
 const BUZZ = { victory: [60, 60, 60, 60, 200], bugle: [50, 40, 50, 40, 50, 40, 260], tap: 8, tab: 10, on: 6, off: 6, pick: 5, open: 8, close: 6, expand: 5, collapse: 5, send: 14, confirm: [12, 40, 18], danger: [25, 50, 25], error: [35, 45, 35],
   lift: [35, 525, 20, 815, 60], vote: 10, coin: [8, 30, 8], click: 8, tick: 4, splash: 15, hit: [30, 40, 60], sunk: [40, 30, 90], lose: [80, 60, 160], chicken: [30, 40, 30], fanfare: [60, 60, 60, 60, 200], waveHorn: [40, 60, 40, 60, 200], waveCrowd: [10, 30, 20, 30, 40, 30, 80], waveFull: [20, 30, 40, 30, 80, 60, 200] };
@@ -4946,7 +4956,7 @@ function sfx(name, arg) {
   if (lastSfx.name === name && now - lastSfx.at < 40) return; // двойной вызов на один тап — один звук
   lastSfx = { name, at: now };
   const c = actx();
-  if (c && SOUNDS[name]) { try { SOUNDS[name](c, arg); } catch {} }
+  if (c && SOUNDS[name]) { sfxGain = SOUND_GAIN[name] || 1; try { SOUNDS[name](c, arg); } catch {} sfxGain = 1; }
   if (vibroOn() && navigator.vibrate && BUZZ[name] != null) { try { navigator.vibrate(BUZZ[name]); } catch {} }
 }
 const tabSound = (tab) => sfx('tab', tab);
@@ -6061,7 +6071,7 @@ const actions = {
     const sg = store.get('seenGang', {}); sg[S.activeGang] = Date.now(); store.set('seenGang', sg);
     render(); await Promise.all([loadGang(), loadGangExtra()]); markSeen('chat'); window.scrollTo(0, 0);
     // Гудок банды из Лавки — когда заходишь в чат
-    if (S.gang && S.gang.gang.horn) sfx('waveHorn');
+    if (S.gang && S.gang.gang.horn) sfx('gangHorn');
   }),
   'gang-invite': (el) => run(async () => { S.activeGang = Number(el.dataset.id); if (!S.gang || S.gang.gang.id !== S.activeGang) await loadGang(); await actions['invite-share'](); }, { rerender: false }),
   'find-open'() { S.find = S.find || {}; S.sheet = 'find'; S.lastSheet = null; render(); setTimeout(() => { const i = $('#find-q'); if (i) i.focus(); }, 50); },

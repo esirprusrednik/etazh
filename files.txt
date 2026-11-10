@@ -30,6 +30,8 @@ public/js/practice.js
 public/sounds/battle.mp3
 public/sounds/lose.mp3
 public/sounds/win.mp3
+public/sounds/rally.mp3
+public/sounds/horn.mp3
 public/sounds/CREDITS.txt
 public/js/theme.js
 public/fonts/onest.woff
