@@ -1518,7 +1518,7 @@ function setBattleView(v) {
   if (S.bv && S.bv.id === v.id && S.bv.status === 'setup' && v.status === 'play') sfx('bugle');
   // Партия только что закончилась победой — канонада (один раз)
   if (S.bv && S.bv.id === v.id && S.bv.status !== 'done' && v.status === 'done') {
-    if (v.winner === 'me') sfx('fanfare'); else if (!S.bResigned) sfx('lose');
+    if (v.winner === 'me') sfx('victory'); else if (!S.bResigned) sfx('lose');
   }
   S.bv = v; S.bvAt = Date.now();
 }
@@ -3241,7 +3241,7 @@ function duelOutcomeSfx(d) {
   const wait = resolved && d.game === 'rps' ? 1550 : resolved && d.game === 'dice' ? 850 : 300;
   if (resolved && d.game === 'rps') sfx('rps3');
   setTimeout(() => {
-    if (d.result === 'win') sfx('fanfare');
+    if (d.result === 'win') sfx('victory');
     else if (d.result === 'lose') sfx('lose');
     else if (last && d.rounds[d.rounds.length - 1].me === null) sfx(last.win === 'me' ? 'coin' : last.win === 'opp' ? 'error' : 'tick');
   }, wait);
@@ -4579,7 +4579,7 @@ function actx() {
 }
 // Записанные звуки: живой оркестр (сэмплы VS Chamber Orchestra, CC0), сведённые в короткие фразы.
 // Грузятся один раз при первом звуке; пока не загрузились или без сети — играет синтезированная версия
-const SAMPLE_URLS = { bugle: '/sounds/battle.mp3', lose: '/sounds/lose.mp3', fanfare: '/sounds/win.mp3' };
+const SAMPLE_URLS = { bugle: '/sounds/battle.mp3', lose: '/sounds/lose.mp3', victory: '/sounds/win.mp3' };
 const sampleBuf = {};
 function loadSamples(c) {
   for (const [k, url] of Object.entries(SAMPLE_URLS)) {
@@ -4911,8 +4911,9 @@ const SOUNDS = {
   chip: (c) => { [523, 659, 784, 1047, 1319].forEach((f, i) => tone(c, { f, type: 'square', at: i * 0.075, dur: 0.07, vol: 0.035, atk: 0.002 })); tone(c, { f: 1568, type: 'square', at: 0.42, dur: 0.22, vol: 0.04, atk: 0.002 }); },
   cuckoo: (c) => { [[659, 0], [523, 0.22], [659, 0.62], [523, 0.84]].forEach(([f, at]) => { tone(c, { f, type: 'sine', at, dur: 0.18, vol: 0.09, atk: 0.01, rv: 0.35 }); tone(c, { f: f * 2, type: 'sine', at, dur: 0.1, vol: 0.015, rv: 0.2 }); }); noise(c, { at: 0, dur: 0.05, vol: 0.02, type: 'bandpass', f: 1800, q: 3 }); },
   // Победа: литавры и медный аккорд
+  // Победа в бою и дуэли — живой оркестр; без файла — синтезированные фанфары
+  victory: (c) => { if (!playSample(c, 'victory')) SOUNDS.fanfare(c); },
   fanfare: (c) => {
-    if (playSample(c, 'fanfare')) return;
     [0, 0.18, 0.36].forEach((at, i) => { tone(c, { f: 98, f2: 92, type: 'sine', at, dur: 0.5, vol: 0.14 - i * 0.02, atk: 0.003, rv: 0.4 }); noise(c, { at, dur: 0.12, vol: 0.08, type: 'lowpass', f: 600, rv: 0.4 }); });
     [[392, 0.6, 0.14], [523, 0.76, 0.14], [659, 0.92, 0.14]].forEach(([f, at, dur]) => brass(c, { f, at, dur, vol: 0.08, rv: 0.35 }));
     [523, 659, 784, 1047].forEach((f) => brass(c, { f, at: 1.1, dur: 1.0, vol: 0.05, vib: 0.008, rv: 0.45 }));
@@ -4937,7 +4938,7 @@ const SOUNDS = {
   }
 };
 // Вибрация под стать звуку: короткий «тик» на нажатия, узор — на события
-const BUZZ = { bugle: [50, 40, 50, 40, 50, 40, 260], tap: 8, tab: 10, on: 6, off: 6, pick: 5, open: 8, close: 6, expand: 5, collapse: 5, send: 14, confirm: [12, 40, 18], danger: [25, 50, 25], error: [35, 45, 35],
+const BUZZ = { victory: [60, 60, 60, 60, 200], bugle: [50, 40, 50, 40, 50, 40, 260], tap: 8, tab: 10, on: 6, off: 6, pick: 5, open: 8, close: 6, expand: 5, collapse: 5, send: 14, confirm: [12, 40, 18], danger: [25, 50, 25], error: [35, 45, 35],
   lift: [35, 525, 20, 815, 60], vote: 10, coin: [8, 30, 8], click: 8, tick: 4, splash: 15, hit: [30, 40, 60], sunk: [40, 30, 90], lose: [80, 60, 160], chicken: [30, 40, 30], fanfare: [60, 60, 60, 60, 200], waveHorn: [40, 60, 40, 60, 200], waveCrowd: [10, 30, 20, 30, 40, 30, 80], waveFull: [20, 30, 40, 30, 80, 60, 200] };
 let lastSfx = { name: '', at: 0 };
 function sfx(name, arg) {
