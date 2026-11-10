@@ -2050,7 +2050,7 @@ function renderPeople() {
   const nameStrip = nl ? `<button class="week-lock-strip" data-act="open-sec" data-v="name">${ico('lock', 16)}<span>Имена коллег скрыты: ${nl.named} из ${nl.total} ${plural(nl.total, 'бандита', 'бандитов', 'бандитов')} указали имя, и ты видишь только ники. <b>Указать своё →</b></span></button>` : '';
   const hint = S.fx && S.fx.weekLock ? planLockMsg(S.fx.weekLock, true) : S.fx && S.fx.weekHint ? `<div class="week-hint">${ico('where', 16)}<span>${S.fx.weekHint.today ? 'Сегодня' : esc(S.fx.weekHint.label)} в офисе по планам <b>${S.fx.weekHint.office} ${plural(S.fx.weekHint.office, 'человек', 'человека', 'человек')}</b> из банды</span></div>` : '';
   return `<section class="card people">${html}${hint}${nameStrip}
-    <div class="row" style="justify-content:space-between">${S.me.gangs.length ? `<button class="linkbtn" data-act="gang-invite" data-id="${S.activeGang || S.me.gangs[0].id}">+ Позвать в банду</button>` : '<span></span>'}<button class="linkbtn" data-act="open" data-v="gang-new">Сколотить банду</button></div></section>`;
+    <div class="row">${S.me.gangs.length ? `<button class="linkbtn" data-act="gang-invite" data-id="${S.activeGang || S.me.gangs[0].id}">+ Позвать в банду</button>` : '<button class="linkbtn" data-act="open" data-v="gang-new">Сколотить банду</button>'}</div></section>`;
 }
 
 function renderNear() {
