@@ -2106,3 +2106,9 @@ s.was, .st-price s { opacity: .65; font-weight: 600; }
 @keyframes shL { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-4px); } }
 @keyframes shD { 0%, 100% { transform: rotate(90deg) translateX(0); } 50% { transform: rotate(90deg) translateX(4px); } }
 @media (prefers-reduced-motion: reduce) { .sh-arrow { animation: none !important; } }
+.sh-arrow.pg { width: 38px; height: 38px; font-size: 22px; opacity: .95; box-shadow: 0 4px 14px rgba(10,16,35,.25); }
+.sh-arrow.up { transform: rotate(-90deg); animation: shU 1.6s ease-in-out infinite; }
+@keyframes shU { 0%, 100% { transform: rotate(-90deg) translateX(0); } 50% { transform: rotate(-90deg) translateX(4px); } }
+@media (prefers-reduced-motion: reduce) { .sh-arrow.up { animation: none !important; } }
+/* Запас под кнопку «наверх / вниз»: последняя карточка доезжает выше неё */
+main { padding-bottom: 64px; }

@@ -7062,12 +7062,27 @@ function drawHints() {
       out.push(`<button class="sh-arrow d" style="left:${Math.round((left + right) / 2 - 13)}px;top:${Math.round(bottom - 34)}px" data-hint="${i}" data-dir="d">›</button>`);
     }
   });
+  // Основной экран: в начале длинной страницы — «вниз, до конца», со второй половины — «наверх».
+  // Одна кнопка в правом нижнем углу над панелью вкладок, чтобы не мешать
+  if (!sheet && nav) {
+    const y = window.scrollY, rest = document.documentElement.scrollHeight - window.innerHeight - y;
+    const navTop = nav.getBoundingClientRect().top;
+    if (document.documentElement.scrollHeight - window.innerHeight > window.innerHeight * 0.6) {
+      const pos = `left:${Math.round(vw - 52)}px;top:${Math.round(navTop - 50)}px`;
+      // Прошёл половину страницы (или полтора экрана) — ведём наверх, иначе — вниз
+      const maxY = document.documentElement.scrollHeight - window.innerHeight;
+      if (y > Math.min(window.innerHeight * 1.2, maxY * 0.5)) out.push(`<button class="sh-arrow pg up" style="${pos}" data-dir="top" aria-label="Наверх">›</button>`);
+      else if (rest > 200) out.push(`<button class="sh-arrow pg d" style="${pos}" data-dir="bottom" aria-label="В конец страницы">›</button>`);
+    }
+  }
   const html = out.join('');
   if (hintLayer.innerHTML !== html) { hintLayer.innerHTML = html; hintLayer._els = els; }
   else hintLayer._els = els;
 }
 hintLayer.addEventListener('click', (e) => {
   const b = e.target.closest('.sh-arrow'); if (!b) return;
+  if (b.dataset.dir === 'top') { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+  if (b.dataset.dir === 'bottom') { window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' }); return; }
   const el = (hintLayer._els || [])[Number(b.dataset.hint)]; if (!el) return;
   const d = b.dataset.dir;
   if (d === 'd') el.scrollBy({ top: el.clientHeight * 0.7, behavior: 'smooth' });
