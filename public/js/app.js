@@ -3794,6 +3794,9 @@ function renderBoard(v, kind) {
   const canShoot = kind === 'opp' && v.myTurn;
   const fresh = Date.now() < S.bFreshUntil ? S.bFresh : new Set();
   const pre = kind === 'opp' ? 'o' : 'm';
+  // Экран перерисовывается чаще, чем идёт анимация (опрос, ход соперника). Чтобы взрыв, всплеск и надпись
+  // не начинались заново и не мелькали дважды, продолжаем анимацию с того места, где она была
+  const fAgo = Math.max(0, Date.now() - (S.bFreshUntil - 1400));
   const cells = [];
   for (let y = 0; y < 10; y++) for (let x = 0; x < 10; x++) {
     const k = x * 10 + y;
@@ -3806,7 +3809,7 @@ function renderBoard(v, kind) {
     const label = `${B_COLS[x]}${y + 1}`;
     cells.push(canShoot && !t
       ? `<button class="${cls.join(' ')} aim" data-act="bshoot" data-x="${x}" data-y="${y}" aria-label="Выстрел в ${label}"></button>`
-      : `<span class="${cls.join(' ').trim()}" aria-label="${label}${t ? (t.r === 'miss' ? ' мимо' : sunkAt.has(k) ? ' потоплен' : ' попадание') : ''}"></span>`);
+      : `<span class="${cls.join(' ').trim()}"${cls.includes('fresh') ? ` style="--ad:-${fAgo}ms"` : ''} aria-label="${label}${t ? (t.r === 'miss' ? ' мимо' : sunkAt.has(k) ? ' потоплен' : ' попадание') : ''}"></span>`);
   }
   // Слой кораблей поверх клеток: свои — целиком, чужие — только потопленные (горят) и, после партии, уцелевшие
   const art = [];
@@ -3822,7 +3825,7 @@ function renderBoard(v, kind) {
   }
   // Попадания по чужим кораблям, которые ещё на плаву: видно только взрыв
   if (kind === 'opp') for (const t of shots) if (t.r !== 'miss' && !sunkAt.has(t.x * 10 + t.y)) art.push(`<div class="ship-slot boom" style="grid-area:${t.y + 1} / ${t.x + 1}">${boomSvg(t.x + t.y)}</div>`);
-  const shout = S.bShout && Date.now() < S.bShout.until && S.bShout.board === pre ? `<div class="b-shout ${S.bShout.cls}">${esc(S.bShout.text)}</div>` : '';
+  const shout = S.bShout && Date.now() < S.bShout.until && S.bShout.board === pre ? `<div class="b-shout ${S.bShout.cls}" style="animation-delay:-${Math.max(0, Date.now() - (S.bShout.until - 1400))}ms">${esc(S.bShout.text)}</div>` : '';
   return `<div class="board-wrap ${kind}">
     <div class="board-cols">${B_COLS.map((c) => `<span>${c}</span>`).join('')}</div>
     <div class="board-rows">${Array.from({ length: 10 }, (_, i) => `<span>${i + 1}</span>`).join('')}</div>
@@ -4579,21 +4582,27 @@ function actx() {
 }
 // Записанные звуки: живой оркестр (сэмплы VS Chamber Orchestra, CC0), сведённые в короткие фразы.
 // Грузятся один раз при первом звуке; пока не загрузились или без сети — играет синтезированная версия
-const SAMPLE_URLS = { bugle: '/sounds/battle.mp3', lose: '/sounds/lose.mp3', victory: '/sounds/win.mp3', fanfare: '/sounds/rally.mp3', gangHorn: '/sounds/horn.mp3' };
+const SAMPLE_URLS = { bugle: '/sounds/battle.mp3', lose: '/sounds/lose.mp3', victory: '/sounds/win.mp3', fanfare: '/sounds/rally.mp3', gangHorn: '/sounds/horn.mp3',
+  // Морской бой: настоящие записи пушки, взрывов и воды (CC0), по два варианта — чтобы выстрелы не звучали одинаково
+  splash: ['/sounds/miss1.mp3', '/sounds/miss2.mp3'], hit: ['/sounds/hit1.mp3', '/sounds/hit2.mp3'], sunk: '/sounds/sunk1.mp3', chicken: '/sounds/resign.mp3' };
 // Громкость записей подогнана к остальным звукам: кульминации боя громче всего, но не оглушают
-const SAMPLE_VOL = { bugle: 0.62, lose: 0.75, victory: 0.53, fanfare: 0.26, gangHorn: 0.28 };
+const SAMPLE_VOL = { bugle: 0.62, lose: 0.75, victory: 0.53, fanfare: 0.26, gangHorn: 0.28, splash: 0.3, hit: 0.25, sunk: 0.4, chicken: 0.13 };
 const sampleBuf = {};
 function loadSamples(c) {
-  for (const [k, url] of Object.entries(SAMPLE_URLS)) {
+  for (const [k, urls] of Object.entries(SAMPLE_URLS)) {
     if (sampleBuf[k] !== undefined) continue;
-    sampleBuf[k] = null;
-    fetch(url).then((r) => r.arrayBuffer()).then((b) => new Promise((ok, no) => c.decodeAudioData(b, ok, no))).then((buf) => { sampleBuf[k] = buf; }).catch(() => { delete sampleBuf[k]; });
+    sampleBuf[k] = [];
+    for (const url of [].concat(urls)) {
+      fetch(url).then((r) => r.arrayBuffer()).then((b) => new Promise((ok, no) => c.decodeAudioData(b, ok, no))).then((buf) => { sampleBuf[k].push(buf); }).catch(() => {});
+    }
   }
 }
 function playSample(c, k, vol = SAMPLE_VOL[k] || 0.6) {
-  const buf = sampleBuf[k]; if (!buf) return false;
+  const list = sampleBuf[k]; if (!list || !list.length) return false;
+  const buf = list[Math.floor(Math.random() * list.length)];
   const src = c.createBufferSource(), g = c.createGain(); src.buffer = buf; g.gain.value = vol;
-  src.connect(g); sndOut(c, g, 0); src.start(); return true;
+  // Громкость записи задана в SAMPLE_VOL — поправку синтезированных звуков (SOUND_GAIN) к ней не применяем
+  const sg = sfxGain; sfxGain = 1; src.connect(g); sndOut(c, g, 0); sfxGain = sg; src.start(); return true;
 }
 // Подключить узел к выходу: сухой сигнал + немного в реверб (rv 0…1). pan — стерео −1…1
 // Поправка громкости отдельных звуков (см. SOUND_GAIN): выставляется в sfx() на время вызова
@@ -4850,17 +4859,20 @@ const SOUNDS = {
   error: (c) => { tone(c, { f: 660, f2: 600, type: 'triangle', dur: 0.11, vol: 0.06, atk: 0.004 }); tone(c, { f: 523, f2: 466, type: 'triangle', at: 0.13, dur: 0.18, vol: 0.06, atk: 0.004 }); tone(c, { f: 262, f2: 233, type: 'sine', at: 0.13, dur: 0.18, vol: 0.03 }); },
   // Морской бой: сначала выстрел пушки, через четверть секунды — что случилось у цели
   splash: (c) => {
+    if (playSample(c, 'splash')) return;
     cannon(c);
     deepBoom(c, { at: 0.26, vol: 0.34, len: 0.8, f0: 62, drive: 1.6, bright: 600, rv: 0.4, pan: 0.25 }); // снаряд уходит в воду
     noise(c, { at: 0.27, dur: 0.6, vol: 0.14, type: 'lowpass', f: 1400, f2: 180, q: 0.7, shape: 1.8, rv: 0.4, pan: 0.25 });
     bubbles(c, { at: 0.5, n: 5, spread: 0.5, vol: 0.035 });
   },
   hit: (c) => {
+    if (playSample(c, 'hit')) return;
     cannon(c);
     deepBoom(c, { at: 0.24, vol: 0.75, len: 1.4, f0: 95, drive: 4, bright: 2200, rv: 0.4, pan: 0.2 });
     debris(c, { at: 0.26, n: 5 });
   },
   sunk: (c) => {
+    if (playSample(c, 'sunk')) return;
     cannon(c);
     deepBoom(c, { at: 0.24, vol: 0.85, len: 2.0, f0: 100, drive: 5, bright: 2600, rv: 0.5, pan: 0.15 });
     deepBoom(c, { at: 0.75, vol: 0.55, len: 1.6, f0: 70, drive: 3.5, bright: 1400, rv: 0.5, pan: 0.35 }); // детонация погреба
@@ -4939,6 +4951,7 @@ const SOUNDS = {
     });
   },
   chicken: (c) => {
+    if (playSample(c, 'chicken')) return;
     // «ко-ко-ко… кудах!»: короткие писклявые вскрики с резким подъёмом тона
     [0, 0.17, 0.34].forEach((at) => tone(c, { f: 620, f2: 1250, type: 'square', at, dur: 0.11, vol: 0.04, rv: 0.15 }));
     tone(c, { f: 700, f2: 1700, type: 'sawtooth', at: 0.56, dur: 0.16, vol: 0.05, rv: 0.15 });

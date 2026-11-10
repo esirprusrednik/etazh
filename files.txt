@@ -32,6 +32,12 @@ public/sounds/lose.mp3
 public/sounds/win.mp3
 public/sounds/rally.mp3
 public/sounds/horn.mp3
+public/sounds/miss1.mp3
+public/sounds/miss2.mp3
+public/sounds/hit1.mp3
+public/sounds/hit2.mp3
+public/sounds/sunk1.mp3
+public/sounds/resign.mp3
 public/sounds/CREDITS.txt
 public/js/theme.js
 public/fonts/onest.woff

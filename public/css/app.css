@@ -2112,3 +2112,5 @@ s.was, .st-price s { opacity: .65; font-weight: 600; }
 @media (prefers-reduced-motion: reduce) { .sh-arrow.up { animation: none !important; } }
 /* Запас под кнопку «наверх / вниз»: последняя карточка доезжает выше неё */
 main { padding-bottom: 64px; }
+/* Свежий выстрел после перерисовки продолжает анимацию, а не начинает заново */
+.bc.fresh, .bc.fresh::before, .bc.fresh::after { animation-delay: var(--ad, 0s) !important; }
