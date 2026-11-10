@@ -89,8 +89,31 @@ const SHOP = [
   { id: 'p_trophy', kind: 'part', slot: 'prop', value: 'trophy', name: 'Кубок Лиги', price: 0, award: true, how: '1 место в Лиге недели' },
   { id: 'p_laurel', kind: 'part', slot: 'hat', value: 'laurel', name: 'Лавровый венок', price: 0, award: true, how: 'топ-3 в Лиге месяца' },
   { id: 'p_anime_eyes', kind: 'part', slot: 'eyeShape', value: 'anime', name: 'Аниме-глаза', price: 80, legend: true },
+  // Офисные таблички и питомцы
+  { id: 'p_sign_lunch', kind: 'part', slot: 'prop', value: 'sign_lunch', name: 'Табличка «Ушёл на обед»', price: 35 },
+  { id: 'p_sign_dnd', kind: 'part', slot: 'prop', value: 'sign_dnd', name: 'Табличка «Не беспокоить: думаю»', price: 35 },
+  { id: 'p_sign_ask', kind: 'part', slot: 'prop', value: 'sign_ask', name: 'Табличка «Я просто спросить»', price: 35 },
+  { id: 'p_cat', kind: 'part', slot: 'pet', value: 'cat', name: 'Кот на клавиатуре', price: 90, legend: true },
+  { id: 'p_aquarium', kind: 'part', slot: 'pet', value: 'aquarium', name: 'Аквариум с рыбкой', price: 70 },
+  { id: 'p_cactus', kind: 'part', slot: 'pet', value: 'cactus', name: 'Кактус на столе', price: 40 },
+  // Эффект ника: аренда на неделю, повторная покупка продлевает
+  { id: 'nx_gold', kind: 'nickfx', value: 'gold', name: 'Золотой ник', price: 30, days: 7 },
+  { id: 'nx_rainbow', kind: 'nickfx', value: 'rainbow', name: 'Радужный ник', price: 40, days: 7 },
+  { id: 'nx_glitch', kind: 'nickfx', value: 'glitch', name: 'Ник-глитч', price: 35, days: 7 },
+  // Свой звук отметки в офисе: покупаешь один раз, включаешь любой из купленных
+  { id: 'snd_lift', kind: 'sound', value: 'lift', name: 'Лифт приехал', price: 25 },
+  { id: 'snd_fanfare', kind: 'sound', value: 'fanfare', name: 'Фанфары', price: 30 },
+  { id: 'snd_8bit', kind: 'sound', value: 'chip', name: '8-бит', price: 25 },
+  { id: 'snd_cuckoo', kind: 'sound', value: 'cuckoo', name: 'Ку-ку', price: 20 },
+  // Подлянки подельникам: на час на их аватаре, снимаются одним касанием
+  { id: 'pr_coffee', kind: 'prank', value: 'coffee', name: 'Пролить кофе', price: 12 },
+  { id: 'pr_sticker', kind: 'prank', value: 'sticker', name: 'Стикер на лоб', price: 8 },
+  { id: 'pr_phones', kind: 'prank', value: 'phones', name: 'Наушники с рок-музыкой', price: 12 },
   { id: 'g_gold', kind: 'gang', name: 'Позолоченное знамя', price: 100 },
-  { id: 'g_motto', kind: 'gang', name: 'Девиз банды', price: 40 }
+  { id: 'g_motto', kind: 'gang', name: 'Девиз банды', price: 40 },
+  { id: 'g_flag', kind: 'gang', name: 'Флаг банды над офисом', price: 80 },
+  { id: 'g_horn', kind: 'gang', name: 'Гудок банды', price: 50 },
+  { id: 'g_pizza', kind: 'gang', name: 'Пицца на всю банду', price: 60, slices: 8 }
 ];
 
 // Начисления зёрен и дневные лимиты (раздел 6 ТЗ)

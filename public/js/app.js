@@ -517,7 +517,7 @@ function eyesLayer(shape, eyes, skin, gap = 0, lashes = false, uid = 0) {
   if (shape === 'sly') return base(3.7, 4.1, 2.7, 1.3, 1) + lid(48.4);
   return base();
 }
-function propLayer(p) {
+function propLayer(p, sex = 'm') {
   if (p === 'mug' || p === 'mug_best') {
     const gold = p === 'mug_best';
     const c = gold ? '#F4C430' : '#fff';
@@ -540,6 +540,13 @@ function propLayer(p) {
   }
   if (p === 'laptop') {
     return '<rect x="27" y="80" width="46" height="24" rx="3" fill="#B9C1D0"/><rect x="27" y="80" width="46" height="24" rx="3" fill="none" stroke="#9AA3B5" stroke-width="1"/><circle cx="50" cy="91" r="3" fill="#E6E9F0"/><circle cx="36" cy="86" r="3.2" fill="#FF6FA8"/><rect x="58" y="84" width="9" height="6" rx="1.5" fill="#7CFFB2"/><path d="M60 93 l3 3 l5 -6" stroke="#2563C9" stroke-width="2" fill="none" stroke-linecap="round"/><circle cx="40" cy="97" r="2.4" fill="#FFC93C"/>';
+  }
+  // Офисные таблички из Лавки: та же табличка на палке, свой текст. Длинную строку ужимаем по ширине
+  const SIGNS = { sign_lunch: [sex === 'f' ? 'УШЛА НА ОБЕД' : 'УШЁЛ НА ОБЕД', 'ВЕРНУСЬ НЕ СКОРО', '#FFE3E3', '#D94B4B', '#6B1414'], sign_dnd: ['НЕ БЕСПОКОИТЬ', 'ДУМАЮ', '#E6F0FF', '#3A6FD8', '#16306B'], sign_ask: ['Я ПРОСТО', 'СПРОСИТЬ', '#E5F7EA', '#2FA84F', '#124A22'] };
+  if (SIGNS[p]) {
+    const [a, b, bg, bd, fg] = SIGNS[p];
+    const line = (t, y) => `<text x="50" y="${y}" text-anchor="middle" font-size="6.8" font-weight="900" fill="${fg}" font-family="system-ui,sans-serif"${t.length > 11 ? ' textLength="52" lengthAdjust="spacingAndGlyphs"' : ''}>${t}</text>`;
+    return `<rect x="47.5" y="96" width="5" height="8" fill="#B07A3E"/><rect x="21" y="77" width="58" height="21" rx="3" fill="${bg}" stroke="${bd}" stroke-width="1.6"/>${line(a, 86)}${line(b, 94.5)}`;
   }
   if (p === 'sign') {
     return '<rect x="47.5" y="96" width="5" height="8" fill="#B07A3E"/><rect x="21" y="77" width="58" height="21" rx="3" fill="#FFF6D6" stroke="#D9A21B" stroke-width="1.6"/><text x="50" y="86" text-anchor="middle" font-size="7" font-weight="900" fill="#5B3B00" font-family="system-ui,sans-serif">Я НА</text><text x="50" y="94.5" text-anchor="middle" font-size="7" font-weight="900" fill="#5B3B00" font-family="system-ui,sans-serif">СОВЕЩАНИИ</text>';
@@ -715,6 +722,30 @@ function dogSit(o) {
   </g>`;
 }
 function petLayer(p) {
+  if (p === 'cat') {
+    // Кот лежит на клавиатуре: клавиатура внизу слева, рыжий кот свернулся сверху, хвост свисает
+    return `<g transform="translate(9.2 1.8) scale(.82)"><rect x="2" y="95" width="34" height="9" rx="2" fill="#3A3F4C"/>${[0, 1, 2, 3, 4, 5].map((i) => `<rect x="${4.4 + i * 5.2}" y="97" width="4" height="2.6" rx=".6" fill="#6B7285"/>`).join('')}<rect x="8" y="100.6" width="22" height="2.2" rx=".6" fill="#6B7285"/>
+      <path d="M31 96 Q38 98 36 104" fill="none" stroke="#E08A3C" stroke-width="3" stroke-linecap="round"/>
+      <ellipse cx="19" cy="91" rx="14" ry="6.4" fill="#E9963F"/><path d="M8 89 Q19 85 30 89" fill="none" stroke="#C4762A" stroke-width="1.2"/><path d="M12 93 Q19 95 26 93" fill="none" stroke="#F7C08A" stroke-width="1.6"/>
+      <ellipse cx="10" cy="85.4" rx="7" ry="6" fill="#E9963F"/><path d="M4.6 82 L4 75.6 L8.6 80 Z M15.4 82 L16 75.6 L11.4 80 Z" fill="#E9963F"/><path d="M5.4 81 L5.2 77.6 L7.6 80 Z M14.6 81 L14.8 77.6 L12.4 80 Z" fill="#F4B8A8"/>
+      <path d="M6.4 85.4 Q7.6 86.4 8.8 85.4 M11.2 85.4 Q12.4 86.4 13.6 85.4" fill="none" stroke="#3A2414" stroke-width=".8" stroke-linecap="round"/>
+      <path d="M9.4 87.4 L10.6 87.4 L10 88.2 Z" fill="#E86A7A"/><path d="M3 87 h4 M3 88.6 h4 M13 87 h4 M13 88.6 h4" stroke="#fff" stroke-width=".4" opacity=".8"/>
+      <text x="22" y="82" font-size="5" fill="#7A8299" font-family="system-ui,sans-serif" font-weight="800">z</text><text x="25.4" y="78" font-size="6" fill="#7A8299" font-family="system-ui,sans-serif" font-weight="800">z</text></g>`;
+  }
+  if (p === 'aquarium') {
+    // Круглый аквариум на столе: вода, золотая рыбка, водоросль и пузырьки
+    return `<g transform="translate(9.2 1.8) scale(.82)"><rect x="1" y="101" width="36" height="3" rx="1" fill="#B07A3E"/><ellipse cx="18" cy="88" rx="14" ry="13" fill="#CFEFFF" fill-opacity=".55" stroke="#9CC9E6" stroke-width="1.2"/>
+      <path d="M5.4 86 Q18 83.4 30.6 86 Q31 97 18 101 Q5 97 5.4 86 Z" fill="#5BB8F0" fill-opacity=".55"/><ellipse cx="18" cy="76" rx="8.6" ry="2" fill="none" stroke="#9CC9E6" stroke-width="1.2"/>
+      <path d="M9 100 Q8 94 10.4 90 Q11 95 10.6 100 Z M12 100 Q13.6 95 12.4 91.6" fill="#2FA84F" stroke="#2FA84F" stroke-width=".6"/>
+      <ellipse cx="20" cy="92" rx="5" ry="3.2" fill="#FF8A2A"/><path d="M24.6 92 L28.4 89 L28.4 95 Z" fill="#FFB25A"/><circle cx="17.4" cy="91.4" r=".9" fill="#1E1A18"/><path d="M19 89 Q20.4 87.4 22 89" fill="#FFB25A"/>
+      <circle cx="15" cy="86" r="1" fill="none" stroke="#fff" stroke-width=".5"/><circle cx="14" cy="82.6" r=".7" fill="none" stroke="#fff" stroke-width=".5"/><path d="M8 80 Q10 78.6 12 79.4" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="1" stroke-linecap="round"/></g>`;
+  }
+  if (p === 'cactus') {
+    // Кактус в горшке стоит на столе — на полке внизу слева, не висит в воздухе
+    return `<g transform="translate(9.2 1.8) scale(.82)"><rect x="1" y="101" width="34" height="3" rx="1" fill="#B07A3E"/><path d="M9 91 h16 l-2 10 h-12 Z" fill="#D9734A"/><rect x="8" y="89.4" width="18" height="3" rx="1" fill="#E98D63"/>
+      <rect x="13.4" y="70" width="7.2" height="20" rx="3.6" fill="#3FA65A"/><path d="M13.6 80 h-3.4 a2.4 2.4 0 0 1 -2.4 -2.4 v-4 a1.7 1.7 0 0 1 3.4 0 v2.6 h2.4" fill="#3FA65A"/><path d="M20.4 77 h3.2 a2.4 2.4 0 0 0 2.4 -2.4 v-5 a1.7 1.7 0 0 0 -3.4 0 v3.6 h-2.2" fill="#3FA65A"/>
+      <path d="M17 72 v16 M15 75 l-1 -.6 M19 79 l1 -.6 M15 84 l-1 -.6" stroke="#2C7A41" stroke-width=".7" stroke-linecap="round"/><circle cx="17" cy="69.4" r="2.2" fill="#FF6FA8"/><circle cx="17" cy="69.4" r=".9" fill="#FFE08A"/></g>`;
+  }
   if (p === 'corgi') {
     // Вельш-корги: рыжий с белой грудкой и белой полосой на морде, большие острые уши, вытянутая морда
     return dogSit({ c: '#E39A45', d: '#B8742C', chest: '#FFF6EA', hw: 9, hh: 7.8,
@@ -958,10 +989,37 @@ function avatarInner(look = {}) {
     ${look.phones && hat !== 'headset' && hat !== 'ushanka' && !helmet ? fit('<path d="M29 47 Q27 15 50 15 Q73 15 71 47" fill="none" stroke="#2B2B3A" stroke-width="6" stroke-linecap="round"/><path d="M33 26 Q40 18 50 17.5" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/><rect x="23" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="67" y="42" width="10" height="16" rx="4" fill="#2B2B3A"/><rect x="25" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/><rect x="72" y="45" width="3" height="10" rx="1.5" fill="#E5484D"/>') : ''}
     ${look.crown && !helmet && hat !== 'royal' ? `<g ${capped ? 'transform="translate(50 5) scale(.78) translate(-50 0)"' : ''}><path d="M33 19 L37 5 L44 13 L50 3 L56 13 L63 5 L67 19 Z" fill="#FFC93C" stroke="#D99A0B" stroke-width="2" stroke-linejoin="round"/><circle cx="50" cy="13" r="2" fill="#E5484D"/></g>` : ''}
     ${(() => { const sl = look.outfit === 'telnyashka' ? '#F7F8FB' : look.outfit === 'nysweater' ? '#C62828' : look.outfit === 'suit' ? shade(hood, -0.45) : look.outfit === 'shirt' ? shade(hood, 0.8) : look.outfit === 'dev' ? '#262B36' : look.outfit === 'vampire' ? '#15131A' : look.outfit === 'armor' ? '#B9C3D1' : look.outfit === 'biker' ? '#1B1C22' : look.outfit === 'cyber' ? '#13131C' : hood;
-      return mug ? mugHand(look.prop === 'mug_best', skin, sl) : look.prop === 'torch' ? torchHand(skin, sl) : look.prop === 'phone' ? phoneHand(skin, sl) : look.prop === 'mimosa' ? mimosaHand(skin, sl) : look.prop === 'pancakes' ? pancakesHand(skin, sl) : propLayer(look.prop); })()}
-    ${look.pet === 'parrot' && look.prop && look.prop !== 'none' ? `<g transform="translate(100 0) scale(-1 1)">${petLayer('parrot')}</g>` : petLayer(look.pet)}`;
+      return mug ? mugHand(look.prop === 'mug_best', skin, sl) : look.prop === 'torch' ? torchHand(skin, sl) : look.prop === 'phone' ? phoneHand(skin, sl) : look.prop === 'mimosa' ? mimosaHand(skin, sl) : look.prop === 'pancakes' ? pancakesHand(skin, sl) : propLayer(look.prop, sex); })()}
+    ${look.pet === 'parrot' && look.prop && look.prop !== 'none' ? `<g transform="translate(100 0) scale(-1 1)">${petLayer('parrot')}</g>` : petLayer(look.pet)}${prankLayer(look.prank)}`;
 }
 
+// Подлянка от подельника: на час поверх аватара (кофе на одежде, стикер на лбу, наушники)
+function prankLayer(pr) {
+  if (!pr || !pr.until || pr.until < Date.now()) return '';
+  if (pr.v === 'coffee') {
+    return `<g><path d="M40 80 Q44 74 50 78 Q57 73 61 80 Q66 84 60 90 Q56 96 49 92 Q41 96 38 89 Q35 84 40 80 Z" fill="#9A6234" fill-opacity=".8"/>
+      <path d="M44 91 q-.6 5 .8 7 M55 92 q.6 4 -.4 6" fill="none" stroke="#9A6234" stroke-opacity=".8" stroke-width="2.2" stroke-linecap="round"/><ellipse cx="47" cy="81" rx="3" ry="1.4" fill="#A86B3C" opacity=".8"/>
+      <g transform="rotate(-38 76 74)"><rect x="70" y="68" width="12" height="13" rx="2" fill="#fff" stroke="#C9CED9"/><path d="M82 71 q4 0 4 3.6 q0 3.4 -4 3.4" fill="none" stroke="#C9CED9" stroke-width="1.6"/></g></g>`;
+  }
+  if (pr.v === 'sticker') {
+    return `<g transform="rotate(-8 50 26)"><rect x="34" y="13" width="32" height="23" rx="1.2" fill="#FFE45C" stroke="#E0B400" stroke-width=".6"/><path d="M34 13 h32 v3.6 h-32 Z" fill="#F4C430"/>
+      <text x="50" y="25" text-anchor="middle" font-size="7" font-weight="900" fill="#5B3B00" font-family="system-ui,sans-serif">Я ♥</text><text x="50" y="32" text-anchor="middle" font-size="5.6" font-weight="900" fill="#5B3B00" font-family="system-ui,sans-serif" textLength="28" lengthAdjust="spacingAndGlyphs">ПОНЕДЕЛЬНИКИ</text></g>`;
+  }
+  if (pr.v === 'phones') {
+    return `<g><path d="M26 46 Q24 10 50 10 Q76 10 74 46" fill="none" stroke="#FF3D8B" stroke-width="7" stroke-linecap="round"/><rect x="18" y="38" width="14" height="20" rx="6" fill="#FF3D8B"/><rect x="68" y="38" width="14" height="20" rx="6" fill="#FF3D8B"/>
+      <rect x="21" y="42" width="5" height="12" rx="2.5" fill="#1B1C22"/><rect x="74" y="42" width="5" height="12" rx="2.5" fill="#1B1C22"/>
+      <text x="6" y="34" font-size="11" fill="#7C3AED" font-weight="900">♪</text><text x="84" y="28" font-size="12" fill="#E5484D" font-weight="900">♫</text><text x="88" y="46" font-size="8" fill="#2563EB" font-weight="900">♪</text></g>`;
+  }
+  return '';
+}
+
+// Ник с эффектом из Лавки (золотой, радужный, глитч) — пока аренда не кончилась. Без эффекта — обычный текст
+const NFX = ['gold', 'rainbow', 'glitch'];
+function nk(o) {
+  const t = esc((o && o.nick) || '');
+  const fx = o && o.look && o.look.nfx;
+  return fx && NFX.includes(fx.v) && fx.until > Date.now() ? `<span class="nfx nfx-${fx.v}" data-t="${t}">${t}</span>` : t;
+}
 function avatar(look = {}, size = 42, zoom = false) {
   const ring = FRAMES[look.frame] || '#FFFFFF';
   return `<span class="ava ${look.frame === 'fr_champ' ? 'champ' : ''}" style="width:${size + 6}px;height:${size + 6}px;border:3px solid ${ring}">
@@ -1151,7 +1209,7 @@ function renderTodos() {
   const row = (x) => `<div class="todo ${x.done ? 'done' : ''}">
     <button class="todo-check" data-act="todo-done" data-id="${x.id}" data-v="${x.done ? 0 : 1}" aria-label="${x.done ? 'Вернуть' : 'Сделано'}: ${esc(x.text)}">${x.done ? 'check' : ''}</button>
     <span class="grow"><span class="todo-t">${esc(x.text)}</span>
-      ${x.time || x.person || x.tail ? `<span class="todo-meta">${x.tail ? `<i class="todo-tail">хвост с ${ddmmW(x.tail)}</i>` : ''}${x.time ? `<i>${esc(x.time)}</i>` : ''}${x.person ? `<button class="todo-who" data-act="dm-open" data-id="${x.person.id}">${avatar(x.person.look, 18)} ${esc(x.person.nick)}</button>` : ''}</span>` : ''}</span>
+      ${x.time || x.person || x.tail ? `<span class="todo-meta">${x.tail ? `<i class="todo-tail">хвост с ${ddmmW(x.tail)}</i>` : ''}${x.time ? `<i>${esc(x.time)}</i>` : ''}${x.person ? `<button class="todo-who" data-act="dm-open" data-id="${x.person.id}">${avatar(x.person.look, 18)} ${nk(x.person)}</button>` : ''}</span>` : ''}</span>
     ${x.done ? '' : `<button class="icon-btn" data-act="todo-move" data-id="${x.id}" aria-label="Перенести на завтра" title="На завтра">${ico('swap', 15)}</button>`}
     <button class="icon-btn" data-act="todo-remove" data-id="${x.id}" aria-label="Удалить" title="Удалить">${ico('x', 15)}</button></div>`;
   const when = S.todoWhen || 'today';
@@ -1223,7 +1281,7 @@ function renderBattery() {
       <p>${esc(m.lv.text)}</p>
     </div>
     ${boosts.length ? `<section class="st-block"><div class="st-h"><b>Тебе подкинули заряд</b><span class="small">${boosts.length}</span></div>
-      ${boosts.map((x) => `<div class="st-person">${tap(x.from.id, avatar(x.from.look, 36))}<span class="grow"><b>${esc(x.from.nick)}</b><span class="small">${esc(x.name)}</span></span>${ico(x.icon, 20)}</div>`).join('')}</section>` : ''}
+      ${boosts.map((x) => `<div class="st-person">${tap(x.from.id, avatar(x.from.look, 36))}<span class="grow"><b>${nk(x.from)}</b><span class="small">${esc(x.name)}</span></span>${ico(x.icon, 20)}</div>`).join('')}</section>` : ''}
     ${m.canAsk ? `<section class="st-block bt-ask"><b>${m.ask ? 'Подзарядку ' + meG('попросил', 'попросила') + ' — свои видят' : 'Попросить подзарядку у своих?'}</b>
       <span class="small">${m.ask ? 'У тебя в банде и у подельников рядом с твоим ником горит значок. Процентов и ответов никто не видит. Просьба снимется сама в понедельник.' : 'Банда и подельники увидят значок рядом с твоим ником и смогут позвать на кофе, прислать шоколадку или дать пять. Процентов и ответов никто не увидит.'}</span>
       <button class="btn ${m.ask ? 'ghost' : ''}" data-act="bt-ask" data-v="${m.ask ? 0 : 1}">${m.ask ? 'Снять просьбу' : 'bolt Попросить подзарядку'}</button></section>` : ''}
@@ -1239,7 +1297,7 @@ function renderBoost() {
   const sent = t.sent || [];
   const opts = [['coffee', 'coffee', 'Позвать на кофе', 'Пуш с приглашением, договоритесь в личке'], ['choco', 'gift', 'Виртуальная шоколадка', 'Маленькая сладкая радость в пуше'], ['five', 'hand', 'Дать пять', 'Просто напомнить, что ты рядом']];
   return `<div class="boost">
-    <p class="sub" style="margin:0"><b>${esc(t.nick)}</b> просит немного подзарядки. Выбери, чем поддержать — можно всё сразу.</p>
+    <p class="sub" style="margin:0"><b>${nk(t)}</b> просит немного подзарядки. Выбери, чем поддержать — можно всё сразу.</p>
     ${opts.map(([k, i, n, d]) => `<button class="bt-opt boost-opt ${sent.includes(k) ? 'done' : ''}" data-act="boost-send" data-v="${k}" ${sent.includes(k) ? 'disabled' : ''}>${ico(i, 22)}<span class="grow"><b>${n}</b><span class="small">${sent.includes(k) ? 'Отправлено' : d}</span></span>${sent.includes(k) ? 'check' : ''}</button>`).join('')}
     <p class="small" style="margin:0">Человек сам попросил подзарядку. Сколько у него заряда, видит только он.</p>
   </div>`;
@@ -1266,7 +1324,7 @@ function renderStyle() {
   const maxH = Math.max(1, ...s.hours.map((x) => x.n)), maxW = Math.max(1, ...s.week.map((x) => x.n));
   const st = s.stats;
   const num = (n, l) => `<div class="st-num"><b>${n}</b><span>${l}</span></div>`;
-  const ppl = (list, btn) => list.map((p) => `<div class="st-person">${tap(p.id, avatar(p.look, 40))}<span class="grow"><b>${esc(p.nick)}</b>${btn ? '' : `<span class="small">${p.n} ${plural(p.n, 'касание', 'касания', 'касаний')} за 2 месяца</span>`}</span>${btn ? `<button class="btn small ghost" data-act="dm-open" data-id="${p.id}">chat Написать</button>` : ''}</div>`).join('');
+  const ppl = (list, btn) => list.map((p) => `<div class="st-person">${tap(p.id, avatar(p.look, 40))}<span class="grow"><b>${nk(p)}</b>${btn ? '' : `<span class="small">${p.n} ${plural(p.n, 'касание', 'касания', 'касаний')} за 2 месяца</span>`}</span>${btn ? `<button class="btn small ghost" data-act="dm-open" data-id="${p.id}">chat Написать</button>` : ''}</div>`).join('');
   return `<div class="style">
     <section class="st-hero"><span class="st-hero-ico">${ico(s.main.icon, 30)}</span><div><span class="small">Твой архетип</span><h2>${esc(s.main.title)}</h2><p>${esc(s.main.text)}</p>
       ${s.traits.length ? `<div class="chips">${s.traits.map((t) => `<span class="chip on" style="cursor:default">${esc(t)}</span>`).join('')}</div>` : ''}</div></section>
@@ -1298,7 +1356,7 @@ function renderWave() {
     const pct = Math.round((a.joined / a.size) * 100), need = Math.ceil(a.size / 2);
     return `<section class="card wave live">
       <div class="row" style="justify-content:space-between"><span class="card-title">hand Волна!</span><span class="wave-timer" id="wave-left">${mmss(waveLeft(a) * 1000)}</span></div>
-      <p class="sub" style="margin:0">${a.by.auto ? 'Середина недели — Этаж сам запустил волну.' : `<b>${esc(a.by.nick)}</b> ${a.by.fem ? 'запустила' : 'запустил'} волну.`} ${a.joined >= a.size ? 'Встала вся банда!' : a.joined >= need ? 'Банда в силе — дожимайте до всех!' : `Нужно, чтобы встали ${need} из ${a.size}.`}</p>
+      <p class="sub" style="margin:0">${a.by.auto ? 'Середина недели — Этаж сам запустил волну.' : `<b>${nk(a.by)}</b> ${a.by.fem ? 'запустила' : 'запустил'} волну.`} ${a.joined >= a.size ? 'Встала вся банда!' : a.joined >= need ? 'Банда в силе — дожимайте до всех!' : `Нужно, чтобы встали ${need} из ${a.size}.`}</p>
       <div class="stands" role="img" aria-label="Встали ${a.joined} из ${a.size}">${a.fans.map((f) => fanHtml(f)).join('')}</div>
       <div class="wave-bar"><i style="width:${pct}%"></i><span>встали ${a.joined} из ${a.size}</span></div>
       ${a.mine ? `<p class="small" style="margin:0;text-align:center">Ты стоишь. Свистни тем, кто ещё сидит, — пуш им уже ушёл.</p>` : `<button class="btn wave-go" data-act="wave-join" data-id="${a.id}">Встать за своих!</button>`}
@@ -1407,7 +1465,7 @@ function renderFriday() {
     return `<div class="fr-q"><b>${esc(qd.text)}</b>
       ${editing ? `<div class="row"><label class="field grow" style="gap:0"><span class="hidden">${esc(qd.text)}</span><input id="fr-${qd.id}" maxlength="${f.max}" value="${esc(qd.mine || '')}" placeholder="${esc(qd.ph)}"></label><button class="btn small" data-act="friday-send" data-q="${qd.id}">${qd.mine ? 'OK' : '→'}</button></div>`
         : qd.mine ? `<div class="fr-a me"><span class="grow">${esc(qd.mine)}</span>${f.canAnswer ? `<button class="linkbtn" data-act="friday-edit" data-q="${qd.id}" aria-label="Изменить">pencil</button>` : ''}</div>` : ''}
-      ${(qd.mine || !f.canAnswer) ? others.map((a) => `<div class="fr-a"><span class="fr-ava">${avatar(a.look, 26)}</span><span class="grow"><span class="small">${esc(a.nick)}</span><span class="fr-t">${esc(a.text)}</span>
+      ${(qd.mine || !f.canAnswer) ? others.map((a) => `<div class="fr-a"><span class="fr-ava">${avatar(a.look, 26)}</span><span class="grow"><span class="small">${nk(a)}</span><span class="fr-t">${esc(a.text)}</span>
         <span class="fr-r">${f.reactions.map((e) => `<button class="${a.my === e ? 'on' : ''}" data-act="friday-react" data-id="${a.id}" data-v="${e}" aria-label="Реакция ${e}">${e}${a.counts[e] ? `<i>${a.counts[e]}</i>` : ''}</button>`).join('')}</span></span></div>`).join('') : (others.length ? `<div class="small">Ответили ${others.length} — ответь, чтобы увидеть</div>` : '')}
     </div>`;
   };
@@ -1551,10 +1609,10 @@ function renderSecret(f) {
   return `<section class="card secret">
     <div class="row" style="justify-content:space-between"><span class="card-title">lock Секретный чат</span><span class="small">сквозное шифрование</span></div>
     ${!x.sameDevice ? `<div class="note warn" style="margin:0">Секретный чат сейчас привязан к другому твоему устройству. Сделай это устройство основным — тогда старые секретные сообщения здесь не прочитать, а новые будут работать тут.<br><button class="btn small" data-act="secret-adopt" style="margin-top:8px">Сделать это устройство основным</button></div>` : ''}
-    ${!x.theirs ? `<div class="note" style="margin:0">${esc(f.nick)} ещё не открывал${gw(f.look, '', 'а')} секретный чат — нужен его ключ. Позови: как только откроет вкладку «Секретный», можно писать.<br><button class="btn small" data-act="secret-invite" style="margin-top:8px">Позвать в секретный чат</button></div>` : ''}
+    ${!x.theirs ? `<div class="note" style="margin:0">${nk(f)} ещё не открывал${gw(f.look, '', 'а')} секретный чат — нужен его ключ. Позови: как только откроет вкладку «Секретный», можно писать.<br><button class="btn small" data-act="secret-invite" style="margin-top:8px">Позвать в секретный чат</button></div>` : ''}
     <div class="chat" id="sc-chat">${msgs}</div>
     ${ready ? `<div class="row"><label class="field grow" style="gap:0"><span class="hidden">Секретное сообщение</span><input id="sc-text" maxlength="1000" placeholder="Секретно написать ${esc(f.nick)}" aria-label="Секретное сообщение"></label><button class="btn" data-act="secret-send" aria-label="Отправить">→</button></div>` : ''}
-    ${x.code ? `<div class="sc-code"><span class="small">Код безопасности</span><b>${x.code}</b><span class="small">Сверьте при встрече: у ${esc(f.nick)} должен быть такой же. Совпадает — вас никто не подслушивает.</span></div>` : ''}
+    ${x.code ? `<div class="sc-code"><span class="small">Код безопасности</span><b>${x.code}</b><span class="small">Сверьте при встрече: у ${nk(f)} должен быть такой же. Совпадает — вас никто не подслушивает.</span></div>` : ''}
     <p class="small" style="margin:0">Сервер хранит только шифр и не может его прочитать. Поэтому в пуше не будет текста, а пожаловаться на сообщение модератору нельзя — только заблокировать. Ключ живёт на этом устройстве: на новом телефоне старые секретные сообщения не прочитать.</p>
   </section>`;
 }
@@ -1740,7 +1798,7 @@ function renderNameStep() {
     <div class="logo">Этаж<span>.</span></div>
     <div class="card">
       <h2>Как тебя зовут?</h2>
-      <p class="sub">Ник — ${esc(S.me.nick)} — остаётся, а имя и фамилия нужны, чтобы коллеги понимали, с кем общаются. Регистр поправим сами.</p>
+      <p class="sub">Ник — ${nk(S.me)} — остаётся, а имя и фамилия нужны, чтобы коллеги понимали, с кем общаются. Регистр поправим сами.</p>
       <label class="field">Имя<input id="n-first" maxlength="30" autocomplete="given-name" value="${esc(p.firstName || '')}" placeholder="Анна"></label>
       <label class="field">Фамилия<input id="n-last" maxlength="30" autocomplete="family-name" value="${esc(p.lastName || '')}" placeholder="Петрова"></label>
       ${S.error ? `<div class="note warn">${esc(S.error)}</div>` : ''}
@@ -1816,7 +1874,7 @@ function renderApp() {
       <button class="who" data-act="open" data-v="profile" aria-label="Мой профиль, уровень ${me.level || 1}">
         <span class="me-ava ${S.coach === 1 ? 'coach-focus' : ''}">${b.feedback ? '<span class="bdot" aria-hidden="true"></span>' : ''}${me.completion && me.completion.pct < 100 ? `<span class="pring sm" style="--p:${me.completion.pct}" title="Профиль заполнен на ${me.completion.pct}%">${avatar(me.look, 40)}</span>` : avatar(me.look, 40)}<span class="lvl" aria-hidden="true">${me.level || 1}</span></span>
         <span style="min-width:0;display:flex;flex-direction:column;gap:3px">
-          <span class="nick-row"><span class="nick">${esc(me.nick)}</span><span class="chev" aria-hidden="true">›</span></span>
+          <span class="nick-row"><span class="nick">${nk(me)}</span><span class="chev" aria-hidden="true">›</span></span>
           <span class="row" style="gap:6px">
             ${me.status ? `<span class="status-chip">${esc(me.status)}</span>` : ''}
             ${me.streak ? `<span class="streak" title="Рабочих дней подряд с отметкой — в офисе или из дома">${FLAME}${me.streak} ${plural(me.streak, 'день', 'дня', 'дней')}</span>` : ''}
@@ -1911,7 +1969,7 @@ function renderTomorrow() {
   }
   const offices = new Set(t.office.map((p) => p.office).filter(Boolean));
   const list = t.office.length
-    ? `<div class="tmr-list">${t.office.map((p) => `<button class="tmr-p" data-act="person" data-id="${p.id}">${avatar(p.look, 40)}<span class="ellipsis">${esc(p.nick)}</span>${offices.size > 1 && p.office ? `<small class="ellipsis">${esc(p.office)}</small>` : ''}</button>`).join('')}</div>`
+    ? `<div class="tmr-list">${t.office.map((p) => `<button class="tmr-p" data-act="person" data-id="${p.id}">${avatar(p.look, 40)}<span class="ellipsis">${nk(p)}</span>${offices.size > 1 && p.office ? `<small class="ellipsis">${esc(p.office)}</small>` : ''}</button>`).join('')}</div>`
     : `<p class="sub" style="margin:0">По планам ${esc(t.label)} из банды в офисе никого.${t.unknown ? ' Но не все заполнили план.' : ''}</p>`;
   return `<section class="card tmr"><div class="row" style="justify-content:space-between;gap:8px"><h3>office ${esc(cap)} в офисе${t.office.length ? ` · ${t.office.length}` : ''}</h3>${plan}</div>
     ${list}
@@ -1961,7 +2019,7 @@ function personRow(p) {
   const tagline = [p.mood && p.where === 'office' ? p.mood : '', gs.join(', ')].filter(Boolean).join(' · ');
   return `<div class="person2">
     ${tap(p.id, `<span class="ava-wrap" style="opacity:${away ? 0.6 : 1}"><span class="ava-ring" style="border-color:${color}">${avatar(p.look, 32)}</span><span class="ava-dot" style="background:${color}"></span></span>`)}
-    <div class="grow" style="min-width:0"><div class="tapname" style="font-weight:800;font-size:15px" data-act="person" data-id="${p.id}">${esc(p.nick)}</div>${p.name ? `<div class="realname">${esc(p.name)}</div>` : ''}
+    <div class="grow" style="min-width:0"><div class="tapname" style="font-weight:800;font-size:15px" data-act="person" data-id="${p.id}">${nk(p)}</div>${p.name ? `<div class="realname">${esc(p.name)}</div>` : ''}
       <div class="where ellipsis">${esc(w)}${tagline ? ' · ' + esc(tagline) : ''}</div></div>
     ${action}</div>`;
 }
@@ -1998,8 +2056,10 @@ function renderPeople() {
 function renderNear() {
   if (!S.state) return '<div class="card"><p class="sub">Загружаем…</p></div>';
   const aboutCard = S.me.newbie && !store.get('aboutSeen') ? `<button class="about-card" data-act="open" data-v="about"><span aria-hidden="true"></span><span class="grow"><b>Что это вообще такое?</b><span class="small">Этаж за 30 секунд: зачем он и что тут есть</span></span><span class="chev" aria-hidden="true">›</span></button>` : '';
+  const pr = S.me.look.prank && S.me.look.prank.until > Date.now() ? S.me.look.prank : null;
+  const prankStrip = pr ? `<div class="prank-strip">${avatar(S.me.look, 34)}<span class="grow"><b>${esc(pr.from)} тебя ${pr.f ? 'разыграла' : 'разыграл'}</b><span class="small">${{ coffee: 'Кофе на одежде', sticker: 'Стикер на лбу', phones: 'Наушники с рок-музыкой' }[pr.v] || 'Подлянка'} — до ${new Date(pr.until).toTimeString().slice(0, 5)}</span></span><button class="btn small" data-act="prank-off">Снять</button></div>` : '';
   return `${pageHead('Рядом', 'Где ты сегодня и кто из твоих людей рядом')}
-    ${aboutCard}
+    ${prankStrip}${aboutCard}
     ${renderStatusBlock()}
     ${renderWeatherStrip()}
     ${renderAdvent(true)}
@@ -2061,7 +2121,7 @@ function renderMatch() {
   if (d.holiday) return `<section class="card match"><div class="card-title">where Совпадаем</div>${chips}<p class="sub" style="margin:0">${esc(d.holiday)} — выходной.</p></section>`;
   const meLine = d.me === 'office' ? 'ты в офисе' : d.me === 'home' ? 'ты из дома' : d.me === 'vacation' ? 'ты в отпуске' : 'твой план не указан';
   const strip = (ps) => `<div class="match-strip">${ps.slice(0, 14).map((p) => `<span class="mp ${p.mate ? 'mate' : ''} ${p.common.length ? 'common' : ''}" title="${esc(p.name || p.nick)}">${tap(p.id, avatar(p.look, 38))}<span>${esc(p.name ? p.name.split(' ')[0] : p.nick)}</span></span>`).join('')}${ps.length > 14 ? `<span class="mp more">+${ps.length - 14}</span>` : ''}</div>`;
-  const commons = (ps) => { const c = ps.filter((p) => p.common.length && !p.mate).slice(0, 3); return c.length ? `<div class="match-common">star ${c.map((p) => `<button class="linkbtn" data-act="person" data-id="${p.id}">${esc(p.nick)}</button> — ${esc(p.common.slice(0, 2).join(', '))}`).join('; ')}</div>` : ''; };
+  const commons = (ps) => { const c = ps.filter((p) => p.common.length && !p.mate).slice(0, 3); return c.length ? `<div class="match-common">star ${c.map((p) => `<button class="linkbtn" data-act="person" data-id="${p.id}">${nk(p)}</button> — ${esc(p.common.slice(0, 2).join(', '))}`).join('; ')}</div>` : ''; };
   const group = (title, n, ps, mine) => `<div class="match-group ${mine ? 'mine' : ''}"><div class="row" style="justify-content:space-between"><b>${title}</b><span class="small">${n} ${plural(n, 'человек', 'человека', 'человек')}</span></div>${strip(ps)}${commons(ps)}</div>`;
   const body = (d.offices.length || d.home.n)
     ? d.offices.map((o) => group(`office ${esc(o.name)}`, o.n, o.people, o.mine)).join('') + (d.home.n ? group('home Из дома', d.home.n, d.home.people) : '')
@@ -2080,7 +2140,7 @@ function renderThx() {
   const left = S.thxLeft;
   if (left === 0) return '<p class="sub" style="margin:0">На сегодня спасибо закончились — их три в день, так они ценнее. Завтра будут новые.</p>';
   return `<div class="thx-sheet">
-    <p class="sub" style="margin:0"><b>${esc(t.nick)}</b> получит пуш и +1 зерно. ${left != null ? `Осталось ${left} из 3 на сегодня.` : ''}</p>
+    <p class="sub" style="margin:0"><b>${nk(t)}</b> получит пуш и +1 зерно. ${left != null ? `Осталось ${left} из 3 на сегодня.` : ''}</p>
     <div class="chips">${THX_REASONS.map((r) => `<button class="chip" data-act="thx-reason" data-v="${esc(r)}">${esc(r)}</button>`).join('')}</div>
     <label class="field">За что спасибо (необязательно)<input id="thx-text" maxlength="80" placeholder="За помощь с отчётом"></label>
     <button class="btn" data-act="thx-send">hand Сказать спасибо</button>
@@ -2116,7 +2176,7 @@ function renderExperts() {
   if (!x) return '';
   const res = x.q && x.q.length >= 2 ? (x.items.length ? x.items.map((p) => `<div class="expert">
       ${tap(p.id, avatar(p.look, 40))}
-      <div class="grow" style="min-width:0"><div class="ex-head"><b>${esc(p.name || p.nick)}</b>${p.name ? `<span class="small">${esc(p.nick)}</span>` : ''}</div>
+      <div class="grow" style="min-width:0"><div class="ex-head"><b>${esc(p.name || p.nick)}</b>${p.name ? `<span class="small">${nk(p)}</span>` : ''}</div>
         ${p.role ? `<div class="small ex-role">${esc(p.role)}</div>` : ''}
         <div class="chips">${p.allTags.map((t) => `<span class="chip ask-chip ${p.tags.includes(t) ? 'on' : ''}">${esc(t)}</span>`).join('')}</div>
         <div class="small">${p.office ? esc(p.office) : 'офис не указан'}${p.officeDay ? ` · в офисе ${esc(p.officeDay)}` : ''}</div></div>
@@ -2139,9 +2199,9 @@ function renderBoardCard() {
   const items = b.items.filter((x) => !mine || !x.office || x.office.id === home);
   const row = (x) => `<div class="bpost k-${x.kind}">
     <div class="row" style="gap:10px;align-items:flex-start">${tap(x.author.id, avatar(x.author.look, 36))}
-      <div class="grow" style="min-width:0"><div class="bp-head"><b>${esc(x.author.nick)}</b>${x.author.name ? `<span class="small">${esc(x.author.name)}</span>` : ''}<span class="bp-kind">${ico(x.icon, 14)} ${esc(x.kindName)}</span></div>
+      <div class="grow" style="min-width:0"><div class="bp-head"><b>${nk(x.author)}</b>${x.author.name ? `<span class="small">${esc(x.author.name)}</span>` : ''}<span class="bp-kind">${ico(x.icon, 14)} ${esc(x.kindName)}</span></div>
         <div class="bp-text">${esc(x.text)}</div>
-        <div class="small">до ${ddmm(x.until)}${x.office ? ` · ${esc(x.office.name)}` : ' · весь Этаж'}${x.mine && x.fans && x.fans.length ? ` · откликнулись: ${x.fans.map((f) => `<button class="linkbtn" data-act="dm-open" data-id="${f.id}">${esc(f.nick)}</button>`).join(', ')}` : ''}</div></div></div>
+        <div class="small">до ${ddmm(x.until)}${x.office ? ` · ${esc(x.office.name)}` : ' · весь Этаж'}${x.mine && x.fans && x.fans.length ? ` · откликнулись: ${x.fans.map((f) => `<button class="linkbtn" data-act="dm-open" data-id="${f.id}">${nk(f)}</button>`).join(', ')}` : ''}</div></div></div>
     <div class="row bp-acts">${x.mine ? `<button class="linkbtn" data-act="board-remove" data-id="${x.id}">Снять</button>` : `<button class="chip ${x.iMetoo ? 'on' : ''}" data-act="board-metoo" data-id="${x.id}">${x.iMetoo ? 'check ' : ''}Я тоже${x.metoo ? ' · ' + x.metoo : ''}</button><button class="chip" data-act="dm-open" data-id="${x.author.id}">Написать</button><button class="linkbtn bp-rep" data-act="report" data-type="board" data-id="${x.id}" aria-label="Пожаловаться">⚑</button>`}${x.mine && x.metoo ? `<span class="small">«я тоже» · ${x.metoo}</span>` : ''}</div></div>`;
   return `<section class="card bboard"><div class="chats-head"><h3>megaphone Доска</h3><button class="linkbtn" data-act="board-new">＋ Объявление</button></div>
     ${home ? `<div class="chips">${[[false, 'Весь Этаж'], [true, 'Мой офис']].map(([v, t]) => `<button class="chip ${!!S.boardMine === v ? 'on' : ''}" data-act="board-filter" data-v="${v ? 1 : 0}">${t}</button>`).join('')}</div>` : ''}
@@ -2173,7 +2233,7 @@ function renderFind() {
     else if (x.company) act = `<button class="btn small" data-act="find-crew" data-v="${esc(x.nick)}">В подельники</button>`;
     else if (!S.me.gangs.length) act = '<span class="small">сначала сколоти банду</span>';
     const inv = x.invitable.map((g) => g.pending ? `<span class="chip" style="cursor:default">«${esc(g.name)}» · ждём ответа</span>` : `<button class="chip" data-act="find-invite" data-gang="${g.id}" data-id="${x.id}">Позвать в «${esc(g.name)}»</button>`).join('');
-    return `<div class="find-row"><div class="person2">${tap(x.id, avatar(x.look, 40))}<div class="grow" style="min-width:0"><div style="font-weight:900">${esc(x.nick)}</div>
+    return `<div class="find-row"><div class="person2">${tap(x.id, avatar(x.look, 40))}<div class="grow" style="min-width:0"><div style="font-weight:900">${nk(x)}</div>
       <div class="where ellipsis">${[x.company ? `из ${x.company}` : '', x.name, x.status, x.shared.length ? 'в банде ' + x.shared.join(', ') : ''].filter(Boolean).map(esc).join(' · ') || 'пока не в твоих бандах'}</div></div>${act}</div>
       ${inv ? `<div class="chips">${inv}</div>` : ''}</div>`;
   }).join('') : `<p class="sub">${esc(f.hint || 'Никого не нашли')}</p>`) : '<p class="small">Ник — по части, например «енот». Имя — только если человек открыл его всем. Почта — целиком, например ivanov@mts.ru. Коллег из другой компании ищем только по нику целиком или по почте. Мы сравниваем отпечаток и сами адреса не храним.</p>';
@@ -2254,7 +2314,7 @@ function renderChats() {
   const c = S.chats;
   if (!c) return pageHead('Чаты', 'Банды и личные переписки') + '<div class="card"><p class="sub">Загружаем…</p></div>';
   const seenG = store.get('seenGang', {});
-  const reqs = c.requests.length ? `<section class="card"><h3>Хотят переписываться</h3>${c.requests.map((p) => `<div class="person2">${tap(p.id, avatar(p.look, 36))}<div class="grow ellipsis" style="font-weight:800;min-width:0">${esc(p.nick)}</div>
+  const reqs = c.requests.length ? `<section class="card"><h3>Хотят переписываться</h3>${c.requests.map((p) => `<div class="person2">${tap(p.id, avatar(p.look, 36))}<div class="grow ellipsis" style="font-weight:800;min-width:0">${nk(p)}</div>
       <button class="btn small" data-act="crew-accept" data-id="${p.id}">Принять</button><button class="btn small ghost" data-act="crew-decline" data-id="${p.id}" aria-label="Отклонить">✕</button></div>`).join('')}</section>` : '';
   const row = (x) => {
     if (x.type === 'gang') {
@@ -2269,7 +2329,7 @@ function renderChats() {
     const turn = (S.battles || []).find((b) => b.oppId === x.id && b.myTurn && b.status !== 'done');
     return `<div class="dm-line ${x.closed ? 'closed' : ''}"><button class="chat-row" data-act="dm-open" data-id="${x.id}">
       <span class="ava-wrap"><span class="ava-ring" style="border-color:${color}">${avatar(x.look, 32)}</span>${x.where ? `<span class="ava-dot" style="background:${color}"></span>` : ''}</span>
-      <span class="grow" style="min-width:0"><span class="chat-title">${x.crew ? '<span class="fav-star" title="Подельник">★</span> ' : ''}${esc(x.nick)}</span><span class="where ellipsis ${x.unread ? 'unread' : ''}">${x.closed ? 'lock ' : ''}${x.last ? `${x.last.mine ? 'Ты: ' : ''}${esc(x.last.text || '')}` : esc(w)}</span></span>
+      <span class="grow" style="min-width:0"><span class="chat-title">${x.crew ? '<span class="fav-star" title="Подельник">★</span> ' : ''}${nk(x)}</span><span class="where ellipsis ${x.unread ? 'unread' : ''}">${x.closed ? 'lock ' : ''}${x.last ? `${x.last.mine ? 'Ты: ' : ''}${esc(x.last.text || '')}` : esc(w)}</span></span>
       <span class="crew-side">${turn ? '<span class="crew-turn" title="Твой ход в морском бою">anchor</span>' : ''}${x.lastTime ? `<span class="small">${x.lastTime}</span>` : ''}${x.unread ? `<span class="crew-badge">${x.unread > 9 ? '9+' : x.unread}</span>` : ''}</span></button>
       <button class="dm-x" data-act="dm-close" data-id="${x.id}" aria-label="${x.closed ? 'Убрать из списка' : 'Закрыть личку с ' + esc(x.nick)}" title="${x.closed ? 'Убрать из списка' : 'Закрыть личку'}">×</button></div>`;
   };
@@ -2281,7 +2341,7 @@ function renderChats() {
     : '<p class="sub chats-empty">Ты пока ни в одной банде. Сколоти свою — у неё будет общий чат и зовы на кофе и обед.</p><button class="btn" data-act="open" data-v="gang-new">Сколотить банду</button>';
   const favs = c.favorites || [];
   const favStrip = `<div class="fav-head"><span class="small"><b>★ Подельники</b> — избранные контакты: им можно писать всегда</span><button class="linkbtn" data-act="open" data-v="crew">${favs.length ? 'все' : '＋ добавить'}</button></div>
-    ${favs.length ? `<div class="fav-strip">${favs.map((f) => { const [, col] = whereText(f); return `<button class="fav" data-act="dm-open" data-id="${f.id}"><span class="ava-ring" style="border-color:${col}">${avatar(f.look, 40)}</span><span class="ellipsis">${esc(f.nick)}</span></button>`; }).join('')}</div>` : ''}`;
+    ${favs.length ? `<div class="fav-strip">${favs.map((f) => { const [, col] = whereText(f); return `<button class="fav" data-act="dm-open" data-id="${f.id}"><span class="ava-ring" style="border-color:${col}">${avatar(f.look, 40)}</span><span class="ellipsis">${nk(f)}</span></button>`; }).join('')}</div>` : ''}`;
   const dmList = dms.length ? dms.map(row).join('')
     : '<p class="sub chats-empty">Голуби скучают. Напиши кому-нибудь — лично можно любому, кто не закрыл личку: найди по нику или открой карточку человека.</p>';
   return `${pageHead('Чаты', 'Моя банда и личка')}
@@ -2447,7 +2507,7 @@ function renderOffice() {
   const since = st.checkin.since || '';
   return `
   <section class="office-card">
-    <div class="office-pic">${officeSvg({ office: st.checkin.office, crowd: here, hour, label: esc('Офис ' + st.checkin.name + (here ? ', из банды здесь: ' + here : '')) })}</div>
+    <div class="office-pic">${officeSvg({ office: st.checkin.office, crowd: here, hour, flag: S.gang && S.gang.gang.flag ? S.gang.gang.color : null, label: esc('Офис ' + st.checkin.name + (here ? ', из банды здесь: ' + here : '')) })}</div>
     <div class="office-info">
       <div class="row" style="align-items:flex-start;justify-content:space-between;gap:8px">
         <div style="display:flex;flex-direction:column;gap:2px">
@@ -2672,7 +2732,7 @@ function renderGangNow() {
       : `<button class="btn small ${sameOffice ? '' : 'ghost'}" data-act="call-open" data-kind="${sameOffice ? 'coffee' : r.where === 'home' ? 'call' : 'where'}" data-to="${r.id}" data-gang="${r.gangId}">${sameOffice ? 'На кофе' : r.where === 'home' ? 'Созвонимся?' : 'Ты где?'}</button>`;
     return `<div class="person2">
       ${tap(r.id, `<span class="ava-wrap" style="opacity:${away ? 0.6 : 1}"><span class="ava-ring" style="border-color:${color}">${avatar(r.look, 32)}</span><span class="ava-dot" style="background:${color}"></span></span>`)}
-      <div class="grow"><div style="font-weight:700;font-size:15px" class="tapname" data-act="person" data-id="${r.id}">${esc(r.nick)}</div>${r.name ? `<div class="realname">${esc(r.name)}</div>` : ''}
+      <div class="grow"><div style="font-weight:700;font-size:15px" class="tapname" data-act="person" data-id="${r.id}">${nk(r)}</div>${r.name ? `<div class="realname">${esc(r.name)}</div>` : ''}
       <div class="where ellipsis">${esc(w)}${r.mood && r.where === 'office' ? ' · ' + esc(r.mood) : ''}</div></div>
       ${action}</div>`;
   }).join('');
@@ -2763,7 +2823,7 @@ const BET_RULES = (max) => `<ul class="ol">
   <li>Победители забирают свои ставки и делят банк проигравших пропорционально ставкам. Ничья или отмена — всё возвращается.</li></ul>`;
 function warHeroPick(members, sel, act) {
   return `<div class="hero-list">${members.map((p) => `<button class="hero-opt ${sel === p.id ? 'on' : ''}" data-act="${act}" data-v="${p.id}" ${p.rotation ? 'disabled' : ''}>
-    ${avatar(p.look, 34)}<span class="grow" style="min-width:0"><b class="ellipsis">${esc(p.nick)}${p.volunteer ? ' hand' : ''}</b>
+    ${avatar(p.look, 34)}<span class="grow" style="min-width:0"><b class="ellipsis">${nk(p)}${p.volunteer ? ' hand' : ''}</b>
     <span class="small">${p.rotation ? 'бился в прошлый раз — ротация' : p.wars ? `героем ${p.wars} ${plural(p.wars, 'раз', 'раза', 'раз')} · побед ${p.wins}` : 'ещё не был героем'}</span></span></button>`).join('')}</div>`;
 }
 
@@ -2856,7 +2916,7 @@ async function loadWars() {
 }
 function warSide(sd, label) {
   return `<div class="war-side ${sd.mine ? 'mine' : ''}">${crestSvg(crestOf(sd), { size: 46 })}<b class="ellipsis">${esc(sd.name)}</b>
-    <span class="small">${label}: ${sd.hero ? esc(sd.hero.nick) : '—'}</span>
+    <span class="small">${label}: ${sd.hero ? nk(sd.hero) : '—'}</span>
     ${sd.run && (sd.run.done || sd.run.playing) ? `<span class="war-run">${sd.run.done ? (sd.run.score !== null ? `check ${sd.run.score} верных · ${sd.run.secs} с` : 'check прошёл') : 'wait проходит'}</span>` : ''}</div>`;
 }
 function renderWar(w) {
@@ -3079,7 +3139,7 @@ function duelVs(d, moods, fresh) {
   const think = d.status === 'play' ? (d.myTurn ? 'me' : 'opp') : null;
   const side = (who, look, nick) => `<div class="dvs-p ${who} mood-${moods[who]} ${fresh ? 'fresh' : ''}">
     <span class="dvs-ava">${avatar(moodLook(look, moods[who]), 46)}${think === who ? '<i class="dvs-think"><b></b><b></b><b></b></i>' : ''}</span><span class="dvs-nick ellipsis">${nick}</span></div>`;
-  return `<div class="dvs">${side('me', S.me.look, 'ты')}<div class="dvs-mid">${d.score ? `<b>${d.score.me}</b><span>:</span><b>${d.score.opp}</b>` : '<span class="small">vs</span>'}</div>${side('opp', d.opp.look, esc(d.opp.nick))}</div>`;
+  return `<div class="dvs">${side('me', S.me.look, 'ты')}<div class="dvs-mid">${d.score ? `<b>${d.score.me}</b><span>:</span><b>${d.score.opp}</b>` : '<span class="small">vs</span>'}</div>${side('opp', d.opp.look, nk(d.opp))}</div>`;
 }
 function duelFx(d, fresh) {
   if (!fresh || !d.result) return '';
@@ -3170,7 +3230,7 @@ function renderDuelsCard() {
     <div class="duel-new n4">${games.map(([act, g, e, t]) => `<button class="duel-start" data-act="${act}" data-v="${g}"><span>${e}</span><b>${hy(t)}</b></button>`).join('')}</div>
     ${items.length || battles.length ? '' : '<p class="small" style="margin:0">Выбери игру и соперника — или потренируйся в практике. В дуэлях можно на ставку 5 или 10 зёрен — победитель забирает обе. Морской бой — с расстановкой, быстрый или без спешки.</p>'}
     ${battles.map((x) => `<button class="chat-row" data-act="battle-go" data-id="${x.id}" data-opp="${x.oppId}"><span class="duel-ico">anchor</span><span class="grow"><span class="chat-title">${esc(nickOf(x.oppId))}</span><span class="where">Морской бой · ${x.mode === 'fast' ? 'быстрая · ' : ''}${x.status === 'setup' ? 'расстановка' : x.myTurn ? 'твой ход!' : 'ход соперника'}</span></span>${x.myTurn ? '<span class="crew-badge">!</span>' : ''}</button>`).join('')}
-    ${items.map((d) => `<button class="chat-row" data-act="dm-open" data-id="${d.opp.id}">${avatar(d.opp.look, 32)}<span class="grow"><span class="chat-title">${esc(d.opp.nick)}</span><span class="where">${{ rps: 'rock Камень, ножницы, бумага', dice: 'dice Кости', ttt: 'x Крестики-нолики' }[d.game]}${d.score ? ` · ${d.score.me}:${d.score.opp}` : ''}</span></span>${d.myTurn ? '<span class="crew-badge">!</span>' : ''}</button>`).join('')}</section>`;
+    ${items.map((d) => `<button class="chat-row" data-act="dm-open" data-id="${d.opp.id}">${avatar(d.opp.look, 32)}<span class="grow"><span class="chat-title">${nk(d.opp)}</span><span class="where">${{ rps: 'rock Камень, ножницы, бумага', dice: 'dice Кости', ttt: 'x Крестики-нолики' }[d.game]}${d.score ? ` · ${d.score.me}:${d.score.opp}` : ''}</span></span>${d.myTurn ? '<span class="crew-badge">!</span>' : ''}</button>`).join('')}</section>`;
 }
 
 function duelOutcomeSfx(d) {
@@ -3490,6 +3550,12 @@ function renderGang() {
   </section>`;
   // ----- Чат: сейчас важно, зовы, переписка
   const now = [];
+  if (g.pizza) {
+    const pz = g.pizza;
+    now.push(`<section class="card pizza-card"><span class="pizza-ico" aria-hidden="true">🍕</span><div class="grow" style="min-width:0"><b>${pz.mine ? 'Ты угощаешь банду пиццей' : `${esc(pz.by)} угощает пиццей`}</b>
+      <span class="small">Осталось кусков: ${pz.left} из ${pz.slices}${pz.mine ? ' · угощающий не ест' : ' · кусок — +1 зерно'}</span></div>
+      ${!pz.mine && !pz.took && pz.left ? '<button class="btn small" data-act="pizza-take">Взять кусок</button>' : pz.took ? '<span class="small">check съедено</span>' : ''}</section>`);
+  }
   if (w && w.active && !w.active.mine) now.push(renderWave());
   if (life.length || reqN) now.push(`<section class="card g-now"><span class="eyebrow">Сейчас важно</span>
     ${life.slice(0, 3).map(([i, t, d, to]) => `<button class="g-now-row" data-act="gang-go" data-v="life" data-to="${to}">${ico(i, 18)}<span class="grow"><b>${t}</b><span class="small">${d}</span></span><span class="chev" aria-hidden="true">›</span></button>`).join('')}
@@ -3528,7 +3594,7 @@ function renderGang() {
 }
 
 function renderMsg(m) {
-  const reps = m.replies.length ? `<div class="reps">${m.replies.map((r) => `<span class="rep">${esc(r.nick)}: ${esc(r.label)}</span>`).join('')}</div>` : '';
+  const reps = m.replies.length ? `<div class="reps">${m.replies.map((r) => `<span class="rep">${nk(r)}: ${esc(r.label)}</span>`).join('')}</div>` : '';
   if (m.type === 'call') {
     const to = m.toNick ? ` → ${esc(m.toNick)}` : '';
     const body = `<b>${esc(m.author)}</b> ${esc(m.callText)}${m.opt ? ` · ${esc(m.opt.toLowerCase())}` : ''}${m.text ? ` · ${esc(m.text)}` : ''}`;
@@ -3569,7 +3635,7 @@ function renderCrew() {
   const c = S.crew;
   if (!c) return '<div class="card"><p class="sub">Загружаем подельников…</p></div>';
   const incoming = c.incoming.length ? `<section class="card"><h3>Зовут в подельники</h3>
-    ${c.incoming.map((p) => `<div class="person2">${tap(p.id, avatar(p.look, 36))}<div class="grow ellipsis" style="font-weight:800;min-width:0">${esc(p.nick)}</div>
+    ${c.incoming.map((p) => `<div class="person2">${tap(p.id, avatar(p.look, 36))}<div class="grow ellipsis" style="font-weight:800;min-width:0">${nk(p)}</div>
       <button class="btn small" data-act="crew-accept" data-id="${p.id}">Принять</button>
       <button class="btn small ghost" data-act="crew-decline" data-id="${p.id}" aria-label="Отклонить заявку">✕</button></div>`).join('')}
   </section>` : '';
@@ -3578,7 +3644,7 @@ function renderCrew() {
     const line = f.last ? `${f.last.mine ? 'Ты: ' : ''}${f.last.text}` : w;
     return `<button class="person2 crew-row" data-act="dm-open" data-id="${f.id}">
       <span class="ava-wrap"><span class="ava-ring" style="border-color:${color}">${avatar(f.look, 32)}</span><span class="ava-dot" style="background:${color}"></span></span>
-      <span class="grow" style="min-width:0"><span class="crew-nick">${esc(f.nick)}</span><span class="where ellipsis ${f.unread ? 'unread' : ''}">${esc(line)}</span></span>
+      <span class="grow" style="min-width:0"><span class="crew-nick">${nk(f)}</span><span class="where ellipsis ${f.unread ? 'unread' : ''}">${esc(line)}</span></span>
       <span class="crew-side">${(S.battles.find((b) => b.oppId === f.id && b.myTurn && b.status !== 'done')) ? '<span class="crew-turn" title="Твой ход в морском бою">anchor</span>' : ''}${f.lastTime ? `<span class="small">${f.lastTime}</span>` : ''}${f.unread ? `<span class="crew-badge">${f.unread > 9 ? '9+' : f.unread}</span>` : ''}</span>
     </button>`;
   }).join('');
@@ -3594,9 +3660,9 @@ function renderCrew() {
       <button class="btn" data-act="crew-add">Позвать</button></div>
     <button class="btn blue" data-act="crew-share">Отправить свою ссылку</button>
     <p class="small">Кто откроет ссылку, сразу станет подельником, поэтому шли её лично, а не в общий чат. Заявка по нику ждёт согласия.</p>
-    ${c.outgoing.length ? `<div class="crew-out"><span class="small">Ждём ответа:</span> ${c.outgoing.map((p) => `<span class="rep">${esc(p.nick)} <button class="linkbtn" data-act="crew-decline" data-id="${p.id}" aria-label="Отменить заявку">✕</button></span>`).join(' ')}</div>` : ''}
+    ${c.outgoing.length ? `<div class="crew-out"><span class="small">Ждём ответа:</span> ${c.outgoing.map((p) => `<span class="rep">${nk(p)} <button class="linkbtn" data-act="crew-decline" data-id="${p.id}" aria-label="Отменить заявку">✕</button></span>`).join(' ')}</div>` : ''}
     ${c.blocked.length ? `<details><summary class="small" style="cursor:pointer;min-height:32px">Заблокированные (${c.blocked.length})</summary>
-      ${c.blocked.map((p) => `<div class="row" style="justify-content:space-between"><span>${esc(p.nick)}</span><button class="linkbtn" data-act="crew-unblock" data-id="${p.id}">Разблокировать</button></div>`).join('')}</details>` : ''}
+      ${c.blocked.map((p) => `<div class="row" style="justify-content:space-between"><span>${nk(p)}</span><button class="linkbtn" data-act="crew-unblock" data-id="${p.id}">Разблокировать</button></div>`).join('')}</details>` : ''}
   </section>`;
 }
 
@@ -3675,7 +3741,7 @@ function renderDm() {
   <section class="card">
     <div class="row">
       <span class="ava-wrap"><span class="ava-ring" style="border-color:${color}">${avatar(f.look, 32)}</span><span class="ava-dot" style="background:${color}"></span></span>
-      <div class="grow" style="min-width:0"><div style="font-weight:900;font-size:17px">${esc(f.nick)}</div><div class="where ellipsis">${esc(w)}${f.mood && f.where === 'office' ? ' · ' + esc(f.mood) : ''}</div></div>
+      <div class="grow" style="min-width:0"><div style="font-weight:900;font-size:17px">${nk(f)}</div><div class="where ellipsis">${esc(w)}${f.mood && f.where === 'office' ? ' · ' + esc(f.mood) : ''}</div></div>
       ${star}
     </div>
     ${away ? '<div class="note warn">Сейчас отдыхает: пуш не придёт, увидит, когда вернётся.</div>' : ''}
@@ -3806,7 +3872,7 @@ function renderVersus(v) {
   return `<section class="b-vs">
     <div class="vs-side ${myTurn ? 'turn' : ''}">${bubble('mine')}<span class="vs-ava mood-${mm}">${avatar(moodLook(S.me.look, mm), 52)}</span><span class="vs-name">ты</span>${v.clock ? `<span class="vs-clock" data-who="me">${fmtClock(clockNow(v, 'me'))}</span>` : ''}</div>
     <div class="vs-mid"><div class="vs-score"><b>${v.score.me}</b><span>:</span><b>${v.score.opp}</b></div><div class="vs-cap">${v.status === 'setup' ? 'расстановка' : v.status === 'done' ? 'партия окончена' : myTurn ? 'твой ход' : 'ход соперника'}</div></div>
-    <div class="vs-side ${oppTurn ? 'turn' : ''}">${bubble('opp')}${(v.practice ? (h) => h : (h) => tap(v.opp.id, h))(`<span class="vs-ava mood-${mo}">${avatar(moodLook(v.opp.look, mo), 52)}</span>`)}<span class="vs-name ellipsis">${esc(v.opp.nick)}</span>${v.clock ? `<span class="vs-clock" data-who="opp">${fmtClock(clockNow(v, 'opp'))}</span>` : ''}</div>
+    <div class="vs-side ${oppTurn ? 'turn' : ''}">${bubble('opp')}${(v.practice ? (h) => h : (h) => tap(v.opp.id, h))(`<span class="vs-ava mood-${mo}">${avatar(moodLook(v.opp.look, mo), 52)}</span>`)}<span class="vs-name ellipsis">${nk(v.opp)}</span>${v.clock ? `<span class="vs-clock" data-who="opp">${fmtClock(clockNow(v, 'opp'))}</span>` : ''}</div>
   </section>`;
 }
 
@@ -3834,9 +3900,9 @@ function renderBattle() {
     return `${defs}${back}${renderEmoteLayer(v)}${renderVersus(v)}
     <section class="b-sea">
       <div class="sea-title">${v.ready ? 'Флот расставлен' : 'Расставь флот'}</div>
-      <p class="sea-sub">${v.ready ? (v.oppReady ? 'Начинаем…' : `Ждём, пока ${esc(v.opp.nick)} расставит корабли. Придёт уведомление.`) : 'Корабли стоят случайно. Не нравится — перемешай. Готов — жми «В бой!».'}</p>
+      <p class="sea-sub">${v.ready ? (v.oppReady ? 'Начинаем…' : `Ждём, пока ${nk(v.opp)} расставит корабли. Придёт уведомление.`) : 'Корабли стоят случайно. Не нравится — перемешай. Готов — жми «В бой!».'}</p>
       ${renderBoard(v, 'me')}
-      ${v.stake ? `<div class="b-stake">${BEAN} Ставка ${v.stake} зёрен с каждого — победитель забирает ${v.stake * 2}${v.needPay ? '. Твои спишутся, когда нажмёшь «В бой»' : !v.oppPaid ? `. ${esc(v.opp.nick)} ещё не ${gw(v.opp.look, 'принял', 'приняла')} вызов` : ''}</div>` : ''}
+      ${v.stake ? `<div class="b-stake">${BEAN} Ставка ${v.stake} зёрен с каждого — победитель забирает ${v.stake * 2}${v.needPay ? '. Твои спишутся, когда нажмёшь «В бой»' : !v.oppPaid ? `. ${nk(v.opp)} ещё не ${gw(v.opp.look, 'принял', 'приняла')} вызов` : ''}</div>` : ''}
       ${v.ready ? '' : `<div class="row"><button class="btn ghost grow" data-act="bshuffle">dice Перемешать</button><button class="btn grow" data-act="bready">anchor ${v.needPay ? `В бой · ${v.stake} зёрен` : 'В бой!'}</button></div>`}
     </section>
     ${renderEmoteBar()}
@@ -3844,16 +3910,16 @@ function renderBattle() {
   }
   const done = v.status === 'done';
   const banner = done
-    ? `<div class="b-banner ${v.winner === 'me' ? 'win' : 'lose'}">${v.winner === 'me' ? (v.timeout ? `wait У ${esc(v.opp.nick)} кончилось время. Победа!` : v.resigned ? `trophy ${esc(v.opp.nick)} ${gw(v.opp.look, 'сдался', 'сдалась')}. Победа!` : 'trophy Победа! Весь флот соперника на дне') : (v.timeout ? 'wait Время вышло. В следующий раз быстрее!' : v.resigned ? `🐔 Ты ${meG('сдался', 'сдалась')}. Бывает` : `💥 ${esc(v.opp.nick)} ${gw(v.opp.look, 'потопил', 'потопила')} твой флот`)}</div>`
+    ? `<div class="b-banner ${v.winner === 'me' ? 'win' : 'lose'}">${v.winner === 'me' ? (v.timeout ? `wait У ${nk(v.opp)} кончилось время. Победа!` : v.resigned ? `trophy ${nk(v.opp)} ${gw(v.opp.look, 'сдался', 'сдалась')}. Победа!` : 'trophy Победа! Весь флот соперника на дне') : (v.timeout ? 'wait Время вышло. В следующий раз быстрее!' : v.resigned ? `🐔 Ты ${meG('сдался', 'сдалась')}. Бывает` : `💥 ${nk(v.opp)} ${gw(v.opp.look, 'потопил', 'потопила')} твой флот`)}</div>`
     : v.myTurn ? '<div class="b-banner go">target Твой ход — стреляй по полю соперника</div>'
-    : v.practice ? `<div class="b-banner wait">wait ${esc(v.opp.nick)} целится…</div>`
-    : `<div class="b-banner wait">wait Ход ${esc(v.opp.nick)}. Придёт уведомление, когда выстрелит</div>`;
+    : v.practice ? `<div class="b-banner wait">wait ${nk(v.opp)} целится…</div>`
+    : `<div class="b-banner wait">wait Ход ${nk(v.opp)}. Придёт уведомление, когда выстрелит</div>`;
   const oppFleet = v.fleet.map((len) => ({ len, sunk: false }));
   for (const sh of v.oppSunk) { const f = oppFleet.find((x) => x.len === sh.length && !x.sunk); if (f) f.sunk = true; }
   return `${defs}${back}${renderEmoteLayer(v)}${renderVersus(v)}
   ${banner}
   <section class="b-sea">
-    <div class="row" style="justify-content:space-between"><span class="sea-title">${v.practice ? 'Воды противника' : `Воды ${esc(v.opp.nick)}`}</span><span class="sea-sub">на плаву: ${v.oppLeft}</span></div>
+    <div class="row" style="justify-content:space-between"><span class="sea-title">${v.practice ? 'Воды противника' : `Воды ${nk(v.opp)}`}</span><span class="sea-sub">на плаву: ${v.oppLeft}</span></div>
     ${fleetBars(oppFleet)}
     ${renderBoard(v, 'opp')}
   </section>
@@ -3872,12 +3938,12 @@ function renderDmMsg(m, f) {
       <div class="meta"><span>${m.time}</span>${m.mine ? (m.read ? '<span title="Прочитано">✓✓</span>' : '<span title="Доставлено">✓</span>') : `<button class="linkbtn" data-act="meme-open" data-to="${f.id}">Ответить мемом</button>`}</div></div>`;
   }
   if (m.type === 'call') {
-    const who = m.mine ? 'Ты' : esc(f.nick);
+    const who = m.mine ? 'Ты' : nk(f);
     const verb = m.mine ? esc(m.callText).replace(/^зовёт/, 'зовёшь').replace(/^просит/, 'просишь').replace(/^спрашивает/, 'спрашиваешь').replace(/^ждёт/, 'ждёшь') : esc(m.callText);
     return `<div class="msg call-msg ${m.mine ? 'mine' : ''}">
       <div class="meta"><span>${m.time}</span></div>
       <div class="text"><b>${who}</b> ${verb}${m.opt ? ` · ${esc(m.opt.toLowerCase())}` : ''}${m.text ? ` · ${esc(m.text)}` : ''}</div>
-      ${m.reply ? `<div class="reps"><span class="rep">${m.mine ? esc(f.nick) : 'Ты'}: ${esc(m.reply)}</span></div>` : ''}
+      ${m.reply ? `<div class="reps"><span class="rep">${m.mine ? nk(f) : 'Ты'}: ${esc(m.reply)}</span></div>` : ''}
       ${m.canReply ? `<div class="chips">${m.replyOptions.map((l) => `<button class="chip" data-act="dm-reply" data-id="${m.id}" data-v="${esc(l)}">${esc(l)}</button>`).join('')}</div>` : ''}
     </div>`;
   }
@@ -3965,7 +4031,7 @@ function renderBirthdays() {
   if (!f || !f.birthdaysToday.length) return '';
   return f.birthdaysToday.map((b) => `<section class="bday">
     ${tap(b.id, `<span class="ava-wrap">${avatar(b.look, 34)}</span>`)}
-    <div class="grow"><div style="font-weight:900">Сегодня день рождения у ${esc(b.nick)}</div><div class="small" >Поздравь в банде или подари зёрна</div></div>
+    <div class="grow"><div style="font-weight:900">Сегодня день рождения у ${nk(b)}</div><div class="small" >Поздравь в банде или подари зёрна</div></div>
     ${b.gifted ? '<span class="small" style="font-weight:700">Поздравил|Поздравила ✓</span>' : `<button class="btn small" data-act="gift" data-id="${b.id}">+${f.giftBeans} ${BEAN}</button>`}
   </section>`).join('');
 }
@@ -3978,7 +4044,7 @@ function renderLunches() {
     <div class="row" style="justify-content:space-between"><span class="card-title">Обед компанией</span><button class="btn small green" data-act="open" data-v="lunch">+ Собрать</button></div>
     ${items.length ? items.map((l) => `<div class="lunch">
       <span class="lunch-time">${esc(l.time)}</span>
-      <div class="grow"><div style="font-weight:700">${esc(l.nick)}${l.place ? ' · ' + esc(l.place) : ''}</div>
+      <div class="grow"><div style="font-weight:700">${nk(l)}${l.place ? ' · ' + esc(l.place) : ''}</div>
         <div class="small">${l.count ? `идут: ${l.who.map(esc).join(', ')}${l.count > l.who.length ? ' и ещё ' + (l.count - l.who.length) : ''}` : 'пока никто не присоединился'}</div></div>
       ${l.mine ? `<button class="btn small ghost" data-act="lunch-cancel" data-id="${l.id}">Отменить</button>`
         : l.joined ? `<button class="btn small ghost" data-act="lunch-leave" data-id="${l.id}">Не иду</button>`
@@ -4004,14 +4070,14 @@ function renderCoffee() {
   }
   const p = c.pair;
   let state = '';
-  if (p.ping && p.ping.reply) state = `<div class="note ${p.ping.reply === 'Иду' ? 'good' : 'warn'}" style="margin:0">${p.ping.mine ? esc(p.partner.nick) + ': ' : (meG('Ты ответил: ', 'Ты ответила: '))}${esc(p.ping.reply)} · ${esc(p.ping.opt.toLowerCase())}</div>`;
+  if (p.ping && p.ping.reply) state = `<div class="note ${p.ping.reply === 'Иду' ? 'good' : 'warn'}" style="margin:0">${p.ping.mine ? nk(p.partner) + ': ' : (meG('Ты ответил: ', 'Ты ответила: '))}${esc(p.ping.reply)} · ${esc(p.ping.opt.toLowerCase())}</div>`;
   else if (p.ping && p.ping.mine) state = `<div class="note warn" style="margin:0">Ты предложил|предложила: ${esc(p.ping.opt.toLowerCase())}. Ждём ответа.</div>`;
-  else if (p.canReply) state = `<div class="note good" style="margin:0">${esc(p.partner.nick)} предлагает: ${esc(p.ping.opt.toLowerCase())}</div>
+  else if (p.canReply) state = `<div class="note good" style="margin:0">${nk(p.partner)} предлагает: ${esc(p.ping.opt.toLowerCase())}</div>
     <div class="chips">${p.replies.map((r) => `<button class="chip" data-act="coffee-reply" data-v="${esc(r)}">${esc(r)}</button>`).join('')}</div>`;
   const offer = p.canReply || (p.ping && p.ping.mine && !p.ping.reply) ? '' : `<div class="chips">${p.options.map((o) => `<button class="chip" data-act="coffee-ping" data-v="${esc(o)}">${esc(o)}</button>`).join('')}</div>`;
   return `<section class="card coffee">
     <div class="row" style="gap:12px">${tap(p.partner.id, `<span class="ava-wrap">${avatar(p.partner.look, 34)}</span>`)}
-    <div class="grow"><div class="eyebrow">Случайный кофе на этой неделе</div><div style="font-weight:900;font-size:16px">${esc(p.partner.nick)}</div>${p.partner.name ? `<div class="small" style="font-weight:700">${esc(p.partner.name)}</div>` : ''}${p.office ? `<div class="small">${esc(p.office)}</div>` : ''}</div></div>
+    <div class="grow"><div class="eyebrow">Случайный кофе на этой неделе</div><div style="font-weight:900;font-size:16px">${nk(p.partner)}</div>${p.partner.name ? `<div class="small" style="font-weight:700">${esc(p.partner.name)}</div>` : ''}${p.office ? `<div class="small">${esc(p.office)}</div>` : ''}</div></div>
     ${state}${offer}
   </section>`;
 }
@@ -4021,7 +4087,7 @@ function renderGangBirthdays() {
   if (!x || !x.birthdays.length) return '';
   return `<section class="card"><span class="card-title">Дни рождения</span>
     ${x.birthdays.map((b) => `<div class="person2">${tap(b.id, `<span class="ava-wrap">${avatar(b.look, 32)}</span>`)}
-      <div class="grow"><div style="font-weight:700">${esc(b.nick)}${b.me ? ' (ты)' : ''}</div><div class="where">${b.inDays === 0 ? 'сегодня!' : b.inDays === 1 ? 'завтра' : `через ${b.inDays} ${plural(b.inDays, 'день', 'дня', 'дней')}`} · ${esc(b.bday)}</div></div>
+      <div class="grow"><div style="font-weight:700">${nk(b)}${b.me ? ' (ты)' : ''}</div><div class="where">${b.inDays === 0 ? 'сегодня!' : b.inDays === 1 ? 'завтра' : `через ${b.inDays} ${plural(b.inDays, 'день', 'дня', 'дней')}`} · ${esc(b.bday)}</div></div>
       ${b.inDays === 0 && !b.me ? (b.gifted ? `<span class="small">${meG('поздравил', 'поздравила')} ✓</span>` : `<button class="btn small" data-act="gift" data-id="${b.id}">+10 ${BEAN}</button>`) : ''}</div>`).join('')}
   </section>`;
 }
@@ -4065,7 +4131,7 @@ function renderCrewWeek(v, g) {
     const menu = S.memMenu === m.id && !m.me;
     return `<div class="cw-row ${menu ? 'on' : ''}" data-act="person" data-id="${m.id}" ${m.me ? '' : `data-hold="mem-menu"`}>
       ${avatar(m.look, 34)}
-      <span class="cw-who"><b class="ellipsis">${esc(m.nick)}${m.me ? ' (ты)' : ''}</b><span class="cw-where"><span class="dot" style="background:${color}"></span><span class="ellipsis">${esc(m.name ? m.name.split(' ')[0] + ' · ' : '')}${esc(wt)}</span></span></span>
+      <span class="cw-who"><b class="ellipsis">${nk(m)}${m.me ? ' (ты)' : ''}</b><span class="cw-where"><span class="dot" style="background:${color}"></span><span class="ellipsis">${esc(m.name ? m.name.split(' ')[0] + ' · ' : '')}${esc(wt)}</span></span></span>
       ${m.charge && !m.me ? `<button class="btn small bt-need" data-act="boost-open" data-id="${m.id}" data-nick="${esc(m.nick)}" aria-label="Подкинуть заряд: ${esc(m.nick)} просит подзарядку">bolt</button>` : ''}
       ${dots(m, k)}
     </div>
@@ -4082,7 +4148,7 @@ function renderCrewWeek(v, g) {
     <div class="row cw-top"><span class="card-title grow">hand Банда на неделе · ${v.members.length}</span>${head}</div>
     ${sum ? `<div class="cw-sum">${ico('where', 15)}<span>${sum}</span></div>` : ''}
     ${w && w.locked ? planLockMsg(w.locked, true) : ''}
-    ${reqN ? `<div class="g-req"><b>Хотят в банду · ${reqN}</b>${v.requests.map((r) => `<div class="person2">${tap(r.id, avatar(r.look, 30))}<span class="grow ellipsis" style="font-weight:800">${esc(r.nick)}</span><button class="btn small" data-act="greq" data-id="${r.id}" data-v="accept">Принять</button><button class="btn small ghost" data-act="greq" data-id="${r.id}" data-v="decline" aria-label="Отклонить">✕</button></div>`).join('')}</div>` : ''}
+    ${reqN ? `<div class="g-req"><b>Хотят в банду · ${reqN}</b>${v.requests.map((r) => `<div class="person2">${tap(r.id, avatar(r.look, 30))}<span class="grow ellipsis" style="font-weight:800">${nk(r)}</span><button class="btn small" data-act="greq" data-id="${r.id}" data-v="accept">Принять</button><button class="btn small ghost" data-act="greq" data-id="${r.id}" data-v="decline" aria-label="Отклонить">✕</button></div>`).join('')}</div>` : ''}
     <div class="cw-list">${list.map(row).join('')}</div>
     ${all.length > SHOW + 1 ? `<button class="linkbtn" data-act="members-all" aria-expanded="${!cut}">${cut ? `Показать всех · ${all.length}` : 'Свернуть'}</button>` : ''}
     <div class="wk-legend"><span><i class="wk-c office"></i>офис</span><span><i class="wk-c home"></i>дома</span><span><i class="wk-c vacation"></i>отпуск</span><span><i class="wk-c sick"></i>болеет</span>${days.some((d) => d.holiday) ? '<span><i class="wk-c off"></i>праздник</span>' : ''}</div>
@@ -4105,7 +4171,7 @@ function renderThanks(v) {
     <div class="row" style="justify-content:space-between;align-items:center"><span class="card-title">handСпасибо</span>
       ${can ? `<button class="btn small ${pick ? 'ghost' : ''}" data-act="thx-pick" aria-expanded="${!!pick}">${pick ? 'Свернуть' : 'Сказать спасибо'}</button>` : `<span class="small">${x.thanksLeft ? '' : 'на сегодня всё'}</span>`}</div>
     ${pick ? `<p class="small" style="margin:0">Кому? Получит пуш и зерно. Осталось ${x.thanksLeft} из 3 сегодня.</p>
-      <div class="chips">${others.map((m) => `<button class="chip ${S.thanksTo === m.id ? 'on' : ''}" data-act="thanks-to" data-v="${m.id}">${esc(m.nick)}</button>`).join('')}</div>
+      <div class="chips">${others.map((m) => `<button class="chip ${S.thanksTo === m.id ? 'on' : ''}" data-act="thanks-to" data-v="${m.id}">${nk(m)}</button>`).join('')}</div>
       ${S.thanksTo ? `<div class="row"><label class="field grow" style="gap:0"><span class="hidden">За что спасибо</span><input id="thanks-text" maxlength="80" placeholder="За что? Можно пусто" aria-label="За что спасибо"></label><button class="btn" data-act="thanks-send">Спасибо</button></div>` : ''}` : ''}
     ${toMe && !S.thxAll ? line(toMe) : ''}
     ${x.thanks.length ? `<button class="linkbtn thx-more" data-act="thx-all" aria-expanded="${!!S.thxAll}">${S.thxAll ? 'Свернуть' : `Спасибо за неделю · ${x.thanks.length}`}</button>
@@ -4185,8 +4251,8 @@ function renderSheet() {
       <div class="row"><label class="field grow" style="gap:0"><span class="hidden">Ник</span><input id="crew-nick" maxlength="21" placeholder="ник" autocapitalize="off" autocomplete="off" aria-label="Ник"></label><button class="btn" data-act="crew-add">Позвать</button></div>
       <button class="btn blue" data-act="crew-share">Отправить свою ссылку</button>
       <p class="small">Кто откроет ссылку, сразу сможет тебе писать, поэтому шли её лично, а не в общий чат.</p>
-      ${S.crew && S.crew.outgoing.length ? `<div class="crew-out"><span class="small">Ждём ответа:</span> ${S.crew.outgoing.map((p) => `<span class="rep">${esc(p.nick)} <button class="linkbtn" data-act="crew-decline" data-id="${p.id}" aria-label="Отменить заявку">✕</button></span>`).join(' ')}</div>` : ''}
-      ${S.crew && S.crew.blocked.length ? `<details><summary class="small" style="cursor:pointer;min-height:32px">Заблокированные (${S.crew.blocked.length})</summary>${S.crew.blocked.map((p) => `<div class="row" style="justify-content:space-between"><span>${esc(p.nick)}</span><button class="linkbtn" data-act="crew-unblock" data-id="${p.id}">Разблокировать</button></div>`).join('')}</details>` : ''}`);
+      ${S.crew && S.crew.outgoing.length ? `<div class="crew-out"><span class="small">Ждём ответа:</span> ${S.crew.outgoing.map((p) => `<span class="rep">${nk(p)} <button class="linkbtn" data-act="crew-decline" data-id="${p.id}" aria-label="Отменить заявку">✕</button></span>`).join(' ')}</div>` : ''}
+      ${S.crew && S.crew.blocked.length ? `<details><summary class="small" style="cursor:pointer;min-height:32px">Заблокированные (${S.crew.blocked.length})</summary>${S.crew.blocked.map((p) => `<div class="row" style="justify-content:space-between"><span>${nk(p)}</span><button class="linkbtn" data-act="crew-unblock" data-id="${p.id}">Разблокировать</button></div>`).join('')}</details>` : ''}`);
     case 'pcall': return sheetWrap('Позвать ' + (((S.people || []).find((p) => p.id === S.pcallTo) || (S.person && S.person.id === S.pcallTo ? S.person : null) || {}).nick || ''), `<p class="sub">Лично, придёт пуш. Тихие часы 19:00–09:00 уважаем.</p>
       <div class="calls">${['coffee', 'lunch', 'room', 'call', 'where', 'online', 'wait'].map((k) => `<button class="call" style="--c:${CALL_STYLE[k]}" data-act="pcall" data-id="${S.pcallTo}" data-kind="${k}">${ico(k, 20)}<span>${esc(S.cat.calls[k].label)}</span></button>`).join('')}</div>
       <button class="btn ghost" data-act="dm-open" data-id="${S.pcallTo}">chat Написать сообщение</button>`);
@@ -4202,16 +4268,16 @@ function renderSheet() {
     case 'tourney': return sheetWrap(S.tour ? `trophy ${S.tour.title}` : 'trophy Турнир', renderTourney());
     case 'dm-pick': return sheetWrap('Написать в личку', `<p class="sub" style="margin:0">Написать можно любому — если он сам не ограничил личку. Подельникам и своей банде — проще всего.</p>
       <button class="find-bar light" data-act="find-open">${ico('search', 18)}<span>Найти человека по нику или почте</span></button>
-      ${(S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${p.crew ? '<span class="fav-star">★</span> ' : ''}${esc(p.nick)}</span><span class="where">${esc(p.gangs.map((g) => g.name).join(', ') || (p.crew ? 'подельник' : whereText(p)[0]))}</span></span><span aria-hidden="true">›</span></button>`).join('')}`);
+      ${(S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${p.crew ? '<span class="fav-star">★</span> ' : ''}${nk(p)}</span><span class="where">${esc(p.gangs.map((g) => g.name).join(', ') || (p.crew ? 'подельник' : whereText(p)[0]))}</span></span><span aria-hidden="true">›</span></button>`).join('')}`);
     case 'duel-pick': return sheetWrap(`${{ rps: 'rock Камень, ножницы, бумага', dice: 'dice Кости', ttt: 'x Крестики-нолики', sea: 'anchor Морской бой' }[S.duelGame] || 'Дуэль'}: с кем?`, `
       <button class="chat-row pr-row" data-act="pr-start" data-v="${S.duelGame}">${avatar(PR.BOT.look, 36)}<span class="grow"><span class="chat-title">Практика</span><span class="where">${S.duelGame === 'ttt' || S.duelGame === 'sea' ? 'два уровня · есть ачивки' : 'без зёрен и рейтинга'}</span></span><span class="pr-go">Играть</span></button>
       <div class="pr-or"><span>или со своими</span></div>
       ${S.duelGame === 'sea' ? seaModes({ pick: S.seaMode || 'calm' }) : ''}
       <div class="duel-stake"><span class="small">Ставка:</span>${[0, 5, 10].map((x) => `<button class="chip ${(S.duelStake || 0) === x ? 'on' : ''}" data-act="duel-stake" data-v="${x}">${x ? x + ' зёрен' : 'без ставки'}</button>`).join('')}</div>
-      ${(S.people || []).length ? (S.people || []).map((p) => `<button class="chat-row" data-act="duel-go" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${p.crew ? '<span class="fav-star">★</span> ' : ''}${esc(p.nick)}</span><span class="where">${esc(whereText(p)[0])}</span></span><span aria-hidden="true">swords</span></button>`).join('') : '<p class="sub">Пока некого вызвать: найди своих по нику или вступи в банду.</p>'}
+      ${(S.people || []).length ? (S.people || []).map((p) => `<button class="chat-row" data-act="duel-go" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${p.crew ? '<span class="fav-star">★</span> ' : ''}${nk(p)}</span><span class="where">${esc(whereText(p)[0])}</span></span><span aria-hidden="true">swords</span></button>`).join('') : '<p class="sub">Пока некого вызвать: найди своих по нику или вступи в банду.</p>'}
       <button class="find-bar light" data-act="find-open">${ico('search', 18)}<span>Найти соперника по нику</span></button>
       <p class="small" style="margin:0">${S.duelGame === 'sea' ? 'Вызвать можно любого, кому можно написать лично. Соперник платит ставку, когда нажимает «В бой»; откажется — зёрна вернутся.' : 'Вызвать можно любого, кому можно написать лично. Дуэль появится у вас в личке.'}</p>`);
-    case 'battle-pick': return sheetWrap('С кем сыграть?', (S.people || []).length ? (S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${esc(p.nick)}</span><span class="where">${esc(whereText(p)[0])}</span></span><span aria-hidden="true">›</span></button>`).join('') + '<p class="small">Откроется переписка — там выбери «Без спешки» или «Быстрая».</p>' : '<p class="sub">Сначала сколоти банду и позови в неё своих.</p>');
+    case 'battle-pick': return sheetWrap('С кем сыграть?', (S.people || []).length ? (S.people || []).map((p) => `<button class="chat-row" data-act="dm-open" data-id="${p.id}">${avatar(p.look, 36)}<span class="grow"><span class="chat-title">${nk(p)}</span><span class="where">${esc(whereText(p)[0])}</span></span><span aria-hidden="true">›</span></button>`).join('') + '<p class="small">Откроется переписка — там выбери «Без спешки» или «Быстрая».</p>' : '<p class="sub">Сначала сколоти банду и позови в неё своих.</p>');
     case 'whatsnew': return sheetWrap('Что поменялось', `<div class="wn">
       <div class="wn-i"><span>room</span><div><b>Рядом</b><p>Главный экран: где ты сегодня и все твои люди одним списком — кто в офисе, кто дома, кто в отпуске.</p></div></div>
       <div class="wn-i"><span>chat</span><div><b>Чаты</b><p>Банды и личка вместе. Членам своей банды теперь можно писать лично — без заявки.</p></div></div>
@@ -4221,6 +4287,7 @@ function renderSheet() {
     case 'avatar': return sheetWrap(S.avaMode === 'vacation' ? 'Образ для отпуска' : 'Конструктор', renderAvatarEditor());
     case 'meme': return sheetWrap('Мем-открытка', renderMemeMaker());
     case 'shop': return sheetWrap('Лавка', renderShop());
+    case 'gift-pick': return sheetWrap(S.giftMode === 'prank' ? 'Разыграть подельника' : 'Подарить подельнику', renderGiftPick());
     case 'inbox': return sheetWrap('Этаж', renderInbox());
     case 'board-new': return sheetWrap('Объявление', renderBoardNew());
     case 'coffee': return sheetWrap('Случайный кофе', `<div class="coffee-sheet">${renderCoffee()}</div><p class="small">Раз в неделю, в понедельник в 10:00, знакомим с коллегой из твоего офиса, который не в твоих бандах. Договориться о времени можно прямо здесь — кнопками.</p>${S.fx && S.fx.coffee && S.fx.coffee.optIn ? '<button class="linkbtn" data-act="coffee-off">Больше не участвовать</button>' : ''}`);
@@ -4263,7 +4330,7 @@ function renderCompose() {
     <p class="sub">Банда: <b>${esc(gang ? gang.name : '')}</b>. Придёт пуш — тихие часы 19:00–09:00 уважаем.</p>
     <div class="field">Кому<div class="chips">
       <button class="chip ${!c.to ? 'on' : ''}" data-act="c-to" data-v="">Всей банде</button>
-      ${members.map((m) => `<button class="chip ${c.to === m.id ? 'on' : ''}" data-act="c-to" data-v="${m.id}">${esc(m.nick)}</button>`).join('')}
+      ${members.map((m) => `<button class="chip ${c.to === m.id ? 'on' : ''}" data-act="c-to" data-v="${m.id}">${nk(m)}</button>`).join('')}
     </div></div>
     ${def.opts.length ? `<div class="field">Когда / где<div class="chips">${def.opts.map((o) => `<button class="chip ${c.opt === o ? 'on' : ''}" data-act="c-opt" data-v="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>` : ''}
     ${def.textLabel ? `<label class="field">${esc(def.textLabel)}<input id="c-text" maxlength="40" placeholder="${esc(def.textHint)}" value="${esc(c.text || '')}"></label>` : ''}
@@ -4316,7 +4383,7 @@ function renderGuess() {
   const opts = x.options.map((o) => {
     let cls = '';
     if (x.answered) cls = o.id === x.answer ? 'ok' : o.id === x.pick ? 'bad' : 'dim';
-    return `<button class="gopt ${cls}" ${x.answered ? 'disabled' : `data-act="guess-pick" data-id="${x.id}" data-v="${o.id}"`}>${esc(o.nick)}</button>`;
+    return `<button class="gopt ${cls}" ${x.answered ? 'disabled' : `data-act="guess-pick" data-id="${x.id}" data-v="${o.id}"`}>${nk(o)}</button>`;
   }).join('');
   const after = x.answered ? `<div class="note ${x.correct ? 'good' : 'warn'}" style="margin:0">${x.correct ? `Верно!${S.guessBeans ? ` +${S.guessBeans} ${plural(S.guessBeans, 'зерно', 'зерна', 'зёрен')}` : ''}` : `Это ${esc(x.answerNick)}`}</div>
     <div class="row">${x.left > 0 ? '<button class="btn small grow" data-act="guess-next">Следующий вопрос</button>' : ''}<button class="btn small ghost grow" data-act="person" data-id="${x.answer}">Профиль ${esc(x.answerNick)}</button></div>` : '';
@@ -4328,7 +4395,7 @@ function renderGuess() {
 const mmss = (ms) => { const t = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
 function blitzBoard(b, limit = 10) {
   if (!b || !b.top.length) return '<p class="small" style="margin:0">Пока никто не прошёл — стань первым в таблице.</p>';
-  return `<div class="bl-board">${b.top.slice(0, limit).map((r) => `<div class="bl-row ${r.me ? 'me' : ''}"><span class="bl-place">${r.place <= 3 ? ['medal', 'medal', 'medal'][r.place - 1] : r.place}</span><span class="grow ellipsis">${esc(r.nick)}${r.me ? ' (ты)' : ''}</span><b>${r.score}</b><span class="small">${mmss(r.secs * 1000)}</span></div>`).join('')}</div>
+  return `<div class="bl-board">${b.top.slice(0, limit).map((r) => `<div class="bl-row ${r.me ? 'me' : ''}"><span class="bl-place">${r.place <= 3 ? ['medal', 'medal', 'medal'][r.place - 1] : r.place}</span><span class="grow ellipsis">${nk(r)}${r.me ? ' (ты)' : ''}</span><b>${r.score}</b><span class="small">${mmss(r.secs * 1000)}</span></div>`).join('')}</div>
     ${b.place && b.place > limit ? `<p class="small" style="margin:6px 0 0">Ты на ${b.place} месте из ${b.players}</p>` : ''}`;
 }
 function renderBlitzCard() {
@@ -4753,6 +4820,9 @@ const SOUNDS = {
     tone(c, { f: G4 / 2, type: 'sine', at: 0.42, dur: 0.62, vol: 0.06, rv: 0.2 });
     blast(c, { at: 0.42, vol: 0.12, len: 0.5, crackle: 0, rv: 0.3 });
   },
+  // Звуки отметки из Лавки
+  chip: (c) => { [523, 659, 784, 1047, 1319].forEach((f, i) => tone(c, { f, type: 'square', at: i * 0.075, dur: 0.07, vol: 0.035, atk: 0.002 })); tone(c, { f: 1568, type: 'square', at: 0.42, dur: 0.22, vol: 0.04, atk: 0.002 }); },
+  cuckoo: (c) => { [[659, 0], [523, 0.22], [659, 0.62], [523, 0.84]].forEach(([f, at]) => { tone(c, { f, type: 'sine', at, dur: 0.18, vol: 0.09, atk: 0.01, rv: 0.35 }); tone(c, { f: f * 2, type: 'sine', at, dur: 0.1, vol: 0.015, rv: 0.2 }); }); noise(c, { at: 0, dur: 0.05, vol: 0.02, type: 'bandpass', f: 1800, q: 3 }); },
   // Победа: литавры и медный аккорд
   fanfare: (c) => {
     [0, 0.18, 0.36].forEach((at, i) => { tone(c, { f: 98, f2: 92, type: 'sine', at, dur: 0.5, vol: 0.14 - i * 0.02, atk: 0.003, rv: 0.4 }); noise(c, { at, dur: 0.12, vol: 0.08, type: 'lowpass', f: 600, rv: 0.4 }); });
@@ -4845,7 +4915,7 @@ const OUTFIT_NAMES = { hoodie: 'Худи', tee: 'Футболка', dev: 'Фут
 const MASK_NAMES = { none: 'Без маски', medical: 'Медицинская', gauze: 'Марлевая', visor: 'Кибервизор', scuba: 'Аквалангист' };
 const COLOR_NAMES = { same: 'Как одежда', red: 'Красный', blue: 'Синий', green: 'Зелёный', violet: 'Фиолетовый', navy: 'Тёмно-синий', black: 'Чёрный', white: 'Белый', beige: 'Бежевый', yellow: 'Жёлтый', pink: 'Розовый', orange: 'Оранжевый', khaki: 'Хаки', burgundy: 'Бордовый', grey: 'Серый' };
 const NECK_NAMES = { none: 'Ничего', tie: 'Галстук', tie_crooked: 'Галстук набок', bow: 'Бабочка', badge: 'Пропуск', beads: 'Бусы', chain: 'Цепочка', tie_gold: 'Золотой галстук', chain_gold: 'Золотая цепь', snake: 'Змея', garland: 'Ёлочная гирлянда' };
-const PET_NAMES = { none: 'Без питомца', corgi: 'Корги', pug: 'Мопс', frenchie: 'Французский бульдог', parrot: 'Попугай на плече' };
+const PET_NAMES = { none: 'Без питомца', corgi: 'Корги', pug: 'Мопс', frenchie: 'Французский бульдог', parrot: 'Попугай на плече', cat: 'Кот на клавиатуре', aquarium: 'Аквариум', cactus: 'Кактус' };
 const LENS_NAMES = { clear: 'Прозрачные', grey: 'Серые', brown: 'Коричневые', blue: 'Голубые', green: 'Зелёные', pink: 'Розовые', yellow: 'Жёлтые' };
 const LENS_SWATCH = { clear: 'repeating-linear-gradient(45deg,#fff 0 4px,#E3E8F2 4px 8px)', grey: '#555B68', brown: '#7A5232', blue: '#4A86E0', green: '#3A9A68', pink: '#F08BB4', yellow: '#F2C230' };
 const HAT_NAMES = { none: 'Без шапки', beanie: 'Шапка', cap: 'Кепка', headset: 'Гарнитура', laurel: 'Лавровый венок', knight: 'Рыцарский шлем', royal: 'Корона', fedora: 'Шляпа', ushanka: 'Ушанка', tricorn: 'Треуголка капитана', dedmoroz: 'Шапка Деда Мороза', kokoshnik: 'Кокошник Снегурочки', wreath: 'Весенний венок', shawl: 'Расписной платок' };
@@ -4859,7 +4929,7 @@ const PART_NAMES = { left: 'Слева', right: 'Справа' };
 const LIPS_NAMES = { thin: 'Тонкие', normal: 'Средние', full: 'Пухлые' };
 const MOLE_NAMES = { none: 'Нет', cheekL: 'Щека слева', cheekR: 'Щека справа', lip: 'Над губой', chin: 'Подбородок' };
 const HAIR_COLOR_NAMES = { '#0F0E12': 'Чёрный', '#2B1D14': 'Тёмно-каштановый', '#4A3326': 'Тёмно-русый', '#6B3E26': 'Каштановый', '#8C6A4F': 'Русый', '#B5532A': 'Медный', '#C2412F': 'Рыжий', '#CFAE74': 'Пшеничный', '#E0B04B': 'Блонд', '#F2E6C9': 'Платина', '#6E6A66': 'Соль с перцем', '#9AA3B5': 'Седой', '#7C4DFF': 'Фиолетовый', '#FF6FA8': 'Розовый' };
-const PROP_NAMES = { none: 'Ничего', torch: 'Факел', phone: 'Телефон', mimosa: 'Букет мимозы', pancakes: 'Стопка блинов', mug: 'Кружка', papers: 'Квартальный отчёт', sign: 'Табличка', laptop: 'Ноутбук', mug_best: 'Лучший сотрудник', trophy: 'Кубок Лиги' };
+const PROP_NAMES = { sign_lunch: 'Ушёл на обед', sign_dnd: 'Не беспокоить', sign_ask: 'Я просто спросить', none: 'Ничего', torch: 'Факел', phone: 'Телефон', mimosa: 'Букет мимозы', pancakes: 'Стопка блинов', mug: 'Кружка', papers: 'Квартальный отчёт', sign: 'Табличка', laptop: 'Ноутбук', mug_best: 'Лучший сотрудник', trophy: 'Кубок Лиги' };
 // Две группы: «Внешность» — кто ты (по этому узнают), «Стиль» — что на тебе надето и вокруг
 const AVA_CATS = [['face', 'Лицо'], ['eyes', 'Глаза и брови'], ['hair', 'Волосы'], ['mouth', 'Рот'], ['beard', 'Борода'], ['makeup', 'Макияж'], ['age', 'Возраст и приметы'], ['outfit', 'Одежда'], ['acc', 'Аксессуары'], ['pet', 'Питомец'], ['bg', 'Фон'], ['meme', 'Мемы']];
 // Что по умолчанию снимаем в превью вкладки, чтобы оно не закрывало выбираемую часть
@@ -4975,7 +5045,7 @@ function renderMemeMaker() {
     <div class="meme-prev">${memeSvg(S.me.look, m.scene, m.emo, 230)}</div>
     <div class="field">${m.gang ? 'Праздник' : 'Ситуация'}<div class="scenes">${scenes.map((x) => `<button class="scene ${m.scene === x.id ? 'on' : ''}" style="background:linear-gradient(160deg, ${x.bg[0]}, ${x.bg[1]})" data-act="meme-scene" data-v="${x.id}">${esc(x.caption)}</button>`).join('')}</div></div>
     <div class="field">Эмоция<div class="chips">${Object.entries(S.cat.memeEmos).map(([k, v]) => `<button class="chip ${m.emo === k ? 'on' : ''}" data-act="meme-emo" data-v="${k}">${esc(v.label)}</button>`).join('')}</div></div>
-    ${m.gang ? `<button class="btn" data-act="meme-send-gang">В чат «${esc(gname)}»</button>` : crew.length ? `<div class="field">Кому отправить<div class="chips">${crew.map((f) => `<button class="chip ${m.to === f.id ? 'on' : ''}" data-act="meme-to" data-v="${f.id}">${esc(f.nick)}</button>`).join('')}</div></div>` : '<p class="small" style="margin:0">Отправлять мемы можно членам твоих банд. А картинкой — куда угодно.</p>'}
+    ${m.gang ? `<button class="btn" data-act="meme-send-gang">В чат «${esc(gname)}»</button>` : crew.length ? `<div class="field">Кому отправить<div class="chips">${crew.map((f) => `<button class="chip ${m.to === f.id ? 'on' : ''}" data-act="meme-to" data-v="${f.id}">${nk(f)}</button>`).join('')}</div></div>` : '<p class="small" style="margin:0">Отправлять мемы можно членам твоих банд. А картинкой — куда угодно.</p>'}
     <div class="row">${m.to && !m.gang ? `<button class="btn grow" data-act="meme-send">Отправить ${esc((crew.find((f) => f.id === m.to) || {}).nick || '')}</button>` : ''}<button class="btn ${m.to || m.gang ? 'ghost' : ''} grow" data-act="meme-share">${navigator.share ? 'Поделиться картинкой' : 'Скачать картинку'}</button></div>
     <p class="small" style="margin:0">На открытке твой текущий аватар. Подписи — из готового списка, чтобы мемы оставались добрыми.</p>
   </div>`;
@@ -5048,7 +5118,7 @@ function renderAvatarEditor() {
       <div class="field">В руке${tiles('prop', ['none', 'mug', 'mug_best', 'phone', 'torch', 'mimosa', 'pancakes'], { none: 'Ничего', mug: 'Кружка', mug_best: 'Лучший сотрудник', phone: 'Телефон', torch: 'Факел', mimosa: 'Букет мимозы', pancakes: 'Стопка блинов' })}</div>
 `,
     bg: `<div class="field">Фон${tiles('bg', L.bg, BG_NAMES)}</div><p class="small" style="margin:0">«Под кожу» сам подбирает цвет, на котором лицо не сливается с фоном.</p>`,
-    meme: `<div class="field">В руках${tiles('prop', ['none', 'papers', 'sign', 'laptop', 'trophy'], PROP_NAMES)}</div><p class="small" style="margin:0">Детали с ценой можно примерить бесплатно, а сохранить — после покупки в Лавке. Корона и рамки — тоже в Лавке.</p>`
+    meme: `<div class="field">В руках${tiles('prop', ['none', 'papers', 'sign', 'sign_lunch', 'sign_dnd', 'sign_ask', 'laptop', 'trophy'], PROP_NAMES)}</div><p class="small" style="margin:0">Детали с ценой можно примерить бесплатно, а сохранить — после покупки в Лавке. Корона и рамки — тоже в Лавке.</p>`
   }[cat];
   const locked = draftLocked();
   return `<div class="ava-ed">
@@ -5128,7 +5198,7 @@ function renderProfile() {
 
   const nameBody = `
     <div class="field">Никнейм
-      ${S.nickConfirm ? `<div class="note warn" style="margin:0">Сменить ${esc(me.nick)} на <b>${esc(S.nickConfirm)}</b> ${me.nickFree ? 'бесплатно? Бесплатная смена одна, следующие — за ' + S.cat.nickPrice + ' зёрен.' : `за ${S.cat.nickPrice} зёрен?`} Старый ник освободится, и его сможет занять кто-то другой.</div>
+      ${S.nickConfirm ? `<div class="note warn" style="margin:0">Сменить ${nk(me)} на <b>${esc(S.nickConfirm)}</b> ${me.nickFree ? 'бесплатно? Бесплатная смена одна, следующие — за ' + S.cat.nickPrice + ' зёрен.' : `за ${S.cat.nickPrice} зёрен?`} Старый ник освободится, и его сможет занять кто-то другой.</div>
       <div class="row"><button class="btn small grow" data-act="nick-yes">Да, сменить</button><button class="btn small ghost grow" data-act="nick-no">Отмена</button></div>`
       : `<div class="row"><label class="grow" style="display:flex"><span class="hidden">Новый никнейм</span><input id="p-nick" maxlength="21" value="${esc(me.nick)}" aria-label="Новый никнейм"></label>
       <button class="btn small" data-act="nick-change" ${!me.nickFree && me.beans < S.cat.nickPrice ? 'disabled' : ''}>Сменить</button></div>
@@ -5194,7 +5264,7 @@ function renderProfile() {
 
   return `
     <div class="prof-hero">${progressRing(me.completion.pct, avatar(look, 72))}<div class="grow">
-      <div class="nick" style="color:var(--ink)">${esc(me.nick)}</div>
+      <div class="nick" style="color:var(--ink)">${nk(me)}</div>
       ${name ? `<div class="small" style="font-weight:700">${esc(name)}</div>` : ''}
       ${me.status ? `<div class="status" style="color:var(--tint-y-fg)">${esc(me.status)}</div>` : ''}
       <div class="small">${me.beans} ${plural(me.beans, 'зерно', 'зерна', 'зёрен')}</div></div></div>
@@ -5239,7 +5309,7 @@ function renderPerson() {
   }
   return `<div class="person-card">
     <div class="person-ava">${avatar(x.look, 180)}</div>
-    <div class="nick" style="color:var(--ink);text-align:center">${esc(x.nick)}${x.me ? ' (ты)' : ''}</div>
+    <div class="nick" style="color:var(--ink);text-align:center">${nk(x)}${x.me ? ' (ты)' : ''}</div>
     ${x.name ? `<div class="sub" style="text-align:center;margin:0;font-weight:700">${esc(x.name)}</div>` : ''}
     ${x.status ? `<div class="status" style="color:var(--tint-y-fg);text-align:center">${esc(x.status)}</div>` : ''}
     ${x.role ? `<div class="person-role">${ico('office', 16)} ${esc(x.role)}</div>` : ''}
@@ -5255,47 +5325,152 @@ function renderPerson() {
   </div>`;
 }
 
+// ===== Лавка =====
+// Вкладки вместо одного длинного списка; сверху — товар дня, «по карману сейчас» и сезонное.
+// Внутри вкладки: сначала то, на что хватает зёрен, потом дороже, купленное — в конце, свёрнуто
+const SHOP_TABS = [['me', 'Для меня'], ['style', 'Стиль'], ['fun', 'Приколы'], ['gang', 'Для банды'], ['awards', 'Трофеи'], ['earn', 'Как заработать']];
+const shopTabOf = (it) => (it.award ? 'awards' : it.kind === 'part' ? 'me' : it.kind === 'prank' ? 'fun' : it.kind === 'gang' ? 'gang' : 'style');
+const GIFTABLE = (it) => !it.award && !['gang', 'prank'].includes(it.kind) && !it.limit;
+const dateOf = (ts) => { const d = new Date(ts); return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`; };
+const SND_NAMES = { lift: 'лифт', fanfare: 'фанфары', chip: '8-бит', cuckoo: 'ку-ку' };
+const PRANK_ABOUT = { coffee: 'Кофейное пятно на одежде и опрокинутая кружка', sticker: 'Жёлтый стикер «Я ♥ понедельники» на лбу', phones: 'Розовые наушники и ноты вокруг головы' };
+const NFX_ABOUT = { gold: 'Ник переливается золотом', rainbow: 'Ник радугой', glitch: 'Ник с помехами, как в старом телевизоре' };
+// Как вещь выглядит на тебе: для деталей и рамок — твой аватар с ней
+function shopPrev(it, size = 44, plain = false) {
+  if (it.kind === 'part') return avatar({ ...S.me.look, [it.slot]: it.value, frame: null, crown: false, prank: null }, size);
+  if (it.kind === 'frame') return avatar({ ...S.me.look, frame: it.id, crown: false, prank: null }, size);
+  if (it.kind === 'crown') return avatar({ ...S.me.look, crown: true, prank: null }, size);
+  if (it.kind === 'prank') return avatar({ ...S.me.look, frame: null, crown: false, prank: { v: it.value, until: Date.now() + 6e4 } }, size);
+  if (it.kind === 'nickfx') return `<span class="shop-ico nfx-ico"><span class="nfx nfx-${it.value}" data-t="Аа">Аа</span></span>`;
+  if (it.kind === 'sound' && plain) return '<span class="shop-ico snd-ico">▶</span>';
+  if (it.kind === 'sound') return `<button class="shop-ico snd-ico" data-act="shop-listen" data-v="${it.value}" aria-label="Послушать: ${esc(it.name)}">▶</button>`;
+  if (it.kind === 'status') return '<span class="shop-ico">medal</span>';
+  if (it.kind === 'gang') return `<span class="shop-ico">${{ g_gold: 'flag', g_motto: 'chat', g_flag: 'flag', g_horn: 'megaphone', g_pizza: '🍕' }[it.id] || 'shield'}</span>`;
+  return '<span class="shop-ico">star</span>';
+}
+const priceBtn = (it) => `<button class="btn small" data-act="buy" data-v="${it.id}" ${S.shop.beans < it.price ? 'disabled' : ''}>${it.was ? `<s class="was">${it.was}</s> ` : ''}${it.price} ${BEAN}</button>`;
+const giftBtn = (it) => (GIFTABLE(it) ? `<button class="icon-btn gift-btn" data-act="gift-open" data-v="${it.id}" aria-label="Подарить подельнику: ${esc(it.name)}" title="Подарить">gift</button>` : '');
+function shopSort(list) {
+  const b = S.shop.beans;
+  const rank = (it) => (it.owned ? 2 : it.price <= b ? 0 : 1);
+  return [...list].sort((x, y) => rank(x) - rank(y) || x.price - y.price);
+}
+// Строка товара (всё, кроме деталей аватара — они плиткой)
+function shopRow(it) {
+  let action, sub = '';
+  if (it.award) {
+    action = !it.owned ? '<span class="small">не продаётся</span>'
+      : it.kind === 'frame' ? `<button class="btn small ${it.equipped ? 'worn' : 'ghost wear'}" data-act="equip" data-v="${it.id}" data-on="${it.equipped ? '0' : '1'}">${it.equipped ? 'check Надето' : 'Надеть'}</button>`
+      : `<button class="btn small ghost" data-act="ava-open" data-cat="${it.slot === 'prop' ? 'meme' : 'acc'}">В конструктор</button>`;
+    sub = it.owned ? 'твой трофей' : 'за ' + esc(it.how);
+  } else if (it.kind === 'gang') {
+    const g = S.gang && S.gang.gang && S.gang.gang.id === (S.shopGang || S.activeGang) ? S.gang.gang : null;
+    const has = g && { g_gold: g.gold, g_motto: g.mottoOwned, g_flag: g.flag, g_horn: g.horn }[it.id];
+    const pz = it.id === 'g_pizza' && g && g.pizza;
+    action = !S.me.gangs.length ? '<span class="small">нужна банда</span>' : has ? '<span class="small">check есть у банды</span>' : pz ? `<span class="small">ещё едят: ${pz.left} из ${pz.slices}</span>` : priceBtn(it);
+    sub = { g_gold: 'Золотая рамка у карточки банды', g_motto: 'Строчка под названием банды', g_flag: 'Флаг цвета банды над твоим офисом на экране «Офис»', g_horn: 'Гудок, когда кто-то из банды открывает чат', g_pizza: `${it.slices} кусков в чате банды: каждый берёт по куску и +1 зерно. Сам угощающий не ест` }[it.id] || '';
+  } else if (it.kind === 'nickfx') {
+    action = priceBtn(it).replace(`${it.price} ${BEAN}`, `${it.active ? '+7 дн · ' : ''}${it.price} ${BEAN}`);
+    sub = it.active ? `<b>до ${dateOf(it.active)}</b>` : `${NFX_ABOUT[it.value] || ''} · на ${it.days} дней`;
+  } else if (it.kind === 'sound') {
+    action = it.owned ? `<button class="btn small ${it.equipped ? 'worn' : 'ghost wear'}" data-act="equip" data-v="${it.id}" data-on="${it.equipped ? '0' : '1'}">${it.equipped ? 'check Включён' : 'Включить'}</button>` : priceBtn(it);
+    sub = 'Играет, когда отмечаешься в офисе · нажми ▶, чтобы послушать';
+  } else if (it.kind === 'prank') {
+    action = `<button class="btn small" data-act="gift-open" data-v="${it.id}" data-mode="prank" ${S.shop.beans < it.price ? 'disabled' : ''}>Разыграть · ${it.price} ${BEAN}</button>`;
+    sub = `${PRANK_ABOUT[it.value] || ''} — на час на аватаре подельника`;
+  } else if (it.owned) {
+    action = `<button class="btn small ${it.equipped ? 'worn' : 'ghost wear'}" data-act="equip" data-v="${it.id}" data-on="${it.equipped ? '0' : '1'}">${it.equipped ? 'check Надето' : 'Надеть'}</button>`;
+  } else if (it.left === 0) {
+    action = '<span class="small">тираж закончился</span>';
+  } else action = priceBtn(it);
+  if (!sub && it.left !== undefined) sub = `осталось ${it.left}`;
+  if (it.until && !it.owned) sub = (sub ? sub + ' · ' : '') + `в продаже до ${ddmm(it.until)}`;
+  const gift = !it.award && !it.owned && it.kind !== 'prank' ? giftBtn(it) : it.owned && GIFTABLE(it) ? giftBtn(it) : '';
+  return `<div class="item shop-row" data-item="${it.id}">${shopPrev(it)}<div class="grow" style="min-width:0"><div style="font-weight:900">${it.color ? `<span class="dot" style="background:${it.color}"></span>` : ''}${esc(it.name)}${it.was ? ' <span class="deal-tag">−30%</span>' : ''}</div>${sub ? `<div class="small">${sub}</div>` : ''}</div>${gift}${action}</div>`;
+}
+// Плитка детали аватара: нажатие — примерка на большом аватаре сверху
+function shopTile(it) {
+  const on = S.shopTry === it.id;
+  return `<button class="shop-tile ${on ? 'on' : ''} ${it.owned ? 'own' : ''}" data-act="shop-try" data-v="${it.id}" data-item="${it.id}" aria-pressed="${on}">
+    ${avatar({ ...S.me.look, [it.slot]: it.value, frame: null, crown: false, prank: null }, 64)}
+    <span class="st-name">${it.legend ? 'star ' : ''}${esc(it.name)}</span>
+    <span class="st-price ${it.owned ? 'own' : S.shop.beans < it.price ? 'far' : ''}">${it.owned ? 'check твоё' : `${it.was ? `<s>${it.was}</s> ` : ''}${it.price} ${BEAN}`}</span></button>`;
+}
+function shopTryCard(items) {
+  const it = items.find((x) => x.id === S.shopTry) || null;
+  const look = it ? { ...S.me.look, [it.slot]: it.value, frame: null, crown: false, prank: null } : { ...S.me.look, prank: null };
+  const cat = (x) => (x.slot === 'prop' ? 'meme' : x.slot === 'outfit' ? 'outfit' : x.slot === 'hairStyle' ? 'hair' : x.slot === 'eyeShape' ? 'eyes' : x.slot === 'pet' ? 'pet' : 'acc');
+  const act = !it ? '<p class="small" style="margin:0">Нажми на любую вещь ниже — примеришь её здесь. Бесплатно и без покупки.</p>'
+    : it.owned ? `<div class="row" style="gap:8px"><button class="btn small ghost" data-act="ava-open" data-cat="${cat(it)}">Надеть в конструкторе</button>${giftBtn(it)}</div>`
+    : `<div class="row" style="gap:8px">${priceBtn(it)}${giftBtn(it)}</div>${S.shop.beans < it.price ? `<span class="small">Не хватает ${it.price - S.shop.beans} зёрен</span>` : ''}`;
+  return `<div class="shop-try">${avatar(look, 92)}<div class="grow" style="min-width:0;display:flex;flex-direction:column;gap:6px">
+    <b>${it ? esc(it.name) : 'Примерочная'}</b>${it && it.until ? `<span class="small">в продаже до ${ddmm(it.until)}</span>` : ''}${act}</div></div>`;
+}
 function renderShop() {
   if (!S.shop) return '<p class="sub">Загружаем…</p>';
-  const groups = [['award', 'trophy Трофеи Лиги банд'], ['part', 'Детали для аватара'], ['status', 'Статусы'], ['frame', 'Рамки аватара'], ['crown', 'Особое'], ['gang', 'Для банды']];
-  const item = (it) => {
-    let action;
-    if (it.award) {
-      const prev = it.kind === 'part' ? avatar({ ...S.me.look, [it.slot]: it.value, frame: null, crown: false }, 44) : avatar({ ...S.me.look, frame: it.id, crown: false }, 44);
-      action = !it.owned ? '<span class="small">не продаётся</span>'
-        : it.kind === 'frame' ? `<button class="btn small ${it.equipped ? 'worn' : 'ghost wear'}" data-act="equip" data-v="${it.id}" data-on="${it.equipped ? '0' : '1'}">${it.equipped ? 'check Надето' : 'Надеть'}</button>`
-        : `<button class="btn small ghost" data-act="ava-open" data-cat="${it.slot === 'prop' ? 'meme' : 'acc'}">В конструктор</button>`;
-      return `<div class="item">${prev}<div class="grow"><div style="font-weight:900">${esc(it.name)}</div><div class="small">${it.owned ? 'твой трофей' : 'за ' + esc(it.how)}</div></div>${action}</div>`;
-    }
-    if (it.kind === 'gang') {
-      action = S.me.gangs.length ? `<button class="btn small" data-act="buy" data-v="${it.id}" ${S.shop.beans < it.price ? 'disabled' : ''}>${it.price} ${BEAN}</button>` : '<span class="small">нужна банда</span>';
-    } else if (it.kind === 'part') {
-      const prev = avatar({ ...S.me.look, [it.slot]: it.value, frame: null, crown: false }, 44);
-      action = it.owned ? `<button class="btn small ghost" data-act="ava-open" data-cat="${it.slot === 'prop' ? 'meme' : it.slot === 'outfit' ? 'outfit' : it.slot === 'hairStyle' ? 'hair' : it.slot === 'eyeShape' ? 'eyes' : 'acc'}">В конструктор</button>`
-        : `<button class="btn small" data-act="buy" data-v="${it.id}" ${S.shop.beans < it.price ? 'disabled' : ''}>${it.price} ${BEAN}</button>`;
-      return `<div class="item">${prev}<div class="grow"><div style="font-weight:900">${it.legend ? 'star ' : ''}${esc(it.name)}</div><div class="small">${it.owned ? 'куплено — надень в конструкторе' : it.until ? `в продаже до ${it.until.slice(8, 10)}.${it.until.slice(5, 7)}` : 'можно примерить в конструкторе'}</div></div>${action}</div>`;
-    } else if (it.owned) {
-      action = `<button class="btn small ${it.equipped ? 'worn' : 'ghost wear'}" data-act="equip" data-v="${it.id}" data-on="${it.equipped ? '0' : '1'}">${it.equipped ? 'check Надето' : 'Надеть'}</button>`;
-    } else if (it.left === 0) {
-      action = '<span class="small">тираж закончился</span>';
-    } else {
-      action = `<button class="btn small" data-act="buy" data-v="${it.id}" ${S.shop.beans < it.price ? 'disabled' : ''}>${it.price} ${BEAN}</button>`;
-    }
-    return `<div class="item"><div class="grow"><div style="font-weight:900">${it.color ? `<span class="dot" style="background:${it.color}"></span>` : ''}${esc(it.name)}</div>
-      ${it.left !== undefined ? `<div class="small">осталось ${it.left}</div>` : ''}${it.until && !it.owned ? `<div class="small">в продаже до ${it.until.slice(8, 10)}.${it.until.slice(5, 7)}</div>` : ''}</div>${action}</div>`;
-  };
-  const gangSel = S.me.gangs.length > 1 ? `<div class="field">Покупка для банды<div class="chips">${S.me.gangs.map((g) => `<button class="chip ${g.id === (S.shopGang || S.activeGang) ? 'on' : ''}" data-act="shop-gang" data-v="${g.id}">${esc(g.name)}</button>`).join('')}</div></div>` : '';
-  return `<div class="note warn">У тебя ${S.shop.beans} зёрен</div>
-    ${groups.map(([k, title]) => `<h3>${title}</h3>${k === 'gang' ? gangSel : ''}${S.shop.items.filter((i) => (k === 'award' ? i.award : i.kind === k && !i.award)).map(item).join('')}`).join('')}
-    ${S.gang && S.gang.gang.mottoOwned ? `<label class="field">Девиз банды «${esc(S.gang.gang.name)}»<input id="motto" maxlength="40" value="${esc(S.gang.gang.motto || '')}"></label><button class="btn ghost" data-act="motto-save">Сохранить девиз</button>` : ''}
-    <h3>Как заработать</h3>
-    <div class="earn">
+  const items = S.shop.items, beans = S.shop.beans;
+  const tab = S.shopTab || 'me';
+  const buyable = items.filter((it) => !it.award && !['gang', 'prank'].includes(it.kind) && !it.owned && it.left !== 0);
+  // Товар дня
+  const deal = S.shop.deal && items.find((x) => x.id === S.shop.deal.id);
+  const dealCard = deal ? `<div class="deal" data-item="${deal.id}"><span class="deal-badge">Товар дня · −30%</span>${shopPrev(deal, 56)}<div class="grow" style="min-width:0"><b>${esc(deal.name)}</b><span class="small">до полуночи, у всех одинаковый</span></div>
+    ${deal.owned ? '<span class="small">check уже твоё</span>' : `<div class="deal-act">${priceBtn(deal)}${giftBtn(deal)}</div>`}</div>` : '';
+  // По карману сейчас + ближайшая цель
+  const can = buyable.filter((x) => x.price <= beans && (!deal || x.id !== deal.id)).sort((a, b) => b.price - a.price).slice(0, 6);
+  const goal = buyable.filter((x) => x.price > beans).sort((a, b) => a.price - b.price)[0];
+  const canStrip = can.length ? `<div class="shop-sec"><span class="eyebrow">По карману сейчас</span><div class="shop-strip">${can.map((x) => `<button class="mini-item" data-act="shop-go" data-v="${x.id}">${shopPrev(x, 40, true)}<span class="ellipsis">${esc(x.name)}</span><b>${x.price} ${BEAN}</b></button>`).join('')}</div></div>` : '';
+  const goalLine = goal ? `<button class="goal-line" data-act="shop-go" data-v="${goal.id}">Ещё <b>${goal.price - beans}</b> ${BEAN} — и твоё «${esc(goal.name)}» ›</button>` : '';
+  // Только сейчас: сезонное
+  const season = items.filter((x) => x.until && !x.owned);
+  const seasonStrip = season.length ? `<div class="shop-sec"><span class="eyebrow">Только сейчас</span><div class="shop-strip">${season.map((x) => `<button class="mini-item season" data-act="shop-go" data-v="${x.id}">${shopPrev(x, 40, true)}<span class="ellipsis">${esc(x.name)}</span><b>до ${ddmm(x.until)}</b></button>`).join('')}</div></div>` : '';
+  const counts = Object.fromEntries(SHOP_TABS.map(([k]) => [k, items.filter((x) => shopTabOf(x) === k).length]));
+  const tabs = `<div class="shop-tabs" role="tablist">${SHOP_TABS.filter(([k]) => k === 'earn' || counts[k]).map(([k, l]) => `<button role="tab" class="chip ${tab === k ? 'on' : ''}" aria-selected="${tab === k}" data-act="shop-tab" data-v="${k}">${l}</button>`).join('')}</div>`;
+  const inTab = items.filter((x) => shopTabOf(x) === tab);
+  const ownedFold = (list, render, label = 'Твоё') => (list.length ? `<details class="shop-own" ${S.shopOwnOpen ? 'open' : ''}><summary data-act="shop-own">${label} · ${list.length}</summary>${render(list)}</details>` : '');
+  let body = '';
+  if (tab === 'me') {
+    const rest = shopSort(inTab.filter((x) => !x.owned)), mine = inTab.filter((x) => x.owned);
+    body = `${shopTryCard(inTab)}<div class="shop-grid">${rest.map(shopTile).join('')}</div>${ownedFold(mine, (l) => `<div class="shop-grid">${l.map(shopTile).join('')}</div>`)}`;
+  } else if (tab === 'style') {
+    const groups = [['nickfx', 'Эффект ника · на неделю'], ['sound', 'Звук отметки в офисе'], ['status', 'Статусы'], ['frame', 'Рамки аватара'], ['crown', 'Особое']];
+    body = groups.map(([k, t]) => { const l = shopSort(inTab.filter((x) => x.kind === k)); return l.length ? `<h3>${t}</h3>${l.map(shopRow).join('')}` : ''; }).join('');
+  } else if (tab === 'fun') {
+    const pr = S.me.look.prank && S.me.look.prank.until > Date.now();
+    body = `<p class="sub" style="margin:0">Подлянка живёт час на аватаре подельника, и он видит, от кого. Снимается одним касанием. Не больше 5 в день.</p>
+      ${shopSort(inTab).map(shopRow).join('')}
+      ${(() => { const on = !(S.me.profile && S.me.profile.noPranks); return `<button class="toggle-row" role="switch" aria-checked="${on}" data-act="pranks-allow" data-v="${on ? '0' : '1'}"><span class="grow"><b>Меня можно разыгрывать</b><span class="small">Выключишь — подельники не смогут повесить подлянку на твой аватар</span></span><span class="sw ${on ? 'on' : ''}" aria-hidden="true"></span></button>`; })()}
+      ${pr ? '<button class="btn ghost small" data-act="prank-off">Снять подлянку со своего аватара</button>' : ''}
+      <div class="note" style="margin:0">gift <b>Подарки.</b> Любую вещь из Лавки можно подарить подельнику — кнопка с подарком рядом с ценой. Платишь ты, вещь появится у него, а в личку придёт открытка.</div>`;
+  } else if (tab === 'gang') {
+    const gangSel = S.me.gangs.length > 1 ? `<div class="field">Покупка для банды<div class="chips">${S.me.gangs.map((g) => `<button class="chip ${g.id === (S.shopGang || S.activeGang) ? 'on' : ''}" data-act="shop-gang" data-v="${g.id}">${esc(g.name)}</button>`).join('')}</div></div>` : '';
+    body = `${gangSel}${inTab.map(shopRow).join('')}
+      ${S.gang && S.gang.gang.mottoOwned ? `<label class="field">Девиз банды «${esc(S.gang.gang.name)}»<input id="motto" maxlength="40" value="${esc(S.gang.gang.motto || '')}"></label><button class="btn ghost" data-act="motto-save">Сохранить девиз</button>` : ''}`;
+  } else if (tab === 'awards') {
+    body = `<p class="sub" style="margin:0">Не продаются — только заслужить.</p>${inTab.map(shopRow).join('')}`;
+  } else body = SHOP_EARN;
+  return `<div class="shop-top"><div class="shop-wallet">${BEAN} У тебя <b>${beans}</b> зёрен${S.shop.nickfx ? ` · ник ${{ gold: 'золотой', rainbow: 'радужный', glitch: 'глитч' }[S.shop.nickfx.v]} до ${dateOf(S.shop.nickfx.until)}` : ''}</div>${goalLine}</div>
+    ${dealCard}${canStrip}${seasonStrip}
+    ${tabs}
+    <div class="shop-body">${body}</div>`;
+}
+// Выбор подельника: подарить вещь или разыграть
+function renderGiftPick() {
+  const it = S.shop && S.shop.items.find((x) => x.id === S.giftItem);
+  if (!it) return '<p class="sub">Вещь не найдена.</p>';
+  const prank = it.kind === 'prank';
+  const favs = (S.chats && S.chats.favorites) || null;
+  const list = !favs ? '<p class="sub">Загружаем подельников…</p>' : !favs.length ? '<p class="sub">Подельников пока нет. Добавь их в «Чатах» — звёздочка в карточке человека.</p>'
+    : favs.map((f) => `<div class="chat-row">${avatar(f.look, 36)}<span class="grow ellipsis"><b>${nk(f)}</b></span><button class="btn small" data-act="gift-send" data-id="${f.id}">${prank ? 'Разыграть' : 'Подарить'}</button></div>`).join('');
+  return `<div class="item">${shopPrev(it)}<div class="grow"><b>${esc(it.name)}</b><div class="small">${it.price} ${BEAN} — спишутся с тебя${prank ? ' · на час на аватаре' : ''}</div></div></div>
+    <span class="eyebrow">${prank ? 'Кого разыграть' : 'Кому подарить'}</span>${list}`;
+}
+
+const SHOP_EARN = `<div class="earn">
       <div class="earn-g"><b>where Каждый день</b><span>Отметка в офисе или «из дома» — +5</span><span>Столовая — +2 (до 2 раз)</span><span>Ответ на зов — +1 (до 10)</span><span>Подтверждённый сигнал офиса — +2 (до 3)</span><span>Задания дня — +3 за каждое, +5 за все</span><span>Спасибо от коллеги — +1</span></div>
       <div class="earn-g"><b>game Игры</b><span>game <b>Дуэли</b> (камень-ножницы-бумага, кости, крестики-нолики) — +2 за победу, до 3 раз в день</span><span>coin Дуэль на ставку — победитель забирает обе ставки (5 или 10 зёрен)</span><span>anchor Морской бой — +5 за первую победу в день</span><span>Квиз недели — +3 за верный ответ, блиц — до +10</span><span>«Кто из наших?» — +1 за верный ответ</span></div>
       <div class="earn-g"><b>swords Банда</b><span>Битва банд: герою-победителю +20, всей банде по +5</span><span>Ставки в битвах — делите банк соперника</span><span>Кубок месяца: чемпионам по +15, финалистам по +5</span><span>Призовые места в Лиге: до +30 за неделю и до +100 за месяц</span><span>Банда набрала 3 человек — залог 50 вернётся</span></div>
       <div class="earn-g"><b>medal Прочее</b><span>Ачивки: обычные, редкие и легендарные — в том числе за дуэли</span><span>Приведи новичка по своей ссылке — +15</span><span>Принятая идея или найденный баг — +10</span></div>
     </div>`;
-}
 
 // ---------- Действия ----------
 // Опасное действие подтверждается вторым нажатием в течение 4 секунд
@@ -5378,6 +5553,9 @@ const actions = {
     try { store.set('recentOffices', [el.dataset.v, ...recentOffices().filter((id) => id !== el.dataset.v)].slice(0, 5)); } catch {}
     S.officeQ = '';
     if (r.streak && S.me) S.me.streak = r.streak;
+    // Свой звук отметки из Лавки
+    const snd = S.me && S.me.look && S.me.look.snd;
+    if (snd && SOUNDS[snd]) sfx(snd);
     if (r.streak) showStreak(r); else if (r.beans) toast(`+${r.beans} зёрен за отметку`);
     await refresh({ all: true });
   }),
@@ -5783,6 +5961,8 @@ const actions = {
     S.tab = 'chats'; S.dm = null; S.chatGang = true; S.gangTab = 'chat'; S.activeGang = Number(el.dataset.id); store.set('activeGang', S.activeGang);
     const sg = store.get('seenGang', {}); sg[S.activeGang] = Date.now(); store.set('seenGang', sg);
     render(); await Promise.all([loadGang(), loadGangExtra()]); markSeen('chat'); window.scrollTo(0, 0);
+    // Гудок банды из Лавки — когда заходишь в чат
+    if (S.gang && S.gang.gang.horn) sfx('waveHorn');
   }),
   'gang-invite': (el) => run(async () => { S.activeGang = Number(el.dataset.id); if (!S.gang || S.gang.gang.id !== S.activeGang) await loadGang(); await actions['invite-share'](); }, { rerender: false }),
   'find-open'() { S.find = S.find || {}; S.sheet = 'find'; S.lastSheet = null; render(); setTimeout(() => { const i = $('#find-q'); if (i) i.focus(); }, 50); },
@@ -6089,6 +6269,36 @@ const actions = {
   close() { S.sheet = null; S.error = ''; render(); },
   'close-bg'(el, e) { if (e.target === el) actions.close(); },
   'shop-gang'(el) { S.shopGang = Number(el.dataset.v); render(); },
+  'shop-tab'(el) { S.shopTab = el.dataset.v; S.shopTry = null; sfx('pick'); render(); const b = document.querySelector('.shop-tabs'); if (b) b.scrollIntoView({ block: 'start', behavior: 'smooth' }); },
+  'shop-try'(el) { S.shopTry = S.shopTry === el.dataset.v ? null : el.dataset.v; sfx('pick'); render(); const t = document.querySelector('.shop-try'); if (t && S.shopTry) t.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); },
+  'shop-own'(el, ev) { if (ev) ev.preventDefault(); S.shopOwnOpen = !S.shopOwnOpen; render(); },
+  // Переход к вещи из «По карману» и «Только сейчас»: открыть её вкладку и подсветить
+  'shop-go'(el) {
+    const it = S.shop.items.find((x) => x.id === el.dataset.v); if (!it) return;
+    S.shopTab = shopTabOf(it); if (it.kind === 'part') S.shopTry = it.id;
+    render();
+    const n = document.querySelector(it.kind === 'part' ? '.shop-try' : `.shop-body [data-item="${it.id}"]`);
+    if (n) { n.scrollIntoView({ block: 'center', behavior: 'smooth' }); n.classList.add('flash'); setTimeout(() => n.classList.remove('flash'), 1600); }
+  },
+  'shop-listen'(el, ev) { if (ev) ev.stopPropagation(); sfx(el.dataset.v); },
+  'gift-open': (el) => run(async () => {
+    S.giftItem = el.dataset.v; S.giftMode = (S.shop.items.find((x) => x.id === el.dataset.v) || {}).kind === 'prank' ? 'prank' : 'gift';
+    S.sheet = 'gift-pick'; render();
+    S.chats = await get('/api/chats');
+  }),
+  'gift-send': (el) => run(async () => {
+    const prank = S.giftMode === 'prank';
+    await post(prank ? '/api/shop/prank' : '/api/shop/gift', { item: S.giftItem, to: Number(el.dataset.id) });
+    sfx(prank ? 'swish' : 'coin');
+    toast(prank ? 'Готово! Подлянка висит час' : 'Подарок отправлен — открытка ушла в личку');
+    S.sheet = 'shop'; await loadMe(); S.shop = await get('/api/shop');
+  }),
+  'prank-off': () => run(async () => { await post('/api/me/prank/off'); toast('Чисто!'); await loadMe(); if (S.sheet === 'shop') S.shop = await get('/api/shop'); }),
+  'pranks-allow': (el) => run(async () => { const on = el.dataset.v === '1'; await post('/api/me/pranks', { allow: on }); await loadMe(); toast(on ? 'Подельники могут тебя разыгрывать' : 'Подлянки выключены'); }),
+  'pizza-take': () => run(async () => {
+    const r = await post(`/api/gangs/${S.gang.gang.id}/pizza/take`);
+    sfx('coin'); toast(r.beans ? `Вкусно! +${r.beans} зерно` : 'Кусок твой!'); await Promise.all([loadGang(), loadMe()]);
+  }),
   buy: (el) => run(async () => {
     await post('/api/shop/buy', { item: el.dataset.v, gangId: S.shopGang || S.activeGang });
     toast('Куплено!');

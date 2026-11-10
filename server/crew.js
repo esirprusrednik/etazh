@@ -478,7 +478,14 @@ function register(ctx) {
     q("DELETE FROM crew WHERE status = 'pending' AND at < ?").run(t - PENDING_TTL_DAYS * 864e5);
   }
 
-  return { unread, cleanup, codeOf, canDm: (u, t) => !blocked(u.id, t.id) && !writeBlock(u, t) };
+  // Служебное сообщение от одного подельника другому (подарок из Лавки) — как обычный текст от отправителя
+  function systemDm(from, to, text) {
+    if (blocked(to.id, from.id)) return;
+    const [lo, hi] = pair(from.id, to.id);
+    q('DELETE FROM dm_closed WHERE by_id = ? AND other_id = ?').run(from.id, to.id);
+    q('INSERT INTO dms (lo, hi, from_id, to_id, type, kind, opt, text, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(lo, hi, from.id, to.id, 'text', null, null, U.seal(text), U.now());
+  }
+  return { unread, cleanup, codeOf, areCrew, systemDm, canDm: (u, t) => !blocked(u.id, t.id) && !writeBlock(u, t) };
 }
 
 module.exports = { register, DM_TTL_DAYS };

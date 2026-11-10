@@ -517,5 +517,60 @@ function startServer(day, extra = {}) {
       assert.equal(t.unknown, 0, 'скрывшие офис не считаются');
     });
   } finally { se.stop(); }
+  // Лавка: товар дня, аренда эффекта ника, звук отметки, подарки и подлянки подельникам, пицца и флаг банды
+  const sl = startServer('2026-11-10');
+  try {
+    await sl.ready;
+    await step('лавка: товар дня со скидкой, ник на неделю, звук, подарок, подлянка, пицца', async () => {
+      const A = await new sl.Client().login('shop1@mts.ru', 'покупатель');
+      const B = await new sl.Client().login('shop2@mts.ru', 'одаряемый');
+      const C = await new sl.Client().login('shop3@mts.ru', 'посторонний');
+      const { DatabaseSync } = require('node:sqlite');
+      const db = new DatabaseSync(path.join(sl.dir, 'db.sqlite'));
+      db.prepare('UPDATE users SET beans = 500').run();
+      let sh = (await A.get('/api/shop')).json;
+      const deal = sh.items.find((x) => x.id === sh.deal.id);
+      assert.ok(deal.was > deal.price && deal.price === Math.round(deal.was * 0.7), JSON.stringify(sh.deal));
+      // Эффект ника: неделя, повторная покупка продлевает
+      let r = (await A.post('/api/shop/buy', { item: 'nx_gold' })).json;
+      const u1 = r.until; assert.ok(u1 > Date.now() + 6.9 * 864e5);
+      r = (await A.post('/api/shop/buy', { item: 'nx_gold' })).json;
+      assert.ok(r.until - u1 > 6.9 * 864e5, 'продлили на неделю');
+      // Звук отметки
+      await A.post('/api/shop/buy', { item: 'snd_cuckoo' });
+      assert.equal((await A.get('/api/me')).json.user.look.snd, 'cuckoo');
+      // Подарки и подлянки — только подельникам
+      assert.equal((await A.post('/api/shop/gift', { item: 'fr_gold', to: B.id })).status, 400);
+      await A.post('/api/crew/add', { nick: 'одаряемый' }); await B.post(`/api/crew/${A.id}/accept`);
+      const g = await A.post('/api/shop/gift', { item: 'fr_gold', to: B.id });
+      assert.equal(g.status, 200, JSON.stringify(g.json));
+      sh = (await B.get('/api/shop')).json;
+      assert.ok(sh.items.find((x) => x.id === 'fr_gold').owned, 'рамка у получателя');
+      assert.equal((await A.post('/api/shop/gift', { item: 'fr_gold', to: B.id })).status, 400, 'второй раз то же не дарим');
+      assert.equal((await A.post('/api/shop/prank', { item: 'pr_coffee', to: C.id })).status, 400, 'не подельника не разыгрываем');
+      assert.equal((await A.post('/api/shop/prank', { item: 'pr_coffee', to: B.id })).status, 200);
+      const look = (await B.get('/api/me')).json.user.look;
+      assert.equal(look.prank.v, 'coffee'); assert.equal(look.prank.from, 'покупатель');
+      assert.equal((await A.post('/api/shop/prank', { item: 'pr_sticker', to: B.id })).status, 400, 'одна подлянка за раз');
+      await B.post('/api/me/prank/off');
+      assert.ok(!(await B.get('/api/me')).json.user.look.prank);
+      await B.post('/api/me/pranks', { allow: false });
+      assert.equal((await A.post('/api/shop/prank', { item: 'pr_sticker', to: B.id })).status, 400, 'запретил — нельзя');
+      // Банда: флаг и пицца
+      const gang = (await A.post('/api/gangs', { name: 'Пиццерия', access: 'open' })).json;
+      await B.post(`/api/gangs/${gang.id}/apply`); await C.post(`/api/gangs/${gang.id}/apply`);
+      await A.post('/api/shop/buy', { item: 'g_flag', gangId: gang.id });
+      await A.post('/api/shop/buy', { item: 'g_pizza', gangId: gang.id });
+      assert.equal((await A.post('/api/shop/buy', { item: 'g_pizza', gangId: gang.id })).status, 400, 'пока не доели — новую нельзя');
+      const gv = (await B.get(`/api/gangs/${gang.id}`)).json.gang;
+      assert.ok(gv.flag); assert.equal(gv.pizza.left, 8);
+      const before = (await B.get('/api/me')).json.user.beans;
+      assert.equal((await B.post(`/api/gangs/${gang.id}/pizza/take`)).status, 200);
+      assert.equal((await B.get('/api/me')).json.user.beans, before + 1);
+      assert.equal((await B.post(`/api/gangs/${gang.id}/pizza/take`)).status, 400, 'второй кусок нельзя');
+      assert.equal((await A.post(`/api/gangs/${gang.id}/pizza/take`)).status, 400, 'угощающий не ест');
+      db.close();
+    });
+  } finally { sl.stop(); }
   console.log(`social: ${passed} ok`);
 })().catch((e) => { console.error(e); process.exit(1); });

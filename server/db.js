@@ -16,6 +16,10 @@ function openDb(file) {
     try { db.exec(`ALTER TABLE gangs ADD COLUMN ${col}`); } catch {}
   }
   db.exec(`CREATE TABLE IF NOT EXISTS gang_requests (gang_id INTEGER NOT NULL REFERENCES gangs(id) ON DELETE CASCADE, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, at INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'pending', PRIMARY KEY (gang_id, user_id))`);
+  // Лавка для банды: флаг над офисом, гудок; пицца на всю банду
+  for (const col of ['flag INTEGER NOT NULL DEFAULT 0', 'horn INTEGER NOT NULL DEFAULT 0']) { try { db.exec(`ALTER TABLE gangs ADD COLUMN ${col}`); } catch {} }
+  db.exec(`CREATE TABLE IF NOT EXISTS gang_pizza (id INTEGER PRIMARY KEY, gang_id INTEGER NOT NULL REFERENCES gangs(id) ON DELETE CASCADE, by_id INTEGER NOT NULL, slices INTEGER NOT NULL, at INTEGER NOT NULL, until INTEGER NOT NULL);
+  CREATE TABLE IF NOT EXISTS gang_pizza_taken (pizza_id INTEGER NOT NULL REFERENCES gang_pizza(id) ON DELETE CASCADE, user_id INTEGER NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (pizza_id, user_id));`);
   // Одна бесплатная смена ника для каждого — в том числе для тех, кто уже менял за зёрна
   try { db.exec('ALTER TABLE users ADD COLUMN nick_free_used INTEGER NOT NULL DEFAULT 0'); } catch {}
   // Компания: у всех, кто был до Роснефти, — МТС. Почту не храним, компанию определяем по домену при регистрации

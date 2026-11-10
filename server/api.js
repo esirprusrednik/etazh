@@ -56,7 +56,7 @@ const LOOK = {
   neck: ['none', 'tie', 'tie_crooked', 'bow', 'badge', 'beads', 'chain', 'tie_gold', 'chain_gold', 'snake', 'garland'],
   hat: ['none', 'beanie', 'cap', 'headset', 'laurel', 'knight', 'royal', 'fedora', 'ushanka', 'tricorn', 'dedmoroz', 'kokoshnik', 'wreath', 'shawl'],
   mask: ['none', 'medical', 'gauze', 'visor', 'scuba'],
-  prop: ['none', 'mug', 'papers', 'sign', 'laptop', 'mug_best', 'trophy', 'phone', 'torch', 'mimosa', 'pancakes'],
+  prop: ['none', 'mug', 'papers', 'sign', 'laptop', 'mug_best', 'trophy', 'phone', 'torch', 'mimosa', 'pancakes', 'sign_lunch', 'sign_dnd', 'sign_ask'],
   bg: ['auto', 'sky', 'mint', 'peach', 'lilac', 'sun', 'slate', 'office', 'meeting', 'home', 'street', 'cafe'],
   // Черты лица: размер глаз, нос, уши
   eyeSize: ['s', 'm', 'l'],
@@ -69,7 +69,7 @@ const LOOK = {
   glassesStyle: ['classic', 'round', 'square', 'aviator', 'cat'],
   glassesColor: ['black', 'tortoise', 'gold', 'silver', 'red', 'navy', 'pink'],
   lensColor: ['clear', 'grey', 'brown', 'blue', 'green', 'pink', 'yellow'],
-  pet: ['none', 'corgi', 'pug', 'frenchie', 'parrot'],
+  pet: ['none', 'corgi', 'pug', 'frenchie', 'parrot', 'cat', 'aquarium', 'cactus'],
   capBadge: ['none', 'star', 'bolt', 'heart', 'crown', 'paw', 'e', 'one'],
   // Отдельный цвет бороды и усов; same — как волосы
   beardColor: ['same', ...HAIR_COLORS],
@@ -1256,7 +1256,7 @@ function createApi(db) {
     const officeName = Object.fromEntries(offices().map((o) => [o.id, o.name]));
     return {
       gang: {
-        id: g.id, name: g.name, color: g.color, motto: g.motto, gold: !!g.gold, mottoOwned: !!g.motto_owned,
+        id: g.id, name: g.name, color: g.color, motto: g.motto, gold: !!g.gold, mottoOwned: !!g.motto_owned, flag: !!g.flag, horn: !!g.horn, pizza: pizzaOf(g.id, u.id),
         code: (g.who_invites || 'all') === 'all' || g.owner_id === u.id ? g.code : null, link: (g.who_invites || 'all') === 'all' || g.owner_id === u.id ? `${config.baseUrl}/g/${g.code}` : null, isOwner: g.owner_id === u.id,
         depositPending: !!g.deposit && members.length < 3, count: members.length,
         about: g.about || '', ...U.crestPub(g), emoji: g.emoji || null, access: g.access || 'invite',
@@ -1445,17 +1445,41 @@ function createApi(db) {
   });
 
   // ---------- Лавка ----------
+  // Товар дня: один на компанию, каждый день новый, скидка 30%. Считается от даты — у всех одинаковый
+  const DEAL_OFF = 0.3;
+  function dealOf(company) {
+    const day = U.msk().day;
+    const pool = SHOP.filter((it) => !it.award && !['gang', 'prank'].includes(it.kind) && it.price >= 40 && (!it.season || SEASON.seasonOn(it.season, day)));
+    let h = 7; for (const ch of day + ':' + (company || 'mts')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    const it = pool[h % pool.length];
+    return { id: it.id, price: Math.round(it.price * (1 - DEAL_OFF)), was: it.price, name: it.name };
+  }
+  const priceOf = (it, u) => { const d = dealOf(companyOf(u)); return d.id === it.id ? d.price : it.price; };
+  const fxOn = (x) => !!(x && x.until && x.until > U.now());
+  const userLook = (row) => ({ ...DEFAULT_LOOK, ...JSON.parse(row.look || '{}') });
+  const saveLook = (id, look) => q('UPDATE users SET look = ? WHERE id = ?').run(JSON.stringify(look), id);
+  const pizzaOf = (gangId, uid) => {
+    const p = q('SELECT p.*, u.nick FROM gang_pizza p JOIN users u ON u.id = p.by_id WHERE p.gang_id = ? AND p.until > ? ORDER BY p.id DESC LIMIT 1').get(gangId, U.now());
+    if (!p) return null;
+    const taken = q('SELECT user_id FROM gang_pizza_taken WHERE pizza_id = ?').all(p.id).map((r) => r.user_id);
+    return { id: p.id, by: p.nick, mine: p.by_id === uid, left: Math.max(0, p.slices - taken.length), slices: p.slices, took: taken.includes(uid), until: p.until };
+  };
+
   route('GET', '/api/shop', async (req) => {
     const u = requireUser(req);
     const owned = new Set(q('SELECT item_id FROM owned WHERE user_id = ?').all(u.id).map((r) => r.item_id));
+    const deal = dealOf(companyOf(u));
     return {
-      beans: u.beans,
+      beans: u.beans, deal,
+      nickfx: fxOn(u.look.nfx) ? u.look.nfx : null,
       // Сезонные вещи вне сезона не показываем — если уже не куплены
       items: SHOP.filter((it) => !it.season || owned.has(it.id) || SEASON.seasonOn(it.season, U.msk().day)).map((it) => ({
         ...it,
+        price: it.id === deal.id ? deal.price : it.price, was: it.id === deal.id ? deal.was : undefined,
         until: it.season && SEASON.seasonOn(it.season, U.msk().day) ? SEASON.nextWindow(it.season, U.msk().day).to : undefined,
-        owned: it.kind === 'gang' ? undefined : owned.has(it.id),
-        equipped: it.kind === 'status' ? u.look.status === it.id : it.kind === 'frame' ? u.look.frame === it.id : it.kind === 'crown' ? !!u.look.crown : undefined,
+        owned: ['gang', 'prank', 'nickfx'].includes(it.kind) ? undefined : owned.has(it.id),
+        active: it.kind === 'nickfx' && fxOn(u.look.nfx) && u.look.nfx.v === it.value ? u.look.nfx.until : undefined,
+        equipped: it.kind === 'status' ? u.look.status === it.id : it.kind === 'frame' ? u.look.frame === it.id : it.kind === 'crown' ? !!u.look.crown : it.kind === 'sound' ? u.look.snd === it.value : undefined,
         left: it.limit ? Math.max(0, it.limit - q('SELECT COUNT(*) AS n FROM owned WHERE item_id = ?').get(it.id).n) : undefined
       }))
     };
@@ -1467,39 +1491,129 @@ function createApi(db) {
     if (!it) throw bad('Нет такого предмета.');
     if (it.award) throw bad(it.how ? `Это не купить — только заслужить: ${it.how}.` : 'Это не купить — только выиграть в Лиге банд.');
     if (it.season && !SEASON.seasonOn(it.season, U.msk().day)) throw bad('Сезон этой вещи закончился — она вернётся к следующему празднику.');
+    if (it.kind === 'prank') throw bad('Подлянку покупают сразу для подельника: нажми «Разыграть» и выбери кого.');
+    const price = priceOf(it, u);
     if (it.kind === 'gang') {
       const g = q('SELECT * FROM gangs WHERE id = ?').get(Number(body.gangId));
       if (!g || !isMember(g.id, u.id)) throw bad('Выбери свою банду.');
-      const col = it.id === 'g_gold' ? 'gold' : 'motto_owned';
+      if (it.id === 'g_pizza') {
+        if (pizzaOf(g.id, u.id)) throw bad('Пицца ещё не доедена — подожди, пока разберут куски.');
+        if (!spendBeans(u.id, price, 'shop:' + it.id)) throw bad('Не хватает зёрен.');
+        q('INSERT INTO gang_pizza (gang_id, by_id, slices, at, until) VALUES (?, ?, ?, ?, ?)').run(g.id, u.id, it.slices, U.now(), U.now() + 24 * 3600e3);
+        const others = gangMembers(g.id).map((m) => m.id).filter((id) => id !== u.id);
+        fireAndForget(notify(others, { title: g.name, body: `${u.nick} ${U.g(u.look, 'угощает', 'угощает')} банду пиццей — возьми кусок, пока есть`, url: `/#gang/${g.id}`, tag: `pizza-${g.id}` }));
+        return { ok: true };
+      }
+      const col = { g_gold: 'gold', g_motto: 'motto_owned', g_flag: 'flag', g_horn: 'horn' }[it.id];
       if (g[col]) throw bad('У банды это уже есть.');
-      if (!spendBeans(u.id, it.price, 'shop:' + it.id)) throw bad('Не хватает зёрен.');
+      if (!spendBeans(u.id, price, 'shop:' + it.id)) throw bad('Не хватает зёрен.');
       q(`UPDATE gangs SET ${col} = 1 WHERE id = ?`).run(g.id);
       return { ok: true };
     }
+    if (it.kind === 'nickfx') {
+      if (!spendBeans(u.id, price, 'shop:' + it.id)) throw bad('Не хватает зёрен.');
+      const cur = u.look.nfx;
+      const from = fxOn(cur) && cur.v === it.value ? cur.until : U.now();
+      const look = { ...u.look, nfx: { v: it.value, until: from + it.days * 864e5 } };
+      saveLook(u.id, look);
+      return { ok: true, until: look.nfx.until };
+    }
     if (q('SELECT 1 FROM owned WHERE user_id = ? AND item_id = ?').get(u.id, it.id)) throw bad('Уже куплено.');
     if (it.limit && q('SELECT COUNT(*) AS n FROM owned WHERE item_id = ?').get(it.id).n >= it.limit) throw bad('Тираж этого сезона закончился.');
-    if (!spendBeans(u.id, it.price, 'shop:' + it.id)) throw bad('Не хватает зёрен.');
+    if (!spendBeans(u.id, price, 'shop:' + it.id)) throw bad('Не хватает зёрен.');
     q('INSERT INTO owned (user_id, item_id, at) VALUES (?, ?, ?)').run(u.id, it.id, U.now());
     const look = { ...u.look };
     if (it.kind === 'status') look.status = it.id;
     if (it.kind === 'frame') look.frame = it.id;
     if (it.kind === 'crown') look.crown = true;
-    q('UPDATE users SET look = ? WHERE id = ?').run(JSON.stringify(look), u.id);
+    if (it.kind === 'sound') look.snd = it.value;
+    saveLook(u.id, look);
     pushEvent(null, u.id, `${u.nick} ${U.g(u.look, 'купил', 'купила')} в лавке «${it.name}»`, 'shop');
     return { ok: true };
   });
 
   route('POST', '/api/shop/equip', async (req, body) => {
     const u = requireUser(req);
-    const it = SHOP.find((s) => s.id === body.item && s.kind !== 'gang');
+    const it = SHOP.find((s) => s.id === body.item && !['gang', 'prank', 'nickfx'].includes(s.kind));
     if (!it || !q('SELECT 1 FROM owned WHERE user_id = ? AND item_id = ?').get(u.id, it.id)) throw bad('Сначала купи предмет.');
     const look = { ...u.look };
     const on = !!body.on;
     if (it.kind === 'status') look.status = on ? it.id : null;
     if (it.kind === 'frame') look.frame = on ? it.id : null;
     if (it.kind === 'crown') look.crown = on;
-    q('UPDATE users SET look = ? WHERE id = ?').run(JSON.stringify(look), u.id);
+    if (it.kind === 'sound') look.snd = on ? it.value : null;
+    saveLook(u.id, look);
     return { ok: true };
+  });
+
+  // Подарок подельнику: платишь ты, вещь появляется в его Лавке, в личку — открытка от тебя
+  route('POST', '/api/shop/gift', async (req, body) => {
+    const u = requireUser(req);
+    const it = SHOP.find((s) => s.id === body.item);
+    if (!it || it.award || ['gang', 'prank'].includes(it.kind) || it.limit) throw bad('Это не подарить.');
+    if (it.season && !SEASON.seasonOn(it.season, U.msk().day)) throw bad('Сезон этой вещи закончился.');
+    const t = q('SELECT * FROM users WHERE id = ?').get(Number(body.to));
+    if (!t || t.id === u.id || !crew || !crew.areCrew(u.id, t.id)) throw bad('Дарить можно только подельникам.');
+    rateLimit('gift:' + u.id, 10, 864e5);
+    const price = priceOf(it, u);
+    if (it.kind !== 'nickfx' && q('SELECT 1 FROM owned WHERE user_id = ? AND item_id = ?').get(t.id, it.id)) throw bad(`У ${t.nick} это уже есть — выбери другое.`);
+    if (!spendBeans(u.id, price, 'gift:' + it.id)) throw bad('Не хватает зёрен.');
+    if (it.kind === 'nickfx') {
+      const tl = userLook(t); const cur = tl.nfx;
+      tl.nfx = { v: it.value, until: (fxOn(cur) && cur.v === it.value ? cur.until : U.now()) + it.days * 864e5 };
+      saveLook(t.id, tl);
+    } else q('INSERT INTO owned (user_id, item_id, at) VALUES (?, ?, ?)').run(t.id, it.id, U.now());
+    const where = it.kind === 'nickfx' ? 'Уже действует — неделю.' : it.kind === 'part' ? 'Надень в конструкторе аватара.' : 'Уже в твоей Лавке, во вкладке «Твоё».';
+    crew.systemDm(u, t, `🎁 Дарю тебе «${it.name}». ${where}`);
+    fireAndForget(notify([t.id], { title: u.nick, body: `${U.g(u.look, 'Подарил', 'Подарила')} тебе «${it.name}»`, url: `/#crew/${u.id}`, tag: `gift-${u.id}` }));
+    return { ok: true };
+  });
+
+  // Подлянка: на час на аватаре подельника. Тот может снять одним касанием или запретить подлянки в профиле
+  route('POST', '/api/shop/prank', async (req, body) => {
+    const u = requireUser(req);
+    const it = SHOP.find((s) => s.id === body.item && s.kind === 'prank');
+    if (!it) throw bad('Такой подлянки нет.');
+    const t = q('SELECT * FROM users WHERE id = ?').get(Number(body.to));
+    if (!t || t.id === u.id || !crew || !crew.areCrew(u.id, t.id)) throw bad('Разыгрывать можно только подельников.');
+    if (JSON.parse(t.profile || '{}').noPranks) throw bad(`${t.nick} попросил|попросила не разыгрывать — давай без этого.`.replace('попросил|попросила', U.g(userLook(t), 'попросил', 'попросила')));
+    const tl = userLook(t);
+    if (fxOn(tl.prank)) throw bad(`На аватаре ${t.nick} уже висит подлянка — подожди часок.`);
+    rateLimit('prank:' + u.id, 5, 864e5);
+    rateLimit(`prank:${u.id}:${t.id}`, 2, 864e5);
+    if (!spendBeans(u.id, priceOf(it, u), 'prank:' + it.id)) throw bad('Не хватает зёрен.');
+    tl.prank = { v: it.value, until: U.now() + 3600e3, from: u.nick, f: U.fem(u.look) ? 1 : 0 };
+    saveLook(t.id, tl);
+    fireAndForget(notify([t.id], { title: u.nick, body: `${U.g(u.look, 'Разыграл', 'Разыграла')} тебя: «${it.name}» на аватаре на час. Снять можно одним касанием`, url: '/#near', tag: `prank-${t.id}` }));
+    return { ok: true };
+  });
+  route('POST', '/api/me/prank/off', async (req) => {
+    const u = requireUser(req);
+    const look = { ...u.look }; delete look.prank;
+    saveLook(u.id, look);
+    return { ok: true };
+  });
+  route('POST', '/api/me/pranks', async (req, body) => {
+    const u = requireUser(req);
+    const prof = JSON.parse(q('SELECT profile FROM users WHERE id = ?').get(u.id).profile || '{}');
+    prof.noPranks = !body.allow;
+    q('UPDATE users SET profile = ? WHERE id = ?').run(JSON.stringify(prof), u.id);
+    return { ok: true };
+  });
+
+  // Пицца банды: кусок — +1 зерно, по одному каждому, кроме угощающего
+  route('POST', '/api/gangs/:id/pizza/take', async (req, body, query, params) => {
+    const u = requireUser(req);
+    const g = q('SELECT * FROM gangs WHERE id = ?').get(Number(params.id));
+    if (!g || !isMember(g.id, u.id)) throw bad('Это не твоя банда.');
+    const p = pizzaOf(g.id, u.id);
+    if (!p) throw bad('Пицца уже закончилась.');
+    if (p.mine) throw bad('Это твоя пицца — угощай других.');
+    if (p.took) throw bad('Свой кусок ты уже взял|взяла.'.replace('взял|взяла', U.g(u.look, 'взял', 'взяла')));
+    if (!p.left) throw bad('Куски закончились — в следующий раз будь быстрее.');
+    q('INSERT INTO gang_pizza_taken (pizza_id, user_id, at) VALUES (?, ?, ?)').run(p.id, u.id, U.now());
+    const beans = addBeans(u.id, 'pizza_slice', 1);
+    return { ok: true, beans };
   });
 
   // ---------- Пуш-подписки ----------

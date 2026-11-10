@@ -11,7 +11,7 @@ const LEFT = [[44, 38], [44, 49], [44, 60], [44, 71], [53, 42.5], [53, 53.5], [5
 const RIGHT = [[74, 49], [74, 60], [74, 71], [74, 82], [83, 44.5], [83, 55.5], [83, 66.5], [83, 77.5], [92, 40], [92, 51], [92, 62], [92, 73]];
 const PEOPLE = [[80, 104, '#E5484D', '#F6D3B3'], [91, 99, '#2563C9', '#E8B48A'], [102, 106, '#1F7A3A', '#C98E62']];
 
-export function officeSvg({ office, crowd = 0, hour = 12, label = '' }) {
+export function officeSvg({ office, crowd = 0, hour = 12, label = '', flag = null }) {
   const night = hour >= 19 || hour < 7;
   const evening = hour >= 17 && hour < 19;
   const sky = night ? '#2B3A6B' : evening ? '#F7B58A' : '#A7E0FF';
@@ -31,7 +31,7 @@ export function officeSvg({ office, crowd = 0, hour = 12, label = '' }) {
   <polygon points="70,62 130,92 70,122 10,92" fill="${night ? '#4E8F3A' : '#7ED957'}"/><polygon points="58,99 64,102 46,111 40,108" fill="#F3E2B8"/>
   <polygon points="40,29 70,44 70,98 40,83" fill="${left}"/><polygon points="100,29 70,44 70,98 100,83" fill="${right}"/><polygon points="70,14 100,29 70,44 40,29" fill="${top}"/>
   <polygon points="74,22 82,26 82,30 74,26" fill="#C9CED9"/><polygon points="90,22 82,26 82,30 90,26" fill="#A9B0C0"/><polygon points="82,18 90,22 82,26 74,22" fill="#E6E9F0"/>
-  <rect x="57" y="8" width="1.6" height="14" fill="#1A2547"/><circle cx="57.8" cy="7.5" r="2" fill="#FFC93C"/>
+  ${flag ? `<rect x="57" y="1" width="1.6" height="21" fill="#1A2547"/><circle cx="57.8" cy="1" r="1.4" fill="#FFC93C"/><path d="M58.6 2 Q64 0 68 3 Q72 6 77 4 L77 13 Q72 15 68 12 Q64 9 58.6 11 Z" fill="${flag}" stroke="#1A2547" stroke-width=".5"><animate attributeName="d" dur="2.4s" repeatCount="indefinite" values="M58.6 2 Q64 0 68 3 Q72 6 77 4 L77 13 Q72 15 68 12 Q64 9 58.6 11 Z;M58.6 2 Q64 4 68 2 Q72 0 77 3 L77 12 Q72 9 68 11 Q64 13 58.6 11 Z;M58.6 2 Q64 0 68 3 Q72 6 77 4 L77 13 Q72 15 68 12 Q64 9 58.6 11 Z"/></path>` : '<rect x="57" y="8" width="1.6" height="14" fill="#1A2547"/><circle cx="57.8" cy="7.5" r="2" fill="#FFC93C"/>'}
   ${winL}<polygon points="61,84.5 67,87.5 67,96.5 61,93.5" fill="#5A2A1E"/>${winR}
   <rect x="21" y="86" width="3" height="8" fill="#7A4E2D"/><circle cx="22.5" cy="82" r="7" fill="#2FA84F"/><circle cx="20" cy="80" r="3" fill="#5BD27A"/>
   <rect x="115" y="90" width="3" height="8" fill="#7A4E2D"/><circle cx="116.5" cy="86" r="7" fill="#2FA84F"/><circle cx="114" cy="84" r="3" fill="#5BD27A"/>
