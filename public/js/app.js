@@ -4641,6 +4641,41 @@ function brass(ctx, { f, at = 0, dur = 0.2, vol = 0.09, vib = 0, dark = false, w
   mix.connect(lp).connect(g); sndOut(ctx, g, rv);
   noise(ctx, { at, dur: 0.06, vol: vol * 0.5, type: 'bandpass', f: f * 4, q: 1.2, rv }); // дыхание
 }
+// ----- Оркестр для боя: литавры, малый барабан, тарелки, струнные, казу, свисток -----
+// Литавра: удар с лёгким падением тона и мягким шумом палочки
+function timpani(ctx, { f = 73.4, at = 0, vol = 0.12, dur = 0.9, rv = 0.35 } = {}) {
+  tone(ctx, { f: f * 1.05, f2: f, type: 'sine', at, dur, vol, atk: 0.003, rv });
+  tone(ctx, { f: f * 2.01, f2: f * 1.98, type: 'sine', at, dur: dur * 0.5, vol: vol * 0.35, atk: 0.003, rv });
+  noise(ctx, { at, dur: 0.05, vol: vol * 0.5, type: 'lowpass', f: 900, q: 0.7, rv });
+}
+// Тарелка: длинный яркий шум, медленно гаснет
+function crash(ctx, { at = 0, vol = 0.08, dur = 1.8, rv = 0.45 } = {}) {
+  noise(ctx, { at, dur, vol, type: 'highpass', f: 5200, q: 0.5, shape: 1.4, rv, pan: 0.25 });
+  noise(ctx, { at, dur: dur * 0.6, vol: vol * 0.6, type: 'bandpass', f: 3200, q: 0.8, shape: 1.8, rv, pan: -0.25 });
+}
+// Струнные: широкий хор пил через фильтр, плавная атака — подложка под медь
+function strings(ctx, { notes, at = 0, dur = 1.4, vol = 0.03, rv = 0.5 } = {}) {
+  const t = ctx.currentTime + at;
+  const lp = ctx.createBiquadFilter(), g = ctx.createGain();
+  lp.type = 'lowpass'; lp.frequency.value = 2400; lp.Q.value = 0.6;
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.25); g.gain.setValueAtTime(vol, t + dur - 0.3); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  lp.connect(g); sndOut(ctx, g, rv);
+  for (const f of notes) for (const d of [0.994, 1, 1.007]) {
+    const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f * d;
+    const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 5 + Math.random(); lg.gain.value = f * 0.004; lfo.connect(lg).connect(o.frequency); lfo.start(t); lfo.stop(t + dur);
+    o.connect(lp); o.start(t); o.stop(t + dur);
+  }
+}
+// Казу: гнусавая «пила» через узкую полосу, с быстрым дрожанием — для насмешки
+function kazoo(ctx, { f, f2 = null, at = 0, dur = 0.14, vol = 0.05, rv = 0.25 }) {
+  const t = ctx.currentTime + at;
+  const o = ctx.createOscillator(), bp = ctx.createBiquadFilter(), g = ctx.createGain();
+  o.type = 'sawtooth'; o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+  const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 9; lg.gain.value = f * 0.025; lfo.connect(lg).connect(o.frequency); lfo.start(t); lfo.stop(t + dur + 0.05);
+  bp.type = 'bandpass'; bp.frequency.value = 1200; bp.Q.value = 2.2;
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.015); g.gain.setValueAtTime(vol, t + dur * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(bp).connect(g); sndOut(ctx, g, rv); o.start(t); o.stop(t + dur + 0.05);
+}
 // Взрыв: низкий удар, грохот через закрывающийся фильтр и треск обломков
 function blast(ctx, { at = 0, vol = 0.5, len = 0.9, crackle = 6, rv = 0.4 } = {}) {
   const t = ctx.currentTime + at;
@@ -4812,14 +4847,48 @@ const SOUNDS = {
     bubbles(c, { at: 1.6, n: 8, spread: 0.9, vol: 0.03 });
   },
   // Грустный тромбон: «вау-вау-вау-ваааа»
-  lose: (c) => [[294, 0, 0.36], [277, 0.4, 0.36], [262, 0.8, 0.36], [247, 1.2, 1.1]].forEach(([f, at, dur], i) => brass(c, { f, at, dur, vol: 0.1, dark: true, wah: i === 3 ? 6 : 0, vib: i === 3 ? 0.015 : 0, rv: 0.35 })),
-  // Горн: соль-до-ми-СОЛЬ октавой ниже, низкий гул под последней нотой
-  bugle: (c) => {
-    const G3 = 196, C4 = 261.63, E4 = 329.63, G4 = 392;
-    [[G3, 0, 0.12], [C4, 0.14, 0.12], [E4, 0.28, 0.12], [G4, 0.42, 0.66, 0.012]].forEach(([f, at, dur, vib]) => brass(c, { f, at, dur, vol: 0.12, vib: vib || 0, dark: true, rv: 0.4 }));
-    tone(c, { f: G4 / 2, type: 'sine', at: 0.42, dur: 0.62, vol: 0.06, rv: 0.2 });
-    blast(c, { at: 0.42, vol: 0.12, len: 0.5, crackle: 0, rv: 0.3 });
+  // Проигрыш: тромбон с туба «уа-уа-уа-уааа» с сурдиной, казу хихикает «ха-ха-ха», свисток падает,
+  // и барабанщик добивает «ба-дум-тсс»
+  lose: (c) => {
+    [[294, 0, 0.3], [277, 0.34, 0.3], [262, 0.68, 0.3], [247, 1.02, 0.95]].forEach(([f, at, dur], i) => {
+      brass(c, { f, at, dur, vol: 0.09, dark: true, wah: i === 3 ? 5.5 : 3.5, vib: i === 3 ? 0.02 : 0, rv: 0.35 });
+      brass(c, { f: f / 2, at, dur, vol: 0.07, dark: true, rv: 0.3 });
+    });
+    timpani(c, { f: 61.7, at: 1.02, vol: 0.08, dur: 0.9 });
+    [[523, 2.0], [494, 2.13], [466, 2.26]].forEach(([f, at]) => kazoo(c, { f, f2: f * 0.93, at, dur: 0.1, vol: 0.06 }));
+    tone(c, { f: 1700, f2: 420, type: 'sine', at: 2.0, dur: 0.42, vol: 0.035, rv: 0.25 });
+    tone(c, { f: 200, f2: 130, type: 'sine', at: 2.5, dur: 0.16, vol: 0.12, atk: 0.003, rv: 0.2 });
+    noise(c, { at: 2.5, dur: 0.06, vol: 0.06, type: 'bandpass', f: 1800, q: 1, rv: 0.2 });
+    tone(c, { f: 150, f2: 95, type: 'sine', at: 2.66, dur: 0.2, vol: 0.13, atk: 0.003, rv: 0.2 });
+    noise(c, { at: 2.66, dur: 0.06, vol: 0.06, type: 'bandpass', f: 1500, q: 1, rv: 0.2 });
+    crash(c, { at: 2.84, vol: 0.06, dur: 0.6, rv: 0.3 });
   },
+  bugle: (c) => {
+    // В бой! Литавры и малый барабан нарастают, удар тутти с тарелкой и большим барабаном,
+    // валторны трубят призыв ля-ре-ЛЯ и держат высокое РЕ над тромбонами и струнными
+    const D2 = 73.42, A2 = 110, D3 = 146.83, A3 = 220, D4 = 293.66, Fs4 = 369.99, A4 = 440, D5 = 587.33;
+    for (let i = 0; i < 16; i++) {
+      const at = i * 0.052, k = 0.18 + (i / 15) * 0.82;
+      timpani(c, { f: D2, at, vol: 0.09 * k, dur: 0.3, rv: 0.3 });
+      noise(c, { at: at + 0.026, dur: 0.03, vol: 0.035 * k, type: 'bandpass', f: 2600, q: 1.1, rv: 0.25 });
+    }
+    const hit = 0.86;
+    deepBoom(c, { at: hit, vol: 0.5, len: 1.3, f0: 85, drive: 2.4, bright: 1300, rv: 0.45 });
+    crash(c, { at: hit, vol: 0.09, dur: 2.2 });
+    timpani(c, { f: D2, at: hit, vol: 0.16, dur: 1.2 });
+    [D3, A3, D4, Fs4].forEach((f) => brass(c, { f, at: hit, dur: 0.42, vol: 0.06, rv: 0.45 }));
+    strings(c, { notes: [D3, A3, D4, Fs4, A4], at: hit, dur: 2.2, vol: 0.022 });
+    // Призыв валторн
+    [[A3, hit + 0.46, 0.13], [D4, hit + 0.6, 0.13], [A4, hit + 0.74, 0.16]].forEach(([f, at, dur]) => { brass(c, { f, at, dur, vol: 0.09, rv: 0.45 }); brass(c, { f: f / 2, at, dur, vol: 0.05, dark: true, rv: 0.4 }); });
+    const hold = hit + 0.94;
+    brass(c, { f: D5, at: hold, dur: 1.15, vol: 0.075, vib: 0.01, rv: 0.5 });
+    brass(c, { f: D4, at: hold, dur: 1.15, vol: 0.07, vib: 0.008, rv: 0.5 });
+    [D3, A2].forEach((f) => brass(c, { f, at: hold, dur: 1.15, vol: 0.06, dark: true, rv: 0.45 }));
+    timpani(c, { f: A2 / 1.5, at: hold, vol: 0.12, dur: 1 });
+    timpani(c, { f: D2, at: hold + 0.18, vol: 0.14, dur: 1.1 });
+    crash(c, { at: hold, vol: 0.06, dur: 1.6 });
+  },
+
   // Звуки отметки из Лавки
   chip: (c) => { [523, 659, 784, 1047, 1319].forEach((f, i) => tone(c, { f, type: 'square', at: i * 0.075, dur: 0.07, vol: 0.035, atk: 0.002 })); tone(c, { f: 1568, type: 'square', at: 0.42, dur: 0.22, vol: 0.04, atk: 0.002 }); },
   cuckoo: (c) => { [[659, 0], [523, 0.22], [659, 0.62], [523, 0.84]].forEach(([f, at]) => { tone(c, { f, type: 'sine', at, dur: 0.18, vol: 0.09, atk: 0.01, rv: 0.35 }); tone(c, { f: f * 2, type: 'sine', at, dur: 0.1, vol: 0.015, rv: 0.2 }); }); noise(c, { at: 0, dur: 0.05, vol: 0.02, type: 'bandpass', f: 1800, q: 3 }); },
