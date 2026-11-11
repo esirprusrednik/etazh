@@ -1555,7 +1555,7 @@ function setBattleView(v) {
     S.bEmoteSeen = oe.at;
     S.bEmote = { ...(S.bEmote || {}), opp: { e: oe.e, until: Date.now() + 3200 } };
     setTimeout(() => { if (S.battle) render(); }, 3300);
-    sfx('vote');
+    sfx(`emo_${oe.e}`);
   } else if (oe && S.bEmoteSeen == null) S.bEmoteSeen = oe.at;
   // Обе расстановки готовы — партия началась: труба «Свистать всех наверх!» (один раз)
   if (S.bv && S.bv.id === v.id && S.bv.status === 'setup' && v.status === 'play') sfx('bugle');
@@ -3223,8 +3223,9 @@ function prBotEmote(pool) {
   const P = S.practice;
   setTimeout(() => {
     if (S.practice !== P) return;
-    S.bEmote = { ...(S.bEmote || {}), opp: { e: pool[Math.floor(Math.random() * pool.length)], until: Date.now() + 3200 } };
-    sfx('vote'); render();
+    const e = pool[Math.floor(Math.random() * pool.length)];
+    S.bEmote = { ...(S.bEmote || {}), opp: { e, until: Date.now() + 3200 } };
+    sfx(`emo_${e}`); render();
     setTimeout(() => { if (S.practice === P) render(); }, 3300);
   }, 900);
 }
@@ -4760,9 +4761,12 @@ function actx() {
 // Грузятся один раз при первом звуке; пока не загрузились или без сети — играет синтезированная версия
 const SAMPLE_URLS = { bugle: '/sounds/battle.mp3', lose: '/sounds/lose.mp3', victory: '/sounds/win.mp3', fanfare: '/sounds/rally.mp3', gangHorn: '/sounds/horn.mp3',
   // Морской бой: настоящие записи пушки, взрывов и воды (CC0), по два варианта — чтобы выстрелы не звучали одинаково
-  splash: ['/sounds/miss1.mp3', '/sounds/miss2.mp3'], hit: ['/sounds/hit1.mp3', '/sounds/hit2.mp3'], sunk: '/sounds/sunk1.mp3', chicken: '/sounds/resign.mp3' };
+  splash: ['/sounds/miss1.mp3', '/sounds/miss2.mp3'], hit: ['/sounds/hit1.mp3', '/sounds/hit2.mp3'], sunk: '/sounds/sunk1.mp3', chicken: '/sounds/resign.mp3',
+  // Реакции в играх: короткие «мультяшные» реплики оркестра — у каждой своя, узнаётся без взгляда на экран
+  ...Object.fromEntries(['lol', 'angry', 'bored', 'smart', 'oops', 'clap', 'mercy', 'easy'].map((k) => [`emo_${k}`, `/sounds/emo_${k}.mp3`])) };
 // Громкость записей подогнана к остальным звукам: кульминации боя громче всего, но не оглушают
-const SAMPLE_VOL = { bugle: 0.62, lose: 0.75, victory: 0.53, fanfare: 0.26, gangHorn: 0.28, splash: 0.3, hit: 0.25, sunk: 0.4, chicken: 0.13 };
+const SAMPLE_VOL = { bugle: 0.62, lose: 0.75, victory: 0.53, fanfare: 0.26, gangHorn: 0.28, splash: 0.3, hit: 0.25, sunk: 0.4, chicken: 0.13,
+  emo_lol: 0.157, emo_angry: 0.19, emo_bored: 0.126, emo_smart: 0.155, emo_oops: 0.135, emo_clap: 0.159, emo_mercy: 0.126, emo_easy: 0.31 };
 const sampleBuf = {};
 function loadSamples(c) {
   for (const [k, urls] of Object.entries(SAMPLE_URLS)) {
@@ -5107,6 +5111,7 @@ const SOUNDS = {
   // Победа: литавры и медный аккорд
   // Победа в бою и дуэли — живой оркестр; без файла — синтезированные фанфары
   victory: (c) => { if (!playSample(c, 'victory')) SOUNDS.fanfare(c); },
+  ...Object.fromEntries(['lol', 'angry', 'bored', 'smart', 'oops', 'clap', 'mercy', 'easy'].map((k) => [`emo_${k}`, (c) => { if (!playSample(c, `emo_${k}`)) SOUNDS.vote(c); }])),
   // Гудок банды из Лавки: боевой рог — валторны с тубой
   gangHorn: (c) => { if (!playSample(c, 'gangHorn')) SOUNDS.waveHorn(c); },
   fanfare: (c) => {
@@ -5157,7 +5162,7 @@ const FEEL = {
   'call-open': 'open', 'dm-call-open': 'open', 'battle-new': 'open', 'crew-share': 'open',
   'gang-open': 'open', 'dm-open': 'open', 'battle-open': 'open', 'inbox-open': 'open', 'inbox-go': 'open', 'gev-edit': 'open', 'quest-go': 'open',
   close: 'close', 'close-bg': 'close', 'chats-back': 'close', 'dm-back': 'close', 'battle-back': 'close', 'onb-back': 'close', 'nick-no': 'close', 'food-cancel': 'close', 'feed-close': 'close', 'coach-skip': 'close',
-  'poll-vote': 'vote', vote: 'vote', 'quiz-pick': 'vote', 'guess-pick': 'vote', 'food-pick': 'vote', reply: 'vote', 'dm-reply': 'vote', 'coffee-reply': 'vote', bemote: 'vote',
+  'poll-vote': 'vote', vote: 'vote', 'quiz-pick': 'vote', 'guess-pick': 'vote', 'food-pick': 'vote', reply: 'vote', 'dm-reply': 'vote', 'coffee-reply': 'vote',
   buy: 'confirm', 'ava-buy': 'confirm', equip: 'confirm', 'invite-accept': 'confirm', 'crew-accept': 'confirm', 'nick-yes': 'confirm', checkin: 'confirm', 'canteen-in': 'confirm',
   'lunch-join': 'confirm', 'gang-join': 'confirm', bready: 'confirm', 'whatsnew-ok': 'confirm', 'ava-save': 'confirm', 'ava-save-vac': 'confirm', 'prof-save': 'confirm', 'name-save': 'confirm',
   'gang-leave': 'danger', 'invite-decline': 'danger', 'crew-decline': 'danger', 'crew-remove': 'danger', 'crew-block': 'danger', logout: 'danger', 'delete-account': 'danger',
@@ -6187,7 +6192,7 @@ const actions = {
     if (S.bEmoteAt && Date.now() - S.bEmoteAt < 2500) return;
     S.bEmoteAt = Date.now();
     S.bEmote = { ...(S.bEmote || {}), mine: { e, until: Date.now() + 3200 } };
-    render(); setTimeout(() => { if (S.battle || S.practice) render(); }, 3300);
+    sfx(`emo_${e}`); render(); setTimeout(() => { if (S.battle || S.practice) render(); }, 3300);
     if (prSea()) { if (Math.random() < 0.5) prBotEmote(['lol', 'clap', 'bored', 'easy', 'mercy']); return; }
     post(`/api/battle/${S.battle}/emote`, { e }).catch(() => {});
   },

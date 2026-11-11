@@ -38,6 +38,14 @@ public/sounds/hit1.mp3
 public/sounds/hit2.mp3
 public/sounds/sunk1.mp3
 public/sounds/resign.mp3
+public/sounds/emo_lol.mp3
+public/sounds/emo_angry.mp3
+public/sounds/emo_bored.mp3
+public/sounds/emo_smart.mp3
+public/sounds/emo_oops.mp3
+public/sounds/emo_clap.mp3
+public/sounds/emo_mercy.mp3
+public/sounds/emo_easy.mp3
 public/sounds/CREDITS.txt
 public/js/theme.js
 public/fonts/onest.woff

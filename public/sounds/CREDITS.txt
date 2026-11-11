@@ -2,3 +2,4 @@ battle.mp3, lose.mp3, win.mp3, rally.mp3, horn.mp3, resign.mp3 — сведен�
 (Versilian Studios, https://github.com/sgossner/VSCO-2-CE), лицензия CC0 1.0.
 miss1/2, hit1/2, sunk1.mp3 — сведены из CC0-записей: пушки и всплески rubberduck и взрывы Superpowers (сборник https://github.com/EternityForest/Free-SFX),
 взрывы и удары металла Kenney Sci-Fi Sounds (kenney.nl). Всё — CC0 1.0.
+emo_lol, emo_angry, emo_bored, emo_smart, emo_oops, emo_clap, emo_mercy, emo_easy.mp3 — реакции в играх, сведены из сэмплов VSCO 2 CE (CC0 1.0); хлопки и щелчки синтезированы. Скрипт — tools/sounds/emotes.py.
