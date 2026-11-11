@@ -88,7 +88,11 @@ function encodePng(w, h, rgba) {
 let PACK = null;
 const atlases = new Map();
 function pack() {
-  if (!PACK) PACK = JSON.parse(fs.readFileSync(path.join(DIR, 'index.json'), 'utf8'));
+  if (!PACK) {
+    PACK = JSON.parse(fs.readFileSync(path.join(DIR, 'index.json'), 'utf8'));
+    // Досылки: детали, добавленные после основной упаковки, лежат в своих атласах и описаны в extra*.json
+    for (const f of fs.readdirSync(DIR).filter((n) => /^extra[\w-]*\.json$/.test(n)).sort()) Object.assign(PACK.parts, JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8')).parts);
+  }
   return PACK;
 }
 function atlas(fn) {
@@ -145,17 +149,18 @@ function blur(A, w, h, sigma) {
 function reshape(lay, S, box, o) {
   const [x0, y0, x1, y1] = box;
   const mid = pack().crop[0] + pack().crop[2] / 2;
-  const cx = (x0 + x1) / 2; const cy = (y0 + y1) / 2;
+  const cx = o.px == null ? (x0 + x1) / 2 : o.px; const cy = o.py == null ? (y0 + y1) / 2 : o.py;
+  const ddx = o.dx || 0; const ddy = o.dy || 0;
   const sx = o.sx || 1; const sy = o.sy || 1; const gap = o.gap || 0;
   const cos = Math.cos(o.rot || 0); const sin = Math.sin(o.rot || 0);
-  const m = Math.ceil(Math.max((x1 - x0) * (sx - 1), (y1 - y0) * (sy - 1), 0) / 2 + Math.abs(gap) + (o.rot ? (y1 - y0) * 0.3 : 0)) + 2;
+  const m = Math.ceil(Math.max((x1 - x0) * (sx - 1), (y1 - y0) * (sy - 1), 0) / 2 + Math.abs(gap) + Math.abs(ddx) + Math.abs(ddy) + (o.px == null ? 0 : 40) + (o.rot ? (y1 - y0) * 0.3 : 0)) + 2;
   let nx0 = Math.max(0, x0 - m); let nx1 = Math.min(S, x1 + m); const ny0 = Math.max(0, y0 - m); const ny1 = Math.min(S, y1 + m);
   if (o.flip) { const a = Math.max(0, Math.floor(2 * mid - nx1)); const b = Math.min(S, Math.ceil(2 * mid - nx0)); nx0 = a; nx1 = b; }
   const w = nx1 - nx0; const h = ny1 - ny0;
   const out = new Float32Array(w * h * 4);
   for (let y = ny0; y < ny1; y++) for (let x = nx0; x < nx1; x++) {
-    let u = o.flip ? 2 * mid - 1 - x : x;
-    let v = y;
+    let u = (o.flip ? 2 * mid - 1 - x : x) - ddx;
+    let v = y - ddy;
     if (gap) u -= (u < mid ? -1 : 1) * gap;
     if (o.rot) { const dx = u - cx; const dy = v - y0; u = cx + dx * cos + dy * sin; v = y0 - dx * sin + dy * cos; }
     u = cx + (u - cx) / sx; v = cy + (v - cy) / sy;
@@ -192,7 +197,8 @@ function deblue(name, p) {
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     const i = ((ay + y) * A.w + ax + x) * 4;
     const r = A.data[i]; const g = A.data[i + 1]; const b = A.data[i + 2];
-    if (A.data[i + 3] && b > r + 25 && b > g + 12 && g >= r - 8) A.data[i + 3] = 0;
+    // только насыщенный синий манекена: у сиреневой таблички красный канал высокий, её не трогаем
+    if (A.data[i + 3] && r < 110 && b > r + 40 && b > g + 25 && g >= r - 8) A.data[i + 3] = 0;
   }
 }
 
@@ -245,7 +251,7 @@ function drawPart(cv, lay, S, name, colors, clip, o) {
   }
   if (x1 <= x0) return;
   if (o) {
-    if (o.flip || o.sx || o.sy || o.gap || o.rot) [x0, y0, x1, y1] = reshape(lay, S, [x0, y0, x1, y1], o);
+    if (o.flip || o.sx || o.sy || o.gap || o.rot || o.dx || o.dy) [x0, y0, x1, y1] = reshape(lay, S, [x0, y0, x1, y1], o);
     let ref = 0.62;
     if (o.gold) {
       // яркость золота меряем от самой детали: тёмный галстук и светлая цепь должны выйти одинаково золотыми
@@ -420,7 +426,9 @@ function lookToSpec(look = {}) {
   if (hat) L.push('hat_' + hat);
   else if (look.phones) L.push('hat_headset');
   const prop = look.prop === 'sign_lunch' ? 'sign_lunch_' + (f ? 'f' : 'm') : pick(PROP, look.prop);
-  if (prop) L.push('p_' + prop + '_hand', 'p_' + prop);
+  // Таблички крупные: уменьшаем их к кулаку и сдвигаем к середине, чтобы не закрывали рот и текст не резался круглой рамкой
+  const signFit = prop && prop.startsWith('sign') ? { sx: 0.76, sy: 0.76, px: 275, py: 372, dx: -30, dy: 2 } : null;
+  if (prop) L.push(['p_' + prop + '_hand', signFit], ['p_' + prop, signFit]);
   if (pick(PET, look.pet)) L.push('pet_' + look.pet);
   const layers = L.map((x) => (Array.isArray(x) ? (x[1] ? x : x[0]) : x));
   const names = layers.map((x) => (Array.isArray(x) ? x[0] : x));

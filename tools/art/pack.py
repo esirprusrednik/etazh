@@ -43,7 +43,7 @@ def clean(L, n):
     a = np.where(ndi.binary_dilation(a > 0.15, iterations=6), a, 0)
     if n.split('_')[0] in ('pet', 'p') and n != 'pet_aquarium':
         # синяя кромка там, где питомец или предмет перекрывал манекен (то же правило продублировано в server/ava.js)
-        a = np.where((L[..., 2] > L[..., 0] + 0.1) & (L[..., 2] > L[..., 1] + 0.05) & (L[..., 1] >= L[..., 0] - 0.03), 0, a)
+        a = np.where((L[..., 0] < 0.43) & (L[..., 2] > L[..., 0] + 0.16) & (L[..., 2] > L[..., 1] + 0.1) & (L[..., 1] >= L[..., 0] - 0.03), 0, a)
     L[..., 3] = a; return L
 parts = {}
 def add(name, raw=None, tint=None, mod=None, **meta): parts[name] = dict(raw=raw, tint=tint, mod=mod, meta=meta)
