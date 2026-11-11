@@ -2250,3 +2250,8 @@ h3.has-art { display: inline-flex; align-items: center; gap: 8px; }
 .ach-ico { width: 44px; height: 44px; background: none !important; box-shadow: none !important; border-radius: 0; }
 .ach:not(.got) .ach-ico .art { opacity: .8; }
 .b-banner.has-art { display: flex; align-items: center; justify-content: center; gap: 10px; text-align: left; }
+/* Большая картинка итога партии и объёмные обложки карточек */
+.res-hero { display: flex; justify-content: center; padding: 6px 0 2px; animation: res-pop .45s cubic-bezier(.2,1.4,.4,1) both; }
+@keyframes res-pop { from { transform: scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .res-hero { animation: none; } }
+.coffee .coffee-ico.art-ico { background: none; width: 46px; height: 46px; }

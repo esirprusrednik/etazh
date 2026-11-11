@@ -373,6 +373,8 @@ const NECK = { tie: 'tie', tie_crooked: 'tie', tie_gold: 'tie', bow: 'bow', badg
 const HAT = { beanie: 'beanie', cap: 'cap', headset: 'headset', laurel: 'laurel', knight: 'knight', royal: 'crown', fedora: 'fedora', ushanka: 'ushanka', tricorn: 'tricorn', dedmoroz: 'dedmoroz', kokoshnik: 'kokoshnik', wreath: 'wreath', shawl: 'shawl' };
 const MASK = ['medical', 'gauze', 'visor', 'scuba'];
 const PROP = ['mug', 'papers', 'sign', 'laptop', 'mug_best', 'trophy', 'phone', 'torch', 'mimosa', 'pancakes', 'sign_dnd', 'sign_ask', 'sign_coffee', 'sign_deadline', 'sign_plan', 'sign_friday', 'sign_domik', 'sign_tz', 'sign_thanks'];
+// Таблички, у которых текст зависит от пола: «ушёл/ушла», «не виноват/не виновата»
+const PROP_G = ['sign_lunch', 'sign_innocent'];
 const PET = ['corgi', 'pug', 'frenchie', 'parrot', 'cat', 'aquarium', 'cactus'];
 const EARRINGS = ['studs', 'pearls', 'hoops', 'drops', 'cross'];
 const LENS = { grey: [59, 63, 74, 0.6], brown: [90, 58, 30, 0.56], blue: [42, 98, 201, 0.48], green: [31, 122, 74, 0.48], pink: [224, 80, 143, 0.4], yellow: [224, 165, 0, 0.4] };
@@ -428,7 +430,7 @@ function lookToSpec(look = {}) {
   // Корона из Лавки поверх шапки: маленькая, сидит на макушке (с короной-шапкой и шлемом не сочетается)
   if (hat && look.crown && hat !== 'crown' && !helmet) L.push(['hat_crown', { crownTop: 1 }]);
   else if (look.phones) L.push('hat_headset');
-  const prop = look.prop === 'sign_lunch' ? 'sign_lunch_' + (f ? 'f' : 'm') : pick(PROP, look.prop);
+  const prop = pick(PROP_G, look.prop) ? look.prop + '_' + (f ? 'f' : 'm') : pick(PROP, look.prop);
   // Таблички крупные: уменьшаем их к кулаку и сдвигаем к середине, чтобы не закрывали рот и текст не резался круглой рамкой
   const signFit = prop && prop.startsWith('sign') ? { sx: 0.76, sy: 0.76, px: 275, py: 372, dx: -30, dy: 2 } : null;
   if (prop) L.push(['p_' + prop + '_hand', signFit], ['p_' + prop, signFit]);

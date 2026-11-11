@@ -1304,7 +1304,7 @@ function renderTodos() {
   const empty = !t.today.length && !adding;
   return `<section class="card todos">
     <div class="row" style="justify-content:space-between;align-items:center">
-      <span class="card-title">check Дела дня</span>
+      <span class="card-title has-art">${art('tasks', 30)}Дела дня</span>
       <span class="row" style="gap:6px">${t.streak ? `<span class="todo-streak" title="Дней без хвостов подряд">${ico('flame', 14)} ${t.streak}</span>` : ''}${!adding && t.left ? `<button class="btn small" data-act="todo-add-open">+ Дело</button>` : ''}</span>
     </div>
     ${t.cleanToday && t.today.length ? `<div class="todo-clean">${ico('party', 18)} Чистый день — ни одного хвоста</div>` : ''}
@@ -3050,7 +3050,7 @@ function renderTourCard() {
   if (!t) return '';
   const line = t.status === 'reg' ? (t.regOpen ? `запись открыта до ${ddmmT(t.startDay)}` : `запись с ${ddmmT(t.regFrom)}, старт ${ddmmT(t.startDay)}`)
     : t.status === 'running' ? `идёт ${t.rounds.length ? t.rounds[t.rounds.length - 1].name : ''}` : t.status === 'done' ? `чемпион — «${t.champion ? esc(t.champion.name) : '—'}»` : 'перенесён: банд не хватило';
-  return `<section class="card tour-card"><div class="row" style="justify-content:space-between"><span class="card-title">trophy ${esc(t.title)}</span><span class="small">${line}</span></div>
+  return `<section class="card tour-card"><div class="row" style="justify-content:space-between"><span class="card-title has-art">${art('cup', 30)}${esc(t.title)}</span><span class="small">${line}</span></div>
     <p class="small" style="margin:0">Турнир банд на выбывание: блиц героев, сетка до 8 банд.${t.teams.length ? ` Записались: ${t.teams.length}.` : ''}${t.registered ? ' <b>Твоя банда в деле.</b>' : ''}</p>
     ${t.last && t.last.champion ? `<p class="small" style="margin:0">Прошлый кубок — «${esc(t.last.champion.name)}»</p>` : ''}
     <button class="btn small" data-act="tourney-open">Сетка и правила</button></section>`;
@@ -3283,7 +3283,7 @@ function duelHead(d) {
   const res = d.result === 'win' ? `<span class="duel-res win">${art('trophy', 24)}Победа</span>` : d.result === 'lose' ? `<span class="duel-res lose">${art('flag', 24)}${d.resigned ? 'Сдался' : 'Поражение'}</span>` : d.result === 'draw' ? `<span class="duel-res">${art('shake', 24)}Ничья</span>` : '';
   const score = '';
   const untouched = !d.mine && (d.game === 'ttt' ? !d.board.includes('me') : !d.rounds.some((r) => r.me));
-  return `<div class="duel-head"><b>${{ rps: 'rock Камень, ножницы, бумага', dice: 'dice Кости', ttt: 'x Крестики-нолики' }[d.game]}</b>${score}${res}${d.status === 'play' ? `<button class="linkbtn small" data-act="duel-resign" data-id="${d.id}" data-soft="${untouched ? 1 : 0}">${untouched ? 'отказаться' : 'сдаться'}</button>` : ''}</div>${stakeTag}`;
+  return `<div class="duel-head"><b>${{ rps: 'rock Камень, ножницы, бумага', dice: 'dice Кости', ttt: 'x Крестики-нолики' }[d.game]}</b>${score}${res}${d.status === 'play' ? `<button class="linkbtn small" data-act="duel-resign" data-id="${d.id}" data-soft="${untouched ? 1 : 0}">${untouched ? 'отказаться' : 'сдаться'}</button>` : ''}</div>${d.result ? `<div class="res-hero">${art(d.result === 'win' ? 'win' : d.result === 'lose' ? 'lose' : 'draw', 104)}</div>` : ''}${stakeTag}`;
 }
 // Эмоции на аватаре: рот и глаза поверх своего образа
 // Эмоция меняет только рот: форма глаз — часть внешности, по ней человека узнают
@@ -4251,13 +4251,13 @@ function renderCoffee() {
   const c = f.coffee;
   if (!c.optIn) {
     return `<section class="card coffee">
-      <div class="row" style="gap:12px"><span class="coffee-ico">${ico('coffee', 22)}</span>
+      <div class="row" style="gap:12px"><span class="coffee-ico art-ico">${art('clink', 46)}</span>
       <div class="grow"><div class="card-title">Случайный кофе</div><div class="small">Раз в неделю знакомим с соседом по офису — не из твоих банд.</div></div></div>
       ${c.hasHome ? '<button class="btn small" data-act="coffee-on">Участвовать</button>' : '<button class="btn small ghost" data-act="open" data-v="profile">Укажи свой офис в профиле</button>'}
     </section>`;
   }
   if (!c.pair) {
-    return `<section class="card coffee"><div class="row" style="gap:12px"><span class="coffee-ico">${ico('coffee', 22)}</span>
+    return `<section class="card coffee"><div class="row" style="gap:12px"><span class="coffee-ico art-ico">${art('clink', 46)}</span>
       <div class="grow"><div class="card-title">Случайный кофе</div><div class="small">Пары составляем по понедельникам в 10:00. Придёт уведомление.</div></div></div></section>`;
   }
   const p = c.pair;
@@ -4638,7 +4638,7 @@ function renderBlitzPlay() {
   if (b.state !== 'play' || !b.question) {
     S.blitzStreak = 0;
     const mood = (b.score || 0) >= 10 ? 'win' : (b.score || 0) >= 5 ? 'happy' : 'meh';
-    return `<div class="bl-end duel-fx"><span class="bl-me mood-${mood}"><span class="dvs-ava">${avatar(moodLook(S.me.look, mood), 64)}</span></span>${mood === 'win' && b.state === 'done' ? confetti(22) : ''}</div><div class="bl-result big"><b>${b.score || 0}</b><span>верных${b.answered != null ? ` из ${b.answered}` : ''}${b.beans ? ` · +${b.beans} зёрен` : ''}</span></div>
+    return `<div class="bl-end duel-fx"><span class="bl-me mood-${mood}"><span class="dvs-ava">${avatar(moodLook(S.me.look, mood), 64)}</span></span>${mood === 'win' && b.state === 'done' ? confetti(22) : ''}</div>${['win', 'happy'].includes(mood) ? `<div class="res-hero">${art('win', 96)}</div>` : ['lose', 'sad'].includes(mood) ? `<div class="res-hero">${art('lose', 96)}</div>` : ''}<div class="bl-result big"><b>${b.score || 0}</b><span>верных${b.answered != null ? ` из ${b.answered}` : ''}${b.beans ? ` · +${b.beans} зёрен` : ''}</span></div>
       ${b.board && b.board.place ? `<p class="sub" style="text-align:center">Твоё место — ${b.board.place} из ${b.board.players}</p>` : ''}
       <div class="eyebrow">Лидеры</div>${blitzBoard(b.board)}
       <button class="btn wide" style="margin-top:12px" data-act="close">Готово</button>`;
@@ -5262,7 +5262,7 @@ const PART_NAMES = { left: 'Слева', right: 'Справа' };
 const LIPS_NAMES = { thin: 'Тонкие', normal: 'Средние', full: 'Пухлые' };
 const MOLE_NAMES = { none: 'Нет', cheekL: 'Щека слева', cheekR: 'Щека справа', lip: 'Над губой', chin: 'Подбородок' };
 const HAIR_COLOR_NAMES = { '#0F0E12': 'Чёрный', '#2B1D14': 'Тёмно-каштановый', '#4A3326': 'Тёмно-русый', '#6B3E26': 'Каштановый', '#8C6A4F': 'Русый', '#B5532A': 'Медный', '#C2412F': 'Рыжий', '#CFAE74': 'Пшеничный', '#E0B04B': 'Блонд', '#F2E6C9': 'Платина', '#6E6A66': 'Соль с перцем', '#9AA3B5': 'Седой', '#7C4DFF': 'Фиолетовый', '#FF6FA8': 'Розовый' };
-const PROP_NAMES = { sign_lunch: 'Ушёл на обед', sign_dnd: 'Не беспокоить', sign_ask: 'Я просто спросить', sign_coffee: 'Кофе? Я угощаю', sign_deadline: 'Дедлайн вчера', sign_plan: 'Всё по плану', sign_friday: 'Пятница!', sign_domik: 'Я в домике', sign_tz: 'Где ТЗ?', sign_thanks: 'Спасибо!', none: 'Ничего', torch: 'Факел', phone: 'Телефон', mimosa: 'Букет мимозы', pancakes: 'Стопка блинов', mug: 'Кружка', papers: 'Квартальный отчёт', sign: 'Табличка', laptop: 'Ноутбук', mug_best: 'Лучший сотрудник', trophy: 'Кубок Лиги' };
+const PROP_NAMES = { sign_lunch: 'Ушёл на обед', sign_dnd: 'Не беспокоить', sign_ask: 'Я просто спросить', sign_coffee: 'Кофе? Я угощаю', sign_deadline: 'Дедлайн вчера', sign_plan: 'Всё по плану', sign_friday: 'Пятница!', sign_domik: 'Я в домике', sign_tz: 'Где ТЗ?', sign_thanks: 'Спасибо!', sign_innocent: 'Это не я', none: 'Ничего', torch: 'Факел', phone: 'Телефон', mimosa: 'Букет мимозы', pancakes: 'Стопка блинов', mug: 'Кружка', papers: 'Квартальный отчёт', sign: 'Табличка', laptop: 'Ноутбук', mug_best: 'Лучший сотрудник', trophy: 'Кубок Лиги' };
 // Две группы: «Внешность» — кто ты (по этому узнают), «Стиль» — что на тебе надето и вокруг
 const AVA_CATS = [['face', 'Лицо'], ['eyes', 'Глаза и брови'], ['hair', 'Волосы'], ['mouth', 'Рот'], ['beard', 'Борода'], ['makeup', 'Макияж'], ['age', 'Возраст и приметы'], ['outfit', 'Одежда'], ['acc', 'Аксессуары'], ['pet', 'Питомец'], ['bg', 'Фон'], ['meme', 'Мемы']];
 // Что по умолчанию снимаем в превью вкладки, чтобы оно не закрывало выбираемую часть
@@ -5452,7 +5452,7 @@ function renderAvatarEditor() {
       <div class="field">В руке${tiles('prop', ['none', 'mug', 'mug_best', 'phone', 'torch', 'mimosa', 'pancakes'], { none: 'Ничего', mug: 'Кружка', mug_best: 'Лучший сотрудник', phone: 'Телефон', torch: 'Факел', mimosa: 'Букет мимозы', pancakes: 'Стопка блинов' })}</div>
 `,
     bg: `<div class="field">Фон${tiles('bg', L.bg, BG_NAMES)}</div><p class="small" style="margin:0">«Под кожу» сам подбирает цвет, на котором лицо не сливается с фоном.</p>`,
-    meme: `<div class="field">В руках${tiles('prop', ['none', 'papers', 'sign', 'sign_lunch', 'sign_dnd', 'sign_ask', ...(AVA3D ? ['sign_coffee', 'sign_deadline', 'sign_plan', 'sign_friday', 'sign_domik', 'sign_tz', 'sign_thanks'] : []), 'laptop', 'trophy'], PROP_NAMES)}</div><p class="small" style="margin:0">Детали с ценой можно примерить бесплатно, а сохранить — после покупки в Лавке. Корона и рамки — тоже в Лавке.</p>`
+    meme: `<div class="field">В руках${tiles('prop', ['none', 'papers', 'sign', 'sign_lunch', 'sign_dnd', 'sign_ask', ...(AVA3D ? ['sign_coffee', 'sign_deadline', 'sign_plan', 'sign_friday', 'sign_domik', 'sign_tz', 'sign_thanks', 'sign_innocent'] : []), 'laptop', 'trophy'], PROP_NAMES)}</div><p class="small" style="margin:0">Детали с ценой можно примерить бесплатно, а сохранить — после покупки в Лавке. Корона и рамки — тоже в Лавке.</p>`
   }[cat];
   const locked = draftLocked();
   return `<div class="ava-ed">

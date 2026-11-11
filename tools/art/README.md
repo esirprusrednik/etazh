@@ -32,6 +32,8 @@
 - 87446513-6acf-4e10-8120-c4755f92c78f — signs2: таблички «Я на совещании» (это prop `sign`), «Кофе? Я угощаю», «Дедлайн вчера», «Всё по плану», «Пятница!», «Я в домике», «Где ТЗ?», «Спасибо!», «Не виноват» — рука пурпурная. Досылка: `server/ava/extra-signs.json` + `xla_0.png`, `xrgba_0.png`
 - cbc593f4-9e9d-429b-b26d-1951e9f48bf9 — значки 2: flag, shake, dove, megaphone, friends, quiz, beans (в public/art); shield и gift не использованы
 - 0420c12c-9392-49e2-8fc9-55087bb29024 — значки 3: medal_common, medal_rare, medal_legendary, medal_locked, medal_secret, buoy, hourglass (в public/art); popper и crown не использованы
+- 9de4ef67-b4ca-4d67-85c7-1cca4f0b5475 — сценки: win, lose, draw, clink, tasks, cup (в public/art, 240 px); stopwatch, warship, podium не использованы
+- 085f7a3a-9f4c-4ffc-9038-357c8e914a5f — signs3: «Не виновата» и «Не виноват» (prop `sign_innocent`, по полу); ещё семь табличек на листе не использованы. Досылка: `extra-signs2.json` + `yla_0.png`, `yrgba_0.png`
 
 ## Скрипты
 - `layers.py` — режет лист на клетки, совмещает каждую с эталоном (масштаб и сдвиг), сохраняет слой детали.
