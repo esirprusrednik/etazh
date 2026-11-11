@@ -29,6 +29,12 @@ def eyes_colored(layer, iris):
     ref = np.percentile(rgb[..., 1][g > 0.8], 70) if (g > 0.8).sum() > 20 else 0.6
     col = tint(rgb[..., 1] / ref, iris, 0.6)
     return np.dstack([col * g[..., None] + rgb * (1 - g[..., None]), layer[..., 3]])
+def green_tinted(layer, col):
+    rgb = layer[..., :3]; mx, mn = rgb.max(-1), rgb.min(-1); sat = np.where(mx > 1e-3, (mx - mn) / np.maximum(mx, 1e-3), 0)
+    g = np.clip((sat - 0.3) / 0.25, 0, 1) * (rgb[..., 1] >= mx - 1e-3)
+    ref = np.percentile(rgb[..., 1][g > 0.8], 75) if (g > 0.8).sum() > 50 else 0.6
+    t = tint(rgb[..., 1] / ref, col, 0.35)
+    return np.dstack([t * g[..., None] + rgb * (1 - g[..., None]), layer[..., 3]])
 # геометрия эталона
 ys, xs = np.where(BASE_BLUE > 0.5); TOP = ys.min()
 W = np.array([(BASE_BLUE[y] > 0.5).sum() for y in range(TOP, ys.max())]); HEADW = W[: len(W)//2].max()
@@ -37,27 +43,35 @@ CX = int(xs[(ys > TOP) & (ys < YMAX)].mean()); HEADH = NECK - TOP
 yy, xx = np.mgrid[0:C, 0:C]
 SHIRT = ndi.gaussian_filter((yy > NECK + int(HEADW*0.10) - 18 * np.cos(np.clip((xx - CX) / (HEADW * 0.34), -1.57, 1.57))).astype(np.float32), 1.2)
 OFFSET = {'nose': (0, 18)}
-NOCLIP = {'hat_headset', 'hat_crown'}
-RAW = {'hat_crown'}
+NOSE_DY = {'n_long': 2, 'n_roman': 4, 'n_wide': 12, 'n_snub': 14}
+NOCLIP = {'hat_headset', 'hat_crown', 'hat_laurel', 'hat_wreath'}
+RAW = {'hat_crown', 'hat_laurel', 'hat_knight', 'hat_tricorn', 'hat_dedmoroz', 'hat_kokoshnik', 'hat_wreath', 'hat_shawl'}
 def avatar(look):
     skin, hairc, shirtc = hexc(look['skin']), hexc(look['hair']), hexc(look['shirt'])
     out = np.zeros((C, C, 4), np.float32)
-    body = tint(SHADE_B, skin) * (1 - SHIRT[..., None]) + tint(SHADE_B, shirtc, 0.35) * SHIRT[..., None]
-    out = over(out, np.dstack([body, BASE_BLUE]))
+    if look.get('outfit') and part(look['outfit']) is not None:
+        out = over(out, np.dstack([tint(SHADE_B, skin), BASE_BLUE]))
+        O = green_tinted(part(look['outfit']), shirtc); O[..., 3] = np.clip((O[..., 3] - 0.25) / 0.6, 0, 1)   # у одежды в исходнике мягкий ореол — подрезаем
+        out = contact(out, O, 5, (-6, 0), 0.25); out = over(out, O)
+    else:
+        body = tint(SHADE_B, skin) * (1 - SHIRT[..., None]) + tint(SHADE_B, shirtc, 0.35) * SHIRT[..., None]
+        out = over(out, np.dstack([body, BASE_BLUE]))
     hat = part(look['hat']) if look.get('hat') else None
-    for key, kind in [('mouth', 'raw'), ('beard', 'hair'), ('nose', 'skin'), ('eyes', 'eyes'), ('brows', 'hair'), ('hairstyle', 'hair'), ('glasses', 'hair'), ('hat', 'hat')]:
+    for key, kind in [('neck', 'raw'), ('mouth', 'raw'), ('beard', 'hair'), ('nose', 'skin'), ('eyes', 'eyes'), ('brows', 'hair'), ('mask', 'raw'), ('hairstyle', 'hair'), ('glasses', 'hair'), ('hat', 'hat')]:
         n = look.get(key)
         if not n: continue
         L = part(n)
         if L is None: continue
         if key == 'hairstyle' and hat is not None and look['hat'] not in NOCLIP:
             # волосы под шапкой: в колонках шапки видно только то, что ниже её края; по бокам — только ниже среднего края
-            ha = hat[..., 3] > 0.5; cols = ha.any(0); bottom = np.where(cols, C - 1 - np.argmax(ha[::-1], axis=0), 0)
-            lvl = int(np.median(bottom[cols])) if cols.any() else 0
-            lim = np.where(cols, bottom, lvl)[None, :]
-            L = L.copy(); L[..., 3] *= ndi.gaussian_filter((yy > lim - 2).astype(np.float32), 1.0)
+            # край шапки продолжаем в стороны на уровне её концов — тогда по бокам нет прямого среза
+            ha = hat[..., 3] > 0.5; cols = ha.any(0); bottom = np.where(cols, C - 1 - np.argmax(ha[::-1], axis=0), 0).astype(np.float32)
+            xs_ = np.where(cols)[0]; x0, x1 = xs_.min(), xs_.max()
+            bottom[:x0] = bottom[x0:x0 + 12].max(); bottom[x1 + 1:] = bottom[x1 - 11:x1 + 1].max()
+            bottom = ndi.gaussian_filter1d(bottom, 4)
+            L = L.copy(); L[..., 3] *= ndi.gaussian_filter((yy > bottom[None, :] - 3).astype(np.float32), 1.5)
         if kind == 'hat': kind = 'raw' if n in RAW else 'hair'
-        if key in OFFSET: L = ndi.shift(L, (OFFSET[key][1], OFFSET[key][0], 0), order=1, mode='constant')
+        if key in OFFSET: L = ndi.shift(L, (NOSE_DY.get(n, OFFSET[key][1]) if key == 'nose' else OFFSET[key][1], OFFSET[key][0], 0), order=1, mode='constant')
         sk = part(n + '_skin')
         if sk is not None: out = over(out, skin_tinted(sk, skin))
         if kind == 'hair': L = grey_tinted(L, hexc(look.get(key + 'Color', look['hair'])), 0.5, 75 if key not in ('hat', 'glasses') else 60)

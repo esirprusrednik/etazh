@@ -14,6 +14,8 @@ def masks(c):
     mx, mn = rgb.max(-1), rgb.min(-1)
     sat = np.where(mx > 1e-3, (mx - mn) / np.maximum(mx, 1e-3), 0)
     blue = np.clip((sat - 0.25) / 0.25, 0, 1) * (rgb[..., 2] >= mx - 1e-3)
+    blue = blue * np.clip((rgb[..., 2] - 0.42) / 0.08, 0, 1)   # тёмно-синие детали (галстук) — не манекен: у него синий яркий
+    blue = blue * np.clip((rgb[..., 1] - rgb[..., 0] + 0.04) / 0.05, 0, 1)   # фиолетовое (R > G) — тоже не манекен
     return a * blue, a * (1 - blue)
 def down(m, f): return np.asarray(Image.fromarray((np.clip(m, 0, 1)*255).astype(np.uint8)).resize((C//f, C//f), Image.BILINEAR)).astype(np.float32)/255 > 0.5
 BASE = load('hair1.png')[0]; BASE_BLUE = masks(BASE)[0]
@@ -46,21 +48,37 @@ def warp(img, s, dx, dy):
         ys, xs = max(0, y0), max(0, x0); ye, xe = min(C, y0 + k), min(C, x0 + k)
         out[ys:ye, xs:xe, ch] = z[ys - y0: ye - y0, xs - x0: xe - x0]
     return out
+def matte(cw):
+    """Слой детали из совмещённой клетки: всё несинее. По границе с манекеном — сглаженный край и цвет без синей примеси."""
+    blue, other = masks(cw); a = other.copy()
+    inside = (BASE_BLUE > 0.9) & (cw[..., 3] > 0.9)
+    hard = other > 0.5
+    band = ndi.binary_dilation(hard, iterations=2) & ~ndi.binary_erosion(hard, iterations=2) & inside
+    diff = np.sqrt(((cw[..., :3] - BASE[..., :3]) ** 2).sum(-1))
+    dref = np.maximum(ndi.grey_dilation(diff * hard, size=(7, 7)), 0.12)
+    al = np.clip(diff / dref, 0, 1)
+    a = np.where(band, al, a)
+    rgb = cw[..., :3].copy()
+    m = band & (a > 0.08) & (a < 0.97)
+    un = (cw[..., :3] - (1 - a[..., None]) * BASE[..., :3]) / np.maximum(a[..., None], 0.08)
+    rgb[m] = np.clip(un, 0, 1)[m]
+    return np.dstack([rgb, a])
 def extract(path, names, outdir='parts', skin=0):
     import os; os.makedirs(outdir, exist_ok=True); rep = {}
     for c, name in zip(load(path), names):
         if not name: continue
-        s, dx, dy, q = fit(c); blue, other = masks(c)
-        layer = np.dstack([c[..., :3], other]); layer = warp(layer, s, dx, dy)
+        s, dx, dy, q = fit(c)
+        cw = warp(c, s, dx, dy); layer = matte(cw)
         Image.fromarray((np.clip(layer, 0, 1)*255).astype(np.uint8)).save(f'{outdir}/{name}.png')
         if skin:
-            # «лепка» кожи вокруг детали (веки, складки): где синий манекен отличается от эталона рядом с деталью
-            cw = warp(c, s, dx, dy); bw = warp(blue[..., None], s, dx, dy)[..., 0]
+            # «лепка» кожи вокруг детали (веки, складки): где синий манекен отличается от эталона; плавно сходит на нет
+            bw = masks(cw)[0]
             diff = np.abs(cw[..., 2] - BASE[..., 2]) * (bw > 0.9) * (BASE_BLUE > 0.9)
-            near = ndi.binary_dilation(layer[..., 3] > 0.3, iterations=skin) ; inside = ndi.binary_erosion(BASE_BLUE > 0.9, iterations=10)
-            al = ndi.gaussian_filter(np.clip((diff - 0.03) / 0.05, 0, 1) * near * inside, 1.5)
+            dist = ndi.distance_transform_edt(layer[..., 3] < 0.3); fall = np.clip(1 - dist / skin, 0, 1) ** 1.3
+            inside = ndi.binary_erosion(BASE_BLUE > 0.9, iterations=10)
+            al = ndi.gaussian_filter(np.clip((diff - 0.02) / 0.06, 0, 1) * fall * inside, 2.0)
             Image.fromarray((np.clip(np.dstack([cw[..., :3], al]), 0, 1)*255).astype(np.uint8)).save(f'{outdir}/{name}_skin.png')
-        rep[name] = dict(scale=round(s, 3), dx=int(dx), dy=int(dy), fit=round(float(q), 3)); print(name, rep[name])
+        rep[name] = dict(scale=round(s, 3), dx=int(dx), dy=int(dy), fit=round(float(q), 3)); print(name, rep[name], flush=True)
     return rep
 if __name__ == '__main__':
     extract(sys.argv[1], sys.argv[2].split(','), sys.argv[3] if len(sys.argv) > 3 else 'parts', int(sys.argv[4]) if len(sys.argv) > 4 else 0)

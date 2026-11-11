@@ -18,6 +18,13 @@
 - 7a081ae8-51d9-44b0-85cd-0d7022f4350f — face1: брови straight, arch, thick, thin; носы button, round; бороды short, full, mustache
 - 28488e9f-074b-422b-96c7-374bc7c92578 — acc1: cap, beanie, очки round, square, aviator, headset, fedora, crown, ushanka
 - 9b8b6135-480d-4c6f-9b31-188d423a0b68 — outfit1: hoodie, tee, shirt, suit, bomber, puffer, dress, tank, biker (главная вещь зелёная)
+- 9ac381ab-421b-4040-82d1-99bbead9e8e7 — face2: бороды stubble, full, goatee (с вырезом под рот); брови peak, uni; носы long, wide, snub, roman
+- a31e1d08-36ae-441b-bfb5-abb66333489c — hair2: short, tail, undercut, quiff, slick, buzz, manbun, waves, bangs
+- 040c8b4b-6f19-4691-89df-040aa2088414 — hair3: lob, pixie, ponytail, braid, buns, anime; очки classic, cat; глаза anime
+- bd587b03-03ab-4764-add9-0540147b244d — outfit2: dev, cyber, armor, vampire, nysweater, telnyashka; шея tie, bow, badge
+- bbd72d7b-ce08-490b-81f7-7c0c28eee661 — hats2: laurel, knight, tricorn, dedmoroz, kokoshnik, wreath, shawl; маски medical, gauze
+- c25cca72-8676-413d-9be7-fb69ab59f63d — neck2: бусы, цепь, змея, гирлянда; серьги studs, pearls, hoops, drops, cross
+- 3ac03d9e-4483-49f5-809a-4f51fa83d9c0 — props1: рука манекена + кружка, бумаги, табличка, ноутбук, кружка со звездой, кубок, телефон, факел, мимоза
 
 ## Скрипты
 - `layers.py` — режет лист на клетки, совмещает каждую с эталоном (масштаб и сдвиг), сохраняет слой детали.
@@ -25,7 +32,7 @@
 - `av.py` — собирает аватар из слоёв и красит: кожа, волосы, радужка, одежда. `sheet(looks, 'out.jpg')` — проба в двух темах.
 
 ## Что ещё не доведено
-- борода закрывает рот — перегенерировать бороды с вырезом под рот;
-- волосы под шапкой режутся жёстко по краю; пышные причёски упираются в край клетки — такие листы делать 2×2;
-- вокруг глаз заметен ореол «лепки» кожи; край рта местами зубчатый;
-- одежда: пока красится футболка манекена по приблизительной линии ворота.
+- пышные причёски упираются в край клетки — в круглой рамке этого не видно, для полного роста такие листы делать 2×2;
+- брови частично уходят под кепку и низкие шапки;
+- не сделаны: предметы в руке (второй лист), питомцы, маски visor и scuba, фоны-сцены;
+- кодом ещё предстоит: макияж, родинки, возраст, значок на кепке, уши, зеркальный пробор, расстояние и размер глаз.
