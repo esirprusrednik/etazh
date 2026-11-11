@@ -668,6 +668,26 @@ function startServer(day, extra = {}) {
       await B.post('/api/me/profile', { profile: { focus: null } });
       assert.ok(!(await A.get('/api/people')).json.people.find((p) => p.nick === 'отпускник').focus);
     });
+    await step('таблички сами: «Тихо, работаю» в фокусе, «Скоро буду» после ответа на зов, выключатель в настройках', async () => {
+      const seen = async () => (await A.get('/api/people')).json.people.find((p) => p.nick === 'отпускник').look.prop;
+      const before = await seen();
+      await B.post('/api/me/profile', { profile: { focus: 60 } });
+      assert.equal(await seen(), 'sign_quiet');
+      assert.notEqual((await B.get('/api/me')).json.user.look.prop, 'sign_quiet', 'свой сохранённый образ не меняется');
+      await B.post('/api/me/profile', { profile: { autoSign: false } });
+      assert.equal(await seen(), before, 'выключено — табличка не появляется');
+      await B.post('/api/me/profile', { profile: { autoSign: true, focus: null } });
+      assert.equal(await seen(), before);
+      const call = (await A.post(`/api/gangs/${g.id}/messages`, { type: 'call', kind: 'where', to: B.id })).json;
+      const msgs = (await B.get(`/api/gangs/${g.id}`)).json.messages;
+      const id = msgs.filter((m) => m.kind === 'where').pop().id;
+      const rr = await B.post(`/api/messages/${id}/reply`, { label: 'Скоро буду' });
+      assert.equal(rr.status, 200, JSON.stringify([call, rr.json]));
+      assert.equal(await seen(), 'sign_soon');
+      // табличку, которую ставит сам сервер, нельзя выбрать в конструкторе руками
+      await B.post('/api/me/profile', { look: { prop: 'sign_soon' } });
+      assert.notEqual((await B.get('/api/me')).json.user.look.prop, 'sign_soon');
+    });
     await step('шаблоны зовов: проверка, без дублей, не больше четырёх', async () => {
       const t = { kind: 'lunch', gang: g.id, opt: '13:00', to: D.id };
       await A.post('/api/me/profile', { profile: { callTpl: [t, t, { kind: 'coffee', gang: g.id, opt: 'нет такого' }] } });

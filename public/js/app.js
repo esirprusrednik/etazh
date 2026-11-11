@@ -2692,7 +2692,7 @@ function renderQuickExtra(gang) {
 function renderWeekNote() {
   const w = S.state && S.state.weekNote;
   if (!w || store.get('weekNoteHidden', '') === w.week) return '';
-  const row = (icon, title, list) => list.length ? `<div class="wn-row">${ico(icon, 16)}<span><b>${title}</b> ${list.map((x) => `${esc(x.nick)}${x.text ? ` <span class="small">${esc(x.text)}</span>` : ''}`).join(', ')}</span></div>` : '';
+  const row = (icon, title, list) => list.length ? `<div class="wn-row">${icon === 'cake' ? art('popper', 22) : ico(icon, 16)}<span><b>${title}</b> ${list.map((x) => `${esc(x.nick)}${x.text ? ` <span class="small">${esc(x.text)}</span>` : ''}`).join(', ')}</span></div>` : '';
   return `<section class="card wn">
     <div class="row" style="justify-content:space-between"><span class="card-title">${ico('cal', 18)}Неделя банды</span><button class="icon-btn" data-act="weeknote-hide" data-v="${esc(w.week)}" aria-label="Скрыть">${ico('x', 15)}</button></div>
     ${row('sun', 'В отпуске:', w.vac)}${row('thermo', 'Болеет:', w.sick)}${row('cake', 'День рождения:', w.bday)}
@@ -3112,7 +3112,7 @@ function renderWars() {
   if (!v) return '';
   const rec = v.record;
   return `<section class="card wars">
-    <div class="chats-head"><h3>swords Битвы банд</h3><span class="small">${rec.w + rec.l + rec.d ? `побед ${rec.w} · поражений ${rec.l}${rec.d ? ` · ничьих ${rec.d}` : ''}` : 'ещё не воевали'}${rec.declined ? ` · отказов ${rec.declined}` : ''}</span></div>
+    <div class="chats-head"><h3 class="has-art">${art('shield', 28)}Битвы банд</h3><span class="small">${rec.w + rec.l + rec.d ? `побед ${rec.w} · поражений ${rec.l}${rec.d ? ` · ничьих ${rec.d}` : ''}` : 'ещё не воевали'}${rec.declined ? ` · отказов ${rec.declined}` : ''}</span></div>
     ${v.items.length ? v.items.map(renderWar).join('') : '<p class="small" style="margin:4px 0 0">Вызови другую банду: блиц на 3 минуты по теме или быстрый морской бой. От каждой банды — один герой, на всё — рабочая неделя.</p>'}
     <button class="btn small ${v.volunteer ? 'green' : 'ghost'} vol-btn" data-act="war-volunteer" data-v="${v.volunteer ? '0' : '1'}">${v.volunteer ? 'hand Ты в списке добровольцев — нажми, чтобы выйти' : 'hand Готов быть героем'}</button>
     ${v.isOwner ? (v.members < v.minMembers ? `<p class="small" style="margin:0">Битвы — для банд от ${v.minMembers} человек. Позови своих.</p>` : '<button class="btn war-call" data-act="war-new">swords Бросить вызов</button>') : `<p class="small" style="margin:0">Вызов бросает и принимает владелец банды.${v.volunteers ? ` Добровольцев: ${v.volunteers}.` : ''}</p>`}
@@ -4438,7 +4438,7 @@ function renderSheet() {
     case 'changes': if (S.changes && S.changes[0]) store.set('changesSeen', S.changes[0].day); return sheetWrap('Что нового', changesHtml());
     case 'crest': return sheetWrap('Герб банды', renderCrestEditor());
     case 'gang-switch': return sheetWrap('Перейти в другую банду?', renderGangSwitch());
-    case 'league': return sheetWrap('Лига банд', renderLeague());
+    case 'league': return sheetWrap('Лига банд', `<div class="res-hero">${art('podium', 88)}</div>` + renderLeague());
     case 'crew-new': return sheetWrap('Позвать в личку', `<p class="sub">С участниками твоих банд переписываться можно сразу. Тех, кто не в банде, зови по нику или личной ссылкой.</p>
       <div class="row"><label class="field grow" style="gap:0"><span class="hidden">Ник</span><input id="crew-nick" maxlength="21" placeholder="ник" autocapitalize="off" autocomplete="off" aria-label="Ник"></label><button class="btn" data-act="crew-add">Позвать</button></div>
       <button class="btn blue" data-act="crew-share">Отправить свою ссылку</button>
@@ -4479,7 +4479,7 @@ function renderSheet() {
     case 'avatar': return sheetWrap(S.avaMode === 'vacation' ? 'Образ для отпуска' : 'Конструктор', renderAvatarEditor());
     case 'meme': return sheetWrap('Мем-открытка', renderMemeMaker());
     case 'shop': return sheetWrap('Лавка', renderShop());
-    case 'gift-pick': return sheetWrap(S.giftMode === 'prank' ? 'Разыграть подельника' : 'Подарить подельнику', renderGiftPick());
+    case 'gift-pick': return sheetWrap(S.giftMode === 'prank' ? 'Разыграть подельника' : 'Подарить подельнику', (S.giftMode === 'prank' ? '' : `<div class="res-hero">${art('gift', 88)}</div>`) + renderGiftPick());
     case 'inbox': return sheetWrap('Этаж', renderInbox());
     case 'board-new': return sheetWrap('Объявление', renderBoardNew());
     case 'coffee': return sheetWrap('Случайный кофе', `<div class="coffee-sheet">${renderCoffee()}</div><p class="small">Раз в неделю, в понедельник в 10:00, знакомим с коллегой из твоего офиса, который не в твоих бандах. Договориться о времени можно прямо здесь — кнопками.</p>${S.fx && S.fx.coffee && S.fx.coffee.optIn ? '<button class="linkbtn" data-act="coffee-off">Больше не участвовать</button>' : ''}`);
@@ -4602,7 +4602,7 @@ function renderBlitzCard() {
   const b = S.blitz;
   if (!b || !b.set) return '';
   const st = b.set;
-  const head = `<div class="row" style="justify-content:space-between"><span class="card-title has-art">${art('bolt', 30)}Блиц: ${esc(st.title)}</span><span class="small">до ${ddmm(st.to)}</span></div>`;
+  const head = `<div class="row" style="justify-content:space-between"><span class="card-title has-art">${art('stopwatch', 30)}Блиц: ${esc(st.title)}</span><span class="small">до ${ddmm(st.to)}</span></div>`;
   if (b.state === 'new') {
     return `<section class="card blitz">${head}
       <p class="sub" style="margin:6px 0 10px">${esc(st.desc)}</p>
@@ -5262,7 +5262,7 @@ const PART_NAMES = { left: 'Слева', right: 'Справа' };
 const LIPS_NAMES = { thin: 'Тонкие', normal: 'Средние', full: 'Пухлые' };
 const MOLE_NAMES = { none: 'Нет', cheekL: 'Щека слева', cheekR: 'Щека справа', lip: 'Над губой', chin: 'Подбородок' };
 const HAIR_COLOR_NAMES = { '#0F0E12': 'Чёрный', '#2B1D14': 'Тёмно-каштановый', '#4A3326': 'Тёмно-русый', '#6B3E26': 'Каштановый', '#8C6A4F': 'Русый', '#B5532A': 'Медный', '#C2412F': 'Рыжий', '#CFAE74': 'Пшеничный', '#E0B04B': 'Блонд', '#F2E6C9': 'Платина', '#6E6A66': 'Соль с перцем', '#9AA3B5': 'Седой', '#7C4DFF': 'Фиолетовый', '#FF6FA8': 'Розовый' };
-const PROP_NAMES = { sign_lunch: 'Ушёл на обед', sign_dnd: 'Не беспокоить', sign_ask: 'Я просто спросить', sign_coffee: 'Кофе? Я угощаю', sign_deadline: 'Дедлайн вчера', sign_plan: 'Всё по плану', sign_friday: 'Пятница!', sign_domik: 'Я в домике', sign_tz: 'Где ТЗ?', sign_thanks: 'Спасибо!', sign_innocent: 'Это не я', none: 'Ничего', torch: 'Факел', phone: 'Телефон', mimosa: 'Букет мимозы', pancakes: 'Стопка блинов', mug: 'Кружка', papers: 'Квартальный отчёт', sign: 'Табличка', laptop: 'Ноутбук', mug_best: 'Лучший сотрудник', trophy: 'Кубок Лиги' };
+const PROP_NAMES = { sign_lunch: 'Ушёл на обед', sign_dnd: 'Не беспокоить', sign_ask: 'Я просто спросить', sign_coffee: 'Кофе? Я угощаю', sign_deadline: 'Дедлайн вчера', sign_plan: 'Всё по плану', sign_friday: 'Пятница!', sign_domik: 'Я в домике', sign_tz: 'Где ТЗ?', sign_thanks: 'Спасибо!', sign_innocent: 'Это не я', sign_vacation: 'Хочу в отпуск', none: 'Ничего', torch: 'Факел', phone: 'Телефон', mimosa: 'Букет мимозы', pancakes: 'Стопка блинов', mug: 'Кружка', papers: 'Квартальный отчёт', sign: 'Табличка', laptop: 'Ноутбук', mug_best: 'Лучший сотрудник', trophy: 'Кубок Лиги' };
 // Две группы: «Внешность» — кто ты (по этому узнают), «Стиль» — что на тебе надето и вокруг
 const AVA_CATS = [['face', 'Лицо'], ['eyes', 'Глаза и брови'], ['hair', 'Волосы'], ['mouth', 'Рот'], ['beard', 'Борода'], ['makeup', 'Макияж'], ['age', 'Возраст и приметы'], ['outfit', 'Одежда'], ['acc', 'Аксессуары'], ['pet', 'Питомец'], ['bg', 'Фон'], ['meme', 'Мемы']];
 // Что по умолчанию снимаем в превью вкладки, чтобы оно не закрывало выбираемую часть
@@ -5452,7 +5452,7 @@ function renderAvatarEditor() {
       <div class="field">В руке${tiles('prop', ['none', 'mug', 'mug_best', 'phone', 'torch', 'mimosa', 'pancakes'], { none: 'Ничего', mug: 'Кружка', mug_best: 'Лучший сотрудник', phone: 'Телефон', torch: 'Факел', mimosa: 'Букет мимозы', pancakes: 'Стопка блинов' })}</div>
 `,
     bg: `<div class="field">Фон${tiles('bg', L.bg, BG_NAMES)}</div><p class="small" style="margin:0">«Под кожу» сам подбирает цвет, на котором лицо не сливается с фоном.</p>`,
-    meme: `<div class="field">В руках${tiles('prop', ['none', 'papers', 'sign', 'sign_lunch', 'sign_dnd', 'sign_ask', ...(AVA3D ? ['sign_coffee', 'sign_deadline', 'sign_plan', 'sign_friday', 'sign_domik', 'sign_tz', 'sign_thanks', 'sign_innocent'] : []), 'laptop', 'trophy'], PROP_NAMES)}</div><p class="small" style="margin:0">Детали с ценой можно примерить бесплатно, а сохранить — после покупки в Лавке. Корона и рамки — тоже в Лавке.</p>`
+    meme: `<div class="field">В руках${tiles('prop', ['none', 'papers', 'sign', 'sign_lunch', 'sign_dnd', 'sign_ask', ...(AVA3D ? ['sign_coffee', 'sign_deadline', 'sign_plan', 'sign_friday', 'sign_domik', 'sign_tz', 'sign_thanks', 'sign_innocent', 'sign_vacation'] : []), 'laptop', 'trophy'], PROP_NAMES)}</div><p class="small" style="margin:0">Детали с ценой можно примерить бесплатно, а сохранить — после покупки в Лавке. Корона и рамки — тоже в Лавке.</p>`
   }[cat];
   const locked = draftLocked();
   return `<div class="ava-ed">
@@ -5574,6 +5574,7 @@ function renderProfile() {
     <label class="check"><input type="checkbox" data-act="toggle" data-k="shareOffice" ${me.shareOffice ? 'checked' : ''}> <span>Показывать банде, где я: офис, дома или в отпуске</span></label>
     <label class="check"><input type="checkbox" data-act="toggle" data-k="quiet" ${me.quiet ? 'checked' : ''}> <span>Тихие часы 19:00–09:00 — не присылать зовы</span></label>
     <label class="check"><input type="checkbox" data-act="match-toggle" ${p.matchShow ? 'checked' : ''}> <span>«Совпадаем»: показывать коллегам, в какие дни я в офисе и дома (ник, имя, офис, общие интересы)</span></label>
+    <label class="check"><input type="checkbox" data-act="autosign-toggle" ${p.autoSign !== false ? 'checked' : ''}> <span>Таблички сами: пока включён «В фокус», аватар держит «Тихо, работаю», а после ответа «Скоро буду» или «Бегу» — «Скоро буду» на 20 минут. Свой предмет в руке потом вернётся</span></label>
     <label class="check"><input type="checkbox" data-act="monday-toggle" ${p.monday !== false ? 'checked' : ''}> <span>Неделя банды: в первый рабочий день недели около 9:30 — пуш, кто из банды в отпуске, болеет и у кого день рождения</span></label>
     <label class="check"><input type="checkbox" data-act="weather-toggle" ${p.weather !== false ? 'checked' : ''}> <span>Погода на завтра: вечером накануне офисного дня — пуш, если ждёт дождь, снег, мороз или жара</span></label>
     <label class="check"><input type="checkbox" data-act="digest-toggle" ${p.digest !== false ? 'checked' : ''}> <span>Утренняя сводка: один пуш в рабочий день около 11:30, если есть дела и ты ещё не заходил${meG('', 'а')}</span></label>
@@ -6508,6 +6509,7 @@ const actions = {
   'chats-jump'(el) { const t = document.querySelector(el.dataset.v); if (t) { t.scrollIntoView({ behavior: 'smooth', block: 'start' }); t.classList.add('flash'); setTimeout(() => t.classList.remove('flash'), 1600); } },
   'g-help'() { S.gHelp = !S.gHelp; render(); },
   'weeknote-hide'(el) { try { store.set('weekNoteHidden', el.dataset.v); } catch {} render(); },
+  'autosign-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { autoSign: el.checked } }); await loadMe(); toast(el.checked ? 'Аватар сам покажет табличку, когда ты в фокусе или уже бежишь' : 'Таблички сами больше не появятся'); }, { rerender: true }),
   'monday-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { monday: el.checked } }); await loadMe(); toast(el.checked ? 'В понедельник пришлю, что у банды на неделе' : 'Понедельничную сводку больше не пришлю'); }),
   'focus-set': (el) => run(async () => {
     await post('/api/me/profile', { profile: { focus: el.dataset.v === 'eod' ? 'eod' : Number(el.dataset.v) } });

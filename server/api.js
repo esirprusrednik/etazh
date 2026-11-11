@@ -56,7 +56,7 @@ const LOOK = {
   neck: ['none', 'tie', 'tie_crooked', 'bow', 'badge', 'beads', 'chain', 'tie_gold', 'chain_gold', 'snake', 'garland'],
   hat: ['none', 'beanie', 'cap', 'headset', 'laurel', 'knight', 'royal', 'fedora', 'ushanka', 'tricorn', 'dedmoroz', 'kokoshnik', 'wreath', 'shawl'],
   mask: ['none', 'medical', 'gauze', 'visor', 'scuba'],
-  prop: ['none', 'mug', 'papers', 'sign', 'laptop', 'mug_best', 'trophy', 'phone', 'torch', 'mimosa', 'pancakes', 'sign_lunch', 'sign_dnd', 'sign_ask', 'sign_coffee', 'sign_deadline', 'sign_plan', 'sign_friday', 'sign_domik', 'sign_tz', 'sign_thanks', 'sign_innocent'],
+  prop: ['none', 'mug', 'papers', 'sign', 'laptop', 'mug_best', 'trophy', 'phone', 'torch', 'mimosa', 'pancakes', 'sign_lunch', 'sign_dnd', 'sign_ask', 'sign_coffee', 'sign_deadline', 'sign_plan', 'sign_friday', 'sign_domik', 'sign_tz', 'sign_thanks', 'sign_innocent', 'sign_vacation'],
   bg: ['auto', 'sky', 'mint', 'peach', 'lilac', 'sun', 'slate', 'office', 'meeting', 'home', 'street', 'cafe'],
   // Черты лица: размер глаз, нос, уши
   eyeSize: ['s', 'm', 'l'],
@@ -438,10 +438,19 @@ function createApi(db) {
   // Отпускной образ — только если человек в отпуске и сам показывает банде, где он.
   function publicLook(row) {
     const look = { ...DEFAULT_LOOK, ...JSON.parse(row.look || '{}') };
-    if (row.profile === undefined || !row.share_office) return look;
+    if (row.profile === undefined) return look;
     const prof = readProfile(row.profile);
-    if (!prof.vacationLook || presenceOf(prof, activeCheckin(row.id), row.id).where !== 'vacation') return look;
-    return { ...look, ...prof.vacationLook, status: look.status, frame: look.frame, crown: look.crown };
+    let out = look;
+    if (row.share_office && prof.vacationLook && presenceOf(prof, activeCheckin(row.id), row.id).where === 'vacation') {
+      out = { ...look, ...prof.vacationLook, status: look.status, frame: look.frame, crown: look.crown };
+    }
+    // Таблички сами: «Скоро буду» — 20 минут после такого ответа на зов, «Тихо, работаю» — пока включён фокус.
+    // Это не место и не здоровье, поэтому от «показывать, где я» не зависит; выключается в настройках
+    if (prof.autoSign !== false) {
+      if (prof.soon && prof.soon > U.now()) out = { ...out, prop: 'sign_soon' };
+      else if (focusUntil(prof)) out = { ...out, prop: 'sign_quiet' };
+    }
+    return out;
   }
 
   function memberStatus(member) {
@@ -718,6 +727,7 @@ function createApi(db) {
       if (p.matchShow !== undefined) prof.matchShow = !!p.matchShow;
       if (p.weather !== undefined) prof.weather = !!p.weather;
       if (p.monday !== undefined) prof.monday = !!p.monday;
+      if (p.autoSign !== undefined) prof.autoSign = !!p.autoSign;
       if (p.focus !== undefined) {
         if (p.focus === null) prof.focus = null;
         else if (p.focus === 'eod') {
@@ -1399,6 +1409,12 @@ function createApi(db) {
     if (!def.replies.includes(body.label)) throw bad('Неизвестный ответ.');
     const r = q('INSERT OR IGNORE INTO replies (message_id, user_id, label, at) VALUES (?, ?, ?, ?)').run(m.id, u.id, body.label, U.now());
     if (!r.changes) throw bad(U.g(u.look, 'Ты уже ответил.', 'Ты уже ответила.'));
+    if (['Скоро буду', 'Бегу', '5 минут'].includes(body.label)) {
+      // «уже иду»: на 20 минут аватар держит табличку «Скоро буду» (если человек не выключил таблички в настройках)
+      const pr = readProfile(q('SELECT profile FROM users WHERE id = ?').get(u.id).profile);
+      pr.soon = U.now() + 20 * 60e3;
+      q('UPDATE users SET profile = ? WHERE id = ?').run(JSON.stringify(pr), u.id);
+    }
     const got = addBeans(u.id, 'reply');
     if (features) features.onEvent('reply', u.id);
     if (m.user_id) fireAndForget(notify([m.user_id], { title: 'Ответ на зов', body: `${u.nick}: ${body.label}`, url: `/#gang/${m.gang_id}`, tag: `reply-${m.id}` }));

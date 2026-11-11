@@ -372,7 +372,7 @@ const OUTFIT = ['hoodie', 'tee', 'dev', 'shirt', 'suit', 'jacket', 'puffer', 'dr
 const NECK = { tie: 'tie', tie_crooked: 'tie', tie_gold: 'tie', bow: 'bow', badge: 'badge', beads: 'beads', chain: 'chain', chain_gold: 'chain', snake: 'snake', garland: 'garland' };
 const HAT = { beanie: 'beanie', cap: 'cap', headset: 'headset', laurel: 'laurel', knight: 'knight', royal: 'crown', fedora: 'fedora', ushanka: 'ushanka', tricorn: 'tricorn', dedmoroz: 'dedmoroz', kokoshnik: 'kokoshnik', wreath: 'wreath', shawl: 'shawl' };
 const MASK = ['medical', 'gauze', 'visor', 'scuba'];
-const PROP = ['mug', 'papers', 'sign', 'laptop', 'mug_best', 'trophy', 'phone', 'torch', 'mimosa', 'pancakes', 'sign_dnd', 'sign_ask', 'sign_coffee', 'sign_deadline', 'sign_plan', 'sign_friday', 'sign_domik', 'sign_tz', 'sign_thanks'];
+const PROP = ['mug', 'papers', 'sign', 'laptop', 'mug_best', 'trophy', 'phone', 'torch', 'mimosa', 'pancakes', 'sign_dnd', 'sign_ask', 'sign_coffee', 'sign_deadline', 'sign_plan', 'sign_friday', 'sign_domik', 'sign_tz', 'sign_thanks', 'sign_vacation', 'sign_quiet', 'sign_soon'];
 // Таблички, у которых текст зависит от пола: «ушёл/ушла», «не виноват/не виновата»
 const PROP_G = ['sign_lunch', 'sign_innocent'];
 const PET = ['corgi', 'pug', 'frenchie', 'parrot', 'cat', 'aquarium', 'cactus'];

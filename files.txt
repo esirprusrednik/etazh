@@ -98,6 +98,7 @@ server/voice.js
 server/ava.js
 server/ava/extra-signs.json
 server/ava/extra-signs2.json
+server/ava/extra-signs3.json
 server/ava/index.json
 server/ava/la_0.png
 server/ava/la_1.png
@@ -113,6 +114,8 @@ server/ava/xla_0.png
 server/ava/xrgba_0.png
 server/ava/yla_0.png
 server/ava/yrgba_0.png
+server/ava/zla_0.png
+server/ava/zrgba_0.png
 server/style.js
 server/todos.js
 server/wave.js
@@ -143,6 +146,7 @@ public/art/dove.webp
 public/art/draw.webp
 public/art/flag.webp
 public/art/friends.webp
+public/art/gift.webp
 public/art/hourglass.webp
 public/art/lose.webp
 public/art/lunch.webp
@@ -153,10 +157,14 @@ public/art/medal_rare.webp
 public/art/medal_secret.webp
 public/art/megaphone.webp
 public/art/pin.webp
+public/art/podium.webp
+public/art/popper.webp
 public/art/quiz.webp
 public/art/rps.webp
 public/art/shake.webp
+public/art/shield.webp
 public/art/ship.webp
+public/art/stopwatch.webp
 public/art/tasks.webp
 public/art/trophy.webp
 public/art/ttt.webp

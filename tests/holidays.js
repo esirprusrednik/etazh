@@ -62,6 +62,8 @@ function startServer(day) {
     assert.deepEqual(SEASON.activeSeasons('2027-03-10'), ['mar8', 'maslenitsa']);
     assert.deepEqual(SEASON.activeSeasons('2027-01-05'), ['newyear']);
     assert.deepEqual(SEASON.activeSeasons('2026-12-01'), []);
+    assert.deepEqual(SEASON.activeSeasons('2027-06-20'), ['summer']);
+    assert.deepEqual(SEASON.activeSeasons('2027-09-01'), []);
     assert.equal(SEASON.nextWindow('newyear', '2026-12-20').to, '2027-01-10');
   });
 

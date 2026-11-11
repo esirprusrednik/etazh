@@ -100,6 +100,7 @@ const SHOP = [
   { id: 'p_sign_domik', kind: 'part', slot: 'prop', value: 'sign_domik', name: 'Табличка «Я в домике»', price: 35 },
   { id: 'p_sign_tz', kind: 'part', slot: 'prop', value: 'sign_tz', name: 'Табличка «Где ТЗ?»', price: 35 },
   { id: 'p_sign_thanks', kind: 'part', slot: 'prop', value: 'sign_thanks', name: 'Табличка «Спасибо!»', price: 35 },
+  { id: 'p_sign_vacation', kind: 'part', slot: 'prop', value: 'sign_vacation', name: 'Табличка «Хочу в отпуск»', price: 35, season: 'summer' },
   { id: 'p_sign_innocent', kind: 'part', slot: 'prop', value: 'sign_innocent', name: 'Табличка «Не виноват» / «Не виновата»', price: 35 },
   { id: 'p_cat', kind: 'part', slot: 'pet', value: 'cat', name: 'Кот на клавиатуре', price: 90, legend: true },
   { id: 'p_aquarium', kind: 'part', slot: 'pet', value: 'aquarium', name: 'Аквариум с рыбкой', price: 70 },

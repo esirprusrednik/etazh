@@ -16,6 +16,7 @@ const SEASONS = {
   newyear: { name: 'Новый год', range: (y) => [`${y}-12-15`, `${y + 1}-01-10`] },
   feb23: { name: '23 Февраля', range: (y) => [`${y}-02-16`, `${y}-02-25`] },
   mar8: { name: '8 Марта', range: (y) => [`${y}-03-02`, `${y}-03-10`] },
+  summer: { name: 'Сезон отпусков', range: (y) => [`${y}-05-15`, `${y}-08-31`] },
   maslenitsa: { name: 'Масленица', range: (y) => { const e = orthodoxEaster(y); return [addDays(e, -55), addDays(e, -49)]; } }
 };
 
