@@ -1,5 +1,5 @@
 // Service worker: кэш оболочки приложения и показ пушей.
-const CACHE = 'etazh-v92';
+const CACHE = 'etazh-v93';
 const SHELL = ['/', '/index.html', '/css/app.css', '/js/app.js', '/js/building.js', '/js/crest.js', '/js/guide.js', '/js/ships.js', '/js/duelart.js', '/js/practice.js', '/sounds/battle.mp3', '/sounds/lose.mp3', '/sounds/win.mp3', '/sounds/rally.mp3', '/sounds/horn.mp3', '/sounds/miss1.mp3', '/sounds/miss2.mp3', '/sounds/hit1.mp3', '/sounds/hit2.mp3', '/sounds/sunk1.mp3', '/sounds/resign.mp3', '/sounds/emo_lol.mp3', '/sounds/emo_angry.mp3', '/sounds/emo_bored.mp3', '/sounds/emo_smart.mp3', '/sounds/emo_oops.mp3', '/sounds/emo_clap.mp3', '/sounds/emo_mercy.mp3', '/sounds/emo_easy.mp3', '/js/theme.js', '/fonts/onest.woff', '/fonts/unbounded.woff', '/manifest.webmanifest', '/icons/icon-192.png'];
 
 self.addEventListener('install', (e) => {

@@ -4019,7 +4019,10 @@ function renderEmoteLayer(v) {
     const e = S.bEmote && S.bEmote[who];
     if (!e || Date.now() > e.until) return '';
     const [em, label] = EMOTES[e.e] || ['', ''];
-    return `<div class="emo-float ${who}"><span class="emo-mini">${avatar(look, 30)}</span><span class="emo-bubble"><b>${em}</b><span>${esc(label)}</span></span></div>`;
+    // Экран боя перерисовывается каждую секунду: без отрицательной задержки анимация начиналась заново
+    // и пузырь «выскакивал» второй раз. Продолжаем с того места, где она была
+    const gone = Math.max(0, Date.now() - (e.until - 3200));
+    return `<div class="emo-float ${who}" style="animation-delay:-${gone}ms"><span class="emo-mini">${avatar(look, 30)}</span><span class="emo-bubble"><b style="animation-delay:${150 - gone}ms">${em}</b><span>${esc(label)}</span></span></div>`;
   };
   return one('opp', v.opp.look) + one('mine', S.me.look);
 }
