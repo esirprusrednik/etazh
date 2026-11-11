@@ -2208,3 +2208,35 @@ main { padding-bottom: 64px; }
 .qcall .art { margin-bottom: -2px; }
 .qcall { min-height: 78px; }
 .card-title.has-art { display: inline-flex; align-items: center; gap: 8px; }
+
+/* ===== «Пластилин»: оформление в тон объёмным аватарам и значкам =====
+   Три приметы материала: скруглённый объём, светлая кромка сверху, «толщина» и мягкая тень снизу.
+   Только стили — разметка не меняется. Мелкие линейные значки остаются линейными: объём читается от 32 px. */
+:root { --clay-hi: rgba(255,255,255,.95); --clay-lo: rgba(31,43,87,.07); --clay-drop: 0 14px 28px rgba(49,62,120,.12), 0 3px 6px rgba(49,62,120,.07);
+  --clay-glow: radial-gradient(70% 38% at 0% 0%, rgba(120,140,255,.22), transparent 70%), radial-gradient(60% 34% at 100% 8%, rgba(255,150,200,.18), transparent 70%), radial-gradient(80% 40% at 50% 100%, rgba(255,205,90,.16), transparent 70%);
+  --page: #EEF1FB; --bg: #EEF1FB; --s1: #EDF0FA; --card-bd: transparent; --pri-bg: linear-gradient(180deg, #4155A6, #1F2B57); --top-bg: rgba(238,241,251,.9); }
+:root[data-theme="dark"] { --clay-hi: rgba(255,255,255,.09); --clay-lo: rgba(0,0,0,.35); --clay-drop: 0 16px 30px rgba(0,0,0,.45), 0 2px 4px rgba(0,0,0,.3);
+  --clay-glow: radial-gradient(90% 44% at 85% -6%, rgba(91,47,224,.5), transparent 65%), radial-gradient(70% 36% at 0% 20%, rgba(60,110,255,.16), transparent 70%), radial-gradient(80% 36% at 50% 100%, rgba(255,176,32,.1), transparent 70%);
+  --page: #101226; --bg: #101226; --card: #1D2040; --s1: rgba(255,255,255,.07); --pri-bg: linear-gradient(180deg, #FFE680, #FFA91A); --top-bg: rgba(16,18,38,.9); }
+/* Фон — отдельным неподвижным слоем: при прокрутке он не перерисовывается */
+body { background-color: var(--page); background-image: none; }
+body::before { content: ""; position: fixed; inset: 0; z-index: -1; background: var(--clay-glow); pointer-events: none; }
+.top { background: var(--top-bg); }
+.card { border: 0; border-radius: 28px; box-shadow: inset 0 2px 0 var(--clay-hi), inset 0 -5px 0 var(--clay-lo), var(--clay-drop); }
+.btn { border-radius: 18px; box-shadow: inset 0 2px 0 rgba(255,255,255,.28), inset 0 -5px 0 rgba(0,0,0,.22), 0 8px 16px rgba(31,43,87,.25); transition: transform .08s, box-shadow .08s; }
+.btn:active { transform: translateY(2px); box-shadow: inset 0 2px 0 rgba(255,255,255,.2), inset 0 -2px 0 rgba(0,0,0,.22), 0 3px 8px rgba(31,43,87,.2); }
+.btn.small { border-radius: 14px; }
+.btn.ghost, .chip, .cat { box-shadow: inset 0 2px 0 var(--clay-hi), inset 0 -3px 0 var(--clay-lo); }
+.btn.ghost:active, .chip:active, .cat:active { transform: translateY(1px); box-shadow: inset 0 1px 0 var(--clay-hi), inset 0 -1px 0 var(--clay-lo); }
+.chip.on, .cat.on { box-shadow: inset 0 2px 0 rgba(255,255,255,.25), inset 0 -4px 0 rgba(0,0,0,.25); }
+.qcall, .call, .duel-start { border: 0 !important; border-radius: 22px; box-shadow: inset 0 2px 0 var(--clay-hi), inset 0 -5px 0 var(--clay-lo), var(--clay-drop) !important; transition: transform .08s; }
+.qcall:active, .call:active, .duel-start:active { transform: translateY(2px); }
+.sheet { border-radius: 30px 30px 0 0; box-shadow: inset 0 2px 0 var(--clay-hi); }
+.shop-tile, .ava-tile { box-shadow: inset 0 2px 0 var(--clay-hi), inset 0 -4px 0 var(--clay-lo); border-radius: 18px; }
+/* Нижняя панель лежит отдельной пухлой плашкой */
+.tabs { left: 10px; right: 10px; bottom: calc(8px + env(safe-area-inset-bottom)); border: 0; border-radius: 28px; padding: 7px 8px; max-width: 460px; margin: 0 auto; box-shadow: inset 0 2px 0 var(--clay-hi), inset 0 -4px 0 var(--clay-lo), 0 14px 30px rgba(31,43,87,.22); }
+.tab { border-radius: 20px; }
+.tab.on { box-shadow: inset 0 2px 0 rgba(255,255,255,.25), inset 0 -4px 0 rgba(0,0,0,.22), 0 4px 10px rgba(31,43,87,.25); }
+.app { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
+.ava { box-shadow: 0 4px 10px rgba(31,43,87,.18); }
+@media (prefers-reduced-motion: reduce) { .btn, .qcall, .call, .duel-start { transition: none; } }
