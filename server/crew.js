@@ -176,7 +176,7 @@ function register(ctx) {
       const n = q('SELECT COUNT(*) AS n FROM gang_members WHERE gang_id = ?').get(g.id).n;
       items.push({
         type: 'gang', id: g.id, name: g.name, color: g.color, emoji: g.emoji || null, ...U.crestPub(g), members: n, lastAt: last ? last.at : g.created_at || 0,
-        polls: pollsUnvoted ? pollsUnvoted(u.id, g.id) : 0,
+        polls: pollsUnvoted ? pollsUnvoted(u.id, g.id) : 0, owner: g.owner_id === u.id,
         ...(gangSummary ? gangSummary(g.id, u.id) : {}), motto: g.motto || '',
         lastTime: last ? U.msk(last.at).hhmm : null,
         last: last ? { mine: last.user_id === u.id, who: last.nick, text: last.type === 'call' ? (CALLS[last.kind] || {}).verb || 'зов' : last.type === 'voice' || last.type === 'meme' ? preview(last) : U.unseal(last.text) } : null

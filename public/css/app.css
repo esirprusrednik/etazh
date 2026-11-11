@@ -2182,3 +2182,11 @@ main { padding-bottom: 64px; }
 .st-joke { margin: -4px 0 10px; }
 .fav-head .linkbtn { white-space: nowrap; flex: none; }
 .g-help { align-self: flex-start; }
+/* «Что нового» вверху «Чатов»: каждая единица в красной цифре — отдельной строкой */
+.chat-news { display: grid; gap: 6px; }
+.cn-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 14px; border-radius: 16px; border: 1px solid var(--card-bd); background: var(--card); box-shadow: var(--card-sh); color: var(--ink); font: inherit; font-weight: 800; text-align: left; cursor: pointer; }
+.cn-item .grow { min-width: 0; }
+.cn-n { flex: none; min-width: 24px; height: 24px; padding: 0 7px; border-radius: 99px; background: #E5484D; color: #fff; font-size: 13px; font-weight: 900; display: grid; place-items: center; }
+.flash { animation: flash-ring 1.6s ease-out; }
+@keyframes flash-ring { 0%, 40% { box-shadow: 0 0 0 3px #F2B705; } 100% { box-shadow: var(--card-sh); } }
+@media (prefers-reduced-motion: reduce) { .flash { animation: none; outline: 3px solid #F2B705; } }

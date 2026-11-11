@@ -1944,7 +1944,7 @@ function renderApp() {
       ${S.tab === 'near' ? renderNear() : S.tab === 'chats' ? renderChats() : S.tab === 'office' ? renderOfficeTab() : renderGames()}
     </main>
     <nav class="tabs"><div class="in">
-      ${tabBtn('near', 'Рядом', 0)}${tabBtn('chats', 'Чаты', inboxNew() + (b.chat || 0) + (b.crew || 0) + (b.invites || 0) + (b.polls || 0) + (b.gangRequests || 0))}${tabBtn('office', 'Офис', 0)}${tabBtn('games', 'Игры', (b.duels || 0) + (S.quiz || []).filter((z) => !z.answered).length + (S.battles || []).filter((x) => x.myTurn && x.status !== 'done').length)}
+      ${tabBtn('near', 'Рядом', 0)}${tabBtn('chats', 'Чаты', chatNews().reduce((a, x) => a + x.n, 0))}${tabBtn('office', 'Офис', 0)}${tabBtn('games', 'Игры', (b.duels || 0) + (S.quiz || []).filter((z) => !z.answered).length + (S.battles || []).filter((x) => x.myTurn && x.status !== 'done').length)}
     </div></nav>
   </div>
   ${S.sheet ? renderSheet() : ''}`;
@@ -2323,6 +2323,7 @@ function renderMyGang(gangs, seenG) {
       x.crestVote && !x.crestVote.voted ? '<span class="mg-flag">shield голосуем за герб</span>' : '',
       x.wars && x.wars.incoming ? '<span class="mg-flag hot">swords вас вызывают на битву</span>' : '',
       x.wars && x.wars.myTurn ? '<span class="mg-flag hot">swords твой выход в битве</span>' : x.wars && x.wars.active ? `<span class="mg-flag">swords битв идёт: ${x.wars.active}</span>` : '',
+      x.owner && S.state && S.state.badges && S.state.badges.gangRequests ? `<span class="mg-flag hot">hand хотят в банду: ${S.state.badges.gangRequests}</span>` : '',
       x.polls ? `<span class="mg-flag">chart ${x.polls} ${plural(x.polls, 'опрос', 'опроса', 'опросов')} без тебя</span>` : ''
     ].join('');
     return `<button class="my-gang" data-act="gang-open" data-id="${x.id}">
@@ -2338,6 +2339,25 @@ function renderMyGang(gangs, seenG) {
   return `<section class="card chats"><div class="chats-head"><h3>${gangs.length > 1 ? 'Мои банды' : 'Моя банда'}</h3></div>
     ${gangs.length > 1 ? `<div class="note warn" style="margin:0">Теперь банда может быть только одна — выйди из лишних. Очки Лиги идут в «${esc(gangs[0].name)}».</div>` : ''}
     ${gangs.map(card).join('')}</section>`;
+}
+
+// Что именно новое в «Чатах». Красная цифра на вкладке — ровно сумма этих пунктов, и каждый виден строкой
+// вверху «Чатов» с переходом туда, где это лежит. Раньше в цифру попадали «дела Этажа», которых в чатах уже нет
+function chatNews() {
+  const b = (S.state && S.state.badges) || {};
+  const g = (S.me && S.me.gangs && S.me.gangs[0]) || null;
+  return [
+    { n: b.chat || 0, t: (n) => `${n} ${plural(n, 'сообщение', 'сообщения', 'сообщений')} в банде`, act: g ? `data-act="gang-open" data-id="${g.id}"` : '' },
+    { n: b.crew || 0, t: (n) => `${n} ${plural(n, 'сообщение', 'сообщения', 'сообщений')} в личке`, act: 'data-act="chats-jump" data-v=".chats-dm"' },
+    { n: b.invites || 0, t: (n) => n === 1 ? 'Тебя зовут в банду' : `${n} приглашения в банды`, act: 'data-act="chats-jump" data-v=".chats-inv"' },
+    { n: b.gangRequests || 0, t: (n) => `${n} ${plural(n, 'заявка', 'заявки', 'заявок')} в банду`, act: g ? `data-act="gang-reqs" data-id="${g.id}"` : '' },
+    { n: b.polls || 0, t: (n) => `${n} ${plural(n, 'опрос', 'опроса', 'опросов')} без твоего голоса`, act: g ? `data-act="gang-open" data-id="${g.id}"` : '' }
+  ].filter((x) => x.n > 0);
+}
+function renderChatNews() {
+  const items = chatNews();
+  if (!items.length) return '';
+  return `<section class="chat-news" aria-label="Что нового">${items.map((x) => `<button class="cn-item" ${x.act}><span class="cn-n">${x.n > 9 ? '9+' : x.n}</span><span class="grow">${esc(x.t(x.n))}</span><span aria-hidden="true">›</span></button>`).join('')}</section>`;
 }
 
 // Строка «Этаж» первой в чатах: что ждёт тебя сейчас
@@ -2398,14 +2418,15 @@ function renderChats() {
   const dmList = dms.length ? dms.map(row).join('')
     : '<p class="sub chats-empty">Голуби скучают. Напиши кому-нибудь — лично можно любому, кто не закрыл личку: найди по нику или открой карточку человека.</p>';
   return `${pageHead('Чаты', 'Моя банда и личка')}
+    ${renderChatNews()}
     ${findBar()}
-    ${(S.invites || []).length ? `<section class="card"><h3>Тебя зовут в банду</h3>${S.invites.map((i) => `<div class="person2">${gangBadge(i.gang, 38)}
+    ${(S.invites || []).length ? `<section class="card chats-inv"><h3>Тебя зовут в банду</h3>${S.invites.map((i) => `<div class="person2">${gangBadge(i.gang, 38)}
       <div class="grow" style="min-width:0"><div style="font-weight:900">${esc(i.gang.name)}</div><div class="where">${i.gang.members} ${plural(i.gang.members, 'человек', 'человека', 'человек')} · зовёт ${esc(i.from)}</div></div>
       <button class="btn small" data-act="invite-accept" data-id="${i.id}">Вступить</button><button class="btn small ghost" data-act="invite-decline" data-id="${i.id}" aria-label="Отказаться">Нет</button></div>`).join('')}</section>` : ''}
     ${reqs}
     ${store.get('inviteShared') ? `<button class="invite-mini" data-act="crew-share" aria-label="Позвать коллегу в Этаж, +15 зёрен за новичка"><span class="im-ico" aria-hidden="true">mail</span><span class="im-t">Позвать коллегу в Этаж</span><span class="im-pill">+15 ${BEAN}</span><span class="im-go" aria-hidden="true">›</span></button>` : `<button class="invite-app" data-act="crew-share"><span class="grow"><b>Позвать коллегу в Этаж</b><span class="small">Личная ссылка: придёт — сразу будете на связи. +15 зёрен за каждого новичка</span></span><span aria-hidden="true">mail</span></button>`}
     ${renderMyGang(gangs, seenG)}
-    <section class="card chats">${head('Личка <span class="pigeon-sub">голубиная почта</span>', dmUnread ? `${dmUnread} ${plural(dmUnread, 'новое', 'новых', 'новых')}` : '', 'dm-pick', 'Написать', true)}${favStrip}<p class="small chats-hint">Один на один · видите только вы двое · × закрывает переписку у обоих</p>${dmList}</section>`;
+    <section class="card chats chats-dm">${head('Личка <span class="pigeon-sub">голубиная почта</span>', dmUnread ? `${dmUnread} ${plural(dmUnread, 'новое', 'новых', 'новых')}` : '', 'dm-pick', 'Написать', true)}${favStrip}<p class="small chats-hint">Один на один · видите только вы двое · × закрывает переписку у обоих</p>${dmList}</section>`;
 }
 
 // ===== Вкладка «Офис»: столовая, обед компанией, сигналы и лента =====
@@ -6403,6 +6424,12 @@ const actions = {
   },
   'match-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { matchShow: el.checked } }); await Promise.all([loadMe(), loadMatch()]); toast(el.checked ? 'Твои дни видны в «Совпадаем»' : 'Твои дни скрыты — и чужие тоже'); }),
   'push-nudge-hide'() { try { store.set('pushNudgeHidden', Date.now() + 7 * 864e5); } catch {} render(); },
+  'gang-reqs': (el) => run(async () => {
+    await actions['gang-open'](el);
+    S.gangTab = 'crew'; render();
+    setTimeout(() => { const c = findInGangTabs('.g-req'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 80);
+  }),
+  'chats-jump'(el) { const t = document.querySelector(el.dataset.v); if (t) { t.scrollIntoView({ behavior: 'smooth', block: 'start' }); t.classList.add('flash'); setTimeout(() => t.classList.remove('flash'), 1600); } },
   'g-help'() { S.gHelp = !S.gHelp; render(); },
   'weeknote-hide'(el) { try { store.set('weekNoteHidden', el.dataset.v); } catch {} render(); },
   'monday-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { monday: el.checked } }); await loadMe(); toast(el.checked ? 'В понедельник пришлю, что у банды на неделе' : 'Понедельничную сводку больше не пришлю'); }),
