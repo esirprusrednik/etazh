@@ -2240,3 +2240,9 @@ body::before { content: ""; position: fixed; inset: 0; z-index: -1; background: 
 .app { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
 .ava { box-shadow: 0 4px 10px rgba(31,43,87,.18); }
 @media (prefers-reduced-motion: reduce) { .btn, .qcall, .call, .duel-start { transition: none; } }
+
+/* Объёмные картинки в пустых состояниях и итогах дуэли */
+.empty-art { display: flex; justify-content: center; padding: 8px 0 0; }
+.duel-res { display: inline-flex; align-items: center; gap: 5px; }
+.shop-wallet { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+h3.has-art { display: inline-flex; align-items: center; gap: 8px; }

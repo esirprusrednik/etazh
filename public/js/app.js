@@ -2119,7 +2119,7 @@ function renderPeople() {
   const ps = S.people;
   if (!ps) return '<div class="card"><p class="sub">Загружаем твоих людей…</p></div>';
   if (!ps.length) {
-    return `<section class="card empty"><div class="empty-ico">hand</div><h2>Пока здесь пусто</h2>
+    return `<section class="card empty">${art('friends', 96)}<h2>Пока здесь пусто</h2>
       <p class="sub">Тут появятся члены твоих банд: кто в офисе, кто дома, кто в отпуске. Сколоти банду и позови в неё своих по ссылке — или вступи в банду по приглашению.</p>
       <div class="row"><button class="btn grow" data-act="open" data-v="gang-new">Сколотить банду</button></div></section>`;
   }
@@ -2302,7 +2302,7 @@ function renderBoardCard() {
         <div class="bp-text">${esc(x.text)}</div>
         <div class="small">до ${ddmm(x.until)}${x.office ? ` · ${esc(x.office.name)}` : ' · весь Этаж'}${x.mine && x.fans && x.fans.length ? ` · откликнулись: ${x.fans.map((f) => `<button class="linkbtn" data-act="dm-open" data-id="${f.id}">${nk(f)}</button>`).join(', ')}` : ''}</div></div></div>
     <div class="row bp-acts">${x.mine ? `<button class="linkbtn" data-act="board-remove" data-id="${x.id}">Снять</button>` : `<button class="chip ${x.iMetoo ? 'on' : ''}" data-act="board-metoo" data-id="${x.id}">${x.iMetoo ? 'check ' : ''}Я тоже${x.metoo ? ' · ' + x.metoo : ''}</button><button class="chip" data-act="dm-open" data-id="${x.author.id}">Написать</button><button class="linkbtn bp-rep" data-act="report" data-type="board" data-id="${x.id}" aria-label="Пожаловаться">⚑</button>`}${x.mine && x.metoo ? `<span class="small">«я тоже» · ${x.metoo}</span>` : ''}</div></div>`;
-  return `<section class="card bboard"><div class="chats-head"><h3>megaphone Доска</h3><button class="linkbtn" data-act="board-new">＋ Объявление</button></div>
+  return `<section class="card bboard"><div class="chats-head"><h3 class="has-art">${art('megaphone', 28)}Доска</h3><button class="linkbtn" data-act="board-new">＋ Объявление</button></div>
     ${home ? `<div class="chips">${[[false, 'Весь Этаж'], [true, 'Мой офис']].map(([v, t]) => `<button class="chip ${!!S.boardMine === v ? 'on' : ''}" data-act="board-filter" data-v="${v ? 1 : 0}">${t}</button>`).join('')}</div>` : ''}
     ${items.length ? items.slice(0, S.boardAll ? 100 : 5).map(row).join('') : '<p class="small" style="margin:0">«Ищу компанию на обед в 13:00», «Отдам билеты», «Кто едет на конференцию», «Нашёл зонт на 5-м» — сюда. Объявление само исчезнет в выбранный день.</p>'}
     ${items.length > 5 && !S.boardAll ? `<button class="linkbtn" data-act="board-all">Ещё ${items.length - 5}</button>` : ''}
@@ -2462,7 +2462,7 @@ function renderChats() {
   const favStrip = `<div class="fav-head"><span class="small"><b>★ Подельники</b> · им можно писать всегда</span><button class="linkbtn" data-act="open" data-v="crew">${favs.length ? 'все' : '＋ добавить'}</button></div>
     ${favs.length ? `<div class="fav-strip">${favs.map((f) => { const [, col] = whereText(f); return `<button class="fav" data-act="dm-open" data-id="${f.id}"><span class="ava-ring" style="border-color:${col}">${avatar(f.look, 40)}</span><span class="ellipsis">${nk(f)}</span></button>`; }).join('')}</div>` : ''}`;
   const dmList = dms.length ? dms.map(row).join('')
-    : '<p class="sub chats-empty">Голуби скучают. Напиши кому-нибудь — лично можно любому, кто не закрыл личку: найди по нику или открой карточку человека.</p>';
+    : `<div class="empty-art">${art('dove', 84)}</div>` + '<p class="sub chats-empty">Голуби скучают. Напиши кому-нибудь — лично можно любому, кто не закрыл личку: найди по нику или открой карточку человека.</p>';
   return `${pageHead('Чаты', 'Моя банда и личка')}
     ${renderChatNews()}
     ${findBar()}
@@ -3280,7 +3280,7 @@ async function loadDuels(withId) {
 }
 function duelHead(d) {
   const stakeTag = d.stake ? `<span class="duel-stake-tag">coin ${d.stake}${d.needPay ? ' — заплатишь первым ходом' : d.mine && !d.oppPaid && d.status === 'play' ? ' — соперник ещё не ответил' : ''}</span>` : '';
-  const res = d.result === 'win' ? '<span class="duel-res win">trophy Победа</span>' : d.result === 'lose' ? `<span class="duel-res lose">${d.resigned ? 'Сдался' : 'Поражение'}</span>` : d.result === 'draw' ? '<span class="duel-res">Ничья</span>' : '';
+  const res = d.result === 'win' ? `<span class="duel-res win">${art('trophy', 24)}Победа</span>` : d.result === 'lose' ? `<span class="duel-res lose">${art('flag', 24)}${d.resigned ? 'Сдался' : 'Поражение'}</span>` : d.result === 'draw' ? `<span class="duel-res">${art('shake', 24)}Ничья</span>` : '';
   const score = '';
   const untouched = !d.mine && (d.game === 'ttt' ? !d.board.includes('me') : !d.rounds.some((r) => r.me));
   return `<div class="duel-head"><b>${{ rps: 'rock Камень, ножницы, бумага', dice: 'dice Кости', ttt: 'x Крестики-нолики' }[d.game]}</b>${score}${res}${d.status === 'play' ? `<button class="linkbtn small" data-act="duel-resign" data-id="${d.id}" data-soft="${untouched ? 1 : 0}">${untouched ? 'отказаться' : 'сдаться'}</button>` : ''}</div>${stakeTag}`;
@@ -4573,7 +4573,7 @@ function renderInstall() {
 function renderGuess() {
   const r = S.guess;
   if (!r) return '';
-  const head = '<div class="row" style="justify-content:space-between"><span class="card-title">Кто из наших?</span>' + (r.question ? `<span class="small">осталось ${r.question.left} из 3 сегодня</span>` : '') + '</div>';
+  const head = `<div class="row" style="justify-content:space-between"><span class="card-title has-art">${art('friends', 30)}Кто из наших?</span>` + (r.question ? `<span class="small">осталось ${r.question.left} из 3 сегодня</span>` : '') + '</div>';
   if (r.small) return `<section class="card guess">${head}<p class="small" style="margin:0">Игра откроется, когда в банде будет хотя бы 4 человека. Позови ещё ${r.need} ${plural(r.need, 'человека', 'человек', 'человек')} по ссылке ниже.</p></section>`;
   if (!r.question) return `<section class="card guess">${head}<p class="small" style="margin:0">На сегодня всё, завтра будут новые вопросы. Они собираются из профилей банды: чем больше свои расскажут о себе, тем интереснее угадывать.</p></section>`;
   const x = r.question;
@@ -4709,7 +4709,7 @@ function renderQuiz() {
     return `<div class="qres ${cls}"><span class="qbar" style="width:${st.pct}%"></span><span class="qtxt">${i === z.correct ? '✓ ' : ''}${esc(o)}</span><span class="qpct">${st.pct}%</span></div>`;
   }).join('');
   return `<section class="card quiz duel-fx">
-    <div class="row" style="justify-content:space-between"><span class="eyebrow" style="margin:0">Квиз недели</span><span class="small">${z.answered ? `ответили ${z.total}` : '+3 за верный ответ'}</span></div>
+    <div class="row" style="justify-content:space-between"><span class="card-title has-art">${art('quiz', 30)}Квиз недели</span><span class="small">${z.answered ? `ответили ${z.total}` : '+3 за верный ответ'}</span></div>
     <div class="quiz-q">${esc(z.text)}</div>
     <div class="gopts">${opts}</div>
     ${z.answered ? `<div class="quiz-res ${z.pick === z.correct ? 'good' : 'warn'} ${qf ? 'fresh' : ''}"><span class="qr-ava">${avatar(moodLook(S.me.look, z.pick === z.correct ? 'happy' : 'sad'), 40)}</span><div class="note ${z.pick === z.correct ? 'good' : 'warn'}" style="margin:0">${z.pick === z.correct ? 'Верно!' : 'Мимо.'}${z.explain ? ' ' + esc(z.explain) : ''}</div></div>` : ''}
@@ -5793,7 +5793,7 @@ function renderShop() {
   } else if (tab === 'awards') {
     body = `<p class="sub" style="margin:0">Не продаются — только заслужить.</p>${inTab.map(shopRow).join('')}`;
   } else body = SHOP_EARN;
-  return `<div class="shop-top"><div class="shop-wallet">${BEAN} У тебя <b>${beans}</b> зёрен${S.shop.nickfx ? ` · ник ${{ gold: 'золотой', rainbow: 'радужный', glitch: 'глитч' }[S.shop.nickfx.v]} до ${dateOf(S.shop.nickfx.until)}` : ''}</div>${goalLine}</div>
+  return `<div class="shop-top"><div class="shop-wallet">${art('beans', 30)} У тебя <b>${beans}</b> зёрен${S.shop.nickfx ? ` · ник ${{ gold: 'золотой', rainbow: 'радужный', glitch: 'глитч' }[S.shop.nickfx.v]} до ${dateOf(S.shop.nickfx.until)}` : ''}</div>${goalLine}</div>
     ${dealCard}${canStrip}${seasonStrip}
     ${tabs}
     <div class="shop-body">${body}</div>`;
