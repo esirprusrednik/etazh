@@ -371,7 +371,7 @@ const OUTFIT = ['hoodie', 'tee', 'dev', 'shirt', 'suit', 'jacket', 'puffer', 'dr
 const NECK = { tie: 'tie', tie_crooked: 'tie', tie_gold: 'tie', bow: 'bow', badge: 'badge', beads: 'beads', chain: 'chain', chain_gold: 'chain', snake: 'snake', garland: 'garland' };
 const HAT = { beanie: 'beanie', cap: 'cap', headset: 'headset', laurel: 'laurel', knight: 'knight', royal: 'crown', fedora: 'fedora', ushanka: 'ushanka', tricorn: 'tricorn', dedmoroz: 'dedmoroz', kokoshnik: 'kokoshnik', wreath: 'wreath', shawl: 'shawl' };
 const MASK = ['medical', 'gauze', 'visor', 'scuba'];
-const PROP = ['mug', 'papers', 'sign', 'laptop', 'mug_best', 'trophy', 'phone', 'torch', 'mimosa', 'pancakes', 'sign_dnd', 'sign_ask'];
+const PROP = ['mug', 'papers', 'sign', 'laptop', 'mug_best', 'trophy', 'phone', 'torch', 'mimosa', 'pancakes', 'sign_dnd', 'sign_ask', 'sign_coffee', 'sign_deadline', 'sign_plan', 'sign_friday', 'sign_domik', 'sign_tz', 'sign_thanks'];
 const PET = ['corgi', 'pug', 'frenchie', 'parrot', 'cat', 'aquarium', 'cactus'];
 const EARRINGS = ['studs', 'pearls', 'hoops', 'drops', 'cross'];
 const LENS = { grey: [59, 63, 74, 0.6], brown: [90, 58, 30, 0.56], blue: [42, 98, 201, 0.48], green: [31, 122, 74, 0.48], pink: [224, 80, 143, 0.4], yellow: [224, 165, 0, 0.4] };
@@ -514,4 +514,4 @@ function register(ctx) {
   return { render };
 }
 
-module.exports = { register, render, compose, _frame: frame, lookToSpec, decodePng, encodePng, available, SIZES };
+module.exports = { register, render, compose, _frame: frame, parts: () => pack().parts, lookToSpec, decodePng, encodePng, available, SIZES };

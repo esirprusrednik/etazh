@@ -5262,7 +5262,7 @@ const PART_NAMES = { left: 'Слева', right: 'Справа' };
 const LIPS_NAMES = { thin: 'Тонкие', normal: 'Средние', full: 'Пухлые' };
 const MOLE_NAMES = { none: 'Нет', cheekL: 'Щека слева', cheekR: 'Щека справа', lip: 'Над губой', chin: 'Подбородок' };
 const HAIR_COLOR_NAMES = { '#0F0E12': 'Чёрный', '#2B1D14': 'Тёмно-каштановый', '#4A3326': 'Тёмно-русый', '#6B3E26': 'Каштановый', '#8C6A4F': 'Русый', '#B5532A': 'Медный', '#C2412F': 'Рыжий', '#CFAE74': 'Пшеничный', '#E0B04B': 'Блонд', '#F2E6C9': 'Платина', '#6E6A66': 'Соль с перцем', '#9AA3B5': 'Седой', '#7C4DFF': 'Фиолетовый', '#FF6FA8': 'Розовый' };
-const PROP_NAMES = { sign_lunch: 'Ушёл на обед', sign_dnd: 'Не беспокоить', sign_ask: 'Я просто спросить', none: 'Ничего', torch: 'Факел', phone: 'Телефон', mimosa: 'Букет мимозы', pancakes: 'Стопка блинов', mug: 'Кружка', papers: 'Квартальный отчёт', sign: 'Табличка', laptop: 'Ноутбук', mug_best: 'Лучший сотрудник', trophy: 'Кубок Лиги' };
+const PROP_NAMES = { sign_lunch: 'Ушёл на обед', sign_dnd: 'Не беспокоить', sign_ask: 'Я просто спросить', sign_coffee: 'Кофе? Я угощаю', sign_deadline: 'Дедлайн вчера', sign_plan: 'Всё по плану', sign_friday: 'Пятница!', sign_domik: 'Я в домике', sign_tz: 'Где ТЗ?', sign_thanks: 'Спасибо!', none: 'Ничего', torch: 'Факел', phone: 'Телефон', mimosa: 'Букет мимозы', pancakes: 'Стопка блинов', mug: 'Кружка', papers: 'Квартальный отчёт', sign: 'Табличка', laptop: 'Ноутбук', mug_best: 'Лучший сотрудник', trophy: 'Кубок Лиги' };
 // Две группы: «Внешность» — кто ты (по этому узнают), «Стиль» — что на тебе надето и вокруг
 const AVA_CATS = [['face', 'Лицо'], ['eyes', 'Глаза и брови'], ['hair', 'Волосы'], ['mouth', 'Рот'], ['beard', 'Борода'], ['makeup', 'Макияж'], ['age', 'Возраст и приметы'], ['outfit', 'Одежда'], ['acc', 'Аксессуары'], ['pet', 'Питомец'], ['bg', 'Фон'], ['meme', 'Мемы']];
 // Что по умолчанию снимаем в превью вкладки, чтобы оно не закрывало выбираемую часть
@@ -5452,7 +5452,7 @@ function renderAvatarEditor() {
       <div class="field">В руке${tiles('prop', ['none', 'mug', 'mug_best', 'phone', 'torch', 'mimosa', 'pancakes'], { none: 'Ничего', mug: 'Кружка', mug_best: 'Лучший сотрудник', phone: 'Телефон', torch: 'Факел', mimosa: 'Букет мимозы', pancakes: 'Стопка блинов' })}</div>
 `,
     bg: `<div class="field">Фон${tiles('bg', L.bg, BG_NAMES)}</div><p class="small" style="margin:0">«Под кожу» сам подбирает цвет, на котором лицо не сливается с фоном.</p>`,
-    meme: `<div class="field">В руках${tiles('prop', ['none', 'papers', 'sign', 'sign_lunch', 'sign_dnd', 'sign_ask', 'laptop', 'trophy'], PROP_NAMES)}</div><p class="small" style="margin:0">Детали с ценой можно примерить бесплатно, а сохранить — после покупки в Лавке. Корона и рамки — тоже в Лавке.</p>`
+    meme: `<div class="field">В руках${tiles('prop', ['none', 'papers', 'sign', 'sign_lunch', 'sign_dnd', 'sign_ask', ...(AVA3D ? ['sign_coffee', 'sign_deadline', 'sign_plan', 'sign_friday', 'sign_domik', 'sign_tz', 'sign_thanks'] : []), 'laptop', 'trophy'], PROP_NAMES)}</div><p class="small" style="margin:0">Детали с ценой можно примерить бесплатно, а сохранить — после покупки в Лавке. Корона и рамки — тоже в Лавке.</p>`
   }[cat];
   const locked = draftLocked();
   return `<div class="ava-ed">

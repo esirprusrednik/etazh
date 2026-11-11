@@ -136,7 +136,7 @@ const { b64url, fromB64url, moderationProblem, emailDomainAllowed } = require('.
     assert.ok(!ava.lookToSpec({ mask: 'scuba', glasses: true }).names.some((n) => n.startsWith('g_')));
     assert.ok(ava.lookToSpec({ preset: 'f', prop: 'sign_lunch' }).names.includes('p_sign_lunch_f'));
     // каждый слой, который может назвать сборщик, есть в наборе
-    const parts = JSON.parse(require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'server', 'ava', 'index.json'), 'utf8')).parts;
+    const parts = ava.parts();
     const L = require('../server/api').LOOK;
     const miss = new Set();
     for (const [k, vals] of Object.entries({ hairStyle: L.hairStyle, eyeShape: L.eyeShape, mouth: L.mouth, beard: L.beard, browShape: L.browShape, nose: L.nose, outfit: L.outfit, neck: L.neck, hat: L.hat, mask: L.mask, prop: L.prop, pet: L.pet, earrings: L.earrings, glassesStyle: L.glassesStyle })) {

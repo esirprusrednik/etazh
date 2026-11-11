@@ -56,7 +56,7 @@ const LOOK = {
   neck: ['none', 'tie', 'tie_crooked', 'bow', 'badge', 'beads', 'chain', 'tie_gold', 'chain_gold', 'snake', 'garland'],
   hat: ['none', 'beanie', 'cap', 'headset', 'laurel', 'knight', 'royal', 'fedora', 'ushanka', 'tricorn', 'dedmoroz', 'kokoshnik', 'wreath', 'shawl'],
   mask: ['none', 'medical', 'gauze', 'visor', 'scuba'],
-  prop: ['none', 'mug', 'papers', 'sign', 'laptop', 'mug_best', 'trophy', 'phone', 'torch', 'mimosa', 'pancakes', 'sign_lunch', 'sign_dnd', 'sign_ask'],
+  prop: ['none', 'mug', 'papers', 'sign', 'laptop', 'mug_best', 'trophy', 'phone', 'torch', 'mimosa', 'pancakes', 'sign_lunch', 'sign_dnd', 'sign_ask', 'sign_coffee', 'sign_deadline', 'sign_plan', 'sign_friday', 'sign_domik', 'sign_tz', 'sign_thanks'],
   bg: ['auto', 'sky', 'mint', 'peach', 'lilac', 'sun', 'slate', 'office', 'meeting', 'home', 'street', 'cafe'],
   // Черты лица: размер глаз, нос, уши
   eyeSize: ['s', 'm', 'l'],
