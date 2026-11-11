@@ -2146,19 +2146,23 @@ main { padding-bottom: 64px; }
 .b-vs.compact .vs-mid { padding-bottom: 0; }
 .pr-mini { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 4px; }
 
-/* Шаблоны зовов и «В фокусе» под быстрыми зовами */
-.qx { display: grid; gap: 8px; margin-top: 8px; }
-.qx-tpls { display: flex; flex-wrap: wrap; gap: 6px; }
-.qx-foot { display: flex; align-items: center; gap: 8px; }
-.qx .chip { display: inline-flex; align-items: center; gap: 6px; }
-.qx-tpl { padding: 0; min-width: 0; max-width: 100%; background: var(--card); border: 1px solid var(--card-bd); box-shadow: var(--card-sh); }
-.qx-tpl .qx-go { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 12px; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.qx-tpl .qx-go svg { color: var(--gold, #F2B705); flex: none; }
+/* Шаблоны зовов и «В фокусе» под быстрыми зовами: одна строка без переносов */
+.qx { display: flex; align-items: center; gap: 8px; margin-top: -6px; min-width: 0; }
+.qx.solo .qx-focus { width: 100%; justify-content: center; }
+.qx-focus .qx-sub { font-weight: 600; color: var(--muted, #6B7594); }
+.qx-tpls { display: flex; gap: 8px; flex: 1 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; padding: 2px 18px 2px 0; -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 22px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 22px), transparent); }
+.qx-tpls::-webkit-scrollbar { display: none; }
+.qx-pill { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--card-bd); background: var(--card); box-shadow: var(--card-sh); color: var(--ink); font: inherit; font-size: 14px; font-weight: 800; white-space: nowrap; cursor: pointer; }
+.qx-pill span { max-width: 210px; overflow: hidden; text-overflow: ellipsis; }
+.qx-tpl svg { color: #E0A400; }
 .qx-tpl.edit { border-style: dashed; }
-.qx-tpl.edit .qx-go svg { color: #E5484D; }
-.qx-focus { margin-left: auto; background: var(--card); border: 1px solid var(--card-bd); }
-.qx-focus.on { background: var(--tint-v); color: var(--tint-v-fg); border-color: transparent; }
-.qx-hint { flex: 1 1 auto; min-width: 0; opacity: .8; }
+.qx-tpl.edit svg { color: #E5484D; }
+.qx-edit { width: 40px; padding: 0; justify-content: center; color: var(--muted, #6B7594); }
+.qx-edit.on { color: var(--ink); }
+.qx-focus { color: var(--ink); }
+.qx-focus svg { color: #7C5CE0; }
+.qx-focus.on { background: var(--tint-v); color: var(--tint-v-fg); border-color: transparent; box-shadow: none; }
+.qx-focus.on svg { color: currentColor; }
 .focus-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 /* Неделя банды */
 .wn .wn-row { display: flex; gap: 8px; align-items: flex-start; margin-top: 8px; line-height: 1.35; }

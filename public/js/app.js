@@ -2640,13 +2640,14 @@ function renderQuickExtra(gang) {
   const p = S.me.profile || {};
   const tpls = (p.callTpl || []).filter((t) => S.me.gangs.some((g) => g.id === t.gang));
   const f = p.focus && p.focus > Date.now() ? p.focus : null;
+  // Одна аккуратная строка: шаблоны (листаются вбок), карандаш и «В фокус». Подсказка про шаблоны — в окне зова
   const focusBtn = f
-    ? `<button class="chip qx-focus on" data-act="focus-off">${ico('focus', 15)}В фокусе до ${hhmm(f)} · выйти</button>`
-    : `<button class="chip qx-focus" data-act="open" data-v="focus">${ico('focus', 15)}В фокус</button>`;
-  return `<div class="qx" aria-label="Шаблоны зовов">
-    ${tpls.length ? `<div class="qx-tpls">${tpls.map((t, i) => `<span class="chip qx-tpl${S.tplEdit ? ' edit' : ''}"><button class="qx-go" data-act="${S.tplEdit ? 'tpl-del' : 'tpl-send'}" data-i="${i}" aria-label="${S.tplEdit ? 'Удалить шаблон' : 'Отправить'}: ${esc(tplLabel(t))}">${ico(S.tplEdit ? 'x' : 'star', 14)}${esc(tplLabel(t))}</button></span>`).join('')}</div>` : ''}
-    <div class="qx-foot">${tpls.length ? `<button class="linkbtn small" data-act="tpl-edit">${S.tplEdit ? 'готово' : 'изменить'}</button>` : '<span class="small qx-hint">Свой зов можно сохранить шаблоном — кнопка в окне зова</span>'}
-${focusBtn}</div>
+    ? `<button class="qx-pill qx-focus on" data-act="focus-off" aria-label="Выйти из фокуса">${ico('focus', 16)}<span>${tpls.length ? '' : 'В фокусе '}до ${hhmm(f)}</span>${ico('x', 13)}</button>`
+    : `<button class="qx-pill qx-focus" data-act="open" data-v="focus">${ico('focus', 16)}<span>В фокус</span>${tpls.length ? '' : '<span class="qx-sub">· пуши на паузу</span>'}</button>`;
+  const chips = tpls.map((t, i) => `<button class="qx-pill qx-tpl${S.tplEdit ? ' edit' : ''}" data-act="${S.tplEdit ? 'tpl-del' : 'tpl-send'}" data-i="${i}" aria-label="${S.tplEdit ? 'Удалить шаблон' : 'Отправить'}: ${esc(tplLabel(t))}">${ico(S.tplEdit ? 'x' : 'star', 14)}<span>${esc(tplLabel(t))}</span></button>`).join('');
+  return `<div class="qx${tpls.length ? '' : ' solo'}">
+    ${tpls.length ? `<div class="qx-tpls">${chips}</div><button class="qx-pill qx-edit${S.tplEdit ? ' on' : ''}" data-act="tpl-edit" aria-label="${S.tplEdit ? 'Готово' : 'Изменить шаблоны'}">${ico(S.tplEdit ? 'check' : 'pencil', 15)}</button>` : ''}
+    ${focusBtn}
   </div>`;
 }
 
