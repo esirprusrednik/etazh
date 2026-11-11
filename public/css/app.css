@@ -209,6 +209,10 @@ body { font-weight: 500; }
 .ava-ring .ava { border: none !important; width: 100% !important; height: 100% !important; }
 /* Аватар заполняет кружок целиком, плечи доходят до края — без белого зазора внутри */
 .ava-ring .ava svg { width: 100%; height: 100%; transform: scale(1.08) translateY(3%); }
+/* Объёмный аватар: картинка с сервера. Внутренний блок задаёт кадр (обычный или крупный план), фон — на самом кружке */
+.ava3 { position: relative; background-color: #DCEBFF; }
+.ava3 .ava-in { position: absolute; }
+.ava3 .ava-in > img, .ava3 .ava-in > svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; -webkit-user-drag: none; user-select: none; }
 .ava-dot { position: absolute; right: -2px; bottom: -2px; width: 16px; height: 16px; border-radius: 999px; border: 2px solid #fff; box-sizing: border-box; }
 
 /* Сигналы на главном */

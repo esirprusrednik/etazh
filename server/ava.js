@@ -81,7 +81,7 @@ function encodePng(w, h, rgba) {
   }
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 6;
-  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw, { level: 7 })), chunk('IEND', Buffer.alloc(0))]);
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw, { level: 5 })), chunk('IEND', Buffer.alloc(0))]);
 }
 
 // ---------- слои ----------
@@ -140,12 +140,52 @@ function blur(A, w, h, sigma) {
   return A;
 }
 
-function drawPart(cv, lay, S, name, colors, clip) {
+// Правки слоя по образу: зеркало (пробор справа), размер и посадка глаз, толщина губ, сбившийся галстук, золото, помада.
+// Слой уже лежит в lay в рамке box; пересчитываем его обратным отображением с билинейной выборкой
+function reshape(lay, S, box, o) {
+  const [x0, y0, x1, y1] = box;
+  const mid = pack().crop[0] + pack().crop[2] / 2;
+  const cx = (x0 + x1) / 2; const cy = (y0 + y1) / 2;
+  const sx = o.sx || 1; const sy = o.sy || 1; const gap = o.gap || 0;
+  const cos = Math.cos(o.rot || 0); const sin = Math.sin(o.rot || 0);
+  const m = Math.ceil(Math.max((x1 - x0) * (sx - 1), (y1 - y0) * (sy - 1), 0) / 2 + Math.abs(gap) + (o.rot ? (y1 - y0) * 0.3 : 0)) + 2;
+  let nx0 = Math.max(0, x0 - m); let nx1 = Math.min(S, x1 + m); const ny0 = Math.max(0, y0 - m); const ny1 = Math.min(S, y1 + m);
+  if (o.flip) { const a = Math.max(0, Math.floor(2 * mid - nx1)); const b = Math.min(S, Math.ceil(2 * mid - nx0)); nx0 = a; nx1 = b; }
+  const w = nx1 - nx0; const h = ny1 - ny0;
+  const out = new Float32Array(w * h * 4);
+  for (let y = ny0; y < ny1; y++) for (let x = nx0; x < nx1; x++) {
+    let u = o.flip ? 2 * mid - 1 - x : x;
+    let v = y;
+    if (gap) u -= (u < mid ? -1 : 1) * gap;
+    if (o.rot) { const dx = u - cx; const dy = v - y0; u = cx + dx * cos + dy * sin; v = y0 - dx * sin + dy * cos; }
+    u = cx + (u - cx) / sx; v = cy + (v - cy) / sy;
+    const u0 = Math.floor(u); const v0 = Math.floor(v); const fu = u - u0; const fv = v - v0;
+    let r = 0; let g = 0; let b = 0; let a = 0;
+    for (let k = 0; k < 4; k++) {
+      const X = u0 + (k & 1); const Y = v0 + (k >> 1);
+      if (X < x0 || Y < y0 || X >= x1 || Y >= y1) continue;
+      const wt = ((k & 1) ? fu : 1 - fu) * ((k >> 1) ? fv : 1 - fv);
+      const j = (Y * S + X) * 4; const pa = lay[j + 3] * wt;
+      r += lay[j] * pa; g += lay[j + 1] * pa; b += lay[j + 2] * pa; a += pa;
+    }
+    if (a > 0.5) { const i = ((y - ny0) * w + x - nx0) * 4; out[i] = r / a; out[i + 1] = g / a; out[i + 2] = b / a; out[i + 3] = a; }
+  }
+  for (let y = y0; y < y1; y++) lay.fill(0, (y * S + x0) * 4, (y * S + x1) * 4);
+  for (let y = ny0; y < ny1; y++) for (let x = nx0; x < nx1; x++) {
+    const i = ((y - ny0) * w + x - nx0) * 4; const j = (y * S + x) * 4;
+    lay[j] = out[i]; lay[j + 1] = out[i + 1]; lay[j + 2] = out[i + 2]; lay[j + 3] = out[i + 3];
+  }
+  return [nx0, ny0, nx1, ny1];
+}
+const GOLD = lut([226, 178, 62], 0.7);
+const LIPSTICK = [196, 36, 70];
+
+function drawPart(cv, lay, S, name, colors, clip, o) {
   const P = pack();
   const p = P.parts[name];
   if (!p) return;
   // «Лепка» кожи под деталью (веки, складки): затемняем или высветляем уже нарисованное лицо
-  if (p.mod) {
+  if (p.mod && !(o && (o.sx || o.gap))) {
     const [fn, ax, ay, w, h, ox, oy] = p.mod;
     const A = atlas(fn);
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -179,13 +219,34 @@ function drawPart(cv, lay, S, name, colors, clip) {
       if (p.raw) {
         const ra = lay[j + 3];
         if (!ra) continue;
-        const m = Math.min(1, ta / ra);
+        // по краю ткани доля окраски после уменьшения слоёв занижена — зелёная заготовка просвечивала бы каймой; явную зелень красим целиком
+        const m = lay[j + 1] > lay[j] * 1.15 && lay[j + 1] > lay[j + 2] * 1.15 ? 1 : Math.min(1, ta / ra);
         lay[j] += (T[v] - lay[j]) * m; lay[j + 1] += (T[v + 1] - lay[j + 1]) * m; lay[j + 2] += (T[v + 2] - lay[j + 2]) * m;
       } else { lay[j] = T[v]; lay[j + 1] = T[v + 1]; lay[j + 2] = T[v + 2]; lay[j + 3] = ta; }
     }
     grow(ox, oy, w, h);
   }
   if (x1 <= x0) return;
+  if (o) {
+    if (o.flip || o.sx || o.sy || o.gap || o.rot) [x0, y0, x1, y1] = reshape(lay, S, [x0, y0, x1, y1], o);
+    let ref = 0.62;
+    if (o.gold) {
+      // яркость золота меряем от самой детали: тёмный галстук и светлая цепь должны выйти одинаково золотыми
+      const hist = new Uint32Array(256); let n = 0;
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const j = (y * S + x) * 4; if (lay[j + 3] > 200) { hist[Math.round(0.2126 * lay[j] + 0.7152 * lay[j + 1] + 0.0722 * lay[j + 2])]++; n++; } }
+      let acc = 0; for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= n * 0.7) { ref = Math.max(0.08, v / 255); break; } }
+    }
+    if (o.gold || o.lipstick || o.alpha) {
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+        const j = (y * S + x) * 4;
+        if (!lay[j + 3]) continue;
+        if (o.gold) { const v = Math.min(255, Math.round((0.2126 * lay[j] + 0.7152 * lay[j + 1] + 0.0722 * lay[j + 2]) / ref / 255 * 170)) * 3; lay[j] = GOLD[v]; lay[j + 1] = GOLD[v + 1]; lay[j + 2] = GOLD[v + 2]; }
+        // помада: перекрашиваем только губы — красноватые пиксели рта, зубы и язык не трогаем
+        if (o.lipstick && lay[j] > 70 && lay[j] > lay[j + 1] * 1.6 && lay[j + 1] < 110) { const k = lay[j] / 150; for (let c = 0; c < 3; c++) lay[j + c] += (Math.min(255, LIPSTICK[c] * k) - lay[j + c]) * 0.6; }
+        if (o.alpha) lay[j + 3] *= o.alpha;
+      }
+    }
+  }
   // Волосы под шапкой: в каждой колонке видно только то, что ниже края шапки
   if (clip && p.src === 'hair') {
     for (let x = x0; x < x1; x++) {
@@ -194,6 +255,22 @@ function drawPart(cv, lay, S, name, colors, clip) {
         const f = (y - e + 1) / 2;
         if (f < 1) { const j = (y * S + x) * 4 + 3; lay[j] = f <= 0 ? 0 : lay[j] * f; }
       }
+    }
+  }
+  // Стёкла очков: всё прозрачное, что замкнуто оправой. Заливаем снаружи рамки — что не залилось, то стекло
+  if (o && o.lens) {
+    const w = x1 - x0; const h = y1 - y0;
+    const out = new Uint8Array(w * h);
+    const st = [];
+    const push = (x, y) => { const i = y * w + x; if (!out[i] && lay[((y + y0) * S + x + x0) * 4 + 3] < 110) { out[i] = 1; st.push(i); } };
+    for (let x = 0; x < w; x++) { push(x, 0); push(x, h - 1); }
+    for (let y = 0; y < h; y++) { push(0, y); push(w - 1, y); }
+    while (st.length) { const i = st.pop(); const x = i % w; const y = (i - x) / w; if (x) push(x - 1, y); if (x < w - 1) push(x + 1, y); if (y) push(x, y - 1); if (y < h - 1) push(x, y + 1); }
+    const [lr, lg, lb, la] = o.lens;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const j = ((y + y0) * S + x + x0) * 4;
+      if (out[y * w + x] || lay[j + 3] >= 110 || cv[j + 3] < 128) continue;
+      cv[j] += (lr - cv[j]) * la; cv[j + 1] += (lg - cv[j + 1]) * la; cv[j + 2] += (lb - cv[j + 2]) * la;
     }
   }
   // Мягкая тень детали на том, что под ней
@@ -274,6 +351,9 @@ const MASK = ['medical', 'gauze', 'visor', 'scuba'];
 const PROP = ['mug', 'papers', 'sign', 'laptop', 'mug_best', 'trophy', 'phone', 'torch', 'mimosa', 'pancakes', 'sign_dnd', 'sign_ask'];
 const PET = ['corgi', 'pug', 'frenchie', 'parrot', 'cat', 'aquarium', 'cactus'];
 const EARRINGS = ['studs', 'pearls', 'hoops', 'drops', 'cross'];
+const LENS = { grey: [59, 63, 74, 0.6], brown: [90, 58, 30, 0.56], blue: [42, 98, 201, 0.48], green: [31, 122, 74, 0.48], pink: [224, 80, 143, 0.4], yellow: [224, 165, 0, 0.4] };
+const MAKEUP = ['light', 'lips', 'smoky', 'evening', 'bright'];
+const MOLES = ['cheekL', 'cheekR', 'lip', 'chin'];
 const pick = (list, v) => (list.includes(v) ? v : null);
 // Значение из таблицы только по своему ключу: '__proto__' и 'constructor' из чужого образа не должны ничего находить
 const at = (map, k) => (typeof k === 'string' && Object.hasOwn(map, k) ? map[k] : undefined);
@@ -299,27 +379,64 @@ function lookToSpec(look = {}) {
   const eyesCovered = helmet || look.mask === 'scuba' || look.mask === 'visor';
   const earsCovered = helmet || hat === 'ushanka' || hat === 'shawl';
   const L = ['body', 'o_' + (pick(OUTFIT, look.outfit) || 'hoodie')];
+  const makeup = pick(MAKEUP, look.makeup);
   if (look.freckles) L.push('f_freckles');
   if (look.age === '2') L.push('f_wrinkles');
-  if (look.mole && look.mole !== 'none') L.push('f_moles');
-  if (look.makeup && look.makeup !== 'none') L.push('f_blush');
-  if (at(NECK, look.neck)) L.push('nk_' + at(NECK, look.neck));
-  L.push('m_' + (pick(MOUTH, look.mouth) || 'smile'));
+  else if (look.age === '1') L.push(['f_wrinkles', { alpha: 0.5 }]);
+  if (makeup && makeup !== 'lips' && makeup !== 'smoky') L.push('f_blush');
+  if (at(NECK, look.neck)) L.push(['nk_' + at(NECK, look.neck), look.neck === 'tie_crooked' ? { rot: 0.2 } : look.neck === 'tie_gold' || look.neck === 'chain_gold' ? { gold: 1 } : null]);
+  const lips = look.lips === 'thin' ? { sx: 0.97, sy: 0.74 } : look.lips === 'full' ? { sx: 1.05, sy: 1.26 } : null;
+  const lipstick = makeup === 'lips' || makeup === 'evening' || makeup === 'bright';
+  L.push(['m_' + (pick(MOUTH, look.mouth) || 'smile'), lips || lipstick ? { ...(lips || {}), ...(lipstick ? { lipstick: 1 } : {}) } : null]);
   if (at(BEARD, look.beard) && !helmet) L.push('bd_' + at(BEARD, look.beard));
   L.push('n_' + (pick(NOSE, look.nose) || 'button'));
-  L.push('e_' + (at(EYES, look.eyeShape) || 'round'));
+  const es = look.eyeSize === 's' ? 0.9 : look.eyeSize === 'l' ? 1.1 : 0;
+  const eg = look.eyeGap === 'close' ? -3 : look.eyeGap === 'wide' ? 3 : 0;
+  L.push(['e_' + (at(EYES, look.eyeShape) || 'round'), es || eg ? { ...(es ? { sx: es, sy: es } : {}), ...(eg ? { gap: eg } : {}) } : null]);
   L.push('b_' + (pick(BROWS, look.browShape) || (f ? 'arch' : 'straight')));
   if (pick(MASK, look.mask) && !helmet) L.push('mk_' + look.mask);
   const hs = look.hairStyle === 'bald' ? null : pick(HAIR, look.hairStyle) || 'short';
-  if (hs && !helmet) L.push('h_' + hs);
+  if (hs && !helmet) L.push(['h_' + hs, look.part === 'right' ? { flip: 1 } : null]);
   if (pick(EARRINGS, look.earrings) && !earsCovered) L.push('er_' + look.earrings);
-  if (look.glasses && !eyesCovered) L.push('g_' + (pick(GLASSES, look.glassesStyle) || 'classic'));
+  const lens = at(LENS, look.lensColor);
+  if (look.glasses && !eyesCovered) L.push(['g_' + (pick(GLASSES, look.glassesStyle) || 'classic'), lens ? { lens } : null]);
   if (hat) L.push('hat_' + hat);
   else if (look.phones) L.push('hat_headset');
   const prop = look.prop === 'sign_lunch' ? 'sign_lunch_' + (f ? 'f' : 'm') : pick(PROP, look.prop);
   if (prop) L.push('p_' + prop + '_hand', 'p_' + prop);
   if (pick(PET, look.pet)) L.push('pet_' + look.pet);
-  return { colors, layers: L, clip: hat ? 'hat_' + hat : null };
+  const layers = L.map((x) => (Array.isArray(x) ? (x[1] ? x : x[0]) : x));
+  const names = layers.map((x) => (Array.isArray(x) ? x[0] : x));
+  return {
+    colors, layers, names, clip: hat ? 'hat_' + hat : null,
+    mole: pick(MOLES, look.mole), shadow: makeup === 'smoky' || makeup === 'evening' || makeup === 'bright' ? makeup : null
+  };
+}
+
+// Мягкое цветное пятно на уже нарисованной коже
+function spot(cv, S, cx, cy, rx, ry, col, k, pow) {
+  for (let y = Math.max(0, Math.floor(cy - ry)); y < Math.min(S, cy + ry + 1); y++) for (let x = Math.max(0, Math.floor(cx - rx)); x < Math.min(S, cx + rx + 1); x++) {
+    const d = Math.hypot((x - cx) / rx, (y - cy) / ry);
+    const j = (y * S + x) * 4;
+    if (d >= 1 || cv[j + 3] < 128) continue;
+    const a = k * Math.pow(1 - d, pow);
+    cv[j] += (col[0] - cv[j]) * a; cv[j + 1] += (col[1] - cv[j + 1]) * a; cv[j + 2] += (col[2] - cv[j + 2]) * a;
+  }
+}
+// Родинка — в одном из четырёх мест, отсчитываем от рта
+function mole(cv, S, where) {
+  const m = pack().parts.m_neutral.raw;
+  const mx = m[5] + m[3] / 2; const my = m[6] + m[4] / 2;
+  const [dx, dy] = { cheekL: [-46, -4], cheekR: [46, -4], lip: [19, -12], chin: [0, 26] }[where];
+  spot(cv, S, mx + dx, my + dy, 3.4, 3.4, [66, 40, 28], 1.6, 0.6);
+}
+const SHADOWS = { smoky: [[64, 56, 80], 0.6], evening: [[124, 62, 110], 0.5], bright: [[58, 150, 214], 0.45] };
+function eyeShadow(cv, S, eyes, kind) {
+  const p = pack().parts[eyes];
+  if (!p || !p.raw) return;
+  const [, , , w, h, ox, oy] = p.raw;
+  const [col, k] = SHADOWS[kind];
+  for (const fx of [0.23, 0.77]) spot(cv, S, ox + w * fx, oy + h * 0.38, w * 0.27, h * 0.78, col, k, 0.9);
 }
 
 function compose(look) {
@@ -330,7 +447,13 @@ function compose(look) {
   const lay = new Uint8ClampedArray(S * S * 4);
   const hatPart = spec.clip && P.parts[spec.clip];
   const clip = hatPart && hatPart.clip ? hatPart.clip : null;
-  for (const name of spec.layers) drawPart(cv, lay, S, name, spec.colors, clip);
+  for (const it of spec.layers) {
+    const name = Array.isArray(it) ? it[0] : it;
+    // тени для век и родинка ложатся на кожу до глаз и рта
+    if (name.startsWith('m_')) { if (spec.mole) mole(cv, S, spec.mole); }
+    if (name.startsWith('e_') && spec.shadow) eyeShadow(cv, S, name, spec.shadow);
+    drawPart(cv, lay, S, name, spec.colors, clip, Array.isArray(it) ? it[1] : null);
+  }
   return { cv, S };
 }
 
@@ -366,4 +489,4 @@ function register(ctx) {
   return { render };
 }
 
-module.exports = { register, render, compose, lookToSpec, decodePng, encodePng, available, SIZES };
+module.exports = { register, render, compose, _frame: frame, lookToSpec, decodePng, encodePng, available, SIZES };

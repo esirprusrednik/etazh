@@ -117,7 +117,7 @@ const { b64url, fromB64url, moderationProblem, emailDomainAllowed } = require('.
     const img = ava.decodePng(ava.render(look, 192));
     assert.equal(img.w, 192); assert.equal(img.h, 192);
     const at = (x, y) => [...img.data.subarray((y * 192 + x) * 4, (y * 192 + x) * 4 + 4)];
-    const forehead = at(96, 40);
+    const forehead = at(96, 48);
     assert.equal(forehead[3], 255);
     assert.ok(Math.abs(forehead[0] - 0x8D) < 40 && Math.abs(forehead[2] - 0x3B) < 40 && forehead[0] > forehead[2] + 40, 'лоб в тоне кожи: ' + forehead);
     const chest = at(96, 180);
@@ -128,21 +128,27 @@ const { b64url, fromB64url, moderationProblem, emailDomainAllowed } = require('.
     assert.equal(ava.render(look, 192), ava.render({ ...look }, 192), 'одинаковый образ — из памяти');
     // чужие значения не роняют сборку и не попадают в имена слоёв
     const spec = ava.lookToSpec({ hairStyle: '../../etc', outfit: { a: 1 }, skin: 'red', hat: '__proto__', prop: 'constructor', eyes: '#12' });
-    assert.ok(spec.layers.every((n) => /^[a-z]+_?[a-z0-9_]*$/.test(n)), spec.layers.join());
+    assert.ok(spec.names.every((n) => /^[a-z]+_?[a-z0-9_]*$/.test(n)), spec.names.join());
     assert.ok(ava.render({ hairStyle: '../../etc', hat: '__proto__', prop: 'constructor', pet: 'toString' }, 96).length > 500);
     // рыцарский шлем прячет волосы, бороду, маску и серьги; маска аквалангиста — очки
-    const kn = ava.lookToSpec({ hat: 'knight', hairStyle: 'long', beard: 'beard', mask: 'medical', earrings: 'hoops', glasses: true }).layers;
+    const kn = ava.lookToSpec({ hat: 'knight', hairStyle: 'long', beard: 'beard', mask: 'medical', earrings: 'hoops', glasses: true }).names;
     assert.ok(!kn.some((n) => /^(h|bd|mk|er|g)_/.test(n)), kn.join());
-    assert.ok(!ava.lookToSpec({ mask: 'scuba', glasses: true }).layers.some((n) => n.startsWith('g_')));
-    assert.ok(ava.lookToSpec({ preset: 'f', prop: 'sign_lunch' }).layers.includes('p_sign_lunch_f'));
+    assert.ok(!ava.lookToSpec({ mask: 'scuba', glasses: true }).names.some((n) => n.startsWith('g_')));
+    assert.ok(ava.lookToSpec({ preset: 'f', prop: 'sign_lunch' }).names.includes('p_sign_lunch_f'));
     // каждый слой, который может назвать сборщик, есть в наборе
     const parts = JSON.parse(require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'server', 'ava', 'index.json'), 'utf8')).parts;
     const L = require('../server/api').LOOK;
     const miss = new Set();
     for (const [k, vals] of Object.entries({ hairStyle: L.hairStyle, eyeShape: L.eyeShape, mouth: L.mouth, beard: L.beard, browShape: L.browShape, nose: L.nose, outfit: L.outfit, neck: L.neck, hat: L.hat, mask: L.mask, prop: L.prop, pet: L.pet, earrings: L.earrings, glassesStyle: L.glassesStyle })) {
-      for (const v of vals) for (const preset of ['m', 'f']) for (const n of ava.lookToSpec({ preset, glasses: true, [k]: v }).layers) if (!parts[n] && !n.endsWith('_hand')) miss.add(n);
+      for (const v of vals) for (const preset of ['m', 'f']) for (const n of ava.lookToSpec({ preset, glasses: true, [k]: v }).names) if (!parts[n] && !n.endsWith('_hand')) miss.add(n);
     }
     assert.deepEqual([...miss], [], 'нет слоёв: ' + [...miss].join(', '));
+    // тонкая настройка меняет картинку: посадка и размер глаз, губы, пробор, макияж, родинка, возраст, золото
+    const base = { hairStyle: 'side', neck: 'tie', preset: 'f' };
+    const b0 = ava.render(base, 96);
+    for (const ch of [{ eyeGap: 'wide' }, { eyeSize: 'l' }, { lips: 'full' }, { part: 'right' }, { makeup: 'evening' }, { makeup: 'lips' }, { mole: 'chin' }, { age: '1' }, { neck: 'tie_gold' }, { neck: 'tie_crooked' }]) {
+      assert.ok(!ava.render({ ...base, ...ch }, 96).equals(b0), 'не влияет на картинку: ' + JSON.stringify(ch));
+    }
     console.log('  ✓ объёмные аватары: PNG, сборка, окраска, размеры, защита от мусора, полнота набора');
   }
   console.log('\nВсё прошло');

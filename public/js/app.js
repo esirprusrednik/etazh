@@ -1062,7 +1062,41 @@ function nk(o) {
   const fx = o && o.look && o.look.nfx;
   return fx && NFX.includes(fx.v) && fx.until > Date.now() ? `<span class="nfx nfx-${fx.v}" data-t="${t}">${t}</span>` : t;
 }
+// Объёмный аватар: картинку собирает сервер из слоёв (/api/ava), адрес — сам образ, поэтому браузер держит её в кэше.
+// В адрес идут только те поля образа, от которых зависит картинка: рамка, эффект ника, розыгрыш её не меняют.
+const AVA3D = true;
+const AVA_KEYS = ['preset', 'skin', 'hair', 'hairStyle', 'hoodie', 'outfit', 'eyes', 'eyeShape', 'mouth', 'beard', 'browShape', 'browColor', 'beardColor', 'mustacheColor', 'nose', 'glasses', 'glassesStyle', 'glassesColor',
+  'hat', 'hatColor', 'crown', 'phones', 'mask', 'neck', 'earrings', 'prop', 'pet', 'freckles', 'age', 'mole', 'makeup', 'lensColor', 'eyeGap', 'eyeSize', 'lips', 'part'];
+const avaCodes = new Map();
+function avaCode(look) {
+  const o = {};
+  for (const k of AVA_KEYS) { const v = look[k]; if (v != null && v !== false && v !== '' && v !== 'none' && v !== 'same' && v !== 'auto' && v !== 'normal' && v !== 'clear' && v !== 'left' && v !== 'm' && v !== '0' && typeof v !== 'object') o[k] = v; }
+  const json = JSON.stringify(o);
+  let c = avaCodes.get(json);
+  if (!c) { c = btoa(unescape(encodeURIComponent(json))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); if (avaCodes.size > 2000) avaCodes.clear(); avaCodes.set(json, c); }
+  return c;
+}
+// Размер картинки — под экран: в списках хватает 96 px, крупные планы и профиль берут 192 или 400
+const avaSrc = (look, px = 192) => `/api/ava/${avaCode(look)}.png?s=${px <= 96 ? 96 : px <= 192 ? 192 : 400}`;
+const BG_SCENES = ['office', 'meeting', 'home', 'street', 'cafe'];
+function avaBg(look) {
+  if (BG_SCENES.includes(look.bg)) return `background:#DCE6F5 url(/art/bg_${look.bg}.webp) center/cover`;
+  const [a, b] = BG_GRAD[look.bg] || (skinIsLight(look.skin) ? ['#DCEBFF', '#9FC2F2'] : ['#FFF1CF', '#F7C873']);
+  return `background:radial-gradient(circle at 50% 30%,${a},${b})`;
+}
+// Крупные планы конструктора: центр и доля кадра (глаза, рот, верх головы)
+const AVA_ZOOM = { eyes: [0.5, 0.425, 0.5], mouth: [0.5, 0.635, 0.46], top: [0.5, 0.43, 0.86], true: [0.5, 0.52, 0.84] };
 function avatar(look = {}, size = 42, zoom = false) {
+  if (!AVA3D) return avatarFlat(look, size, zoom);
+  const ring = FRAMES[look.frame] || '#FFFFFF';
+  const [zx, zy, zs] = AVA_ZOOM[zoom] || [0.5, 0.5, 1];
+  const k = 100 / zs;
+  const px = Math.round((size / zs) * Math.min(3, window.devicePixelRatio || 1));
+  // Розыгрыш (кофе, стикер, наушники) рисуется поверх прежними координатами — пересчитываем их в новый кадр
+  const pr = look.prank && look.prank.until > Date.now() ? `<svg viewBox="18.8 20 62.4 62.4" aria-hidden="true">${prankLayer(look.prank)}</svg>` : '';
+  return `<span class="ava ava3 ${look.frame === 'fr_champ' ? 'champ' : ''}" style="width:${size + 6}px;height:${size + 6}px;border:3px solid ${ring};${avaBg(look)}"><span class="ava-in" style="left:${(-(zx - zs / 2) * k).toFixed(1)}%;top:${(-(zy - zs / 2) * k).toFixed(1)}%;width:${k.toFixed(1)}%;height:${k.toFixed(1)}%"><img src="${avaSrc(look, px)}" alt="" decoding="sync" draggable="false">${pr}</span></span>`;
+}
+function avatarFlat(look = {}, size = 42, zoom = false) {
   const ring = FRAMES[look.frame] || '#FFFFFF';
   return `<span class="ava ${look.frame === 'fr_champ' ? 'champ' : ''}" style="width:${size + 6}px;height:${size + 6}px;border:3px solid ${ring}">
   <svg width="${size}" height="${size}" viewBox="${{ eyes: '34.5 31 31 31', mouth: '36 45 28 28', hair: '14 6 72 72', top: '22 16 56 56' }[zoom] || (zoom ? '24 28 52 52' : '0 0 100 100')}" aria-hidden="true">${avatarInner(look)}</svg></span>`;
@@ -5304,7 +5338,8 @@ function wrapText(t, max) {
   if (line) out.push(line);
   return out.slice(0, 3);
 }
-function memeSvg(look, sceneId, emoId, width = 220, standalone = false) {
+// href — картинка аватара, вшитая в сам SVG (data:): нужна, когда мем сохраняется файлом, — внешние ссылки туда не попадают
+function memeSvg(look, sceneId, emoId, width = 220, standalone = false, href = '') {
   const sc = (S.cat.memes || []).find((x) => x.id === sceneId) || S.cat.memes[0];
   const e = (S.cat.memeEmos || {})[emoId] || {};
   const l = { ...look, mouth: e.mouth || look.mouth, eyeShape: e.eyeShape || look.eyeShape };
@@ -5318,7 +5353,7 @@ function memeSvg(look, sceneId, emoId, width = 220, standalone = false) {
     <circle cx="104" cy="30" r="26" fill="#fff" opacity=".07"/><circle cx="10" cy="140" r="30" fill="#fff" opacity=".06"/>
     ${lines.map((t, i) => `<text x="60" y="${y0 + i * 12}" text-anchor="middle" font-family="Rubik,system-ui,-apple-system,Segoe UI,Roboto,sans-serif" font-size="10.5" font-weight="900" fill="#fff" stroke="rgba(0,0,0,.25)" stroke-width=".6" paint-order="stroke">${esc(t)}</text>`).join('')}
     <circle cx="60" cy="96" r="45.5" fill="#fff" opacity=".9"/>
-    <g clip-path="url(#${id}c)"><rect x="16" y="52" width="88" height="88" fill="#FFE7B3"/><svg x="14" y="50" width="92" height="92" viewBox="0 0 100 100">${avatarInner(l)}</svg></g>
+    <g clip-path="url(#${id}c)"><rect x="16" y="52" width="88" height="88" fill="#FFE7B3"/>${AVA3D ? `<image x="14" y="50" width="92" height="92" href="${href || avaSrc(l, 400)}"/>` : `<svg x="14" y="50" width="92" height="92" viewBox="0 0 100 100">${avatarInner(l)}</svg>`}</g>
     <text x="114" y="146" text-anchor="end" font-family="system-ui,sans-serif" font-size="5" font-weight="800" fill="#fff" opacity=".7">этаж</text>
   </svg>`;
 }
@@ -5389,21 +5424,21 @@ function renderAvatarEditor() {
   const body = {
     face: `<div class="chips">${['m', 'f'].map((v) => `<button class="chip ${d.preset === v ? 'on' : ''}" data-act="ava-set" data-k="preset" data-v="${v}">${v === 'm' ? 'М' : 'Ж'}</button>`).join('')}</div>
       <p class="small" style="margin:0">«М» — шире челюсть и плечи, густые брови. «Ж» — мягкий подбородок, высокие скулы, ресницы.</p>
-      <div class="field">Форма лица${tiles('face', L.face, FACE_NAMES, true)}</div>
+      ${AVA3D ? '' : `<div class="field">Форма лица${tiles('face', L.face, FACE_NAMES, true)}</div>`}
       <div class="field">Нос${tiles('nose', L.nose, NOSE_NAMES, true)}</div>
-      <div class="field">Уши${chipsOf('ears', L.ears, EARS_NAMES)}</div>
+      ${AVA3D ? '' : `<div class="field">Уши${chipsOf('ears', L.ears, EARS_NAMES)}</div>`}
       <div class="field">Тон кожи${sw('skin', L.skin)}</div>`,
     hair: `<div class="field">Причёска${tiles('hairStyle', HAIR_ORDER[sex].concat(L.hairStyle.filter((v) => !HAIR_ORDER[sex].includes(v))), HAIR_NAMES, 'hair')}</div><div class="field">Цвет волос${hairColors('hair')}</div>
-      ${HAIRLINE_OK.includes(d.hairStyle || 'short') ? `<div class="field">Линия роста волос${tiles('hairline', L.hairline, HAIRLINE_NAMES, 'top')}</div>` : ''}
+      ${!AVA3D && HAIRLINE_OK.includes(d.hairStyle || 'short') ? `<div class="field">Линия роста волос${tiles('hairline', L.hairline, HAIRLINE_NAMES, 'top')}</div>` : ''}
       ${d.hairStyle !== 'bald' ? `<div class="field">Пробор и чёлка${chipsOf('part', L.part, PART_NAMES)}</div>` : ''}
       <p class="small" style="margin:0">Цвет бороды и усов настраивается отдельно — во вкладке «Борода».</p>`,
     eyes: `<div class="field">Форма глаз${tiles('eyeShape', EYE_ANAT, EYE_NAMES, 'eyes')}</div>
       <div class="field">Посадка${chipsOf('eyeGap', L.eyeGap, GAP_NAMES)}</div><div class="field">Размер${chipsOf('eyeSize', L.eyeSize, EYESIZE_NAMES)}</div>
-      <div class="chips">${tog('lashes', 'Выразительные ресницы')}</div>
+      ${AVA3D ? '' : `<div class="chips">${tog('lashes', 'Выразительные ресницы')}</div>`}
       <div class="field">Цвет глаз${sw('eyes', L.eyes)}</div>
       <div class="field">Брови${tiles('browShape', L.browShape, BROW_NAMES, 'eyes')}</div><div class="field">Цвет бровей${hairSw('browColor')}</div>`,
     age: `<div class="field">Возраст${tiles('age', L.age, AGE_NAMES, true)}</div>
-      <div class="field">Родинка${tiles('mole', L.mole, MOLE_NAMES, true)}</div><div class="chips">${tog('freckles', 'Веснушки')}${tog('dimples', 'Ямочки')}</div>
+      <div class="field">Родинка${tiles('mole', L.mole, MOLE_NAMES, true)}</div><div class="chips">${tog('freckles', 'Веснушки')}${AVA3D ? '' : tog('dimples', 'Ямочки')}</div>
       <p class="small" style="margin:0">Седину выбирай в цвете волос: «Соль с перцем» или «Седой».</p>`,
     pet: `<div class="field">Питомец рядом${tiles('pet', L.pet, PET_NAMES)}</div>`,
     mouth: `<div class="field">Губы${chipsOf('lips', L.lips, LIPS_NAMES)}</div><div class="field">Обычное выражение${tiles('mouth', ['smile', 'neutral', 'smirk', 'grin'], MOUTH_NAMES, 'mouth')}</div><p class="small" style="margin:0">Грусть и удивление аватар покажет сам — в играх и мемах.</p>`,
@@ -6700,7 +6735,15 @@ const actions = {
     if (r.beans) await loadMe();
   }),
   'meme-share': () => run(async () => {
-    const svg = memeSvg(S.me.look, S.meme.scene, S.meme.emo, 720, true);
+    let href = '';
+    if (AVA3D) {
+      const e = (S.cat.memeEmos || {})[S.meme.emo] || {};
+      const res = await fetch(avaSrc({ ...S.me.look, mouth: e.mouth || S.me.look.mouth, eyeShape: e.eyeShape || S.me.look.eyeShape }, 400));
+      if (!res.ok) throw new Error('Не получилось собрать картинку. Попробуй ещё раз.');
+      const blob = await res.blob();
+      href = await new Promise((ok, no) => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.onerror = no; fr.readAsDataURL(blob); });
+    }
+    const svg = memeSvg(S.me.look, S.meme.scene, S.meme.emo, 720, true, href);
     const blob = await svgToPng(svg, 720, 900);
     const file = new File([blob], 'etazh-mem.png', { type: 'image/png' });
     if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title: 'Мем из Этажа' }); } catch {} return; }

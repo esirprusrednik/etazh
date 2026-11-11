@@ -131,7 +131,7 @@ for fam, ch in (('la', 2), ('rgba', 4)):
         if group and len(enc(build(group + [s]))) > LIMIT: flush(group); group = []
         group.append(s)
     if group: flush(group)
-R = int(HEADW * 0.80 * K); cyc = int((TOP + int(HEADH * 0.66)) * K); cxc = int(CX * K)
+R = int(HEADW * 0.80 * K); cyc = int((TOP + int(HEADH * 0.595)) * K)   # кадр чуть выше центра: низ бюста уходит за край, сверху остаётся место под шапки; cxc = int(CX * K)
 meta = dict(size=C2, crop=[cxc - R, cyc - R, 2 * R], files=files, parts=index)
 json.dump(meta, open('pack/index.json', 'w'), separators=(',', ':'))
 print(len(parts), 'parts', len(items), 'layers'); os.system('ls -la pack; du -sh pack')
