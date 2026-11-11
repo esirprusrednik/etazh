@@ -2246,3 +2246,7 @@ body::before { content: ""; position: fixed; inset: 0; z-index: -1; background: 
 .duel-res { display: inline-flex; align-items: center; gap: 5px; }
 .shop-wallet { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 h3.has-art { display: inline-flex; align-items: center; gap: 8px; }
+/* Медали ачивок и итог морского боя — объёмными картинками */
+.ach-ico { width: 44px; height: 44px; background: none !important; box-shadow: none !important; border-radius: 0; }
+.ach:not(.got) .ach-ico .art { opacity: .8; }
+.b-banner.has-art { display: flex; align-items: center; justify-content: center; gap: 10px; text-align: left; }

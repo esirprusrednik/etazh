@@ -4087,7 +4087,7 @@ function renderBattle() {
   }
   const done = v.status === 'done';
   const banner = done
-    ? `<div class="b-banner ${v.winner === 'me' ? 'win' : 'lose'}">${v.winner === 'me' ? (v.timeout ? `wait У ${nk(v.opp)} кончилось время. Победа!` : v.resigned ? `trophy ${nk(v.opp)} ${gw(v.opp.look, 'сдался', 'сдалась')}. Победа!` : 'trophy Победа! Весь флот соперника на дне') : (v.timeout ? 'wait Время вышло. В следующий раз быстрее!' : v.resigned ? `🐔 Ты ${meG('сдался', 'сдалась')}. Бывает` : `💥 ${nk(v.opp)} ${gw(v.opp.look, 'потопил', 'потопила')} твой флот`)}</div>`
+    ? `<div class="b-banner has-art ${v.winner === 'me' ? 'win' : 'lose'}">${art(v.winner === 'me' ? 'trophy' : v.timeout ? 'hourglass' : v.resigned ? 'flag' : 'buoy', 44)}<span>${v.winner === 'me' ? (v.timeout ? `У ${nk(v.opp)} кончилось время. Победа!` : v.resigned ? `${nk(v.opp)} ${gw(v.opp.look, 'сдался', 'сдалась')}. Победа!` : 'Победа! Весь флот соперника на дне') : (v.timeout ? 'Время вышло. В следующий раз быстрее!' : v.resigned ? `Ты ${meG('сдался', 'сдалась')}. Бывает` : `${nk(v.opp)} ${gw(v.opp.look, 'потопил', 'потопила')} твой флот`)}</span></div>`
     : v.myTurn ? '<div class="b-banner go">target Твой ход — стреляй по полю соперника</div>'
     : v.practice ? `<div class="b-banner wait">wait ${nk(v.opp)} целится…</div>`
     : `<div class="b-banner wait">wait Ход ${nk(v.opp)}. Придёт уведомление, когда выстрелит</div>`;
@@ -4379,7 +4379,7 @@ function renderAchievements() {
   const R = Object.fromEntries(all.map((a) => [a.tier, a.reward]));
   const prog = (n, goal) => goal > 1 ? `<span class="ach-prog"><i style="width:${Math.round((n / goal) * 100)}%"></i></span><span class="ach-num">${n} / ${goal}</span>` : '';
   const tile = (a) => `<div class="ach ${a.tier} ${a.got ? 'got' : ''} ${a.secret ? 'secret' : ''}" title="${esc(a.desc)}">
-      <span class="ach-ico" aria-hidden="true">${a.got ? '★' : a.secret ? 'glasses' : '?'}</span><span class="ach-name">${esc(a.name)}</span><span class="ach-desc">${esc(a.desc)}</span>${a.got ? '' : prog(a.n, a.goal)}</div>`;
+      <span class="ach-ico" aria-hidden="true">${art(a.got ? 'medal_' + (['common', 'rare', 'legendary'].includes(a.tier) ? a.tier : 'common') : a.secret ? 'medal_secret' : 'medal_locked', 44)}</span><span class="ach-name">${esc(a.name)}</span><span class="ach-desc">${esc(a.desc)}</span>${a.got ? '' : prog(a.n, a.goal)}</div>`;
   // Ступени одной серии — одна плитка: уровень, точки уровней, прогресс до следующего
   const seriesTile = (lv) => {
     const done = lv.filter((x) => x.got);
@@ -4387,7 +4387,7 @@ function renderAchievements() {
     const next = lv.find((x) => !x.got);
     const shown = top || lv[0];
     return `<div class="ach ${shown.tier} ${top ? 'got' : ''} series" title="${esc(next ? 'Дальше: ' + next.desc : 'Все ступени взяты')}">
-      <span class="ach-ico" aria-hidden="true">${top ? '★' : '?'}</span><span class="ach-name">${esc(shown.name)}</span>
+      <span class="ach-ico" aria-hidden="true">${art(top ? 'medal_' + (['common', 'rare', 'legendary'].includes(shown.tier) ? shown.tier : 'common') : 'medal_locked', 44)}</span><span class="ach-name">${esc(shown.name)}</span>
       <span class="ach-lv">${lv.map((x) => `<i class="${x.tier} ${x.got ? 'on' : ''}"></i>`).join('')}</span>
       <span class="ach-desc">${esc(next ? next.desc : 'Все ступени взяты')}</span>${next ? prog(next.n, next.goal) : ''}</div>`;
   };

@@ -251,6 +251,7 @@ function drawPart(cv, lay, S, name, colors, clip, o) {
   }
   if (x1 <= x0) return;
   if (o) {
+    if (o.crownTop) o = { sx: 0.46, sy: 0.46, px: (x0 + x1) / 2, py: y0, dy: -6 };
     if (o.flip || o.sx || o.sy || o.gap || o.rot || o.dx || o.dy) [x0, y0, x1, y1] = reshape(lay, S, [x0, y0, x1, y1], o);
     let ref = 0.62;
     if (o.gold) {
@@ -424,6 +425,8 @@ function lookToSpec(look = {}) {
   const lens = at(LENS, look.lensColor);
   if (look.glasses && !eyesCovered) L.push(['g_' + (pick(GLASSES, look.glassesStyle) || 'classic'), lens ? { lens } : null]);
   if (hat) L.push('hat_' + hat);
+  // Корона из Лавки поверх шапки: маленькая, сидит на макушке (с короной-шапкой и шлемом не сочетается)
+  if (hat && look.crown && hat !== 'crown' && !helmet) L.push(['hat_crown', { crownTop: 1 }]);
   else if (look.phones) L.push('hat_headset');
   const prop = look.prop === 'sign_lunch' ? 'sign_lunch_' + (f ? 'f' : 'm') : pick(PROP, look.prop);
   // Таблички крупные: уменьшаем их к кулаку и сдвигаем к середине, чтобы не закрывали рот и текст не резался круглой рамкой
@@ -434,7 +437,7 @@ function lookToSpec(look = {}) {
   const names = layers.map((x) => (Array.isArray(x) ? x[0] : x));
   return {
     colors, layers, names, clip: hat ? 'hat_' + hat : null,
-    mole: pick(MOLES, look.mole), shadow: makeup === 'smoky' || makeup === 'evening' || makeup === 'bright' ? makeup : null
+    mole: pick(MOLES, look.mole), age: look.age === '1' ? 1 : look.age === '2' ? 2 : 0, shadow: makeup === 'smoky' || makeup === 'evening' || makeup === 'bright' ? makeup : null
   };
 }
 
@@ -454,6 +457,24 @@ function mole(cv, S, where) {
   const mx = m[5] + m[3] / 2; const my = m[6] + m[4] / 2;
   const [dx, dy] = { cheekL: [-46, -4], cheekR: [46, -4], lip: [19, -12], chin: [0, 26] }[where];
   spot(cv, S, mx + dx, my + dy, 3.4, 3.4, [66, 40, 28], 1.6, 0.6);
+}
+// Возраст: носогубные складки и тени под глазами — их не закрывают ни волосы, ни брови (морщины на лбу видны только у коротких стрижек)
+function folds(cv, S, level) {
+  const m = pack().parts.m_neutral.raw;
+  const mx = m[5] + m[3] / 2; const my = m[6] + m[4] / 2;
+  const k = level === 2 ? 0.34 : 0.2;
+  for (const side of [-1, 1]) for (let t = 0; t <= 1; t += 0.06) {
+    const x = mx + side * (27 + 13 * t - 5 * t * t); const y = my - 30 + 34 * t;
+    spot(cv, S, x, y, 3.2, 3.2, [60, 30, 20], k, 1);
+  }
+}
+function eyeBags(cv, S, layers, level) {
+  const it = layers.find((x) => (Array.isArray(x) ? x[0] : x).startsWith('e_'));
+  const p = pack().parts[Array.isArray(it) ? it[0] : it];
+  if (!p || !p.raw) return;
+  const [, , , w, h, ox, oy] = p.raw;
+  const k = level === 2 ? 0.3 : 0.18;
+  for (const fx of [0.23, 0.77]) for (let t = -1; t <= 1; t += 0.1) spot(cv, S, ox + w * fx + t * w * 0.15, oy + h + 3 - (t * t) * 4, 2.6, 2.6, [60, 30, 20], k, 1);
 }
 const SHADOWS = { smoky: [[64, 56, 80], 0.6], evening: [[124, 62, 110], 0.5], bright: [[58, 150, 214], 0.45] };
 function eyeShadow(cv, S, eyes, kind) {
@@ -475,7 +496,8 @@ function compose(look) {
   for (const it of spec.layers) {
     const name = Array.isArray(it) ? it[0] : it;
     // тени для век и родинка ложатся на кожу до глаз и рта
-    if (name.startsWith('m_')) { if (spec.mole) mole(cv, S, spec.mole); }
+    if (name.startsWith('m_')) { if (spec.mole) mole(cv, S, spec.mole); if (spec.age) folds(cv, S, spec.age); }
+    if (name.startsWith('b_') && spec.age) eyeBags(cv, S, spec.layers, spec.age);
     if (name.startsWith('e_') && spec.shadow) eyeShadow(cv, S, name, spec.shadow);
     drawPart(cv, lay, S, name, spec.colors, clip, Array.isArray(it) ? it[1] : null);
   }
