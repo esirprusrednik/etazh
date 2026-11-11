@@ -105,5 +105,45 @@ const { b64url, fromB64url, moderationProblem, emailDomainAllowed } = require('.
     assert.ok(log.every((d) => ['new', 'better', 'fix'].every((k) => Array.isArray(d[k])) && d.new.length + d.better.length + d.fix.length > 0));
     console.log('  ✓ журнал изменений');
   }
+  // Объёмные аватары: свой PNG туда-обратно, сборка из слоёв, окраска кожи, размеры, мусор во входе
+  {
+    const ava = require('../server/ava');
+    const px = new Uint8ClampedArray(7 * 5 * 4).map((_, i) => (i * 37 + (i >> 3) * 11) & 255);
+    const back = ava.decodePng(ava.encodePng(7, 5, px));
+    assert.equal(back.w, 7); assert.equal(back.ch, 4);
+    assert.deepEqual([...back.data], [...px]);
+    assert.ok(ava.available(), 'слои аватаров на месте');
+    const look = { skin: '#8D5A3B', hair: '#F4C430', hairStyle: 'bald', hoodie: 'red', outfit: 'tee', eyes: '#3A7BD5' };
+    const img = ava.decodePng(ava.render(look, 192));
+    assert.equal(img.w, 192); assert.equal(img.h, 192);
+    const at = (x, y) => [...img.data.subarray((y * 192 + x) * 4, (y * 192 + x) * 4 + 4)];
+    const forehead = at(96, 40);
+    assert.equal(forehead[3], 255);
+    assert.ok(Math.abs(forehead[0] - 0x8D) < 40 && Math.abs(forehead[2] - 0x3B) < 40 && forehead[0] > forehead[2] + 40, 'лоб в тоне кожи: ' + forehead);
+    const chest = at(96, 180);
+    assert.ok(chest[0] > chest[1] + 60 && chest[0] > chest[2] + 60, 'футболка красная: ' + chest);
+    assert.equal(at(2, 2)[3], 0, 'угол прозрачный');
+    assert.equal(ava.decodePng(ava.render(look, 40)).w, 96);
+    assert.equal(ava.decodePng(ava.render(look, 9999)).w, 400);
+    assert.equal(ava.render(look, 192), ava.render({ ...look }, 192), 'одинаковый образ — из памяти');
+    // чужие значения не роняют сборку и не попадают в имена слоёв
+    const spec = ava.lookToSpec({ hairStyle: '../../etc', outfit: { a: 1 }, skin: 'red', hat: '__proto__', prop: 'constructor', eyes: '#12' });
+    assert.ok(spec.layers.every((n) => /^[a-z]+_?[a-z0-9_]*$/.test(n)), spec.layers.join());
+    assert.ok(ava.render({ hairStyle: '../../etc', hat: '__proto__', prop: 'constructor', pet: 'toString' }, 96).length > 500);
+    // рыцарский шлем прячет волосы, бороду, маску и серьги; маска аквалангиста — очки
+    const kn = ava.lookToSpec({ hat: 'knight', hairStyle: 'long', beard: 'beard', mask: 'medical', earrings: 'hoops', glasses: true }).layers;
+    assert.ok(!kn.some((n) => /^(h|bd|mk|er|g)_/.test(n)), kn.join());
+    assert.ok(!ava.lookToSpec({ mask: 'scuba', glasses: true }).layers.some((n) => n.startsWith('g_')));
+    assert.ok(ava.lookToSpec({ preset: 'f', prop: 'sign_lunch' }).layers.includes('p_sign_lunch_f'));
+    // каждый слой, который может назвать сборщик, есть в наборе
+    const parts = JSON.parse(require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'server', 'ava', 'index.json'), 'utf8')).parts;
+    const L = require('../server/api').LOOK;
+    const miss = new Set();
+    for (const [k, vals] of Object.entries({ hairStyle: L.hairStyle, eyeShape: L.eyeShape, mouth: L.mouth, beard: L.beard, browShape: L.browShape, nose: L.nose, outfit: L.outfit, neck: L.neck, hat: L.hat, mask: L.mask, prop: L.prop, pet: L.pet, earrings: L.earrings, glassesStyle: L.glassesStyle })) {
+      for (const v of vals) for (const preset of ['m', 'f']) for (const n of ava.lookToSpec({ preset, glasses: true, [k]: v }).layers) if (!parts[n] && !n.endsWith('_hand')) miss.add(n);
+    }
+    assert.deepEqual([...miss], [], 'нет слоёв: ' + [...miss].join(', '));
+    console.log('  ✓ объёмные аватары: PNG, сборка, окраска, размеры, защита от мусора, полнота набора');
+  }
   console.log('\nВсё прошло');
 })().catch((e) => { console.error('Провал:', e); process.exitCode = 1; });

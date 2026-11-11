@@ -49,7 +49,7 @@ function startServer(day, extra = {}) {
     }
   }
   const ready = (async () => { for (let i = 0; i < 300; i++) { try { if ((await fetch(`http://127.0.0.1:${PORT}/healthz`)).ok) return; } catch {} await new Promise((r) => setTimeout(r, 100)); } throw new Error('server did not start\n' + log); })();
-  return { Client, ready, stop: () => proc.kill(), log: () => log, dir };
+  return { Client, ready, stop: () => proc.kill(), log: () => log, dir, BASE };
 }
 
 (async () => {
@@ -67,6 +67,21 @@ function startServer(day, extra = {}) {
     const ga = (await A.post('/api/gangs', { name: 'Альфа', access: 'open' })).json;
     const gb = (await B.post('/api/gangs', { name: 'Бета', access: 'open' })).json;
     await D.post(`/api/gangs/${gb.id}/apply`);
+
+    await step('объёмный аватар: PNG по образу только для вошедших, с долгим кэшем', async () => {
+      const code = Buffer.from(JSON.stringify({ hairStyle: 'curly', hoodie: 'green', prop: 'mug', pet: 'corgi' })).toString('base64url');
+      const anon = await fetch(`${sv.BASE}/api/ava/${code}.png?s=96`);
+      assert.equal(anon.status, 401);
+      const res = await fetch(`${sv.BASE}/api/ava/${code}.png?s=96`, { headers: { Cookie: A.cookie } });
+      assert.equal(res.status, 200);
+      assert.equal(res.headers.get('content-type'), 'image/png');
+      assert.match(res.headers.get('cache-control'), /immutable/);
+      const buf = Buffer.from(await res.arrayBuffer());
+      assert.equal(buf.readUInt32BE(0), 0x89504e47);
+      assert.equal(buf.readUInt32BE(16), 96);
+      assert.equal((await fetch(`${sv.BASE}/api/ava/@@@.png`, { headers: { Cookie: A.cookie } })).status, 400);
+      assert.equal((await fetch(`${sv.BASE}/api/ava/${Buffer.from('[1]').toString('base64url')}.png`, { headers: { Cookie: A.cookie } })).status, 400);
+    });
 
     await step('«Совпадаем»: видят только открывшие, банда не важна, общие интересы', async () => {
       await A.post('/api/me/profile', { profile: { home: 'smol', plan: { 'Вт': 'office', 'Ср': 'home' }, tags: ['Настолки', 'Бег'] } });

@@ -1749,6 +1749,8 @@ function createApi(db) {
 
   // ---------- Голосовые: до 30 секунд, живут час ----------
   voice = require('./voice').register({ db, q, route, requireUser, bad, U, HttpError, isMember, rateLimit });
+  // Объёмные аватары: картинка собирается на сервере из слоёв (включается на клиенте отдельно)
+  require('./ava').register({ route, requireUser, bad, U });
 
   // ---------- Праздники: Тайный Санта банды и адвент-календарь ----------
   santa = require('./santa').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
@@ -1934,4 +1936,4 @@ function readJson(req, limit = 64 * 1024) {
   });
 }
 
-module.exports = { nameCase, createApi, HttpError };
+module.exports = { nameCase, createApi, HttpError, LOOK };
