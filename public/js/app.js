@@ -1068,6 +1068,9 @@ function avatar(look = {}, size = 42, zoom = false) {
   <svg width="${size}" height="${size}" viewBox="${{ eyes: '34.5 31 31 31', mouth: '36 45 28 28', hair: '14 6 72 72', top: '22 16 56 56' }[zoom] || (zoom ? '24 28 52 52' : '0 0 100 100')}" aria-hidden="true">${avatarInner(look)}</svg></span>`;
 }
 
+// Объёмные картинки («пластилин»): готовые webp с прозрачным фоном, одинаково смотрятся в светлой и тёмной теме
+const art = (name, size = 40) => `<img class="art" src="/art/${name}.webp" width="${size}" height="${size}" alt="" loading="lazy" decoding="async">`;
+
 // Нажатие на аватар открывает карточку коллеги
 const tap = (id, html) => `<button class="ava-btn" data-act="person" data-id="${id}" aria-label="Открыть профиль">${html}</button>`;
 const BEAN = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><ellipse cx="12" cy="12" rx="6" ry="9" transform="rotate(30 12 12)"/><path d="M9 6c3 3 3 9 6 12"/></svg>';
@@ -2626,7 +2629,7 @@ function renderQuickCalls() {
   const gang = S.activeGang || S.me.gangs[0].id;
   const items = [['coffee', 'На кофе', '#8B5A2B', '#5E3B1A'], ['lunch', 'На обед', '#1F7A3A', '#155C2B'], ['where', 'Ты где?', '#0E7490', '#0A5468']];
   return `<section class="qcalls" aria-label="Быстрые зовы банде">
-    ${items.map(([k, label, bg, shade]) => `<button class="qcall" style="--c:${bg}" data-act="call-open" data-kind="${k}" data-gang="${gang}">${ico(k, 22)}${label}</button>`).join('')}
+    ${items.map(([k, label, bg, shade]) => `<button class="qcall" style="--c:${bg}" data-act="call-open" data-kind="${k}" data-gang="${gang}">${art({ coffee: 'coffee', lunch: 'lunch', where: 'pin' }[k], 34)}${label}</button>`).join('')}
     <button class="qcall" style="--c:#6B7594" data-act="gang-open" data-id="${gang}">${ico('more', 22)}Ещё</button>
   </section>${renderQuickExtra(gang)}`;
 }
@@ -3353,9 +3356,9 @@ function renderDuelsCard() {
   const battles = (S.battles || []).filter((x) => x.status !== 'done');
   const nickOf = (id) => ((S.people || []).find((p) => p.id === id) || (S.crew && S.crew.list.find((p) => p.id === id)) || {}).nick || 'соперник';
   const waiting = items.filter((d) => d.myTurn).length + battles.filter((x) => x.myTurn).length;
-  const games = [['duel-pick', 'rps', rpsDuo(), 'Камень, ножницы, бумага'], ['duel-pick', 'dice', 'dice', 'Кости'], ['duel-pick', 'ttt', 'xcircle', 'Крестики-нолики'], ['duel-pick', 'sea', 'anchor', 'Морской бой']];
+  const games = [['duel-pick', 'rps', art('rps', 44), 'Камень, ножницы, бумага'], ['duel-pick', 'dice', art('dice', 44), 'Кости'], ['duel-pick', 'ttt', art('ttt', 44), 'Крестики-нолики'], ['duel-pick', 'sea', art('ship', 44), 'Морской бой']];
   return `<section class="card duels-card"><div class="chats-head"><h3>game Сыграть</h3><span class="small">${waiting ? `${waiting} ${plural(waiting, 'ждёт', 'ждут', 'ждут')} твоего хода` : 'победа +2 зерна'}</span></div>
-    <div class="duel-new n4">${games.map(([act, g, e, t]) => `<button class="duel-start" data-act="${act}" data-v="${g}"><span>${e}</span><b>${hy(t)}</b></button>`).join('')}</div>
+    <div class="duel-new n4">${games.map(([act, g, e, t]) => `<button class="duel-start has-art" data-act="${act}" data-v="${g}"><span>${e}</span><b>${hy(t)}</b></button>`).join('')}</div>
     ${items.length || battles.length ? '' : (S.gHelp ? '<p class="small" style="margin:0">Нажми игру — дальше выбери соперника или «Практику» с компьютером. В дуэлях можно играть на ставку 5 или 10 зёрен — победитель забирает обе. Морской бой — быстрый или без спешки. <button class="linkbtn small" data-act="g-help">Скрыть</button></p>' : '<button class="linkbtn small g-help" data-act="g-help">Как играть?</button>')}
     ${battles.map((x) => `<button class="chat-row" data-act="battle-go" data-id="${x.id}" data-opp="${x.oppId}"><span class="duel-ico">anchor</span><span class="grow"><span class="chat-title">${esc(nickOf(x.oppId))}</span><span class="where">Морской бой · ${x.mode === 'fast' ? 'быстрая · ' : ''}${x.status === 'setup' ? 'расстановка' : x.myTurn ? 'твой ход!' : 'ход соперника'}</span></span>${x.myTurn ? '<span class="crew-badge">!</span>' : ''}</button>`).join('')}
     ${items.map((d) => `<button class="chat-row" data-act="dm-open" data-id="${d.opp.id}">${avatar(d.opp.look, 32)}<span class="grow"><span class="chat-title">${nk(d.opp)}</span><span class="where">${{ rps: 'rock Камень, ножницы, бумага', dice: 'dice Кости', ttt: 'x Крестики-нолики' }[d.game]}${d.score ? ` · ${d.score.me}:${d.score.opp}` : ''}</span></span>${d.myTurn ? '<span class="crew-badge">!</span>' : ''}</button>`).join('')}</section>`;
@@ -3618,7 +3621,7 @@ async function loadLeague(type = S.leagueType || 'W') {
 function renderLeagueCard() {
   const L = S.league && S.league.W;
   const m = L && L.mine;
-  return `<section class="card lg-card"><div class="row" style="justify-content:space-between"><span class="card-title">trophy Лига банд</span><span class="small">${L ? (L.period.daysLeft > 1 ? `ещё ${L.period.daysLeft} ${plural(L.period.daysLeft, 'день', 'дня', 'дней')}` : 'финиш сегодня') : ''}</span></div>
+  return `<section class="card lg-card"><div class="row" style="justify-content:space-between"><span class="card-title has-art">${art('trophy', 30)}Лига банд</span><span class="small">${L ? (L.period.daysLeft > 1 ? `ещё ${L.period.daysLeft} ${plural(L.period.daysLeft, 'день', 'дня', 'дней')}` : 'финиш сегодня') : ''}</span></div>
     ${!L ? '<p class="small" style="margin:0">Загружаем…</p>' : m ? `<div class="row" style="gap:10px">${gangBadge(m)}<div class="grow"><b>${m.place ? `${MEDAL[m.place - 1] || ''} ${m.place} место` : m.eligible ? 'Пока без очков' : `Нужно ${L.rules.minRoster} человека`}</b><div class="small">счёт ${m.score} · твой вклад ${m.myPoints} · сегодня ${m.todayPts}/${m.dayCap}</div></div></div>`
       : '<p class="small" style="margin:0">Банды соревнуются за неделю и месяц: зёрна за дела — очки банде. Вступи в банду, чтобы играть.</p>'}
     ${L && L.top.length ? `<div class="lg-mini">${L.top.slice(0, 3).map((r) => `<span class="${r.me ? 'me' : ''}">${MEDAL[r.place - 1]} ${esc(r.name)} · ${r.score}</span>`).join('')}</div>` : ''}
@@ -4565,7 +4568,7 @@ function renderBlitzCard() {
   const b = S.blitz;
   if (!b || !b.set) return '';
   const st = b.set;
-  const head = `<div class="row" style="justify-content:space-between"><span class="card-title">bolt Блиц: ${esc(st.title)}</span><span class="small">до ${ddmm(st.to)}</span></div>`;
+  const head = `<div class="row" style="justify-content:space-between"><span class="card-title has-art">${art('bolt', 30)}Блиц: ${esc(st.title)}</span><span class="small">до ${ddmm(st.to)}</span></div>`;
   if (b.state === 'new') {
     return `<section class="card blitz">${head}
       <p class="sub" style="margin:6px 0 10px">${esc(st.desc)}</p>

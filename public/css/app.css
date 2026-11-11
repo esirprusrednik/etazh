@@ -2194,3 +2194,13 @@ main { padding-bottom: 64px; }
 .flash { animation: flash-ring 1.6s ease-out; }
 @keyframes flash-ring { 0%, 40% { box-shadow: 0 0 0 3px #F2B705; } 100% { box-shadow: var(--card-sh); } }
 @media (prefers-reduced-motion: reduce) { .flash { animation: none; outline: 3px solid #F2B705; } }
+
+/* Объёмные картинки («пластилин») — одинаковые для обеих тем. Мягкая тень под предметом, чтобы светлые предметы
+   не терялись на светлой карточке, а тёмные — на тёмной */
+.art { display: block; object-fit: contain; filter: drop-shadow(0 3px 4px rgba(10, 16, 35, .22)); -webkit-user-drag: none; user-select: none; }
+:root[data-theme="dark"] .art { filter: drop-shadow(0 3px 5px rgba(0, 0, 0, .45)); }
+.duel-start.has-art span { height: 46px; }
+.duel-start.has-art { padding-top: 10px; }
+.qcall .art { margin-bottom: -2px; }
+.qcall { min-height: 78px; }
+.card-title.has-art { display: inline-flex; align-items: center; gap: 8px; }

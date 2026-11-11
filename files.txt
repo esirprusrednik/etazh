@@ -109,3 +109,12 @@ tests/quiz.js
 tests/smoke.js
 tests/social.js
 tests/unit.js
+public/art/rps.webp
+public/art/dice.webp
+public/art/ttt.webp
+public/art/ship.webp
+public/art/bolt.webp
+public/art/trophy.webp
+public/art/coffee.webp
+public/art/lunch.webp
+public/art/pin.webp
