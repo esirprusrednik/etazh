@@ -33,11 +33,20 @@ const S = {
 
 // ---------- API ----------
 async function api(method, url, body) {
-  const res = await fetch(url, {
-    method, credentials: 'same-origin',
-    headers: body !== undefined ? { 'Content-Type': 'application/json' } : {},
-    body: body !== undefined ? JSON.stringify(body) : undefined
-  });
+  // Мобильная сеть иногда «залипает»: без ответа за 20 секунд (45 — для больших отправок) обрываем, чтобы кнопки не висели
+  const payload = body !== undefined ? JSON.stringify(body) : undefined;
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), payload && payload.length > 100000 ? 45000 : 20000);
+  let res;
+  try {
+    res = await fetch(url, {
+      method, credentials: 'same-origin', signal: ctl.signal,
+      headers: body !== undefined ? { 'Content-Type': 'application/json' } : {},
+      body: payload
+    });
+  } catch (e) {
+    throw new Error(e && e.name === 'AbortError' ? 'Сервер долго не отвечает. Проверь интернет и попробуй ещё раз.' : 'Нет связи с сервером. Проверь интернет.');
+  } finally { clearTimeout(timer); }
   let json = {};
   try { json = await res.json(); } catch {}
   if (res.status === 401) { S.me = null; render(); }
@@ -4601,7 +4610,27 @@ function renderBlitzPlay() {
     <span class="bl-time ${b.leftMs < 15000 ? 'hot' : ''}" id="bl-time">${mmss(b.leftMs)}</span><span class="small grow" style="text-align:right">вопрос ${qn.n} из ${qn.total} · верных <b>${b.score}</b>${st >= 3 ? `<span class="bl-streak">${T('flame')}${st} подряд</span>` : ''}</span></div>
     <div class="bl-bar"><i id="bl-bar" style="width:${pct}%"></i></div>
     <p class="bl-q">${esc(qn.text)}</p>
-    <div class="bl-opts">${qn.options.map((o, i) => `<button class="gopt bl-opt ${fb && fb.n === qn.n ? (i === fb.right ? 'ok' : i === fb.pick ? 'bad' : 'dim') : ''}" data-act="blitz-pick" data-n="${qn.n}" data-v="${i}" ${fb && fb.n === qn.n ? 'disabled' : ''}>${esc(o)}</button>`).join('')}</div>`;
+    ${S.blitzOver ? '<div class="note warn bl-over">Время вышло — считаем итог…</div>' : `<div class="bl-opts">${qn.options.map((o, i) => `<button class="gopt bl-opt ${fb && fb.n === qn.n ? (i === fb.right ? 'ok' : i === fb.pick ? 'bad' : 'dim') : ''}" data-act="blitz-pick" data-n="${qn.n}" data-v="${i}" ${fb && fb.n === qn.n ? 'disabled' : ''}>${esc(o)}</button>`).join('')}</div>`}`;
+}
+// Время вышло. Сервер ещё 3 секунды ждёт ответы, отправленные в последний миг, и только потом закрывает блиц.
+// Раньше клиент спрашивал итог через 0,4 с, получал «ещё идёт» — и вопрос с 0:00 висел, пока не нажмёшь вариант
+async function blitzTimeout() {
+  S.blitzOver = true; render();
+  toast('Время вышло!');
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  try {
+    if (S.blitzWar) { await wait(400); S.blitz = await post(`/api/wars/${S.blitzWar}/timeout`); await loadWars(); }
+    else {
+      await wait(3400);
+      for (let i = 0; i < 6; i++) {
+        await loadBlitz();
+        if (!S.blitz || S.blitz.state !== 'play') break;
+        await wait(1500);
+      }
+    }
+    sfx('confirm'); loadMe().catch(() => {});
+  } catch (e) { toast(e.message); }
+  S.blitzOver = false; render();
 }
 // Тикающий таймер блица: обновляем только время и полоску, без перерисовки
 let blitzTimer = null;
@@ -4621,7 +4650,7 @@ function blitzTick() {
     if (S.sheet === 'blitz' && sec <= 10 && sec > 0 && S.blitzLastTick !== sec) { S.blitzLastTick = sec; sfx('tick'); }
     if (left <= 0) {
       clearInterval(blitzTimer);
-      setTimeout(() => run(async () => { if (S.blitzWar) { S.blitz = await post(`/api/wars/${S.blitzWar}/timeout`); await loadWars(); } else await loadBlitz(); sfx('confirm'); toast('Время вышло!'); loadMe().catch(() => {}); }), 400);
+      blitzTimeout();
     }
   }, 250);
 }
@@ -6544,13 +6573,13 @@ const actions = {
     run(() => refresh());
   },
   'blitz-start': () => run(async () => {
-    S.blitzWar = null;
+    S.blitzWar = null; S.blitzOver = false; S.blitzBusy = false;
     S.blitz = await post('/api/blitz/start'); S.blitzFb = null; S.blitzLastTick = null;
     S.sheet = 'blitz'; blitzTick();
   }),
-  'blitz-open': () => run(async () => { S.blitzWar = null; await loadBlitz(); S.blitzFb = null; S.sheet = 'blitz'; blitzTick(); }),
+  'blitz-open': () => run(async () => { S.blitzWar = null; S.blitzBusy = false; await loadBlitz(); S.blitzFb = null; S.sheet = 'blitz'; blitzTick(); }),
   'blitz-pick': (el) => {
-    if (S.blitzBusy) return;
+    if (S.blitzBusy || S.blitzOver) return;
     S.blitzBusy = true;
     const n = Number(el.dataset.n), pick = Number(el.dataset.v);
     run(async () => {
