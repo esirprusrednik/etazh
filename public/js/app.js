@@ -5423,7 +5423,7 @@ function renderAvatarEditor() {
   }).join('')}</div>`;
   const body = {
     face: `<div class="chips">${['m', 'f'].map((v) => `<button class="chip ${d.preset === v ? 'on' : ''}" data-act="ava-set" data-k="preset" data-v="${v}">${v === 'm' ? 'М' : 'Ж'}</button>`).join('')}</div>
-      <p class="small" style="margin:0">«М» — шире челюсть и плечи, густые брови. «Ж» — мягкий подбородок, высокие скулы, ресницы.</p>
+      <p class="small" style="margin:0">${AVA3D ? '«М» и «Ж» задают брови по умолчанию и обращение к тебе: «ушёл» или «ушла», «разыграл» или «разыграла».' : '«М» — шире челюсть и плечи, густые брови. «Ж» — мягкий подбородок, высокие скулы, ресницы.'}</p>
       ${AVA3D ? '' : `<div class="field">Форма лица${tiles('face', L.face, FACE_NAMES, true)}</div>`}
       <div class="field">Нос${tiles('nose', L.nose, NOSE_NAMES, true)}</div>
       ${AVA3D ? '' : `<div class="field">Уши${chipsOf('ears', L.ears, EARS_NAMES)}</div>`}

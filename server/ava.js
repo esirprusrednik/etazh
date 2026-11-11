@@ -180,10 +180,27 @@ function reshape(lay, S, box, o) {
 const GOLD = lut([226, 178, 62], 0.7);
 const LIPSTICK = [196, 36, 70];
 
+// Питомцы и предметы стояли вплотную к синему манекену, и по их краю осталась синяя кромка. Убираем её один раз,
+// когда деталь впервые понадобилась (аквариум не трогаем: у него вода и стекло голубые). То же правило есть в pack.py
+const deblued = new Set();
+function deblue(name, p) {
+  if (deblued.has(name)) return;
+  deblued.add(name);
+  if (!p.raw || !/^(pet|p)_/.test(name) || name === 'pet_aquarium') return;
+  const [fn, ax, ay, w, h] = p.raw;
+  const A = atlas(fn);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = ((ay + y) * A.w + ax + x) * 4;
+    const r = A.data[i]; const g = A.data[i + 1]; const b = A.data[i + 2];
+    if (A.data[i + 3] && b > r + 25 && b > g + 12 && g >= r - 8) A.data[i + 3] = 0;
+  }
+}
+
 function drawPart(cv, lay, S, name, colors, clip, o) {
   const P = pack();
   const p = P.parts[name];
   if (!p) return;
+  deblue(name, p);
   // «Лепка» кожи под деталью (веки, складки): затемняем или высветляем уже нарисованное лицо
   if (p.mod && !(o && (o.sx || o.gap))) {
     const [fn, ax, ay, w, h, ox, oy] = p.mod;
