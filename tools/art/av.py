@@ -43,9 +43,13 @@ CX = int(xs[(ys > TOP) & (ys < YMAX)].mean()); HEADH = NECK - TOP
 yy, xx = np.mgrid[0:C, 0:C]
 SHIRT = ndi.gaussian_filter((yy > NECK + int(HEADW*0.10) - 18 * np.cos(np.clip((xx - CX) / (HEADW * 0.34), -1.57, 1.57))).astype(np.float32), 1.2)
 OFFSET = {'nose': (0, 18)}
-NOSE_DY = {'n_long': 2, 'n_roman': 4, 'n_wide': 12, 'n_snub': 14}
+NOSE_DY = {'n_long': 2, 'n_roman': 4, 'n_wide': -10, 'n_snub': 14}
+BROW_SY = {'b_uni': 0.6, 'b_thick': 0.72}
+PROP_DX, PROP_DY = -30, -8
+PET_DX = {'pet_parrot': -24}
+NOSE_SCALE = {'n_wide': 0.72}
 NOCLIP = {'hat_headset', 'hat_crown', 'hat_laurel', 'hat_wreath'}
-RAW = {'hat_crown', 'hat_laurel', 'hat_knight', 'hat_tricorn', 'hat_dedmoroz', 'hat_kokoshnik', 'hat_wreath', 'hat_shawl'}
+RAW = {'hat_crown', 'hat_laurel', 'hat_knight', 'hat_tricorn', 'hat_dedmoroz', 'hat_kokoshnik', 'hat_wreath', 'hat_shawl', 'g_party'}
 def avatar(look):
     skin, hairc, shirtc = hexc(look['skin']), hexc(look['hair']), hexc(look['shirt'])
     out = np.zeros((C, C, 4), np.float32)
@@ -57,7 +61,14 @@ def avatar(look):
         body = tint(SHADE_B, skin) * (1 - SHIRT[..., None]) + tint(SHADE_B, shirtc, 0.35) * SHIRT[..., None]
         out = over(out, np.dstack([body, BASE_BLUE]))
     hat = part(look['hat']) if look.get('hat') else None
-    for key, kind in [('neck', 'raw'), ('mouth', 'raw'), ('beard', 'hair'), ('nose', 'skin'), ('eyes', 'eyes'), ('brows', 'hair'), ('mask', 'raw'), ('hairstyle', 'hair'), ('glasses', 'hair'), ('hat', 'hat')]:
+    for n in look.get('face', []):
+        # детали лица (румянец, веснушки, морщины, родинки): со слоя берём только форму, цвет задаём от тона кожи
+        F = part(n)
+        if F is None: continue
+        col, k = {'f_blush': (np.array([0.96, 0.42, 0.52], np.float32), 0.5), 'f_freckles': (skin * 0.6, 0.8), 'f_wrinkles': (skin * 0.68, 0.75), 'f_moles': (np.array([0.27, 0.16, 0.11], np.float32), 1.0)}[n]
+        al = F[..., 3] if n != 'f_blush' else ndi.gaussian_filter(F[..., 3], 3)
+        out = over(out, np.dstack([np.broadcast_to(col, (C, C, 3)), al * (BASE_BLUE > 0.5)]), k)
+    for key, kind in [('neck', 'raw'), ('mouth', 'raw'), ('beard', 'hair'), ('nose', 'skin'), ('eyes', 'eyes'), ('brows', 'hair'), ('mask', 'raw'), ('hairstyle', 'hair'), ('earrings', 'raw'), ('glasses', 'hair'), ('hat', 'hat')]:
         n = look.get(key)
         if not n: continue
         L = part(n)
@@ -70,23 +81,55 @@ def avatar(look):
             bottom[:x0] = bottom[x0:x0 + 12].max(); bottom[x1 + 1:] = bottom[x1 - 11:x1 + 1].max()
             bottom = ndi.gaussian_filter1d(bottom, 4)
             L = L.copy(); L[..., 3] *= ndi.gaussian_filter((yy > bottom[None, :] - 3).astype(np.float32), 1.5)
-        if kind == 'hat': kind = 'raw' if n in RAW else 'hair'
+        if kind == 'hat': kind = 'hair'
+        if n in RAW: kind = 'raw'
+        if n in BROW_SY:
+            k = BROW_SY[n]; ay = np.where(L[..., 3] > 0.5)[0]; cy_ = ay.mean()
+            L = np.dstack([ndi.affine_transform(L[..., c], [1 / k, 1], offset=[cy_ - cy_ / k, 0], order=1) for c in range(4)])
         if key in OFFSET: L = ndi.shift(L, (NOSE_DY.get(n, OFFSET[key][1]) if key == 'nose' else OFFSET[key][1], OFFSET[key][0], 0), order=1, mode='constant')
         sk = part(n + '_skin')
-        if sk is not None: out = over(out, skin_tinted(sk, skin))
+        if sk is not None:
+            # лепка кожи — не накладка, а отношение тени к эталону: вне изменённой зоны оно равно 1, поэтому швов и «плашек» нет
+            r = np.clip(ndi.gaussian_filter(sk[..., 2] / np.maximum(BASE[..., 2], 0.05), 1.0), 0.55, 1.2) - 1
+            r = (r * sk[..., 3] * (BASE_BLUE > 0.5))[..., None]
+            out[..., :3] = np.clip(np.where(r < 0, out[..., :3] * (1 + r), out[..., :3] + (1 - out[..., :3]) * r * 0.5), 0, 1)
+        if key == 'neck':
+            # свечение гирлянды на синей футболке даёт фиолетовый ореол — убираем
+            v = np.clip((L[..., 2] - np.maximum(L[..., 0], L[..., 1]) - 0.03) / 0.08, 0, 1); L = L.copy(); L[..., 3] *= 1 - v
         if kind == 'hair': L = grey_tinted(L, hexc(look.get(key + 'Color', look['hair'])), 0.5, 75 if key not in ('hat', 'glasses') else 60)
-        elif kind == 'skin': L = grey_tinted(L, skin * 0.97, 0.4, 60)
+        elif kind == 'skin':
+            # нос — часть лица: край уводим внутрь и размываем, чтобы не было обводки
+            L = grey_tinted(L, skin * 0.97, 0.4, 45)
+            if n in NOSE_SCALE:
+                k = NOSE_SCALE[n]; ay, ax = np.where(L[..., 3] > 0.5); cy_, cx_ = ay.mean(), ax.mean()
+                L = np.dstack([ndi.affine_transform(L[..., c], [1 / k, 1 / k], offset=[cy_ - cy_ / k, cx_ - cx_ / k], order=1) for c in range(4)])
+            L[..., 3] = np.clip(ndi.gaussian_filter(ndi.minimum_filter(L[..., 3], 5), 1.5) * 1.1, 0, 1)
         elif kind == 'eyes': L = eyes_colored(L, hexc(look.get('iris', '#6B4226')))
-        if kind in ('hair', 'skin'): out = contact(out, L, 4 if key != 'hairstyle' else 6, (5, 2) if key != 'hairstyle' else (8, 3), 0.22 if key != 'hairstyle' else 0.3)
+        if kind in ('hair', 'skin'): out = contact(out, L, 4 if key != 'hairstyle' else 6, (5, 2) if key != 'hairstyle' else (8, 3), 0.3 if key == 'hairstyle' else 0.1 if kind == 'skin' else 0.22)
         out = over(out, L)
+    if look.get('prop'):
+        H = part(look['prop'] + '_hand')
+        pdx, pdy = (-44, 30) if 'sign' in look['prop'] else (PROP_DX, PROP_DY)
+        sh = lambda X: ndi.shift(X, (pdy, pdx, 0), order=1, mode='constant')
+        if H is not None: Hs = skin_tinted(sh(H), skin); out = contact(out, Hs, 5, (4, -3), 0.25); out = over(out, Hs)
+        P = part(look['prop'])
+        if P is not None: P = sh(P); out = contact(out, P, 5, (4, -3), 0.2); out = over(out, P)
+    if look.get('pet'):
+        P = part(look['pet'])
+        if P is not None: P = ndi.shift(P, (0, PET_DX.get(look['pet'], 30), 0), order=1, mode='constant'); out = contact(out, P, 5, (4, 3), 0.2); out = over(out, P)
     return out
-def framed(av, size, ring, bg):
+def framed(av, size, ring, bg, scene=None):
     R = int(HEADW * 0.80); cy = TOP + int(HEADH * 0.66)
     big = np.zeros((C + 2*R, C + 2*R, 4), np.float32); big[R:R+C, R:R+C] = av
     pad = big[cy: cy + 2*R, CX: CX + 2*R]; k = 3; S = size * k
     img = Image.fromarray((np.clip(pad, 0, 1) * 255).astype(np.uint8)).resize((S, S), Image.LANCZOS)
     disc = Image.new('RGBA', (S, S), (0, 0, 0, 0)); d = ImageDraw.Draw(disc)
     d.ellipse([0, 0, S - 1, S - 1], fill=ring); d.ellipse([S*0.045, S*0.045, S*0.955, S*0.955], fill=bg)
+    if scene and os.path.exists(f'bg/{scene}.png'):
+        # фон-сцена: вписываем плитку в круг внутри рамки
+        sc = Image.open(f'bg/{scene}.png').convert('RGBA').resize((S, S), Image.LANCZOS)
+        ms = Image.new('L', (S, S), 0); ImageDraw.Draw(ms).ellipse([S*0.045, S*0.045, S*0.955, S*0.955], fill=255)
+        disc.paste(sc, (0, 0), ms)
     m = Image.new('L', (S, S), 0); ImageDraw.Draw(m).ellipse([S*0.045, S*0.045, S*0.955, S*0.955], fill=255)
     inner = Image.new('RGBA', (S, S), (0, 0, 0, 0)); inner.alpha_composite(img)
     disc.alpha_composite(Image.composite(inner, Image.new('RGBA', (S, S), (0, 0, 0, 0)), m))
@@ -99,6 +142,6 @@ def sheet(looks, out, big=230, sm=56, cols=5):
     for t, (page, tile) in enumerate([((242, 244, 248), (220, 230, 250, 255)), ((14, 21, 48), (38, 52, 96, 255))]):
         ImageDraw.Draw(im).rectangle([t * Wd, 0, t * Wd + Wd, H], fill=page)
         for n, (l, av) in enumerate(zip(looks, avs)):
-            r, k = divmod(n, cols); f = framed(av, big, l.get('ring', '#F5B82E'), tile); im.paste(f, (t * Wd + 30 + k * (big + 24), 30 + r * (big + 24)), f)
-            s = framed(av, sm, l.get('ring', '#F5B82E'), tile); im.paste(s, (t * Wd + 30 + n * (sm + 14), H - sm - 28), s)
+            r, k = divmod(n, cols); f = framed(av, big, l.get('ring', '#F5B82E'), tile, l.get('bg')); im.paste(f, (t * Wd + 30 + k * (big + 24), 30 + r * (big + 24)), f)
+            s = framed(av, sm, l.get('ring', '#F5B82E'), tile, l.get('bg')); im.paste(s, (t * Wd + 30 + n * (sm + 14), H - sm - 28), s)
     im.save(out, quality=85); print(im.size)

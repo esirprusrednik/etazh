@@ -63,7 +63,7 @@ def matte(cw):
     un = (cw[..., :3] - (1 - a[..., None]) * BASE[..., :3]) / np.maximum(a[..., None], 0.08)
     rgb[m] = np.clip(un, 0, 1)[m]
     return np.dstack([rgb, a])
-def extract(path, names, outdir='parts', skin=0):
+def extract(path, names, outdir='parts', skin=0, hand=False):
     import os; os.makedirs(outdir, exist_ok=True); rep = {}
     for c, name in zip(load(path), names):
         if not name: continue
@@ -78,7 +78,35 @@ def extract(path, names, outdir='parts', skin=0):
             inside = ndi.binary_erosion(BASE_BLUE > 0.9, iterations=10)
             al = ndi.gaussian_filter(np.clip((diff - 0.02) / 0.06, 0, 1) * fall * inside, 2.0)
             Image.fromarray((np.clip(np.dstack([cw[..., :3], al]), 0, 1)*255).astype(np.uint8)).save(f'{outdir}/{name}_skin.png')
+        if hand == 'mhand':
+            # рука сгенерирована пурпурной: отделяем её от предмета по цвету и приводим тень к шкале манекена (канал B), чтобы красилась как кожа
+            R, G, B = layer[..., 0], layer[..., 1], layer[..., 2]
+            mg = ((G < 0.5 * R) & (B > 0.38 * R) & (R > 0.2)).astype(np.float32)
+            mg = np.clip(ndi.gaussian_filter(ndi.binary_opening(mg > 0.5, iterations=1).astype(np.float32), 0.8) * 1.3 - 0.15, 0, 1)
+            ha = layer[..., 3] * mg
+            if (ha > 0.9).sum() > 50:
+                sh = R / np.percentile(R[ha > 0.9], 80) * np.percentile(BASE[..., 2][BASE_BLUE > 0.9], 80)
+                Image.fromarray((np.clip(np.dstack([sh * 0.2, sh * 0.3, sh, ha]), 0, 1)*255).astype(np.uint8)).save(f'{outdir}/{name}_hand.png')
+            layer[..., 3] *= 1 - mg
+            Image.fromarray((np.clip(layer, 0, 1)*255).astype(np.uint8)).save(f'{outdir}/{name}.png')
+        elif hand:
+            # рука манекена с предметом: синее вне эталона плюс синее, заметно отличающееся от эталона рядом с этим местом
+            bw = masks(cw)[0]
+            # рука — синее вне силуэта эталона плюс заметно изменившееся синее рядом с ним. Оттенок торса между листами плавает,
+            # поэтому руку, целиком лежащую на фоне торса (таблички), так не выделить — для них рука генерируется пурпурной (режим mhand)
+            new_blue = (bw > 0.5) & (BASE_BLUE < 0.2) & (np.mgrid[0:C, 0:C][0] > C * 0.3)
+            new_blue = ndi.binary_opening(new_blue, iterations=2)
+            near = ndi.binary_dilation(new_blue, iterations=26)
+            diff = np.sqrt(((cw[..., :3] - BASE[..., :3]) ** 2).sum(-1))
+            changed = (bw > 0.5) & (BASE_BLUE > 0.2) & (diff > 0.045) & near
+            m = ndi.binary_opening(ndi.binary_closing(new_blue | changed, iterations=3), iterations=7)
+            lab, k = ndi.label(m)
+            if k:
+                sizes = ndi.sum(m, lab, range(1, k + 1)); m = lab == (1 + int(np.argmax(sizes)))
+            m = ndi.binary_fill_holes(m) & (bw > 0.3)
+            al = np.clip(ndi.gaussian_filter(m.astype(np.float32), 1.0) * 1.2 - 0.1, 0, 1) * cw[..., 3]
+            Image.fromarray((np.clip(np.dstack([cw[..., :3], al]), 0, 1)*255).astype(np.uint8)).save(f'{outdir}/{name}_hand.png')
         rep[name] = dict(scale=round(s, 3), dx=int(dx), dy=int(dy), fit=round(float(q), 3)); print(name, rep[name], flush=True)
     return rep
 if __name__ == '__main__':
-    extract(sys.argv[1], sys.argv[2].split(','), sys.argv[3] if len(sys.argv) > 3 else 'parts', int(sys.argv[4]) if len(sys.argv) > 4 else 0)
+    extract(sys.argv[1], sys.argv[2].split(','), sys.argv[3] if len(sys.argv) > 3 else 'parts', int(sys.argv[4]) if len(sys.argv) > 4 else 0, sys.argv[5] if len(sys.argv) > 5 else False)
