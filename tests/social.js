@@ -48,7 +48,7 @@ function startServer(day, extra = {}) {
       return this;
     }
   }
-  const ready = (async () => { for (let i = 0; i < 150; i++) { try { if ((await fetch(BASE + "/healthz")).ok) return; } catch {} await new Promise((r) => setTimeout(r, 100)); } throw new Error('server did not start\n' + log); })();
+  const ready = (async () => { for (let i = 0; i < 300; i++) { try { if ((await fetch(`http://127.0.0.1:${PORT}/healthz`)).ok) return; } catch {} await new Promise((r) => setTimeout(r, 100)); } throw new Error('server did not start\n' + log); })();
   return { Client, ready, stop: () => proc.kill(), log: () => log, dir };
 }
 
