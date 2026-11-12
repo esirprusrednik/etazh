@@ -3882,7 +3882,9 @@ function renderGang() {
   // ----- Жизнь: всё, что банда делает вместе
   const lifeTab = `<div class="g-group">События</div>${w && w.active && w.active.mine ? renderWave() : ''}${renderGEvents()}${renderSanta()}${renderGangBirthdays()}${w && !w.active ? renderWave() : ''}<div class="g-group">Опросы</div>${renderPolls()}${renderCrestVote()}`;
   // ----- Банда: кто мы, люди, неделя, казна, лига, битвы
-  const crewTab = `<section class="card g-about">
+  // «Банда на неделе» — первой: кто когда в офисе важнее описания банды
+  const crewTab = `${renderCrewWeek(v, g)}
+  <section class="card g-about">
     ${g.legend ? `<div class="g-legend">crown ${esc(g.legend)}</div>` : ''}
     ${g.motto ? `<p class="sub" style="font-style:italic;margin:0">«${esc(g.motto)}»</p>` : ''}
     ${g.about ? `<p class="sub" style="margin:0">${esc(g.about)}</p>` : ''}
@@ -3892,7 +3894,6 @@ function renderGang() {
     ${g.league ? leagueRules() : ''}
     ${g.depositPending ? '<div class="note warn">Залог 50 зёрен вернётся, когда в банде будет 3 человека.</div>' : ''}
   </section>
-  ${renderCrewWeek(v, g)}
   ${renderWars()}
   <div class="row g-foot" style="justify-content:space-between">
     <button class="linkbtn" data-act="report" data-type="gang" data-id="${g.id}">Пожаловаться на банду</button>
