@@ -2862,15 +2862,14 @@ function renderCanteen() {
     <div class="row" style="align-items:flex-end;justify-content:space-between;gap:10px">
       <div style="display:flex;flex-direction:column;gap:2px">
         <span class="big" style="color:${tone}">${esc(c.label)}</span>
-        <span class="${c.wait ? 'ttl-wait' : 'ttl-ok'}" style="font-size:13px;font-weight:700">${c.wait ? `Очередь ≈ ${c.wait} мин` : 'Очереди нет'}</span>
+        <span class="${c.wait ? 'ttl-wait' : 'ttl-ok'}" style="font-size:13px;font-weight:700">${c.wait ? `Очередь ≈ ${c.wait} мин` : 'Очереди нет'}${c.lowData ? '<span class="small" title="Мало отметок за 15 минут. Отмечайся в столовой — оценка станет точнее"> · примерно, мало отметок</span>' : ''}</span>
       </div>
       ${st.inCanteen
         ? '<button class="btn green" data-act="canteen-out">Поел</button>'
         : '<button class="btn" style="white-space:nowrap" data-act="canteen-in">Я тут · +2</button>'}
     </div>
     ${bars}
-    <p class="note ${c.advice.tone}" style="margin:0">${esc(c.advice.text)}</p>
-    ${c.lowData ? '<p class="small">Мало отметок за 15 минут, оценка примерная. Отмечайся в столовой, чтобы она стала точнее.</p>' : ''}
+    ${c.tone === 'good' && !c.wait && !bars ? '' : `<p class="note ${c.advice.tone}" style="margin:0">${esc(c.advice.text)}</p>`}
     ${renderFood()}
   </section>`;
 }
@@ -2883,7 +2882,8 @@ function renderFood() {
   if (!f.canRate) return sum ? `<div class="food">${sum}</div>` : '';
   const d = S.foodDraft;
   if (f.mine && !d) {
-    return `<div class="food">${sum}<div class="row" style="justify-content:space-between"><span class="small" style="font-weight:700">Твоя оценка: ${f.mine.up ? 'thumbUp понравилось' : 'thumbDown не очень'}${f.mine.tags.length ? ' · ' + f.mine.tags.map(esc).join(', ').toLowerCase() : ''}</span><button class="linkbtn" data-act="food-edit">изменить</button></div></div>`;
+    // Свою оценку человек и так помнит — показываем общую сводку и одну ссылку «изменить мою»
+    return `<div class="food"><div class="row" style="justify-content:space-between;gap:8px">${sum || '<span class="small">Оценка принята</span>'}<button class="linkbtn" style="flex:none" data-act="food-edit">изменить мою</button></div></div>`;
   }
   if (!d) {
     return `<div class="food">${sum}<div class="food-q">Как обед?</div><div class="row"><button class="btn grow food-up" data-act="food-pick" data-v="1">thumbUp Понравилось</button><button class="btn ghost grow" data-act="food-pick" data-v="0">thumbDown Не очень</button></div></div>`;

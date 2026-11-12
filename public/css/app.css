@@ -2382,3 +2382,6 @@ body.fx-shake-l .board-wrap, body.fx-shake-l .b-vs { animation: fx-shake-l .6s c
 .todo-prog i::after { content: ''; position: absolute; inset: 0 auto 0 0; width: var(--p); background: #2FA84F; border-radius: 3px; }
 .todo.later .chip { flex: none; }
 .todo-for { width: 100%; }
+/* Столовая: сводка оценок и «изменить мою» одной строкой */
+.food > .row > .food-sum { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; }
+.food > .row > .food-sum .food-pct { flex: none; }
