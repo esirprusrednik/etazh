@@ -2314,3 +2314,10 @@ body.fx-shake-l .board-wrap, body.fx-shake-l .b-vs { animation: fx-shake-l .6s c
   .top .nick { font-size: 15px; }
   .top .beans3d { padding: 0 9px; gap: 4px; }
 }
+
+/* Экран входа: «установи на телефон» */
+.login-inst { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 16px; background: var(--wallet-bg, #FFF3C4); color: var(--wallet-fg, #3A2A00); border: 1px solid var(--wallet-bd, rgba(0,0,0,.08)); font-size: 14px; font-weight: 600; line-height: 1.35; }
+.login-inst > b { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 900; }
+.login-inst-how summary { cursor: pointer; font-weight: 900; min-height: 32px; display: flex; align-items: center; }
+.login-inst-how h3 { margin: 8px 0 4px; font-size: 14px; }
+.login-inst-how .sub, .login-inst-how .small, .login-inst-how .ol { color: inherit; }

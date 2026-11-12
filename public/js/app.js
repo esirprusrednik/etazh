@@ -1853,6 +1853,17 @@ function aboutHtml({ cta = true } = {}) {
   </div>`;
 }
 
+// Экран входа: Этаж лучше всего живёт установленным на телефон — говорим об этом до входа
+const PHONE_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>';
+const isPhone = () => isIOS() || /android|mobile/i.test(navigator.userAgent);
+function loginInstallHint() {
+  if (isStandalone()) return '';
+  if (!isPhone()) return `<div class="login-inst"><b>${PHONE_SVG}Этаж сделан для телефона</b>
+    <span>Открой <b>${esc(location.host)}</b> на телефоне и установи на главный экран. С компьютера войти можно, но зовы на кофе и обед сюда не придут.</span></div>`;
+  return `<div class="login-inst"><b>${PHONE_SVG}Сначала установи на главный экран</b>
+    <span>Так Этаж работает лучше всего: открывается с иконки, как обычное приложение, и присылает зовы и уведомления. В браузере они не приходят.${isIOS() ? ' Лучше установить до входа: на iPhone после установки может понадобиться войти ещё раз.' : ''}</span>
+    <details class="login-inst-how"><summary>Как установить — полминуты</summary>${renderInstall()}</details></div>`;
+}
 function renderLogin() {
   const o = S.onb;
   const params = new URLSearchParams(location.search);
@@ -1889,6 +1900,7 @@ function renderLogin() {
     <div class="logo">Этаж<span>.</span><em class="logo-beta">β-тест</em></div>
     <p class="sub" >Неофициальное приложение для своих: кто из твоей банды в офисе, есть ли очередь в столовой, позвать на кофе одной кнопкой.</p>
     <details class="about-login"><summary>Что такое Этаж? За 30 секунд</summary>${aboutHtml({ cta: false })}</details>
+    ${loginInstallHint()}
     <div class="card">
       <h2>Вход по корпоративной почте</h2>
       <p class="sub">Введи рабочую почту своей компании. Почту мы не храним — только её зашифрованный отпечаток. Остальные видят только твой ник.</p>
