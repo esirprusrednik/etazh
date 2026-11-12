@@ -179,6 +179,8 @@ const QUESTS = [
   { id: 'look', name: 'Обнови образ в конструкторе', go: 'look', weekend: true }
 ];
 const QUESTS_ON = false;
+// «Кто из наших?» выключен на клиенте — задания про него тоже не выдаём
+const GUESS_ON = false;
 const QUEST_POOL_PICK = 3;
 const WEEKEND_PICK = 2;
 // Самые полезные — первыми: если доступны, попадают в набор раньше случайных
@@ -389,7 +391,7 @@ function register(ctx) {
     const sizes = gangs.map((g) => q('SELECT COUNT(*) AS n FROM gang_members WHERE gang_id = ?').get(g.id).n);
     const safe = (f) => { try { return !!f(); } catch { return false; } };
     return {
-      gang: gangs.length > 0, gang2: sizes.some((n) => n >= 2), gang4: sizes.some((n) => n >= 4),
+      gang: gangs.length > 0, gang2: sizes.some((n) => n >= 2), gang4: GUESS_ON && sizes.some((n) => n >= 4),
       quiz: safe(() => q('SELECT 1 FROM quizzes z WHERE z.closes_at > ? AND NOT EXISTS (SELECT 1 FROM quiz_answers a WHERE a.quiz_id = z.id AND a.user_id = ?)').get(U.now(), uid)),
       fresh: safe(() => freshPerson(uid)),
       todo: safe(() => prov.todos && prov.todos(uid) > 0),

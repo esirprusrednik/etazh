@@ -1062,6 +1062,8 @@ function nk(o) {
   const fx = o && o.look && o.look.nfx;
   return fx && NFX.includes(fx.v) && fx.until > Date.now() ? `<span class="nfx nfx-${fx.v}" data-t="${t}">${t}</span>` : t;
 }
+// Из дуэлей оставлен морской бой; камень-ножницы-бумага, кости и крестики-нолики скрыты (идущие партии можно доиграть)
+const DUEL_GAMES = ['sea'];
 // Объёмный аватар: картинку собирает сервер из слоёв (/api/ava), адрес — сам образ, поэтому браузер держит её в кэше.
 // В адрес идут только те поля образа, от которых зависит картинка: рамка, эффект ника, розыгрыш её не меняют.
 const AVA3D = true;
@@ -3379,7 +3381,7 @@ function renderDuelsBox(f) {
   return `${DUEL_DEFS}<section class="card duels">
     <div class="chats-head"><h3>game Сыграть</h3><span class="small">победа +2 зерна</span></div>
     <div class="duel-stake"><span class="small">Ставка:</span>${[0, 5, 10].map((x) => `<button class="chip ${(S.duelStake || 0) === x ? 'on' : ''}" data-act="duel-stake" data-v="${x}">${x ? x + ' зёрен' : 'без ставки'}</button>`).join('')}</div>
-    <div class="duel-new ${sea ? 'n4' : ''}">${[['rps', rpsDuo(), 'Камень, ножницы, бумага'], ['dice', 'dice', 'Кости'], ['ttt', 'xcircle', 'Крестики-нолики'], ...(sea ? [['sea', 'anchor', 'Морской бой']] : [])].map(([g, e, t]) => `<button class="duel-start ${g === 'sea' && S.dmSea ? 'on' : ''}" data-act="${g === 'sea' ? 'dm-sea' : 'duel-new'}" data-to="${f.id}" data-v="${g}"><span>${e}</span><b>${hy(t)}</b></button>`).join('')}</div>
+    <div class="duel-new ${sea ? 'n4' : ''}">${[['rps', rpsDuo(), 'Камень, ножницы, бумага'], ['dice', 'dice', 'Кости'], ['ttt', 'xcircle', 'Крестики-нолики'], ...(sea ? [['sea', 'anchor', 'Морской бой']] : [])].filter((x) => DUEL_GAMES.includes(x[0])).map(([g, e, t]) => `<button class="duel-start ${g === 'sea' && S.dmSea ? 'on' : ''}" data-act="${g === 'sea' ? 'dm-sea' : 'duel-new'}" data-to="${f.id}" data-v="${g}"><span>${e}</span><b>${hy(t)}</b></button>`).join('')}</div>
     ${sea && S.dmSea ? seaModes({ to: f.id, stake: S.duelStake || 0 }) : ''}
     ${hint('duel-rules', 'Правила дуэлей и ставок', `<ul class="ol"><li><b>Камень, ножницы, бумага</b> и <b>кости</b> — до двух побед. В камне-ножницах-бумаге ход соперника скрыт, пока не сходишь сам. Кости бросает сервер — подкрутить нельзя.</li><li><b>Крестики-нолики</b> — кто вызвал, ходит крестиками первым.</li><li><b>Ставка</b> 5 или 10 зёрен: вызвавший платит сразу, соперник — своим первым ходом. Не хочешь — откажись до хода, ничего не потеряешь. Победитель забирает обе ставки, ничья — возврат. В <b>морском бою</b> соперник платит, когда нажимает «В бой»; отказ до начала — возврат обоим.</li><li>Победа без ставки — +2 зерна (до 3 раз в день). Брошенная на 3 дня дуэль закрывается, ставки возвращаются.</li></ul>`)}
     ${items.map(renderDuel).join('')}
@@ -3390,9 +3392,9 @@ function renderDuelsCard() {
   const battles = (S.battles || []).filter((x) => x.status !== 'done');
   const nickOf = (id) => ((S.people || []).find((p) => p.id === id) || (S.crew && S.crew.list.find((p) => p.id === id)) || {}).nick || 'соперник';
   const waiting = items.filter((d) => d.myTurn).length + battles.filter((x) => x.myTurn).length;
-  const games = [['duel-pick', 'rps', art('rps', 44), 'Камень, ножницы, бумага'], ['duel-pick', 'dice', art('dice', 44), 'Кости'], ['duel-pick', 'ttt', art('ttt', 44), 'Крестики-нолики'], ['duel-pick', 'sea', art('ship', 44), 'Морской бой']];
+  const games = [['duel-pick', 'rps', art('rps', 44), 'Камень, ножницы, бумага'], ['duel-pick', 'dice', art('dice', 44), 'Кости'], ['duel-pick', 'ttt', art('ttt', 44), 'Крестики-нолики'], ['duel-pick', 'sea', art('ship', 44), 'Морской бой']].filter((x) => DUEL_GAMES.includes(x[1]));
   return `<section class="card duels-card"><div class="chats-head"><h3>game Сыграть</h3><span class="small">${waiting ? `${waiting} ${plural(waiting, 'ждёт', 'ждут', 'ждут')} твоего хода` : 'победа +2 зерна'}</span></div>
-    <div class="duel-new n4">${games.map(([act, g, e, t]) => `<button class="duel-start has-art" data-act="${act}" data-v="${g}"><span>${e}</span><b>${hy(t)}</b></button>`).join('')}</div>
+    <div class="duel-new n${games.length}">${games.map(([act, g, e, t]) => `<button class="duel-start has-art" data-act="${act}" data-v="${g}"><span>${e}</span><b>${hy(t)}</b></button>`).join('')}</div>
     ${items.length || battles.length ? '' : (S.gHelp ? '<p class="small" style="margin:0">Нажми игру — дальше выбери соперника или «Практику» с компьютером. В дуэлях можно играть на ставку 5 или 10 зёрен — победитель забирает обе. Морской бой — быстрый или без спешки. <button class="linkbtn small" data-act="g-help">Скрыть</button></p>' : '<button class="linkbtn small g-help" data-act="g-help">Как играть?</button>')}
     ${battles.map((x) => `<button class="chat-row" data-act="battle-go" data-id="${x.id}" data-opp="${x.oppId}"><span class="duel-ico">anchor</span><span class="grow"><span class="chat-title">${esc(nickOf(x.oppId))}</span><span class="where">Морской бой · ${x.mode === 'fast' ? 'быстрая · ' : ''}${x.status === 'setup' ? 'расстановка' : x.myTurn ? 'твой ход!' : 'ход соперника'}</span></span>${x.myTurn ? '<span class="crew-badge">!</span>' : ''}</button>`).join('')}
     ${items.map((d) => `<button class="chat-row" data-act="dm-open" data-id="${d.opp.id}">${avatar(d.opp.look, 32)}<span class="grow"><span class="chat-title">${nk(d.opp)}</span><span class="where">${{ rps: 'rock Камень, ножницы, бумага', dice: 'dice Кости', ttt: 'x Крестики-нолики' }[d.game]}${d.score ? ` · ${d.score.me}:${d.score.opp}` : ''}</span></span>${d.myTurn ? '<span class="crew-badge">!</span>' : ''}</button>`).join('')}</section>`;
@@ -4570,9 +4572,11 @@ function renderInstall() {
 }
 
 // «Угадай коллегу»: вопросы из профилей банды
+// «Кто из наших?» выключен: пока народу мало, вопросы повторяются. Включается флагом; сервер и данные не тронуты
+const GUESS_ON = false;
 function renderGuess() {
   const r = S.guess;
-  if (!r) return '';
+  if (!GUESS_ON || !r) return '';
   const head = `<div class="row" style="justify-content:space-between"><span class="card-title has-art">${art('friends', 30)}Кто из наших?</span>` + (r.question ? `<span class="small">осталось ${r.question.left} из 3 сегодня</span>` : '') + '</div>';
   if (r.small) return `<section class="card guess">${head}<p class="small" style="margin:0">Игра откроется, когда в банде будет хотя бы 4 человека. Позови ещё ${r.need} ${plural(r.need, 'человека', 'человек', 'человек')} по ссылке ниже.</p></section>`;
   if (!r.question) return `<section class="card guess">${head}<p class="small" style="margin:0">На сегодня всё, завтра будут новые вопросы. Они собираются из профилей банды: чем больше свои расскажут о себе, тем интереснее угадывать.</p></section>`;
@@ -4751,7 +4755,7 @@ const COACH = [
   { tab: 'near', i: 0, title: 'Рядом', text: 'Главный экран. Отметься, где работаешь сегодня, — и увидишь всех своих людей: кто в офисе, кто дома, кто в отпуске. Позвать на кофе — одна кнопка.' },
   { tab: 'chats', i: 1, title: 'Чаты', text: 'Банды — общие чаты команды. Членам своих банд можно писать в личку. Тут же зовы и морской бой.' },
   { tab: 'office', i: 2, title: 'Офис', text: 'Загрузка столовой и оценка обеда, обед компанией, сигналы с этажа и лента событий.' },
-  { tab: 'games', i: 3, title: 'Игры', text: 'Задания дня, квиз недели, «Кто из наших?», морской бой и случайный кофе. За всё дают зёрна — их тратят в Лавке.' }
+  { tab: 'games', i: 3, title: 'Игры', text: 'Задания дня, квиз недели, морской бой и случайный кофе. За всё дают зёрна — их тратят в Лавке.' }
 ];
 function renderCoach() {
   if (!S.coach || S.sheet) return '';

@@ -2255,3 +2255,6 @@ h3.has-art { display: inline-flex; align-items: center; gap: 8px; }
 @keyframes res-pop { from { transform: scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .res-hero { animation: none; } }
 .coffee .coffee-ico.art-ico { background: none; width: 46px; height: 46px; }
+/* Одна игра в списке: плитка во всю ширину, картинка слева */
+.duel-new.n1 { grid-template-columns: 1fr; }
+.duel-new.n1 .duel-start.has-art { flex-direction: row; justify-content: center; gap: 12px; padding: 14px; }
