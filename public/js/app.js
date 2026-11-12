@@ -1622,7 +1622,7 @@ function setBattleView(v) {
     S.bEmoteSeen = oe.at;
     S.bEmote = { ...(S.bEmote || {}), opp: { e: oe.e, until: Date.now() + 3200 } };
     setTimeout(() => { if (S.battle) render(); }, 3300);
-    sfx(`emo_${oe.e}`);
+    emoSfx(oe.e);
   } else if (oe && S.bEmoteSeen == null) S.bEmoteSeen = oe.at;
   // Обе расстановки готовы — партия началась: труба «Свистать всех наверх!» (один раз)
   if (S.bv && S.bv.id === v.id && S.bv.status === 'setup' && v.status === 'play') sfx('bugle');
@@ -3405,7 +3405,7 @@ function prBotEmote(pool) {
     if (S.practice !== P) return;
     const e = pool[Math.floor(Math.random() * pool.length)];
     S.bEmote = { ...(S.bEmote || {}), opp: { e, until: Date.now() + 3200 } };
-    sfx(`emo_${e}`); render();
+    emoSfx(e); render();
     setTimeout(() => { if (S.practice === P) render(); }, 3300);
   }, 900);
 }
@@ -4093,9 +4093,13 @@ function renderBattleInvite(f) {
 
 const B_COLS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К'];
 // Реакции в бою: пластилиновые рожицы из одного атласа 4×2 (/art/emo.webp), порядок — как ключи
-const EMOTES = { lol: 'Ха-ха!', angry: 'Ну всё!', bored: 'Скукота', smart: 'Умный ход', oops: 'Ой-ой', clap: 'Браво', mercy: 'Пощади', easy: 'Изи' };
+const EMOTES = { lol: 'Ха-ха!', angry: 'Ну всё!', bored: 'Скукота', smart: 'Умный ход', oops: 'Ой-ой', clap: 'Браво', mercy: 'Пощади', easy: 'Изи',
+  sink: 'Буль-буль', miss: 'Мимо!', gull: 'Моё!', boom: 'Попал!', hmm: 'Хм…', bye: 'Пока-пока', rage: 'Псих', wait: 'Ходи уже' };
+// У ситуаций из второго набора звук — от близкой по настроению рожицы
+const EMO_SND = { sink: 'oops', miss: 'lol', gull: 'easy', boom: 'clap', hmm: 'smart', bye: 'mercy', rage: 'angry', wait: 'bored' };
+const emoSfx = (k) => sfx(`emo_${EMO_SND[k] || k}`);
 const EMO_KEYS = Object.keys(EMOTES);
-const emoArt = (k) => { const n = EMO_KEYS.indexOf(k); return n < 0 ? '' : `<i class="emo-art" style="background-position:${(n % 4) * 100 / 3}% ${n < 4 ? 0 : 100}%"></i>`; };
+const emoArt = (k) => { const n = EMO_KEYS.indexOf(k); return n < 0 ? '' : `<i class="emo-art" style="background-position:${(n % 4) * 100 / 3}% ${Math.floor(n / 4) * 100 / 3}%"></i>`; };
 
 // Части корпуса: нос, середина, корма — чтобы корабль выглядел кораблём, а не набором квадратов
 // Поле 10×10. kind: 'opp' — по нему стреляю я; 'me' — мой флот и выстрелы соперника
@@ -6383,7 +6387,7 @@ const actions = {
     if (S.bEmoteAt && Date.now() - S.bEmoteAt < 2500) return;
     S.bEmoteAt = Date.now();
     S.bEmote = { ...(S.bEmote || {}), mine: { e, until: Date.now() + 3200 } };
-    sfx(`emo_${e}`); render(); setTimeout(() => { if (S.battle || S.practice) render(); }, 3300);
+    emoSfx(e); render(); setTimeout(() => { if (S.battle || S.practice) render(); }, 3300);
     if (prSea()) { if (Math.random() < 0.5) prBotEmote(['lol', 'clap', 'bored', 'easy', 'mercy']); return; }
     post(`/api/battle/${S.battle}/emote`, { e }).catch(() => {});
   },

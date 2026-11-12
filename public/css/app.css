@@ -2493,9 +2493,13 @@ body.fx-shake-l .board-wrap, body.fx-shake-l .b-vs { animation: fx-shake-l .6s c
 :root[data-theme="dark"] .wk-c.sick { background: #FF6B6B; color: #3D0A0A; box-shadow: none; }
 :root[data-theme="dark"] .wk-c.off { background: repeating-linear-gradient(135deg, #E5484D 0 3px, rgba(255,255,255,.14) 3px 9px); opacity: .8; box-shadow: none; }
 /* Реакции в бою — рисованные рожицы */
-.emo-art { display: block; width: 38px; height: 38px; margin: 0 auto; background: url(/art/emo.webp) 0 0 / 400% 200% no-repeat; filter: drop-shadow(0 2px 3px rgba(0,10,40,.35)); }
+.emo-art { display: block; width: 38px; height: 38px; margin: 0 auto; background: url(/art/emo.webp) 0 0 / 400% 400% no-repeat; filter: drop-shadow(0 2px 3px rgba(0,10,40,.35)); }
 .emo { height: 50px; background: rgba(255,255,255,.1); }
 .emo:active .emo-art { transform: scale(1.15) rotate(-8deg); }
 .emo-bubble b { display: block; line-height: 0; }
 .emo-bubble b .emo-art { width: 76px; height: 76px; filter: none; }
 .emo-bubble { padding: 6px 12px 6px; }
+/* Шестнадцать реакций — в два ряда по восемь, без прокрутки */
+.b-emotes { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); overflow: visible; }
+.emo { min-width: 0; height: 46px; }
+@media (max-width: 380px) { .emo-art { width: 34px; height: 34px; } }
