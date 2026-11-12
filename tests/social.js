@@ -187,13 +187,13 @@ function startServer(day, extra = {}) {
       assert.ok(ib.some((x) => x.kind === 'ask' && /Парковка|парковка/.test(x.title)), JSON.stringify(ib.map((x) => x.title)));
     });
 
-    await step('спасибо любому коллеге: без общей банды, лимит, блок', async () => {
+    await step('респект любому коллеге: без общей банды, лимит, блок', async () => {
       const left0 = (await A.get('/api/thanks/left')).json.left;
       const before = (await B.get('/api/me')).json.user.beans;
       const r = await A.post('/api/thanks', { to: B.id, text: 'За ответ про парковку' });
       assert.equal(r.status, 200, JSON.stringify(r.json));
       assert.equal(r.json.left, left0 - 1);
-      assert.equal((await B.get('/api/me')).json.user.beans, before + 1, '+1 зерно получателю');
+      assert.equal((await B.get('/api/me')).json.user.beans, before + 2, '+2 зерна получателю');
       assert.equal((await A.post('/api/thanks', { to: 999999 })).status, 400);
       assert.equal((await A.post('/api/thanks', { to: A.id })).status, 400, 'себе нельзя');
     });

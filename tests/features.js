@@ -82,23 +82,26 @@ const mskToday = () => new Date(Date.now() + SHIFT_H * 3600e3).toISOString().sli
     assert.equal(pr.planBeans, 0, 'второй раз за неделю — без зёрен');
   });
 
-  await step('спасибо: лимит 3 в день, себе нельзя, чужой банде нельзя, получатель +1', async () => {
+  await step('респект: 3 в день, себе нельзя, одному человеку раз в день, +2 зерна, видит только получатель, ответный без зёрен', async () => {
     const before = (await b.get('/api/me')).json.user.beans;
-    assert.equal((await a.post('/api/thanks', { gang: g.id, to: a.id })).status, 400);
-    assert.equal((await a.post('/api/thanks', { gang: g.id, to: d.id })).status, 400);
-    assert.equal((await a.post('/api/thanks', { gang: g.id, to: b.id, text: 'дурак' })).status, 400);
-    const r1 = await a.post('/api/thanks', { gang: g.id, to: b.id, text: 'За помощь с отчётом' });
-    assert.equal(r1.json.left, 2);
-    await a.post('/api/thanks', { gang: g.id, to: c.id });
-    await a.post('/api/thanks', { gang: g.id, to: b.id });
-    assert.equal((await a.post('/api/thanks', { gang: g.id, to: c.id })).status, 400);
+    assert.equal((await a.post('/api/thanks', { to: a.id })).status, 400, 'себе нельзя');
+    assert.equal((await a.post('/api/thanks', { to: b.id, text: 'дурак' })).status, 400);
+    const r1 = await a.post('/api/thanks', { to: b.id, text: 'За помощь с отчётом' });
+    assert.equal(r1.json.left, 2); assert.equal(r1.json.beans, 2);
+    assert.equal((await a.post('/api/thanks', { to: b.id })).status, 400, 'тому же человеку — раз в день');
+    await a.post('/api/thanks', { to: c.id });
+    assert.equal((await a.post('/api/thanks', { to: d.id })).status, 200, 'можно и не из своей банды');
+    assert.equal((await a.post('/api/thanks', { to: c.id })).status, 400, 'лимит на день');
     assert.equal((await b.get('/api/me')).json.user.beans - before, 2);
-    const ex = (await b.get(`/api/gangs/${g.id}/extra`)).json;
-    assert.equal(ex.thanks.length, 3);
-    assert.ok(ex.thanks.some((t) => t.toMe && t.text === 'За помощь с отчётом'));
+    assert.equal((await b.post('/api/thanks', { to: a.id })).json.beans, 0, 'ответный в тот же день — без зёрен');
+    assert.equal((await b.get(`/api/gangs/${g.id}/extra`)).json.thanks.length, 0, 'стены «кто кому» больше нет');
+    const evB = (await b.get('/api/events')).json.events;
+    assert.ok(evB.some((e) => e.kind === 'respect' && /За помощь с отчётом/.test(e.text)), 'получатель видит в «Моих событиях»');
+    assert.ok(!(await c.get('/api/events')).json.events.some((e) => /За помощь с отчётом/.test(e.text)), 'посторонний — нет');
+    assert.equal((await c.get(`/api/users/${b.id}`)).json.respects, 1, 'число видно всем');
     const fa = (await a.get('/api/features')).json;
     const qt = fa.quests.items.find((x) => x.id === 'thanks');
-    assert.ok(!qt || qt.done, 'если спасибо в заданиях — засчитано');
+    assert.ok(!qt || qt.done, 'если респект в заданиях — засчитано');
     assert.ok(fa.achievements.find((x) => x.id === 'thanks_give').got);
   });
 
@@ -241,7 +244,7 @@ const mskToday = () => new Date(Date.now() + SHIFT_H * 3600e3).toISOString().sli
     assert.ok(!fp || fp.partner.nick !== 'смелый_ёж');
   });
 
-  await step('ачивки: первые шаги, ступени с прогрессом, секретные скрыты и не попадают в ленту', async () => {
+  await step('ачивки: первые шаги, ступени с прогрессом, секретные скрыты, в ленте — только свои', async () => {
     const x = await new Client().login('xena@mts.ru', 'тихая_рысь');
     const y = await new Client().login('yan@mts.ru', 'быстрый_ёрш');
     const gx = (await x.post('/api/gangs', { name: 'Тихий угол' })).json;
@@ -260,8 +263,9 @@ const mskToday = () => new Date(Date.now() + SHIFT_H * 3600e3).toISOString().sli
     assert.ok(by.day3.n >= 1, 'день в приложении засчитан');
     assert.deepEqual(f.achCats.map((c) => c[0]), ['first', 'grow', 'daily', 'social', 'stealth', 'duels']);
     const ev = (await y.get('/api/events')).json.events.map((e) => e.text).join('\n');
-    assert.ok(/Голос подал/.test(ev), 'обычная ачивка — в ленте');
-    assert.ok(!/Агент 007|Партизан/.test(ev), 'секретная — не в ленте');
+    assert.ok(!/Голос подал|Агент 007|Партизан/.test(ev), 'чужие ачивки в ленту не попадают');
+    const mine = (await x.get('/api/events')).json.events.map((e) => e.text).join('\n');
+    assert.ok(/Новая ачивка: «Голос подал»/.test(mine), 'своя ачивка — в «Моих событиях»');
     // Призрак офиса: пришёл и ушёл меньше чем через час
     await x.post('/api/checkin', { office: 'smol' });
     await x.post('/api/checkout');
@@ -272,16 +276,17 @@ const mskToday = () => new Date(Date.now() + SHIFT_H * 3600e3).toISOString().sli
     assert.ok(yl.got && yl.name === 'Одинокий волк');
   });
 
-  await step('женский род: ачивка «получила», статус «Готова к кофе»', async () => {
+  await step('женский род: респект «выразила», статус «Готова к кофе»', async () => {
     const w = await new Client().login('olga@mts.ru', 'ленивый_удав');
     await w.post('/api/me/profile', { look: { preset: 'f' }, shareOffice: true, profile: { mood: 'coffee' } });
     const gw = (await w.post('/api/gangs', { name: 'Девичник' })).json;
     const m = await new Client().login('misha@mts.ru', 'тихий_медведь');
     await m.post('/api/gangs/join', { code: gw.code });
     await w.post('/api/checkin', { office: 'smol' });
+    await w.post('/api/thanks', { to: m.id });
     const ev = (await m.get('/api/events')).json.events.map((e) => e.text).join('\n');
-    assert.ok(/ленивый_удав получила ачивку/.test(ev), 'в ленте — «получила»');
-    assert.ok(!/ленивый_удав получил ачивку/.test(ev));
+    assert.ok(/ленивый_удав выразила тебе респект/.test(ev), 'в ленте — «выразила»');
+    assert.ok(/ленивый_удав теперь в твоей банде/.test((await w.get('/api/events')).json.events.map((e) => e.text).join('\n')) === false, 'о себе — не пишем');
     const me = (await m.get(`/api/gangs/${gw.id}`)).json.members.find((x) => x.nick === 'ленивый_удав');
     assert.equal(me.mood, 'Готова к кофе');
     await w.post(`/api/gangs/${gw.id}/messages`, { type: 'text', text: 'привет' });

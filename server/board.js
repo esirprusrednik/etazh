@@ -23,7 +23,7 @@ const HOUR = 60 * 60e3;
 const LUNCH_FROM = 11 * 60, LUNCH_TO = 16 * 60;
 
 function register(ctx) {
-  const { db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, officeById, publicLook, fullName, isMember, gangMembers, onEvent } = ctx;
+  const { db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, officeById, publicLook, fullName, isMember, gangMembers, onEvent, myEvent } = ctx;
 
   db.exec(`
   CREATE TABLE IF NOT EXISTS board_posts (
@@ -153,6 +153,7 @@ function register(ctx) {
       const msg = p.kind === 'lunch' ? { title: 'Обед', body: `${u.nick} идёт с тобой в ${p.lunch_time}` }
         : p.kind === 'kitchen' ? { title: 'На кухне', body: `${u.nick} говорит спасибо за угощение` }
         : { title: 'Доска «Этажа»', body: `${u.nick}: «я тоже» — ${p.text.slice(0, 60)}` };
+      if (r.changes && myEvent) myEvent(p.user_id, u.id, p.kind === 'lunch' ? `${u.nick} идёт с тобой на обед в ${p.lunch_time}` : p.kind === 'kitchen' ? `${u.nick} говорит спасибо за угощение на кухне` : `${u.nick}: «я тоже» на твоё объявление «${p.text.slice(0, 50)}»`, 'board');
       if (r.changes) fireAndForget(notify([p.user_id], { ...msg, url: p.kind === 'lunch' ? '/#lunch' : `/#crew/${u.id}`, tag: `board-${p.id}` }));
     }
     return { item: view(p, u.id) };

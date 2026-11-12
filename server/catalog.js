@@ -136,7 +136,7 @@ const EARN = {
   reply: { amount: 1, perDay: 10 },
   signal_confirmed: { amount: 2, perDay: 3 },
   deposit_back: { amount: 50, perDay: 100 },
-  thanks: { amount: 1, perDay: 5 }, // получатель спасибо, не больше 5 зёрен в день
+  thanks: { amount: 2, perDay: 3 }, // получатель респекта: +2 зерна, не больше 6 в день
   sea_win: { amount: 5, perDay: 1 }, // победа в морском бое: зёрна только за первую победу в день
   guess: { amount: 1, perDay: 3 },   // «Угадай коллегу»: верный ответ
   quiz: { amount: 3, perDay: 3 },    // квиз недели: верный ответ

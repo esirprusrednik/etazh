@@ -499,6 +499,13 @@ function createApi(db) {
 
   const fireAndForget = (p) => p.catch((e) => console.error('[push]', e.message));
 
+  try { db.exec('ALTER TABLE events ADD COLUMN to_id INTEGER'); db.exec('CREATE INDEX IF NOT EXISTS events_to ON events(to_id, at)'); } catch {}
+  // «Мои события»: лента только про самого человека — респект ему, ответ на его зов, отклик на его объявление, его ачивка.
+  // Видит её только адресат (to_id); чужие ачивки, покупки и отметки в ленту больше не пишутся
+  function myEvent(toId, actorId, text, kind = null) {
+    if (!toId) return;
+    q('INSERT INTO events (office_id, user_id, text, at, kind, to_id) VALUES (NULL, ?, ?, ?, ?, ?)').run(actorId || null, String(text).slice(0, 200), U.now(), kind, toId);
+  }
   function pushEvent(officeId, userId, text, kind = null) {
     q('INSERT INTO events (office_id, user_id, text, at, kind) VALUES (?, ?, ?, ?, ?)').run(officeId, userId, text, U.now(), kind);
   }
@@ -637,7 +644,6 @@ function createApi(db) {
     if (first && !u.welcomed) {
       addBeans(u.id, 'welcome');
       q('UPDATE users SET welcomed = 1 WHERE id = ?').run(u.id);
-      pushEvent(null, u.id, `${nick} ${U.g(u.look, 'присоединился', 'присоединилась')} к Этажу`, 'join');
     }
     return { ok: true, nick, free };
   });
@@ -814,7 +820,7 @@ function createApi(db) {
     const newChat = gangIds.length
       ? q(`SELECT COUNT(*) AS n FROM messages WHERE gang_id IN (${gangIds.map(() => '?').join(',')}) AND at > ? AND hidden = 0 AND (user_id IS NULL OR user_id != ?)`).get(...gangIds, seenChat, u.id).n
       : 0;
-    const newFeed = q('SELECT COUNT(*) AS n FROM events e WHERE at > ? AND (office_id IS NULL OR office_id = ?) AND (user_id IS NULL OR (user_id != ? AND EXISTS (SELECT 1 FROM users x WHERE x.id = e.user_id AND x.company = ?)))').get(seenFeed, ci ? ci.office_id : '', u.id, companyOf(u)).n
+    const newFeed = q('SELECT COUNT(*) AS n FROM events WHERE to_id = ? AND at > ?').get(u.id, seenFeed).n
       + (ci ? q('SELECT COUNT(*) AS n FROM signals WHERE office_id = ? AND at > ? AND hidden = 0 AND expires_at > ?').get(ci.office_id, seenFeed, U.now()).n : 0);
     const canteenOpen = ci ? q('SELECT * FROM canteen WHERE user_id = ? AND done_at IS NULL AND at > ? ORDER BY at DESC LIMIT 1').get(u.id, U.now() - 60 * 60e3) : null;
     return {
@@ -863,7 +869,6 @@ function createApi(db) {
     if (q('SELECT 1 FROM ledger WHERE user_id = ? AND day = ? AND reason = ?').get(u.id, U.msk().day, 'home')) q('INSERT INTO ledger (user_id, amount, reason, day, at) VALUES (?, 0, ?, ?, ?)').run(u.id, 'checkin', day, U.now());
     else got = addBeans(u.id, 'checkin', todayMarkBeans(u.id));
     if (features) features.onEvent('checkin', u.id, { office: office.id });
-    if (u.share_office) pushEvent(office.id, u.id, `${u.nick} в офисе`, 'office');
     return { ok: true, beans: got, ...(got ? streakInfo(u.id) : {}) };
   });
 
@@ -966,6 +971,7 @@ function createApi(db) {
       q('UPDATE gangs SET deposit = 0 WHERE id = ?').run(g.id);
       addBeans(g.owner_id, 'deposit_back');
     }
+    for (const m of gangMembers(g.id)) if (m.id !== u.id) myEvent(m.id, u.id, `${u.nick} теперь в твоей банде «${g.name}»`, 'gang');
     if (features) features.onEvent('gang_join', u.id);
   }
 
@@ -1302,7 +1308,8 @@ function createApi(db) {
       name: me ? [prof.firstName, prof.lastName].filter(Boolean).join(' ') : fullName(prof, close ? 'gang' : 'all'),
       about: prof.about, tags: prof.tags, bday: prof.showBday ? prof.bday : '',
       mood: st.mood, where: st.where, office: st.office, until: st.until, planned: st.planned,
-      gangs: sharedGangs, crew: crewMate, home: (officeById(prof.home) || {}).name || null
+      gangs: sharedGangs, crew: crewMate, home: (officeById(prof.home) || {}).name || null,
+      respects: features ? features.respects(t.id) : 0 // число видно всем; кто и за что — только самому человеку
     };
   });
 
@@ -1425,6 +1432,7 @@ function createApi(db) {
     }
     const got = addBeans(u.id, 'reply');
     if (features) features.onEvent('reply', u.id);
+    if (m.user_id && m.user_id !== u.id) myEvent(m.user_id, u.id, `${u.nick} ${U.g(u.look, 'ответил', 'ответила')} на твой зов: «${body.label}»`, 'reply');
     if (m.user_id) fireAndForget(notify([m.user_id], { title: 'Ответ на зов', body: `${u.nick}: ${body.label}`, url: `/#gang/${m.gang_id}`, tag: `reply-${m.id}` }));
     return { ok: true, beans: got };
   });
@@ -1434,18 +1442,14 @@ function createApi(db) {
     const u = requireUser(req);
     const ci = activeCheckin(u.id);
     const officeId = ci ? ci.office_id : null;
-    const events = q(`SELECT e.*, o.name AS office_name FROM events e LEFT JOIN offices o ON o.id = e.office_id
-                      WHERE e.at > ? AND (e.office_id IS NULL OR e.office_id = ?) AND (e.user_id IS NULL OR EXISTS (SELECT 1 FROM users x WHERE x.id = e.user_id AND x.company = ?)) ORDER BY e.at DESC LIMIT 60`).all(U.now() - 48 * 3600e3, officeId || '', companyOf(u));
+    const events = q('SELECT * FROM events WHERE to_id = ? AND at > ? ORDER BY at DESC LIMIT 40').all(u.id, U.now() - 14 * 864e5);
     const signals = officeId
       ? q('SELECT * FROM signals WHERE office_id = ? AND hidden = 0 AND expires_at > ? ORDER BY at DESC').all(officeId, U.now())
       : [];
-    // «Свои» — из общих банд и подельники: для фильтра «только свои»
-    const close = new Set(q(`SELECT b.user_id AS id FROM gang_members a JOIN gang_members b ON a.gang_id = b.gang_id WHERE a.user_id = ?`).all(u.id).map((r) => r.id));
-    try { for (const r of q("SELECT CASE WHEN lo = ? THEN hi ELSE lo END AS id FROM crew WHERE (lo = ? OR hi = ?) AND status = 'ok'").all(u.id, u.id, u.id)) close.add(r.id); } catch {}
     const votes = (id) => q('SELECT COALESCE(SUM(vote = 1), 0) AS up, COALESCE(SUM(vote = -1), 0) AS down FROM signal_votes WHERE signal_id = ?').get(id);
     return {
       office: officeId,
-      events: events.map((e) => ({ id: e.id, text: e.text, at: e.at, time: U.msk(e.at).hhmm, office: e.office_name || null, kind: eventKind(e), close: e.user_id === u.id || close.has(e.user_id) })),
+      events: events.map((e) => ({ id: e.id, text: e.text, at: e.at, time: U.msk(e.at).hhmm, day: U.msk(e.at).day, kind: e.kind || 'other', from: e.user_id && e.user_id !== u.id ? e.user_id : null })),
       signals: signals.map((s) => {
         const v = votes(s.id);
         const my = q('SELECT vote FROM signal_votes WHERE signal_id = ? AND user_id = ?').get(s.id, u.id);
@@ -1600,7 +1604,6 @@ function createApi(db) {
     if (it.kind === 'crown') look.crown = true;
     if (it.kind === 'sound') look.snd = it.value;
     saveLook(u.id, look);
-    pushEvent(null, u.id, `${u.nick} ${U.g(u.look, 'купил', 'купила')} в лавке «${it.name}»`, 'shop');
     return { ok: true };
   });
 
@@ -1637,6 +1640,7 @@ function createApi(db) {
     } else q('INSERT INTO owned (user_id, item_id, at) VALUES (?, ?, ?)').run(t.id, it.id, U.now());
     const where = it.kind === 'nickfx' ? 'Уже действует — неделю.' : it.kind === 'part' ? 'Надень в конструкторе аватара.' : 'Уже в твоей Лавке, во вкладке «Твоё».';
     crew.systemDm(u, t, `🎁 Дарю тебе «${it.name}». ${where}`);
+    myEvent(t.id, u.id, `${u.nick} ${U.g(u.look, 'подарил', 'подарила')} тебе «${it.name}»`, 'gift');
     fireAndForget(notify([t.id], { title: u.nick, body: `${U.g(u.look, 'Подарил', 'Подарила')} тебе «${it.name}»`, url: `/#crew/${u.id}`, tag: `gift-${u.id}` }));
     return { ok: true };
   });
@@ -1656,6 +1660,7 @@ function createApi(db) {
     if (!spendBeans(u.id, priceOf(it, u), 'prank:' + it.id)) throw bad('Не хватает зёрен.');
     tl.prank = { v: it.value, until: U.now() + 3600e3, from: u.nick, f: U.fem(u.look) ? 1 : 0 };
     saveLook(t.id, tl);
+    myEvent(t.id, u.id, `${u.nick} ${U.g(u.look, 'разыграл', 'разыграла')} тебя: «${it.name}» на аватаре на час`, 'prank');
     fireAndForget(notify([t.id], { title: u.nick, body: `${U.g(u.look, 'Разыграл', 'Разыграла')} тебя: «${it.name}» на аватаре на час. Снять можно одним касанием`, url: '/#near', tag: `prank-${t.id}` }));
     return { ok: true };
   });
@@ -1767,7 +1772,7 @@ function createApi(db) {
   // ---------- Функции второго этапа ----------
   features = require('./features').register({
     db, q, route, requireUser, requireAdmin, bad, U, config, addBeans, spendBeans, notify, fireAndForget,
-    isMember, gangMembers, myGangs, activeCheckin, readProfile, presenceOf, fullName, weekdayName, addDays, pushEvent, officeById, publicLook,
+    isMember, gangMembers, myGangs, activeCheckin, readProfile, presenceOf, fullName, weekdayName, addDays, pushEvent, myEvent, officeById, publicLook,
     profilePct: (row) => profileCompletion({ ...DEFAULT_LOOK, ...JSON.parse(row.look || '{}') }, readProfile(row.profile), !!q('SELECT 1 FROM push_subs WHERE user_id = ?').get(row.id)).pct
   });
 
@@ -1800,10 +1805,10 @@ function createApi(db) {
   require('./botgames').register({ db, q, route, requireUser, bad, U, HttpError, rateLimit, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   duels = require('./duels').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, addBeans, spendBeans, publicLook, canDm: (u, t) => (crew ? crew.canDm(u, t) : false), onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   gangwar = require('./gangwar').register({ db, q, route, requireUser, requireAdmin, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, spendBeans, battle, publicLook });
-  league = require('./league').register({ db, q, route, requireUser, U, addBeans, notify, fireAndForget });
+  league = require('./league').register({ db, q, route, requireUser, U, addBeans, notify, fireAndForget, myEvent });
   tourney = require('./tourney').register({ db, q, route, requireUser, requireAdmin, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, gangwar, league });
   // ---------- Доска объявлений на весь «Этаж» ----------
-  board = require('./board').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, officeById, publicLook, fullName, isMember, gangMembers, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
+  board = require('./board').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, officeById, publicLook, fullName, isMember, gangMembers, myEvent, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   // ---------- Секретный чат один на один (сквозное шифрование) ----------
   secret = require('./secret').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, canDm: (u, t) => (crew ? crew.canDm(u, t) : true) });
   // ---------- Пятничная пятиминутка банды ----------

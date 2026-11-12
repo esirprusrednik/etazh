@@ -2342,3 +2342,27 @@ body.fx-shake-l .board-wrap, body.fx-shake-l .b-vs { animation: fx-shake-l .6s c
 .bp-lunch .grow { display: flex; flex-direction: column; min-width: 0; }
 .bp-lunch .bp-text { font-weight: 600; }
 .bpost.k-kitchen { background: color-mix(in srgb, var(--s1) 82%, #FFC93C); }
+
+/* Чат банды: «Позвать» и «Респект» одной строкой */
+.chat-acts { gap: 8px; }
+.respects { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0; font-size: 14px; font-weight: 700; color: var(--muted); }
+.respects b { color: var(--ink); }
+/* «Мои события» */
+.mf-item { align-items: flex-start; gap: 10px; }
+.mf-ico { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--s1); color: var(--ink); }
+.mf-item.k-respect .mf-ico { background: var(--tint-y); color: var(--tint-y-fg); }
+.mf-text { font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+/* Новогодняя карточка: гирлянда сверху, ветки по углам, сугроб снизу; текст — на чистом поле */
+.card.santa.ny { padding-top: 70px; padding-bottom: 50px; overflow: hidden; }
+.card.santa.ny::before { display: none; }
+.ny-deco { position: absolute; inset: 0; pointer-events: none; }
+.ny-deco img { position: absolute; display: block; }
+.ny-garland { top: -6px; left: 50%; width: min(70%, 290px); transform: translateX(-50%); filter: drop-shadow(0 3px 3px rgba(20,24,60,.18)); }
+.ny-fir { top: -14px; width: 104px; }
+.ny-fir.l { left: -18px; }
+.ny-fir.r { right: -18px; transform: scaleX(-1); }
+.ny-snow { left: -6%; bottom: -14px; width: 112%; height: 52px; object-fit: fill; filter: drop-shadow(0 -2px 4px rgba(60,80,140,.22)); }
+.ny-balls { right: 10px; bottom: 6px; width: 54px; }
+.card.santa.ny > :not(.ny-deco) { position: relative; }
+.ny-head .card-title { font-size: 19px; }
+:root[data-theme="dark"] .ny-snow { opacity: .92; }

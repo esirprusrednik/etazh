@@ -23,7 +23,7 @@ const ACH = [
   A('first', 'first_call', 'common', 'Кто со мной?', 'Позвать банду или кого-то лично — на кофе, обед, совещание', 'calls', 1),
   A('first', 'reply', 'common', 'На связи', 'Ответить на зов', 'replies', 1),
   A('first', 'first_dm', 'common', 'Лично в руки', 'Написать кому-то в личку', 'dms', 1),
-  A('first', 'thanks_give', 'common', 'Вежливость', 'Сказать спасибо кому-то из банды', 'thanks_given', 1),
+  A('first', 'thanks_give', 'common', 'Вежливость', 'Выразить респект коллеге', 'thanks_given', 1),
   A('first', 'first_meme', 'common', 'Мемолог', 'Отправить мем-открытку', 'memes', 1),
   A('first', 'first_lunch', 'common', 'Обед по расписанию', 'Позвать компанию на Доске или откликнуться «я тоже»', 'lunches', 1),
   A('first', 'first_food', 'common', 'Ресторанный критик', 'Оценить обед в столовой', 'food', 1),
@@ -93,16 +93,20 @@ const ACH = [
   A('social', 'msgs10', 'common', 'Разговорчивый', '10 сообщений в чатах банд', 'msgs', 10, { series: 'msgs' }),
   A('social', 'msgs50', 'rare', 'Душа чата', '50 сообщений в чатах банд', 'msgs', 50, { series: 'msgs' }),
   A('social', 'msgs200', 'legendary', 'Язык без костей', '200 сообщений в чатах банд', 'msgs', 200, { series: 'msgs' }),
-  A('social', 'thanks3', 'common', 'Приятно', 'Получить 3 спасибо', 'thanks_got', 3, { series: 'thanks' }),
-  A('social', 'thanks10', 'rare', 'Душа банды', 'Получить 10 спасибо', 'thanks_got', 10, { series: 'thanks' }),
-  A('social', 'thanks50', 'legendary', 'Легенда банды', 'Получить 50 спасибо', 'thanks_got', 50, { series: 'thanks' }),
+  A('social', 'thanks3', 'common', 'Приятно', 'Получить 3 респекта', 'thanks_got', 3, { series: 'thanks' }),
+  A('social', 'thanks10', 'rare', 'Душа банды', 'Получить 10 респектов', 'thanks_got', 10, { series: 'thanks' }),
+  A('social', 'thanks50', 'legendary', 'Легенда банды', 'Получить 50 респектов', 'thanks_got', 50, { series: 'thanks' }),
+  // Звания за респект считаются по разным людям, а не по штукам: один друг звание не накрутит
+  A('social', 'respect5', 'common', 'Свой человек', 'Респект от 5 разных людей', 'respect_people', 5, { series: 'respect' }),
+  A('social', 'respect15', 'rare', 'Уважаемый', 'Респект от 15 разных людей', 'respect_people', 15, { series: 'respect' }),
+  A('social', 'respect40', 'legendary', 'Авторитет Этажа', 'Респект от 40 разных людей', 'respect_people', 40, { series: 'respect' }),
   A('daily', 'todo1', 'common', 'Чистый день', 'Закрыть все дела дня', 'todo_clean', 1, { series: 'todo' }),
   A('daily', 'todo10', 'rare', 'Без хвостов', '10 чистых дней', 'todo_clean', 10, { series: 'todo' }),
   A('daily', 'todo30', 'epic', 'Человек-план', '30 чистых дней', 'todo_clean', 30, { series: 'todo' }),
   A('social', 'wave1', 'common', 'Свой', 'Встать в волну банды', 'waves', 1, { series: 'waves' }),
   A('social', 'wave10', 'rare', 'Надёжный', 'Встать в 10 волн', 'waves', 10, { series: 'waves' }),
   A('social', 'wave_full', 'legendary', 'Капитан', 'Запустить волну, в которую встала вся банда', 'wave_full', 1),
-  A('social', 'thanks_people5', 'rare', 'Щедрая душа', 'Сказать спасибо пятерым разным людям', 'thanks_people', 5),
+  A('social', 'thanks_people5', 'rare', 'Щедрая душа', 'Выразить респект пятерым разным людям', 'thanks_people', 5),
   A('social', 'gangs3', 'rare', 'Многостаночник', 'Состоять в трёх бандах', 'gangs', 3),
   A('social', 'recruit1', 'common', 'Вербовщик', 'Позвать человека в банду — и он вступил', 'recruits', 1, { series: 'recruits' }),
   A('social', 'recruit5', 'rare', 'Сколотил банду', '5 человек вступили по твоему приглашению', 'recruits', 5, { series: 'recruits' }),
@@ -161,7 +165,7 @@ const QUESTS = [
   { id: 'where', name: 'Отметься: в офисе или «из дома»', go: 'near' },
   { id: 'join', name: 'Вступи в банду или сколоти свою', go: 'chats' },
   { id: 'call', name: 'Кинь зов банде: кофе, обед или созвон', go: 'gang', need: 'gang2' },
-  { id: 'thanks', name: 'Скажи кому-нибудь спасибо — хоть коллеге не из банды', go: 'gang', need: 'gang2' },
+  { id: 'thanks', name: 'Вырази кому-нибудь респект — хоть коллеге не из банды', go: 'gang', need: 'gang2' },
   { id: 'dmnew', name: 'Напиши в личку тому, с кем ещё не общался', go: 'dmnew', need: 'fresh' },
   { id: 'todo', name: 'Закрой дело дня', go: 'near', to: '.todos', need: 'todo' },
   { id: 'wave', name: 'Встань в волну — банда ждёт', go: 'gang', to: '.wave', need: 'wave' },
@@ -273,7 +277,7 @@ function migrate(db) {
 
 function register(ctx) {
   const { db, q, route, requireUser, requireAdmin, bad, U, config, addBeans, spendBeans, notify, fireAndForget,
-    isMember, gangMembers, myGangs, activeCheckin, readProfile, presenceOf, fullName, weekdayName, addDays, pushEvent, officeById, profilePct, publicLook } = ctx;
+    isMember, gangMembers, myGangs, activeCheckin, readProfile, presenceOf, fullName, weekdayName, addDays, pushEvent, myEvent, officeById, profilePct, publicLook } = ctx;
   migrate(db);
 
   const meta = {
@@ -331,7 +335,7 @@ function register(ctx) {
 
   const COUNTER_KEYS = ['checkins', 'replies', 'thanks_given', 'thanks_got', 'canteen', 'signals', 'coffee', 'guess_ok', 'quiz_ok', 'quiz_any',
     'sea_wins', 'sea_clean', 'sea_rivals', 'msgs', 'calls', 'dms', 'memes', 'santa', 'advent', 'lunches', 'food', 'looks', 'battles', 'signals_sent',
-    'day_streak', 'active_days', 'quest_all', 'polls', 'poll_votes', 'blitz', 'blitz_best', 'early', 'dm_people', 'thanks_people', 'recruits', 'big_lunch',
+    'day_streak', 'active_days', 'quest_all', 'polls', 'poll_votes', 'blitz', 'blitz_best', 'early', 'dm_people', 'thanks_people', 'respect_people', 'recruits', 'big_lunch',
     'st_hide', 'st_unfindable', 'st_incognito', 'st_night', 'st_ghost', 'st_slack', 'st_lone',
     'duels_started', 'duel_wins', 'duel_wins_rps', 'duel_wins_dice', 'duel_wins_ttt', 'duel_rivals', 'duel_streak_best', 'duel_pots', 'duel_comeback', 'duel_sixes', 'duel_snake',
     'duel_resign', 'duel_resign_lead', 'duel_declined', 'duel_lost3', 'duel_ttt_draw', 'bot_ttt_draw', 'bot_sea_wins', 'waves', 'wave_full', 'todo_clean'];
@@ -360,7 +364,7 @@ function register(ctx) {
       q('INSERT OR IGNORE INTO achievements (user_id, ach, at) VALUES (?, ?, ?)').run(uid, a.id, U.now());
       addBeans(uid, 'ach', ACH_REWARD[a.tier]);
       // Секретные в общую ленту не попадают — на то они и секретные
-      if (!a.secret) pushEvent(null, uid, `${u.nick} ${U.g(u.look, 'получил', 'получила')} ачивку «${achName(a, U.fem(u.look))}»`, 'ach');
+      if (myEvent) myEvent(uid, uid, `Новая ачивка: «${achName(a, U.fem(u.look))}»`, 'ach');
       got.push(a.id);
     }
     return got;
@@ -759,34 +763,38 @@ function register(ctx) {
       .sort((a, b) => a.inDays - b.inDays);
   }
 
-  // ---------- Спасибо ----------
+  // ---------- Респект (раньше «спасибо») ----------
+  // Кто кому и за что — видит только получатель (пуш и «Мои события»). Остальным видно одно число на карточке человека.
+  // Получателю +2 зерна (до 6 в день). От накрутки: один респект одному человеку в день; ответный в тот же день зёрен не даёт.
   const thanksLeft = (uid) => THANKS_PER_DAY - q('SELECT COUNT(*) AS n FROM thanks WHERE from_id = ? AND day = ?').get(uid, today()).n;
+  const respects = (uid) => counter(uid, 'thanks_got');
 
   route('GET', '/api/thanks/left', async (req) => ({ left: thanksLeft(requireUser(req).id) }));
 
-  // Спасибо — в банде или любому коллеге из его карточки и лички. Общая банда подставляется сама, если есть
   route('POST', '/api/thanks', async (req, body) => {
     const u = requireUser(req);
     const toId = Number(body.to);
     const to = q('SELECT id FROM users WHERE id = ? AND nick IS NOT NULL').get(toId);
     if (!to) throw bad('Коллега не найден.');
-    let gangId = body.gang ? Number(body.gang) : null;
-    if (gangId && !(isMember(gangId, u.id) && isMember(gangId, toId))) throw bad('Спасибо в банде можно сказать только тем, кто в ней.');
-    if (!gangId) gangId = (q('SELECT a.gang_id FROM gang_members a JOIN gang_members b ON b.gang_id = a.gang_id WHERE a.user_id = ? AND b.user_id = ? LIMIT 1').get(u.id, toId) || {}).gang_id || null;
-    if (q('SELECT 1 FROM crew_blocks WHERE user_id = ? AND blocked_id = ?').get(toId, u.id)) throw bad('Этому человеку сейчас нельзя сказать спасибо.');
-    if (toId === u.id) throw bad('Себе спасибо не говорят — только другим.');
-    if (thanksLeft(u.id) <= 0) throw bad(`Не больше ${THANKS_PER_DAY} спасибо в день — так они ценнее.`);
+    const gangId = (q('SELECT a.gang_id FROM gang_members a JOIN gang_members b ON b.gang_id = a.gang_id WHERE a.user_id = ? AND b.user_id = ? LIMIT 1').get(u.id, toId) || {}).gang_id || null;
+    if (q('SELECT 1 FROM crew_blocks WHERE user_id = ? AND blocked_id = ?').get(toId, u.id)) throw bad('Этому человеку сейчас нельзя выразить респект.');
+    if (toId === u.id) throw bad('Респект себе не выражают — только другим.');
+    if (thanksLeft(u.id) <= 0) throw bad(`Не больше ${THANKS_PER_DAY} респектов в день — так они ценнее.`);
+    if (q('SELECT 1 FROM thanks WHERE from_id = ? AND to_id = ? AND day = ?').get(u.id, toId, today())) throw bad('Сегодня этому человеку респект от тебя уже ушёл. Завтра можно снова.');
     const text = U.cleanText(body.text, 80) || null;
     if (text) { const prob = U.moderationProblem(text); if (prob) throw bad(prob); }
+    const mutual = !!q('SELECT 1 FROM thanks WHERE from_id = ? AND to_id = ? AND day = ?').get(toId, u.id, today());
     q('INSERT INTO thanks (gang_id, from_id, to_id, text, day, at) VALUES (?, ?, ?, ?, ?, ?)').run(gangId, u.id, toId, text, today(), U.now());
-    const got = addBeans(toId, 'thanks');
+    const got = mutual ? 0 : addBeans(toId, 'thanks');
     bump(u.id, 'thanks_given'); bump(toId, 'thanks_got'); stat('thanks');
     if (seenPair(u.id, 'thanks', toId)) bump(u.id, 'thanks_people');
+    if (seenPair(toId, 'respect_from', u.id)) bump(toId, 'respect_people');
     completeQuest(u.id, 'thanks');
     if (bdayIdsToday(u.id).has(toId)) completeQuest(u.id, 'bday');
     checkAchievements(u.id); checkAchievements(toId);
-    fireAndForget(notify([toId], { title: 'Тебе спасибо!', body: `${u.nick}: ${text || 'спасибо за помощь'}${got ? ' · +1 зерно' : ''}`, url: gangId ? `/#gang/${gangId}` : `/#crew/${u.id}`, tag: `thanks-${u.id}` }));
-    return { ok: true, left: thanksLeft(u.id) };
+    if (myEvent) myEvent(toId, u.id, `${u.nick} ${U.g(u.look, 'выразил', 'выразила')} тебе респект${text ? `: «${text}»` : ''}${got ? ` · +${got} зерна` : ''}`, 'respect');
+    fireAndForget(notify([toId], { title: 'Тебе респект!', body: `${u.nick}${text ? ': ' + text : ''}${got ? ` · +${got} зерна` : ''}`, url: '/#feed', tag: `thanks-${u.id}` }));
+    return { ok: true, left: thanksLeft(u.id), beans: got };
   });
 
   // Всё дополнительное по банде одним запросом: неделя, спасибо, дни рождения
@@ -794,10 +802,7 @@ function register(ctx) {
     const u = requireUser(req);
     const gangId = Number(params.id);
     if (!isMember(gangId, u.id)) throw bad('Ты не в этой банде.');
-    const thanks = q(`SELECT t.*, f.nick AS from_nick, r.nick AS to_nick FROM thanks t
-                      LEFT JOIN users f ON f.id = t.from_id JOIN users r ON r.id = t.to_id
-                      WHERE t.gang_id = ? AND t.at > ? ORDER BY t.at DESC LIMIT 30`).all(gangId, U.now() - 7 * 864e5)
-      .map((t) => ({ id: t.id, from: t.from_nick || 'удалённый аккаунт', to: t.to_nick, text: t.text, toMe: t.to_id === u.id, mine: t.from_id === u.id, when: t.day === today() ? 'сегодня' : ddmm(t.day) }));
+    const thanks = []; // стены «кто → кому» больше нет: респект видит только получатель
     return { week: gangWeek(gangId, u.id), thanks, thanksLeft: thanksLeft(u.id), birthdays: gangBirthdays(gangId, u.id) };
   });
 
@@ -1249,7 +1254,7 @@ function register(ctx) {
     return { total: list.length, left: list.filter((id) => !done.has(id)).length };
   }
   const activeToday = (uid) => counter(uid, 'last_active') >= Number(today().replace(/-/g, ''));
-  return { streak: (uid) => counter(uid, 'day_streak'), setQuestProviders: (p) => Object.assign(prov, p), onEvent, cleanup, tick, pairNow, questSummary, myPair, activeToday, cellFor, gangTomorrow, weekNote, weekNoteText };
+  return { streak: (uid) => counter(uid, 'day_streak'), setQuestProviders: (p) => Object.assign(prov, p), respects, onEvent, cleanup, tick, pairNow, questSummary, myPair, activeToday, cellFor, gangTomorrow, weekNote, weekNoteText };
 }
 
 module.exports = { register, ACH, QUESTS };

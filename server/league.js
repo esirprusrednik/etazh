@@ -36,7 +36,7 @@ function period(type, day) {
 }
 
 function register(ctx) {
-  const { db, q, route, requireUser, U, addBeans, notify, fireAndForget } = ctx;
+  const { db, q, route, requireUser, U, addBeans, notify, fireAndForget, myEvent } = ctx;
 
   db.exec(`
   CREATE TABLE IF NOT EXISTS league_points (
@@ -131,6 +131,7 @@ function register(ctx) {
       if (p.type === 'M' && r.place === 1) q('UPDATE gangs SET legend_month = ? WHERE id = ?').run(p.key.slice(2), r.id);
       const medal = ['', '', ''][r.place - 1] || `${r.place} место`;
       const what = p.type === 'W' ? 'Лиге недели' : `Лиге месяца (${p.label})`;
+      if (myEvent) for (const uid of winners) myEvent(uid, null, `Твоя банда «${r.name}» — ${r.place} место в ${what}: +${prize.beans} зёрен`, 'league');
       fireAndForget(notify(winners, { title: `${medal} ${r.name} — ${r.place} место в ${what}`, body: `+${prize.beans} зёрен каждому, кто принёс очки${prize.items.length ? ' и трофей для профиля' : ''}`, url: '/#league', tag: 'league-' + p.key }));
     }
     return true;
