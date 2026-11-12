@@ -40,6 +40,7 @@ function register(ctx) {
   );
   `);
   for (const col of ['gang_id INTEGER', 'expires_at INTEGER', 'lunch_time TEXT', 'place TEXT']) { try { db.exec(`ALTER TABLE board_posts ADD COLUMN ${col}`); } catch {} }
+  const kitchenPinged = new Map(); // кому и когда последний раз приходил пуш про кухню
   const canSee = (p, uid) => !p.gang_id || (isMember && isMember(p.gang_id, uid));
 
   const today = () => U.msk().day;
@@ -108,6 +109,13 @@ function register(ctx) {
     const id = Number(q('INSERT INTO board_posts (user_id, kind, text, office_id, until, at, gang_id, expires_at, lunch_time, place) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
       .run(u.id, kind, text, office, until, U.now(), gang, expires, time, place).lastInsertRowid);
     if ((kind === 'company' || kind === 'lunch') && onEvent) onEvent('board_company', u.id);
+    // Угощение на кухне — пуш только тем, кто сейчас отмечен в этом офисе, и не чаще раза в час на человека
+    if (kind === 'kitchen' && office && !U.isAfterCheckinCutoff()) {
+      const here = q('SELECT DISTINCT c.user_id FROM checkins c JOIN users x ON x.id = c.user_id WHERE c.office_id = ? AND c.day = ? AND c.left_at IS NULL AND x.company = ?')
+        .all(office, t, u.company || 'mts').map((r) => r.user_id).filter((x) => x !== u.id && U.now() - (kitchenPinged.get(x) || 0) >= HOUR);
+      for (const x of here) kitchenPinged.set(x, U.now());
+      if (here.length) fireAndForget(notify(here, { title: 'На кухне', body: `${u.nick}: ${text.slice(0, 80)}`, url: '/#kitchen', tag: `board-${id}` }));
+    }
     // Обед для банды — своим сразу пуш: их немного, и это то, ради чего банда
     if (kind === 'lunch' && gang && gangMembers) {
       const to = gangMembers(gang).map((m) => m.id).filter((x) => x !== u.id);

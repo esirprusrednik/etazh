@@ -2407,7 +2407,7 @@ function renderBoardNew() {
   const ph = lunch ? 'Например: новая пиццерия на Арбате, берём столик на шестерых' : kitchen ? 'Яблоки, груши и мармелад на кухне 3-го этажа' : 'Отдам два билета в театр на субботу';
   const audience = d.gang ? 'Объявление увидит только твоя банда' + (lunch ? ', и каждому придёт пуш.' : '.') : d.office ? `Объявление увидят в «${esc(offName)}» и все, кто смотрит весь Этаж.` : 'Объявление видят все.';
   const life = lunch ? 'Кто нажмёт «Я с вами» — придёт пуш. Сбор снимется сам через час после обеда или когда ты отметишь в столовой «Поел».'
-    : kitchen ? 'Провисит час — обычно за это время всё разбирают.' : '«Я тоже» придёт тебе пушем, дальше — в личке. Не дольше двух недель, потом исчезнет само.';
+    : kitchen ? (d.office && !d.gang ? 'Кто сейчас отмечен в этом офисе, получит пуш. ' : '') + 'Провисит час — обычно за это время всё разбирают.' : '«Я тоже» придёт тебе пушем, дальше — в личке. Не дольше двух недель, потом исчезнет само.';
   return `<div class="field">О чём<div class="chips">${kinds.map((k) => `<button class="chip ${d.kind === k.id ? 'on' : ''}" data-act="board-kind" data-v="${k.id}">${ico(k.icon, 14)} ${esc(k.name)}</button>`).join('')}</div></div>
     ${lunch ? `<div class="field">Во сколько${times.length ? `<div class="chips">${times.map((t) => `<button class="chip ${d.time === t ? 'on' : ''}" data-act="board-time" data-v="${t}">${t}</button>`).join('')}</div>` : '<p class="small" style="margin:0">На сегодня обеды уже закончились — позвать можно завтра с 11:00.</p>'}</div>
       <label class="field">Где встречаемся<input id="bd-place" maxlength="40" placeholder="У лифтов на 3 этаже" value="${esc(d.place || '')}"></label>` : ''}
@@ -7376,6 +7376,7 @@ document.addEventListener('visibilitychange', async () => {
 // Ссылки из пушей: #gang/ID, #crew/ID, #battle/ID, #feed, #feedback
 function applyHash(hash) {
   if (hash.startsWith('#gang/')) { S.tab = 'chats'; S.chatGang = true; S.dmList = false; S.dm = null; S.activeGang = Number(hash.slice(6)) || S.activeGang; }
+  if (hash === '#kitchen') { S.dmList = false; S.tab = 'office'; S.chatGang = false; S.dm = null; S.boardCat = 'kitchen'; }
   if (hash === '#office') { S.dmList = false; S.tab = 'office'; S.chatGang = false; S.dm = null; S.boardCat = 'lunch'; }
   if (hash === '#near') { S.dmList = false; S.tab = 'near'; S.chatGang = false; S.dm = null; }
   if (hash === '#rate') { S.tab = 'office'; S.chatGang = false; S.dm = null; setTimeout(() => { const c = document.querySelector('.food'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 800); }
