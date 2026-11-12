@@ -2220,12 +2220,12 @@ function renderWeatherStrip() {
 // «Ещё полезное» на «Рядом»: дела дня, случайный кофе и «Совпадаем» свёрнуты в одну строку.
 // Дела с открытыми пунктами на сегодня стоят на виду — их человек завёл сам.
 function renderNearMore() {
-  const t = S.todos, c = S.fx && S.fx.coffee, p = c && c.pair;
+  const t = S.todos, c = COFFEE_ON && S.fx && S.fx.coffee, p = c && c.pair;
   const openTodos = t ? t.today.filter((x) => !x.done).length : 0;
   const todosOut = openTodos > 0 || S.todoAdd;
   const coffeeHot = !!(p && (p.canReply || !p.ping));
   const open = !!S.nearMore;
-  const bits = [!todosOut && t ? 'Дела дня' : '', c ? (p ? `Кофе с ${esc(p.partner.nick)}` : 'Случайный кофе') : '', S.match ? 'Совпадаем' : ''].filter(Boolean);
+  const bits = [!todosOut && t ? 'Дела дня' : '', c ? (p ? `Кофе с ${esc(p.partner.nick)}` : 'Случайный кофе') : '', MATCH_ON && S.match && !S.match.off ? 'Совпадаем' : ''].filter(Boolean);
   if (!bits.length) return todosOut ? renderTodos() : '';
   return `${todosOut ? renderTodos() : ''}
     <section class="near-more ${open ? 'on' : ''}">
@@ -2243,9 +2243,11 @@ function planLockMsg(lock, compact = false) {
     <button class="btn small" data-act="open-sec" data-v="work">Заполнить план недели</button></div></div>`;
 }
 // ----- «Совпадаем»: кто из коллег (не только банды) где на неделе -----
+// «Совпадаем» и «Случайный кофе» выключены (MATCH_ON / COFFEE_ON): пока людей мало, пары и совпадения повторяются
+const MATCH_ON = false, COFFEE_ON = false;
 function renderMatch() {
   const m = S.match;
-  if (!m) return '';
+  if (!MATCH_ON || !m || m.off) return '';
   if (!m.on) {
     return `<section class="card match"><div class="card-title">where Совпадаем</div>
       <p class="sub" style="margin:0">Кто из коллег — не только из банды — в какие дни в офисе, а кто дома. Можно позвать на обед, кофе или созвониться.</p>
@@ -2711,7 +2713,7 @@ function renderGames() {
 // Случайный кофе — это знакомства, а не игра: живёт во вкладке «Рядом», рядом с «Совпадаем»
 function renderCoffeeStrip() {
   const f = S.fx, c = f && f.coffee;
-  if (!c) return '';
+  if (!COFFEE_ON || !c) return '';
   const p = c.pair;
   const hot = !!(p && (p.canReply || !p.ping));
   const sub = !c.optIn ? 'Раз в неделю — пара на кофе с коллегой из другой банды' : !p ? 'Пару подберём в понедельник' : `Пара этой недели — ${esc(p.partner.nick)}`;
@@ -4363,7 +4365,7 @@ function renderLunches() {
 
 function renderCoffee() {
   const f = S.fx;
-  if (!f) return '';
+  if (!COFFEE_ON || !f) return '';
   const c = f.coffee;
   if (!c.optIn) {
     return `<section class="card coffee">
@@ -5697,7 +5699,7 @@ function renderProfile() {
   const privBody = `
     <label class="check"><input type="checkbox" data-act="toggle" data-k="shareOffice" ${me.shareOffice ? 'checked' : ''}> <span>Показывать банде, где я: офис, дома или в отпуске</span></label>
     <label class="check"><input type="checkbox" data-act="toggle" data-k="quiet" ${me.quiet ? 'checked' : ''}> <span>Тихие часы 19:00–09:00 — не присылать зовы</span></label>
-    <label class="check"><input type="checkbox" data-act="match-toggle" ${p.matchShow ? 'checked' : ''}> <span>«Совпадаем»: показывать коллегам, в какие дни я в офисе и дома (ник, имя, офис, общие интересы)</span></label>
+    ${MATCH_ON ? `<label class="check"><input type="checkbox" data-act="match-toggle" ${p.matchShow ? 'checked' : ''}> <span>«Совпадаем»: показывать коллегам, в какие дни я в офисе и дома (ник, имя, офис, общие интересы)</span></label>` : ''}
     <label class="check"><input type="checkbox" data-act="autosign-toggle" ${p.autoSign !== false ? 'checked' : ''}> <span>Таблички сами: пока включён «В фокус», аватар держит «Тихо, работаю», а после ответа «Скоро буду» или «Бегу» — «Скоро буду» на 20 минут. Свой предмет в руке потом вернётся</span></label>
     <label class="check"><input type="checkbox" data-act="monday-toggle" ${p.monday !== false ? 'checked' : ''}> <span>Неделя банды: в первый рабочий день недели около 9:30 — пуш, кто из банды в отпуске, болеет и у кого день рождения</span></label>
     <label class="check"><input type="checkbox" data-act="weather-toggle" ${p.weather !== false ? 'checked' : ''}> <span>Погода на завтра: вечером накануне офисного дня — пуш, если ждёт дождь, снег, мороз или жара</span></label>
@@ -5714,7 +5716,7 @@ function renderProfile() {
         <button class="btn small ghost" data-act="sound-test">Послушать</button>
       </div>
     </div>
-    <label class="check"><input type="checkbox" data-act="coffee-toggle" ${p.coffee ? 'checked' : ''}> <span>Участвовать в случайном кофе${p.home ? '' : ' (сначала укажи «Мой офис» в разделе «Работа»)'}</span></label>
+    ${COFFEE_ON ? `<label class="check"><input type="checkbox" data-act="coffee-toggle" ${p.coffee ? 'checked' : ''}> <span>Участвовать в случайном кофе${p.home ? '' : ' (сначала укажи «Мой офис» в разделе «Работа»)'}</span></label>` : ''}
     ${pushState === 'granted' && !(me.completion.steps.find((x) => x.id === 'push') || {}).done ? `<div class="note warn" style="margin:0">Браузер разрешил уведомления, но этот телефон не подключён к серверу — пуши не придут.</div><button class="btn blue" data-act="push-enable" ${S.vapidKey ? '' : 'disabled'}>Подключить уведомления</button>`
       : pushState === 'granted' ? '<div class="row"><span class="note good grow">Уведомления включены</span><button class="btn small ghost" data-act="push-test">Проверить</button></div>'
       : pushState === 'unsupported' ? `<div class="note warn">${isIOS() && !isStandalone() ? 'На iPhone уведомления работают только из установленного приложения.' : 'Этот браузер не поддерживает уведомления.'}</div>`

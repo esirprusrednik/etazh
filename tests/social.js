@@ -83,10 +83,12 @@ function startServer(day, extra = {}) {
       assert.equal((await fetch(`${sv.BASE}/api/ava/${Buffer.from('[1]').toString('base64url')}.png`, { headers: { Cookie: A.cookie } })).status, 400);
     });
 
-    await step('«Совпадаем»: видят только открывшие, банда не важна, общие интересы', async () => {
-      await A.post('/api/me/profile', { profile: { home: 'smol', plan: { 'Вт': 'office', 'Ср': 'home' }, tags: ['Настолки', 'Бег'] } });
-      await B.post('/api/me/profile', { profile: { home: 'smol', plan: { 'Вт': 'office', 'Ср': 'office' }, tags: ['Настолки'] } });
-      await C.post('/api/me/profile', { profile: { home: 'smol', plan: { 'Вт': 'office' } } });
+    // Профили с планом — на них опираются следующие шаги (погода, взаимность графика)
+    await A.post('/api/me/profile', { profile: { home: 'smol', plan: { 'Вт': 'office', 'Ср': 'home' }, tags: ['Настолки', 'Бег'] } });
+    await B.post('/api/me/profile', { profile: { home: 'smol', plan: { 'Вт': 'office', 'Ср': 'office' }, tags: ['Настолки'] } });
+    await C.post('/api/me/profile', { profile: { home: 'smol', plan: { 'Вт': 'office' } } });
+    // «Совпадаем» выключен (MATCH_ON в server/features.js): включишь — верни шаг
+    if (false) await step('«Совпадаем»: видят только открывшие, банда не важна, общие интересы', async () => {
       let m = (await A.get('/api/match')).json;
       assert.equal(m.on, false); assert.ok(!m.days[0].offices, 'закрыто — чужих не видно');
       await B.post('/api/me/profile', { profile: { matchShow: true } });

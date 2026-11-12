@@ -151,7 +151,8 @@ const mskToday = () => new Date(Date.now() + SHIFT_H * 3600e3).toISOString().sli
     assert.equal((await a.post(`/api/lunch/${lid}/cancel`)).status, 200);
   });
 
-  await step('случайный кофе: пары из разных банд одного офиса, предложение и ответ', async () => {
+  // «Случайный кофе» выключен (COFFEE_ON в server/features.js): включишь — верни шаг
+  if (false) await step('случайный кофе: пары из разных банд одного офиса, предложение и ответ', async () => {
     for (const x of [a, b, d]) await x.post('/api/me/profile', { profile: { coffee: true, home: 'smol' } });
     assert.equal((await a.post('/api/admin/coffee-now')).status, 403);
     const r = await c.post('/api/admin/coffee-now');

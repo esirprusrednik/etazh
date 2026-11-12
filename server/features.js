@@ -196,6 +196,7 @@ const BONUS_QUESTS = [
 const QUEST_REWARD = 3;
 const QUEST_ALL_BONUS = 5;
 const THANKS_PER_DAY = 3;
+const COFFEE_ON = false, MATCH_ON = false;
 const GIFT_BEANS = 10;
 const COFFEE_OPTS = ['Сегодня в 11:00', 'Сегодня в 15:00', 'Завтра в 11:00', 'Завтра в 15:00'];
 const COFFEE_REPLIES = ['Иду', 'Давай в другое время', 'Не смогу'];
@@ -826,7 +827,9 @@ function register(ctx) {
   });
 
   // ---------- Случайный кофе ----------
+  // Выключен вместе с «Совпадаем» (COFFEE_ON / MATCH_ON): пока людей мало, пары повторяются. Данные и код сохранены
   function pairNow(force = false) {
+    if (!COFFEE_ON) return 0;
     const week = mondayOf(today());
     if (!force && meta.get('coffee_week') === week) return 0;
     meta.set('coffee_week', week);
@@ -861,6 +864,7 @@ function register(ctx) {
   }
 
   function myPair(uid) {
+    if (!COFFEE_ON) return null;
     const p = q('SELECT * FROM coffee_pairs WHERE week = ? AND (a = ? OR b = ?)').get(mondayOf(today()), uid, uid);
     if (!p) return null;
     const partnerId = p.a === uid ? p.b : p.a;
@@ -984,7 +988,7 @@ function register(ctx) {
         extra: bonusFor(u.id).map((id) => BONUS_QUESTS.find((x) => x.id === id)).map((x) => ({ id: x.id, name: x.name, go: x.go, done: done.has(x.id) })) },
       achievements: (() => {
         const c = countersOf(u.id, userRow(u.id));
-        return ACH.map((a) => {
+        return ACH.filter((a) => COFFEE_ON || a.series !== 'coffee').map((a) => {
           const got = !!owned[a.id];
           const hide = a.secret && !got;
           return { id: a.id, cat: a.cat, series: a.series || null, tier: a.tier, secret: !!a.secret, reward: ACH_REWARD[a.tier], got, at: owned[a.id] || null,
@@ -1206,6 +1210,7 @@ function register(ctx) {
   // имя, офис на этот день и общие интересы — без точного времени.
   const MATCH_PER_GROUP = 40;
   route('GET', '/api/match', async (req) => {
+    if (!MATCH_ON) return { off: true };
     const u = requireUser(req);
     const me = readProfile(typeof u.profile === 'string' ? u.profile : JSON.stringify(u.profile || {}));
     const days = weekDays();
