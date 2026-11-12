@@ -1250,8 +1250,8 @@ async function loadGang() {
 }
 function boardSync() {
   const d = S.boardDraft; if (!d) return;
-  const t = $('#bd-text'), u = $('#bd-until');
-  if (t) d.text = t.value; if (u) d.until = u.value;
+  const t = $('#bd-text'), u = $('#bd-until'), pl = $('#bd-place');
+  if (t) d.text = t.value; if (u) d.until = u.value; if (pl) d.place = pl.value;
 }
 function gevSync() {
   const d = S.gevDraft; if (!d) return;
@@ -2330,23 +2330,62 @@ function renderExperts() {
   </section>`;
 }
 // ----- Доска объявлений -----
+// Подкатегории: «Обед» (время, кто идёт, пуши) и «На кухне» (угощение, висит час) — короткие, сверху; остальное — обычные объявления
+const BOARD_CATS = [['all', 'Всё'], ['lunch', 'Обед'], ['kitchen', 'Кухня'], ['other', 'Другое']];
+const minsLeft = (ts) => Math.max(1, Math.round((ts - Date.now()) / 60e3));
 function renderBoardCard() {
   const b = S.board;
   if (!b) return '';
   const home = S.me.profile && S.me.profile.home;
   const gang = (S.me.gangs || [])[0] || null;
   const scope = S.boardScope === 'office' && !home ? 'all' : S.boardScope === 'gang' && !gang ? 'all' : S.boardScope || 'all';
-  const items = b.items.filter((x) => scope === 'all' || (scope === 'office' ? !x.gang && (!x.office || x.office.id === home) : x.gang && x.gang.id === gang.id));
+  const cat = S.boardCat || 'all';
+  const live = b.items.filter((x) => !x.expiresAt || x.expiresAt > Date.now());
+  const inScope = live.filter((x) => scope === 'all' || (scope === 'office' ? !x.gang && (!x.office || x.office.id === home) : x.gang && x.gang.id === gang.id));
+  const inCat = (x, c) => c === 'all' || (c === 'other' ? x.kind !== 'lunch' && x.kind !== 'kitchen' : x.kind === c);
+  // Короткие — наверх: обед по времени, угощение — свежее первым
+  const items = inScope.filter((x) => inCat(x, cat)).sort((p, q) => (p.kind === 'lunch') - (q.kind === 'lunch') ? (q.kind === 'lunch') - (p.kind === 'lunch')
+    : p.kind === 'lunch' ? String(p.time).localeCompare(String(q.time)) : (!!q.expiresAt - !!p.expiresAt) || q.at - p.at);
   const chips = [['all', 'Весь Этаж'], home && ['office', 'Мой офис'], gang && ['gang', 'Банда']].filter(Boolean);
-  const row = (x) => `<div class="bpost k-${x.kind}">
-    <div class="row" style="gap:10px;align-items:flex-start">${tap(x.author.id, avatar(x.author.look, 36))}
-      <div class="grow" style="min-width:0"><div class="bp-head"><b>${nk(x.author)}</b>${x.author.name ? `<span class="small">${esc(x.author.name)}</span>` : ''}<span class="bp-kind">${ico(x.icon, 14)} ${esc(x.kindName)}</span></div>
+  const cnt = (c) => inScope.filter((x) => inCat(x, c)).length;
+  const where = (x) => x.gang ? `только банда «${esc(x.gang.name)}»` : x.office ? esc(x.office.name) : 'весь Этаж';
+  const people = (x) => x.fans && x.fans.length ? x.fans.map((f) => `<button class="linkbtn" data-act="dm-open" data-id="${f.id}">${nk(f)}</button>`).join(', ') : '';
+  const row = (x) => {
+    const head = `<div class="row" style="gap:10px;align-items:flex-start">${tap(x.author.id, avatar(x.author.look, 36))}
+      <div class="grow" style="min-width:0"><div class="bp-head"><b>${nk(x.author)}</b>${x.author.name ? `<span class="small">${esc(x.author.name)}</span>` : ''}<span class="bp-kind">${ico(x.icon, 14)} ${esc(x.kindName)}</span></div>`;
+    const rep = `<button class="linkbtn bp-rep" data-act="report" data-type="board" data-id="${x.id}" aria-label="Пожаловаться">⚑</button>`;
+    if (x.kind === 'lunch') {
+      const going = people(x);
+      return `<div class="bpost k-lunch">${head}
+        <div class="bp-lunch"><span class="lunch-time">${esc(x.time)}</span><span class="grow">${x.place ? `<b>${esc(x.place)}</b>` : '<b>Обед</b>'}${x.text ? `<span class="bp-text">${esc(x.text)}</span>` : ''}</span></div>
+        <div class="small">${going ? `идут: ${going}` : 'пока никто не присоединился'} · ${where(x)}</div></div></div>
+      <div class="row bp-acts">${x.mine ? `<button class="btn small ghost" data-act="board-remove" data-id="${x.id}">Отменить сбор</button><span class="small">снимется сам, когда нажмёшь «Поел»</span>`
+        : `<button class="btn small ${x.iMetoo ? 'ghost' : ''}" data-act="board-metoo" data-id="${x.id}">${x.iMetoo ? 'Не иду' : 'Я с вами'}</button><button class="chip" data-act="dm-open" data-id="${x.author.id}">Написать</button>${rep}`}</div></div>`;
+    }
+    if (x.kind === 'kitchen') {
+      return `<div class="bpost k-kitchen">${head}
         <div class="bp-text">${esc(x.text)}</div>
-        <div class="small">до ${ddmm(x.until)}${x.gang ? ` · только банда «${esc(x.gang.name)}»` : x.office ? ` · ${esc(x.office.name)}` : ' · весь Этаж'}${x.mine && x.fans && x.fans.length ? ` · откликнулись: ${x.fans.map((f) => `<button class="linkbtn" data-act="dm-open" data-id="${f.id}">${nk(f)}</button>`).join(', ')}` : ''}</div></div></div>
-    <div class="row bp-acts">${x.mine ? `<button class="linkbtn" data-act="board-remove" data-id="${x.id}">Снять</button>` : `<button class="chip ${x.iMetoo ? 'on' : ''}" data-act="board-metoo" data-id="${x.id}">${x.iMetoo ? 'check ' : ''}Я тоже${x.metoo ? ' · ' + x.metoo : ''}</button><button class="chip" data-act="dm-open" data-id="${x.author.id}">Написать</button><button class="linkbtn bp-rep" data-act="report" data-type="board" data-id="${x.id}" aria-label="Пожаловаться">⚑</button>`}${x.mine && x.metoo ? `<span class="small">«я тоже» · ${x.metoo}</span>` : ''}</div></div>`;
-  return `<section class="card bboard"><div class="chats-head"><h3 class="has-art">${art('megaphone', 28)}Доска</h3><button class="linkbtn" data-act="board-new">＋ Объявление</button></div>
+        <div class="small">ещё ${minsLeft(x.expiresAt)} мин · ${where(x)}${x.mine && x.metoo ? ` · спасибо: ${x.metoo}` : ''}</div></div></div>
+      <div class="row bp-acts">${x.mine ? `<button class="linkbtn" data-act="board-remove" data-id="${x.id}">Всё разобрали — снять</button>`
+        : `<button class="chip ${x.iMetoo ? 'on' : ''}" data-act="board-metoo" data-id="${x.id}">${x.iMetoo ? 'check ' : ''}Спасибо!${x.metoo ? ' · ' + x.metoo : ''}</button>${rep}`}</div></div>`;
+    }
+    return `<div class="bpost k-${x.kind}">${head}
+        <div class="bp-text">${esc(x.text)}</div>
+        <div class="small">до ${ddmm(x.until)} · ${where(x)}${x.mine && x.fans && x.fans.length ? ` · откликнулись: ${people(x)}` : ''}</div></div></div>
+    <div class="row bp-acts">${x.mine ? `<button class="linkbtn" data-act="board-remove" data-id="${x.id}">Снять</button>` : `<button class="chip ${x.iMetoo ? 'on' : ''}" data-act="board-metoo" data-id="${x.id}">${x.iMetoo ? 'check ' : ''}Я тоже${x.metoo ? ' · ' + x.metoo : ''}</button><button class="chip" data-act="dm-open" data-id="${x.author.id}">Написать</button>${rep}`}${x.mine && x.metoo ? `<span class="small">«я тоже» · ${x.metoo}</span>` : ''}</div></div>`;
+  };
+  const empty = {
+    lunch: 'Позови на обед: выбери время и где встречаетесь. Кто нажмёт «Я с вами» — придёт пуш. Сбор снимется сам через час после обеда или когда ты отметишь в столовой «Поел».',
+    kitchen: 'На кухне яблоки, мармелад или торт после дня рождения? Напиши — объявление провисит час: обычно за это время всё разбирают.',
+    gang: 'Здесь объявления только для своих: «Кто со мной на обед в 13:00?», «Скинемся на торт», «Кто завтра в офисе?» Видит только банда.',
+    all: '«Кто на обед в 13:00?», «На кухне яблоки», «Отдам билеты», «Нашёл зонт на 5-м» — сюда. Объявление само исчезнет в срок.'
+  };
+  const emptyText = cat === 'lunch' || cat === 'kitchen' ? empty[cat] : scope === 'gang' ? empty.gang : empty.all;
+  const newAct = cat === 'lunch' || cat === 'kitchen' ? `data-act="board-new" data-v="${cat}"` : 'data-act="board-new"';
+  return `<section class="card bboard"><div class="chats-head"><h3 class="has-art">${art('megaphone', 28)}Доска</h3><button class="linkbtn" ${newAct}>＋ ${cat === 'lunch' ? 'Позвать на обед' : cat === 'kitchen' ? 'Что на кухне' : 'Объявление'}</button></div>
     ${chips.length > 1 ? `<div class="chips">${chips.map(([v, t]) => `<button class="chip ${scope === v ? 'on' : ''}" data-act="board-filter" data-v="${v}">${t}</button>`).join('')}</div>` : ''}
-    ${items.length ? items.slice(0, S.boardAll ? 100 : 5).map(row).join('') : scope === 'gang' ? '<p class="small" style="margin:0">Здесь объявления только для своих: «Кто со мной на обед в 13:00?», «Скинемся на торт», «Кто завтра в офисе?» Видит только банда.</p>' : '<p class="small" style="margin:0">«Ищу компанию на обед в 13:00», «Отдам билеты», «Кто едет на конференцию», «Нашёл зонт на 5-м» — сюда. Объявление само исчезнет в выбранный день.</p>'}
+    <div class="chips bp-cats">${BOARD_CATS.map(([v, t]) => { const n = v === 'all' ? 0 : cnt(v); return `<button class="chip small ${cat === v ? 'on' : ''}" data-act="board-cat" data-v="${v}">${v === 'lunch' ? ico('lunch', 14) + ' ' : v === 'kitchen' ? ico('gift', 14) + ' ' : ''}${t}${n ? ` <b>${n}</b>` : ''}</button>`; }).join('')}</div>
+    ${items.length ? items.slice(0, S.boardAll ? 100 : 5).map(row).join('') : `<p class="small" style="margin:0">${emptyText}</p>`}
     ${items.length > 5 && !S.boardAll ? `<button class="linkbtn" data-act="board-all">Ещё ${items.length - 5}</button>` : ''}
   </section>`;
 }
@@ -2358,14 +2397,25 @@ function renderBoardNew() {
   const min = new Date(Date.now() + 3 * 3600e3).toISOString().slice(0, 10);
   const max = new Date(Date.now() + 3 * 3600e3 + 14 * 864e5).toISOString().slice(0, 10);
   const gang = (S.me.gangs || [])[0] || null;
-  const who = [['', 'Весь Этаж'], home && [home, `Только ${esc(homeName)}`], gang && ['gang', `Только банда «${esc(gang.name)}»`]].filter(Boolean);
+  const ci = S.state && S.state.checkin;
+  const here = ci && ci.office !== home ? [ci.office, `Только ${esc(ci.name)}`] : null;
+  const who = [['', 'Весь Этаж'], home && [home, `Только ${esc(homeName)}`], here, gang && ['gang', `Только банда «${esc(gang.name)}»`]].filter(Boolean);
   const cur = d.gang ? 'gang' : d.office || '';
+  const offName = d.office === home ? homeName : here && d.office === here[0] ? ci.name : 'этот офис';
+  const times = ((S.board && S.board.lunchTimes) || []).slice(0, 10); // ближайшие два с половиной часа
+  const lunch = d.kind === 'lunch', kitchen = d.kind === 'kitchen';
+  const ph = lunch ? 'Например: новая пиццерия на Арбате, берём столик на шестерых' : kitchen ? 'Яблоки, груши и мармелад на кухне 3-го этажа' : 'Отдам два билета в театр на субботу';
+  const audience = d.gang ? 'Объявление увидит только твоя банда' + (lunch ? ', и каждому придёт пуш.' : '.') : d.office ? `Объявление увидят в «${esc(offName)}» и все, кто смотрит весь Этаж.` : 'Объявление видят все.';
+  const life = lunch ? 'Кто нажмёт «Я с вами» — придёт пуш. Сбор снимется сам через час после обеда или когда ты отметишь в столовой «Поел».'
+    : kitchen ? 'Провисит час — обычно за это время всё разбирают.' : '«Я тоже» придёт тебе пушем, дальше — в личке. Не дольше двух недель, потом исчезнет само.';
   return `<div class="field">О чём<div class="chips">${kinds.map((k) => `<button class="chip ${d.kind === k.id ? 'on' : ''}" data-act="board-kind" data-v="${k.id}">${ico(k.icon, 14)} ${esc(k.name)}</button>`).join('')}</div></div>
-    <label class="field">Текст<textarea id="bd-text" maxlength="200" rows="3" placeholder="Ищу компанию на обед в Смоленке в 13:00 — новое место на Арбате">${esc(d.text)}</textarea></label>
-    <div class="row" style="gap:10px"><label class="field grow">Висит до<input id="bd-until" type="date" min="${min}" max="${max}" value="${esc(d.until)}"></label></div>
+    ${lunch ? `<div class="field">Во сколько${times.length ? `<div class="chips">${times.map((t) => `<button class="chip ${d.time === t ? 'on' : ''}" data-act="board-time" data-v="${t}">${t}</button>`).join('')}</div>` : '<p class="small" style="margin:0">На сегодня обеды уже закончились — позвать можно завтра с 11:00.</p>'}</div>
+      <label class="field">Где встречаемся<input id="bd-place" maxlength="40" placeholder="У лифтов на 3 этаже" value="${esc(d.place || '')}"></label>` : ''}
+    <label class="field">${lunch ? 'Пара слов (необязательно)' : 'Текст'}<textarea id="bd-text" maxlength="200" rows="${lunch ? 2 : 3}" placeholder="${ph}">${esc(d.text)}</textarea></label>
+    ${lunch || kitchen ? '' : `<div class="row" style="gap:10px"><label class="field grow">Висит до<input id="bd-until" type="date" min="${min}" max="${max}" value="${esc(d.until)}"></label></div>`}
     ${who.length > 1 ? `<div class="field">Кому<div class="chips">${who.map(([v, t]) => `<button class="chip ${cur === v ? 'on' : ''}" data-act="board-office" data-v="${v}">${t}</button>`).join('')}</div></div>` : ''}
-    <p class="small" style="margin:0">${d.gang ? 'Объявление увидит только твоя банда.' : d.office ? `Объявление увидят те, у кого ${esc(homeName)} — свой офис, и кто смотрит весь Этаж.` : 'Объявление видят все.'} «Я тоже» придёт тебе пушем, дальше — в личке. Не дольше двух недель, потом исчезнет само.</p>
-    <button class="btn" data-act="board-save">Повесить</button>`;
+    <p class="small" style="margin:0">${audience} ${life}</p>
+    <button class="btn" data-act="board-save" ${lunch && !times.length ? 'disabled' : ''}>${lunch ? 'Позвать на обед' : 'Повесить'}</button>`;
 }
 const findBar = () => `<button class="find-bar" data-act="find-open">${ico('search', 18)}<span>Найти: ник, имя или почта</span></button>`;
 
@@ -6609,19 +6659,29 @@ const actions = {
   'match-on': () => run(async () => { await post('/api/me/profile', { profile: { matchShow: true } }); await Promise.all([loadMe(), loadMatch()]); toast('Твои дни открыты коллегам'); }),
   'match-day'(el) { S.matchDay = Number(el.dataset.v); render(); },
   'board-filter'(el) { S.boardScope = el.dataset.v; S.boardAll = false; render(); },
+  'board-cat'(el) { S.boardCat = el.dataset.v; S.boardAll = false; render(); },
+  'board-time'(el) { boardSync(); S.boardDraft.time = el.dataset.v; render(); },
   'board-all'() { S.boardAll = true; render(); },
-  'board-new'() { const t = new Date(Date.now() + 3 * 3600e3 + 3 * 864e5).toISOString().slice(0, 10); S.boardDraft = { kind: 'company', text: '', until: t, office: '', gang: S.boardScope === 'gang' ? ((S.me.gangs || [])[0] || {}).id || null : null }; S.sheet = 'board-new'; S.error = ''; render(); },
-  'board-kind'(el) { boardSync(); S.boardDraft.kind = el.dataset.v; render(); },
+  'board-new'(el) {
+    const t = new Date(Date.now() + 3 * 3600e3 + 3 * 864e5).toISOString().slice(0, 10);
+    const home = S.me.profile && S.me.profile.home, gid = ((S.me.gangs || [])[0] || {}).id || null;
+    const kind = (el && el.dataset && el.dataset.v) || (S.boardCat === 'lunch' || S.boardCat === 'kitchen' ? S.boardCat : 'lunch');
+    const ci = S.state && S.state.checkin && S.state.checkin.office;
+    // Угощение на кухне имеет смысл только в своём офисе — туда и ставим по умолчанию
+    S.boardDraft = { kind, text: '', until: t, place: '', time: '', gang: S.boardScope === 'gang' ? gid : null, office: S.boardScope === 'gang' ? '' : kind === 'kitchen' ? (ci || home || '') : S.boardScope === 'office' ? home || '' : '' };
+    S.sheet = 'board-new'; S.error = ''; render(); loadBoard().then(() => { if (S.sheet === 'board-new') render(); });
+  },
+  'board-kind'(el) { boardSync(); S.boardDraft.kind = el.dataset.v; if (el.dataset.v === 'kitchen' && !S.boardDraft.office && !S.boardDraft.gang) S.boardDraft.office = (S.state && S.state.checkin && S.state.checkin.office) || (S.me.profile && S.me.profile.home) || ''; render(); },
   'board-office'(el) { boardSync(); const g = el.dataset.v === 'gang'; S.boardDraft.gang = g ? ((S.me.gangs || [])[0] || {}).id || null : null; S.boardDraft.office = g ? '' : el.dataset.v; render(); },
   'board-save': () => run(async () => {
     boardSync();
     await post('/api/board', S.boardDraft);
-    S.sheet = null; S.boardDraft = null; toast('Объявление на доске'); sfx('confirm'); await loadBoard();
+    const k = S.boardDraft.kind; S.sheet = null; S.boardDraft = null; toast(k === 'lunch' ? meG('Позвал на обед — кто пойдёт, придёт пуш', 'Позвала на обед — кто пойдёт, придёт пуш') : 'Объявление на доске'); sfx('confirm'); S.boardCat = k === 'lunch' || k === 'kitchen' ? k : S.boardCat; await loadBoard();
   }),
   'board-metoo': (el) => run(async () => {
     const r = await post(`/api/board/${el.dataset.id}/metoo`);
     S.board.items = S.board.items.map((x) => (x.id === r.item.id ? r.item : x));
-    if (r.item.iMetoo) toast('Автор узнает. Можно сразу написать ему');
+    if (r.item.iMetoo) toast(r.item.kind === 'lunch' ? `Ты в компании на ${r.item.time}` : r.item.kind === 'kitchen' ? 'Автор узнает, что ты сказал спасибо' : 'Автор узнает. Можно сразу написать ему');
   }),
   'board-remove': (el) => run(async () => {
     if (!confirmInline('board-rm' + el.dataset.id, 'Нажми ещё раз — объявление исчезнет')) return;
@@ -7316,6 +7376,7 @@ document.addEventListener('visibilitychange', async () => {
 // Ссылки из пушей: #gang/ID, #crew/ID, #battle/ID, #feed, #feedback
 function applyHash(hash) {
   if (hash.startsWith('#gang/')) { S.tab = 'chats'; S.chatGang = true; S.dmList = false; S.dm = null; S.activeGang = Number(hash.slice(6)) || S.activeGang; }
+  if (hash === '#office') { S.dmList = false; S.tab = 'office'; S.chatGang = false; S.dm = null; S.boardCat = 'lunch'; }
   if (hash === '#near') { S.dmList = false; S.tab = 'near'; S.chatGang = false; S.dm = null; }
   if (hash === '#rate') { S.tab = 'office'; S.chatGang = false; S.dm = null; setTimeout(() => { const c = document.querySelector('.food'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 800); }
   if (hash === '#todos') { S.nearMore = true; S.tab = 'near'; S.chatGang = false; S.dm = null; setTimeout(() => { const c = document.querySelector('.todos'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 600); }

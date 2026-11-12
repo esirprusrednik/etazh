@@ -872,6 +872,7 @@ function createApi(db) {
     if (ci) q('UPDATE checkins SET left_at = ? WHERE id = ?').run(U.now(), ci.id);
     q('UPDATE canteen SET done_at = ? WHERE user_id = ? AND done_at IS NULL').run(U.now(), u.id);
     if (ci && features) features.onEvent('checkout', u.id, { since: ci.at });
+    if (board) board.authorAte(u.id);
     return { ok: true };
   });
 
@@ -892,6 +893,7 @@ function createApi(db) {
     const row = q('SELECT * FROM canteen WHERE user_id = ? AND done_at IS NULL ORDER BY at DESC LIMIT 1').get(u.id);
     if (!row) return { ok: true, counted: false };
     q('UPDATE canteen SET done_at = ? WHERE id = ?').run(U.now(), row.id);
+    if (board) board.authorAte(u.id); // пообедал — его сбор на обед на Доске больше не нужен
     const minutes = Math.round((U.now() - row.at) / 60e3);
     if (minutes >= 5 && minutes <= 90) recomputeLunchW(row.office_id);
     return { ok: true, counted: minutes >= 5 && minutes <= 90, minutes };
@@ -1800,7 +1802,7 @@ function createApi(db) {
   league = require('./league').register({ db, q, route, requireUser, U, addBeans, notify, fireAndForget });
   tourney = require('./tourney').register({ db, q, route, requireUser, requireAdmin, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, gangwar, league });
   // ---------- Доска объявлений на весь «Этаж» ----------
-  board = require('./board').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, officeById, publicLook, fullName, isMember, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
+  board = require('./board').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, officeById, publicLook, fullName, isMember, gangMembers, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   // ---------- Секретный чат один на один (сквозное шифрование) ----------
   secret = require('./secret').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, canDm: (u, t) => (crew ? crew.canDm(u, t) : true) });
   // ---------- Пятничная пятиминутка банды ----------

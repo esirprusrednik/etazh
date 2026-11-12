@@ -2333,3 +2333,12 @@ body.fx-shake-l .board-wrap, body.fx-shake-l .b-vs { animation: fx-shake-l .6s c
 .field input, .field textarea, .field select { border-color: var(--field-bd); }
 .field input:focus, .field textarea:focus, .field select:focus { border-color: var(--violet); }
 .todo-time input { border: 0; }
+
+/* Доска: подкатегории и карточка обеда */
+.bp-cats { gap: 6px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+.bp-cats .chip { flex: none; padding-left: 12px; padding-right: 12px; }
+.bp-cats .chip b { margin-left: 2px; font-weight: 900; }
+.bp-lunch { display: flex; align-items: center; gap: 10px; margin: 4px 0 2px; }
+.bp-lunch .grow { display: flex; flex-direction: column; min-width: 0; }
+.bp-lunch .bp-text { font-weight: 600; }
+.bpost.k-kitchen { background: color-mix(in srgb, var(--s1) 82%, #FFC93C); }

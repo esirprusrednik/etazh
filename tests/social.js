@@ -348,6 +348,26 @@ function startServer(day, extra = {}) {
       assert.ok(!(await B.get('/api/board')).json.items.some((x) => x.id === id));
     });
 
+    await step('доска: обед со временем и списком идущих, угощение на час, «Поел» снимает сбор', async () => {
+      const X = C;
+      const times = (await X.get('/api/board')).json.lunchTimes;
+      const k = await X.post('/api/board', { kind: 'kitchen', text: 'Яблоки и мармелад на кухне 3-го' });
+      assert.equal(k.status, 200); assert.ok(k.json.item.expiresAt - Date.now() <= 3600e3 + 5e3, 'угощение — на час');
+      assert.equal((await X.post('/api/board', { kind: 'kitchen', text: 'ой' })).status, 400);
+      await X.post(`/api/board/${k.json.item.id}/remove`);
+      if (!times.length) return; // после 16:00 по Москве звать на обед уже некуда
+      assert.equal((await X.post('/api/board', { kind: 'lunch', time: '03:00' })).status, 400, 'время — только из списка');
+      const l = await X.post('/api/board', { kind: 'lunch', time: times[0], place: 'У лифтов' });
+      assert.equal(l.status, 200); assert.equal(l.json.item.time, times[0]); assert.equal(l.json.item.place, 'У лифтов');
+      const id = l.json.item.id;
+      await B.post(`/api/board/${id}/metoo`);
+      const seen = (await D.get('/api/board')).json.items.find((x) => x.id === id);
+      assert.equal(seen.fans[0].nick, 'другой_отдел', 'кто идёт на обед — видят все');
+      await X.post('/api/checkin', { office: 'smol' });
+      await X.post('/api/canteen/in'); await X.post('/api/canteen/out');
+      assert.ok(!(await B.get('/api/board')).json.items.some((x) => x.id === id), '«Поел» — сбор снят');
+    });
+
     await step('доска банды: видят только свои, чужой не повесит и не откликнется', async () => {
       const r = await B.post('/api/board', { kind: 'company', text: 'Кто со мной на обед в 13:00?', until: '2026-11-12', gang: gb.id });
       assert.equal(r.status, 200); assert.equal(r.json.item.gang.id, gb.id); assert.equal(r.json.item.office, null);
