@@ -275,15 +275,20 @@ function startServer(day, extra = {}) {
     });
 
     const E2 = await new Client().login('todo@mts.ru', 'деловой_ёж');
-    await step('дела дня: до трёх, похвала и зёрна за чистый день, текст зашифрован, чужое не трогать', async () => {
+    await step('дела дня: до пяти, похвала и зёрна за чистый день, текст зашифрован, чужое не трогать', async () => {
       let t = (await E2.get('/api/todos')).json;
-      assert.equal(t.left, 3);
+      assert.equal(t.left, 5);
       t = (await E2.post('/api/todos', { text: 'Вернуть зонт секретный-зонт-42', when: 'today', time: '23:59' })).json;
       t = (await E2.post('/api/todos', { text: 'Позвать на кофе', when: 'today', person: B.id })).json;
       t = (await E2.post('/api/todos', { text: 'Поздравить', when: 'today' })).json;
-      assert.equal(t.today.length, 3); assert.equal(t.left, 0);
+      assert.equal(t.today.length, 3); assert.equal(t.left, 2);
       assert.equal(t.today.find((x) => x.person).person.id, B.id);
-      assert.equal((await E2.post('/api/todos', { text: 'Четвёртое', when: 'today' })).status, 400, 'больше трёх — нельзя');
+      await E2.post('/api/todos', { text: 'Четвёртое', when: 'today' });
+      t = (await E2.post('/api/todos', { text: 'Пятое', when: 'today' })).json;
+      assert.equal(t.left, 0);
+      assert.equal((await E2.post('/api/todos', { text: 'Шестое', when: 'today' })).status, 400, 'больше пяти — нельзя');
+      for (const x of t.today.filter((y) => y.text === 'Четвёртое' || y.text === 'Пятое')) t = (await E2.post(`/api/todos/${x.id}/remove`, {})).json;
+      assert.equal(t.today.length, 3);
       assert.equal((await E2.post('/api/todos', { text: 'В офисе', when: 'office' })).status, 400, 'без плана недели офисного дня нет');
       assert.equal((await E2.post('/api/todos', { text: 'Завтрашнее', when: 'tomorrow' })).status, 200);
       assert.ok((await E2.get('/api/inbox')).json.items.some((x) => x.kind === 'todo'), 'в сводке — дела дня');

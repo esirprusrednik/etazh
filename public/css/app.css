@@ -2366,3 +2366,19 @@ body.fx-shake-l .board-wrap, body.fx-shake-l .b-vs { animation: fx-shake-l .6s c
 .card.santa.ny > :not(.ny-deco) { position: relative; }
 .ny-head .card-title { font-size: 19px; }
 :root[data-theme="dark"] .ny-snow { opacity: .92; }
+
+/* Дела дня: строка ввода всегда на виду, прогресс, «Сделано» свёрнуто */
+.todo-add { display: grid; gap: 6px; padding-top: 4px; }
+.todo-add-row { gap: 6px; align-items: center; }
+.todo-add-row input { width: 100%; min-height: 44px; border-radius: 12px; border: 1.5px solid var(--field-bd, var(--line)); padding: 8px 12px; background: var(--input, var(--card)); color: var(--ink); font-weight: 600; }
+.todo-add-row input:focus { outline: none; border-color: var(--violet); }
+.todo-more { width: 40px; height: 40px; border-radius: 12px; background: var(--s1); }
+.todo-more.on { background: var(--violet); color: #fff; }
+.todo-sum { padding-left: 4px; color: var(--violet); font-weight: 700; }
+.todo-opts { display: grid; gap: 10px; padding: 10px; border-radius: 14px; background: var(--s1); }
+.todo-opts .field { gap: 4px; }
+.todo-prog { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 800; color: var(--muted); }
+.todo-prog i { width: 44px; height: 6px; border-radius: 3px; background: var(--s1); overflow: hidden; position: relative; }
+.todo-prog i::after { content: ''; position: absolute; inset: 0 auto 0 0; width: var(--p); background: #2FA84F; border-radius: 3px; }
+.todo.later .chip { flex: none; }
+.todo-for { width: 100%; }
