@@ -2327,7 +2327,9 @@ body.fx-shake-l .board-wrap, body.fx-shake-l .b-vs { animation: fx-shake-l .6s c
 .dml-x { flex: 0 0 auto; width: 40px; height: 40px; margin: 2px 16px 0 0; border-radius: 50%; display: grid; place-items: center; background: var(--card); color: var(--ink); border: 1px solid var(--wallet-bd, rgba(0,0,0,.08)); font-size: 16px; font-weight: 900; }
 /* Герб в шапке банды: у полного герба поля под крылья и лавры — сдвигаем к левому краю карточки */
 .g-head .crest-btn { margin: 0 -4px 0 -10px; }
-/* «Кто знает?»: у поля поиска заметная серая рамка — иначе на белой карточке его не видно */
-#ex-q { border: 1.5px solid #C3C9D8; }
-:root[data-theme="dark"] #ex-q { border-color: rgba(255,255,255,.24); }
-#ex-q:focus { border-color: var(--violet); }
+/* Поля ввода: заметная серая рамка — иначе на белой карточке поле не видно. В фокусе — фиолетовая */
+:root { --field-bd: #C3C9D8; }
+:root[data-theme="dark"] { --field-bd: rgba(255,255,255,.24); }
+.field input, .field textarea, .field select { border-color: var(--field-bd); }
+.field input:focus, .field textarea:focus, .field select:focus { border-color: var(--violet); }
+.todo-time input { border: 0; }
