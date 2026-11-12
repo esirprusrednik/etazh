@@ -2300,3 +2300,17 @@ body.fx-shake-l .board-wrap, body.fx-shake-l .b-vs { animation: fx-shake-l .6s c
   background: radial-gradient(circle, #FFE9A8 0 10%, #FF9A2E 24%, #D2361C 40%, rgba(40,16,10,.85) 60%, transparent 74%); }
 @keyframes ember { from { filter: brightness(.85); transform: scale(.94); } to { filter: brightness(1.25); transform: scale(1.04); } }
 @media (prefers-reduced-motion: reduce) { .board, .ship-slot.spr, .ship-slot.spr.sunk, .ship-slot.boom .crater { animation: none; } }
+
+/* Конверт лички в шапке */
+.top .who { min-width: 0; flex: 1 1 auto; }
+.top { gap: 6px; }
+.mailbtn { position: relative; flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--card); color: var(--ink); border: 1px solid var(--wallet-bd, rgba(0,0,0,.08)); box-shadow: 0 3px 0 rgba(20,24,60,.08); }
+.mailbtn.on { background: var(--blue, #2B3A8C); color: #fff; border-color: transparent; }
+.mailbtn .badge { position: absolute; top: -4px; right: -4px; }
+.mailbtn .mdot { position: absolute; top: 1px; right: 1px; width: 11px; height: 11px; border-radius: 50%; background: #FF5A5F; border: 2px solid var(--card); }
+.top:has(.coach-focus) .mailbtn { opacity: .25; pointer-events: none; }
+@media (max-width: 399px) {
+  .top { padding-left: 12px; padding-right: 12px; }
+  .top .nick { font-size: 15px; }
+  .top .beans3d { padding: 0 9px; gap: 4px; }
+}

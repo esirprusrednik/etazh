@@ -22,7 +22,7 @@ const store = {
 const S = {
   me: null, cat: null, vapidKey: null,
   state: null, gang: null, events: null, shop: null,
-  tab: 'near', activeGang: store.get('activeGang', null), people: null, chats: null, chatGang: false,
+  tab: 'near', activeGang: store.get('activeGang', null), people: null, chats: null, chatGang: false, dmList: false,
   sheet: null, compose: null, signal: null,
   onb: { step: 'email', email: '', error: '', devLink: null, devCode: null, nicks: [] },
   error: '', busy: false,
@@ -1509,9 +1509,16 @@ function showStreak(r) {
 }
 
 // Блок мог уехать в другую вкладку банды («Чат», «Жизнь», «Банда») — ищем по очереди и переключаем
+// Вкладка «Банда» открывает банду сразу; личка — отдельный экран (конверт в шапке)
+const inGang = () => S.tab === 'chats' && !S.dm && !S.dmList;
+function ensureGang() {
+  const gs = (S.me && S.me.gangs) || [];
+  if (!gs.length) return;
+  if (!gs.some((g) => g.id === S.activeGang)) { S.activeGang = gs[0].id; store.set('activeGang', S.activeGang); }
+}
 function findInGangTabs(sel) {
   let t = document.querySelector(sel);
-  if (t || !S.chatGang && S.tab !== 'chats') return t;
+  if (t || !inGang()) return t;
   for (const k of ['chat', 'life', 'crew']) { if (t) break; S.gangTab = k; render(); t = document.querySelector(sel); }
   return t;
 }
@@ -1717,18 +1724,18 @@ async function loadGangExtra() {
 async function loadBlitz() { try { S.blitz = await get('/api/blitz'); } catch { S.blitz = null; } }
 async function afterInvite(r) {
   toast('Ты в банде!'); await loadMe();
-  S.activeGang = r.gang; store.set('activeGang', r.gang); S.chatGang = true; S.dm = null;
+  S.activeGang = r.gang; store.set('activeGang', r.gang); S.chatGang = true; S.dmList = false; S.dm = null;
   await Promise.all([loadChats(), loadGang(), loadGangExtra(), loadState()]);
 }
 async function afterCreate(r) {
-  S.gnew = null; S.sheet = null; S.tab = 'chats'; S.chatGang = true; S.dm = null;
+  S.gnew = null; S.sheet = null; S.tab = 'chats'; S.chatGang = true; S.dmList = false; S.dm = null;
   S.activeGang = r.id; store.set('activeGang', r.id);
   await loadMe(); await loadGang();
   toast('Банда сколочена. Зови своих по ссылке');
 }
 async function applyGang(id, sw) {
   const r = await post(`/api/gangs/${id}/apply`, { switch: sw });
-  if (r.member) { toast('Ты в банде!'); await loadMe(); S.sheet = null; S.activeGang = r.id; store.set('activeGang', r.id); S.tab = 'chats'; S.chatGang = true; S.dm = null; await loadGang(); return; }
+  if (r.member) { toast('Ты в банде!'); await loadMe(); S.sheet = null; S.activeGang = r.id; store.set('activeGang', r.id); S.tab = 'chats'; S.chatGang = true; S.dmList = false; S.dm = null; await loadGang(); return; }
   toast(sw ? 'Заявка отправлена. Когда примут — перейдёшь в новую банду' : 'Заявка отправлена — владелец получит пуш');
   if (S.gfind && S.gfind.items) S.gfind.items = S.gfind.items.map((c) => (c.id === id ? { ...c, requested: true } : c));
   if (S.gprofile && S.gprofile.id === id) S.gprofile = { ...S.gprofile, requested: true };
@@ -1760,7 +1767,8 @@ async function refresh({ all = false } = {}) {
   if (all || t === 'near' || t === 'games') jobs.push(loadAdvent());
   if (all || t === 'chats') jobs.push(loadChats());
   if (all || t === 'chats' || t === 'games') jobs.push(loadCrew());
-  if (all || (t === 'chats' && S.chatGang) || t === 'games') jobs.push(loadGang(), loadGangExtra());
+  if (inGang()) ensureGang();
+  if (all || inGang() || t === 'games') jobs.push(loadGang(), loadGangExtra());
   if (all && !S.changes) jobs.push(loadChanges());
   if (all || t === 'office') jobs.push(loadEvents(), loadBoard(), S.experts && S.experts.q ? null : loadExperts());
   if (all || t === 'games') jobs.push(loadQuiz(), loadBlitz(), loadLeague('W').catch(() => {}), loadDuels(), loadTour());
@@ -1768,7 +1776,7 @@ async function refresh({ all = false } = {}) {
   if (t === 'chats' && S.dm) jobs.push(loadDm());
   await Promise.all(jobs);
   if (t === 'chats' && S.dm && S.crew) { const f = S.crew.list.find((x) => x.id === S.dm); if (f) f.unread = 0; recountCrewBadge(); }
-  if (t === 'chats' && S.chatGang) markSeen('chat');
+  if (inGang()) markSeen('chat');
   if (t === 'office') markSeen('feed');
 }
 function markSeen(kind) {
@@ -1984,6 +1992,7 @@ function renderApp() {
           </span>
         </span>
       </button>
+      ${renderMailBtn(b)}
       <button class="beans3d ${S.beanFx ? 'gain' : ''} ${S.coach === 2 ? 'coach-focus' : ''}" data-act="open" data-v="shop" aria-label="Зёрна: ${me.beans}. Открыть лавку${shopDot() ? '. Есть что купить' : ''}">${BEAN}<span class="bnum">${S.beanFx ? S.beanFx.from : me.beans}</span><span class="bcart"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11h10.2L20 8H6.3"/><circle cx="9.5" cy="19.5" r="1.4"/><circle cx="16.5" cy="19.5" r="1.4"/></svg></span>${shopDot() ? '<span class="bdot" aria-hidden="true"></span>' : ''}${S.beanFx ? `<span class="bplus" aria-hidden="true">+${S.beanFx.to - S.beanFx.from}</span>` : ''}</button>
     </header>
     ${S.tab === 'near' ? renderTopStrip() : ''}
@@ -1998,12 +2007,19 @@ function renderApp() {
       ${S.tab === 'near' ? renderNear() : S.tab === 'chats' ? renderChats() : S.tab === 'office' ? renderOfficeTab() : renderGames()}
     </main>
     <nav class="tabs"><div class="in">
-      ${tabBtn('near', 'Рядом', 0)}${tabBtn('chats', 'Чаты', chatNews().reduce((a, x) => a + x.n, 0))}${tabBtn('office', 'Офис', 0)}${tabBtn('games', 'Игры', (b.duels || 0) + (S.quiz || []).filter((z) => !z.answered).length + (S.battles || []).filter((x) => x.myTurn && x.status !== 'done').length)}
+      ${tabBtn('near', 'Рядом', 0)}${tabBtn('chats', 'Банда', chatNews().reduce((a, x) => a + (x.dm ? 0 : x.n), 0))}${tabBtn('office', 'Офис', 0)}${tabBtn('games', 'Игры', (b.duels || 0) + (S.quiz || []).filter((z) => !z.answered).length + (S.battles || []).filter((x) => x.myTurn && x.status !== 'done').length)}
     </div></nav>
   </div>
   ${S.sheet ? renderSheet() : ''}`;
 }
 
+// Личка — конверт в шапке: виден на всех вкладках, счётчик непрочитанного и «твой ход» в морском бою
+function renderMailBtn(b) {
+  const n = b.crew || 0;
+  const turn = (S.battles || []).some((x) => x.myTurn && x.status !== 'done');
+  const on = S.tab === 'chats' && (S.dm || S.dmList);
+  return `<button class="mailbtn ${on ? 'on' : ''}" data-act="dm-list" aria-label="Личка${n ? `, новых: ${n}` : ''}${turn ? ', твой ход в морском бою' : ''}">${ico('mail', 20)}${n ? `<span class="badge">${n > 9 ? '9+' : n}</span>` : turn ? '<span class="mdot" aria-hidden="true"></span>' : ''}</button>`;
+}
 function tabBtn(id, label, n) {
   const icons = {
     near: '<circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6M15 14.5c3 0 5.5 2 5.5 5.5"/>',
@@ -2015,7 +2031,8 @@ function tabBtn(id, label, n) {
     crew: '<path d="M21 11.5a8.4 8.4 0 0 1-12.2 7.5L3 20.5l1.6-5.2A8.4 8.4 0 1 1 21 11.5z"/><path d="M8.5 11.5h.01M12.5 11.5h.01M16.5 11.5h.01"/>'
   };
   const focus = S.coach && COACH[S.coach] && COACH[S.coach].tab === id ? 'coach-focus' : '';
-  return `<button class="tab ${S.tab === id ? 'on' : ''} ${focus}" data-act="tab" data-v="${id}" aria-current="${S.tab === id}">
+  const on = S.tab === id && !(id === 'chats' && (S.dm || S.dmList));
+  return `<button class="tab ${on ? 'on' : ''} ${focus}" data-act="tab" data-v="${id}" aria-current="${on}">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[id]}</svg>
     ${label}${n ? `<span class="badge" aria-label="новых: ${n}">${n > 9 ? '9+' : n}</span>` : ''}</button>`;
 }
@@ -2402,7 +2419,7 @@ function chatNews() {
   const g = (S.me && S.me.gangs && S.me.gangs[0]) || null;
   return [
     { n: b.chat || 0, t: (n) => `${n} ${plural(n, 'сообщение', 'сообщения', 'сообщений')} в банде`, act: g ? `data-act="gang-open" data-id="${g.id}"` : '' },
-    { n: b.crew || 0, t: (n) => `${n} ${plural(n, 'сообщение', 'сообщения', 'сообщений')} в личке`, act: 'data-act="chats-jump" data-v=".chats-dm"' },
+    { dm: true, n: b.crew || 0, t: (n) => `${n} ${plural(n, 'сообщение', 'сообщения', 'сообщений')} в личке`, act: 'data-act="chats-jump" data-v=".chats-dm"' },
     { n: b.invites || 0, t: (n) => n === 1 ? 'Тебя зовут в банду' : `${n} приглашения в банды`, act: 'data-act="chats-jump" data-v=".chats-inv"' },
     { n: b.gangRequests || 0, t: (n) => `${n} ${plural(n, 'заявка', 'заявки', 'заявок')} в банду`, act: g ? `data-act="gang-reqs" data-id="${g.id}"` : '' },
     { n: b.polls || 0, t: (n) => `${n} ${plural(n, 'опрос', 'опроса', 'опросов')} без твоего голоса`, act: g ? `data-act="gang-open" data-id="${g.id}"` : '' }
@@ -2437,9 +2454,15 @@ function renderInbox() {
 }
 function renderChats() {
   if (S.dm) return S.battle ? renderBattle() : renderDm();
-  if (S.chatGang) return `<button class="linkbtn back" data-act="chats-back">‹ Все чаты</button>${renderGang()}`;
+  const invCard = (S.invites || []).length ? `<section class="card chats-inv"><h3>Тебя зовут в банду</h3>${S.invites.map((i) => `<div class="person2">${gangBadge(i.gang, 38)}
+      <div class="grow" style="min-width:0"><div style="font-weight:900">${esc(i.gang.name)}</div><div class="where">${i.gang.members} ${plural(i.gang.members, 'человек', 'человека', 'человек')} · зовёт ${esc(i.from)}</div></div>
+      <button class="btn small" data-act="invite-accept" data-id="${i.id}">Вступить</button><button class="btn small ghost" data-act="invite-decline" data-id="${i.id}" aria-label="Отказаться">Нет</button></div>`).join('')}</section>` : '';
+  if (!S.dmList) {
+    const has = S.me.gangs.length > 0;
+    return `${has ? '' : pageHead('Банда', 'Свои люди, общий чат, зовы и Лига')}${invCard}${has ? '' : renderMyGang([], {})}${has ? renderGang() : ''}`;
+  }
   const c = S.chats;
-  if (!c) return pageHead('Чаты', 'Банды и личные переписки') + '<div class="card"><p class="sub">Загружаем…</p></div>';
+  if (!c) return pageHead('Личка', 'Голубиная почта') + '<div class="card"><p class="sub">Загружаем…</p></div>';
   const seenG = store.get('seenGang', {});
   const reqs = c.requests.length ? `<section class="card"><h3>Хотят переписываться</h3>${c.requests.map((p) => `<div class="person2">${tap(p.id, avatar(p.look, 36))}<div class="grow ellipsis" style="font-weight:800;min-width:0">${nk(p)}</div>
       <button class="btn small" data-act="crew-accept" data-id="${p.id}">Принять</button><button class="btn small ghost" data-act="crew-decline" data-id="${p.id}" aria-label="Отклонить">✕</button></div>`).join('')}</section>` : '';
@@ -2471,16 +2494,11 @@ function renderChats() {
     ${favs.length ? `<div class="fav-strip">${favs.map((f) => { const [, col] = whereText(f); return `<button class="fav" data-act="dm-open" data-id="${f.id}"><span class="ava-ring" style="border-color:${col}">${avatar(f.look, 40)}</span><span class="ellipsis">${nk(f)}</span></button>`; }).join('')}</div>` : ''}`;
   const dmList = dms.length ? dms.map(row).join('')
     : `<div class="empty-art">${art('dove', 84)}</div>` + '<p class="sub chats-empty">Голуби скучают. Напиши кому-нибудь — лично можно любому, кто не закрыл личку: найди по нику или открой карточку человека.</p>';
-  return `${pageHead('Чаты', 'Моя банда и личка')}
-    ${renderChatNews()}
+  return `${pageHead('Личка', 'Голубиная почта: один на один, видите только вы двое')}
     ${findBar()}
-    ${(S.invites || []).length ? `<section class="card chats-inv"><h3>Тебя зовут в банду</h3>${S.invites.map((i) => `<div class="person2">${gangBadge(i.gang, 38)}
-      <div class="grow" style="min-width:0"><div style="font-weight:900">${esc(i.gang.name)}</div><div class="where">${i.gang.members} ${plural(i.gang.members, 'человек', 'человека', 'человек')} · зовёт ${esc(i.from)}</div></div>
-      <button class="btn small" data-act="invite-accept" data-id="${i.id}">Вступить</button><button class="btn small ghost" data-act="invite-decline" data-id="${i.id}" aria-label="Отказаться">Нет</button></div>`).join('')}</section>` : ''}
     ${reqs}
     ${store.get('inviteShared') ? `<button class="invite-mini" data-act="crew-share" aria-label="Позвать коллегу в Этаж, +15 зёрен за новичка"><span class="im-ico" aria-hidden="true">mail</span><span class="im-t">Позвать коллегу в Этаж</span><span class="im-pill">+15 ${BEAN}</span><span class="im-go" aria-hidden="true">›</span></button>` : `<button class="invite-app" data-act="crew-share"><span class="grow"><b>Позвать коллегу в Этаж</b><span class="small">Личная ссылка: придёт — сразу будете на связи. +15 зёрен за каждого новичка</span></span><span aria-hidden="true">mail</span></button>`}
-    ${renderMyGang(gangs, seenG)}
-    <section class="card chats chats-dm">${head('Личка <span class="pigeon-sub">голубиная почта</span>', dmUnread ? `${dmUnread} ${plural(dmUnread, 'новое', 'новых', 'новых')}` : '', 'dm-pick', 'Написать', true)}${favStrip}<p class="small chats-hint">Один на один · видите только вы двое · × закрывает переписку у обоих</p>${dmList}</section>`;
+    <section class="card chats chats-dm">${head('Переписки', dmUnread ? `${dmUnread} ${plural(dmUnread, 'новое', 'новых', 'новых')}` : '', 'dm-pick', 'Написать', true)}${favStrip}<p class="small chats-hint">Один на один · видите только вы двое · × закрывает переписку у обоих</p>${dmList}</section>`;
 }
 
 // ===== Вкладка «Офис»: столовая, обед компанией, сигналы и лента =====
@@ -3702,7 +3720,7 @@ function renderGang() {
       <button class="btn ghost" data-act="gang-join">Вступить по ссылке</button></section>`;
   const multi = gangs.length > 1 ? `<div class="note warn">Теперь банда может быть только одна. Ты в ${gangs.length}: очки Лиги идут в «${esc(gangs[0].name)}» (в неё ты вступил раньше). Выйди из лишних, чтобы не путаться.</div>` : '';
   if (!gangs.length) return create;
-  if (S.chatGang) chips = ''; // в чатах банду выбирают из списка — переключатель не нужен
+  if (S.tab === 'chats') chips = ''; // банда одна — переключатель не нужен
   const v = S.gang;
   if (!v) return multi + chips + '<div class="card"><p class="sub">Загружаем банду…</p></div>' + create;
   const g = v.gang;
@@ -3912,7 +3930,7 @@ function renderDm() {
     : `<button class="star-btn" data-act="crew-add-id" data-id="${f.id}" title="Избранный контакт: писать можно всегда">☆ В подельники</button>`;
   const away = f.where === 'vacation' || f.where === 'sick';
   return `
-  <button class="linkbtn back" data-act="dm-back">‹ Все чаты</button>
+  <button class="linkbtn back" data-act="dm-back">‹ Личка</button>
   <section class="card">
     <div class="row">
       <span class="ava-wrap"><span class="ava-ring" style="border-color:${color}">${avatar(f.look, 32)}</span><span class="ava-dot" style="background:${color}"></span></span>
@@ -4765,7 +4783,7 @@ const COACH = [
   { cls: 'left', title: 'Это твой профиль', text: 'Нажми на аватар или ник: внешность, имя, план недели, ачивки. Зелёное кольцо — насколько профиль заполнен.' },
   { cls: 'right', title: 'Это твои зёрна', text: 'Их дают за отметки, ответы и квизы. Нажми — откроется Лавка со статусами и рамками.' },
   { tab: 'near', i: 0, title: 'Рядом', text: 'Главный экран. Отметься, где работаешь сегодня, — и увидишь всех своих людей: кто в офисе, кто дома, кто в отпуске. Позвать на кофе — одна кнопка.' },
-  { tab: 'chats', i: 1, title: 'Чаты', text: 'Банды — общие чаты команды. Членам своих банд можно писать в личку. Тут же зовы и морской бой.' },
+  { tab: 'chats', i: 1, title: 'Банда', text: 'Твои люди: общий чат, зовы на кофе и обед, опросы и Лига. Личка и морской бой — под конвертом наверху.' },
   { tab: 'office', i: 2, title: 'Офис', text: 'Загрузка столовой и оценка обеда, обед компанией, сигналы с этажа и лента событий.' },
   { tab: 'games', i: 3, title: 'Игры', text: 'Задания дня, квиз недели, морской бой и случайный кофе. За всё дают зёрна — их тратят в Лавке.' }
 ];
@@ -5821,7 +5839,7 @@ function renderGiftPick() {
   if (!it) return '<p class="sub">Вещь не найдена.</p>';
   const prank = it.kind === 'prank';
   const favs = (S.chats && S.chats.favorites) || null;
-  const list = !favs ? '<p class="sub">Загружаем подельников…</p>' : !favs.length ? '<p class="sub">Подельников пока нет. Добавь их в «Чатах» — звёздочка в карточке человека.</p>'
+  const list = !favs ? '<p class="sub">Загружаем подельников…</p>' : !favs.length ? '<p class="sub">Подельников пока нет. Добавь их в личке — конверт наверху, звёздочка в карточке человека.</p>'
     : favs.map((f) => `<div class="chat-row">${avatar(f.look, 36)}<span class="grow ellipsis"><b>${nk(f)}</b></span><button class="btn small" data-act="gift-send" data-id="${f.id}">${prank ? 'Разыграть' : 'Подарить'}</button></div>`).join('');
   return `<div class="item">${shopPrev(it)}<div class="grow"><b>${esc(it.name)}</b><div class="small">${it.price} ${BEAN} — спишутся с тебя${prank ? ' · на час на аватаре' : ''}</div></div></div>
     <span class="eyebrow">${prank ? 'Кого разыграть' : 'Кому подарить'}</span>${list}`;
@@ -5893,11 +5911,11 @@ const actions = {
     if (!again) tabSound(el.dataset.v);
     // Повторное нажатие на открытую вкладку — к её главному экрану: из банды, лички и партии — в список чатов, и наверх
     if (again) {
-      const nested = S.chatGang || S.dm || S.battle;
+      const nested = S.dmList || S.dm || S.battle;
       S.chatGang = false; S.dm = null; S.dmView = null; S.battle = null; S.bv = null;
       if (nested) sfx('close');
     }
-    S.tab = el.dataset.v; S.sheet = null; render();
+    S.dmList = false; S.tab = el.dataset.v; S.sheet = null; if (S.tab === 'chats') { ensureGang(); S.gangTab = S.gangTab || 'chat'; } render();
     if (again) window.scrollTo(0, 0);
     await run(() => refresh());
   },
@@ -6167,7 +6185,7 @@ const actions = {
     const r = await post(`/api/gangs/${c.gang}/messages`, { type: 'call', kind: c.kind, to: c.to, opt: c.opt, text: c.text });
     S.sheet = null;
     toast(r.away ? `Зов отправлен. ${r.away === 1 && c.to ? 'Человек в отпуске' : 'Кто-то в отпуске'} — пуш не придёт, увидит в чате` : r.focus ? `Зов отправлен. ${r.focus === 1 && c.to ? 'Человек' : 'Кто-то'} в фокусе — увидит позже` : r.quiet ? 'Отправлено. Сейчас тихие часы — у кого они включены, пуш не придёт' : 'Зов отправлен');
-    await loadGang(); if (S.tab === 'chats' && S.chatGang) markSeen('chat');
+    await loadGang(); if (inGang()) markSeen('chat');
   }),
   reply: (el) => run(async () => { const r = await post(`/api/messages/${el.dataset.id}/reply`, { label: el.dataset.v }); if (r.beans) toast(`+${r.beans} зерно`); await loadGang(); }),
   'rec-start': (el) => run(async () => {
@@ -6310,10 +6328,11 @@ const actions = {
       } finally { S.bBusy = false; }
     });
   },
-  'dm-back': () => run(async () => { S.dm = null; S.dmView = null; await Promise.all([loadChats(), loadCrew(), loadState()]); }),
-  'chats-back': () => run(async () => { S.chatGang = false; await Promise.all([loadChats(), loadState()]); }),
+  'dm-list': () => run(async () => { sfx('open'); S.tab = 'chats'; S.dmList = true; S.dm = null; S.dmView = null; S.battle = null; S.bv = null; S.sheet = null; render(); window.scrollTo(0, 0); await refresh(); }),
+  'dm-back': () => run(async () => { S.dm = null; S.dmView = null; S.dmList = true; await Promise.all([loadChats(), loadCrew(), loadState()]); }),
+  'chats-back': () => run(async () => { S.chatGang = false; S.dmList = false; ensureGang(); await Promise.all([loadChats(), loadState()]); }),
   'gang-open': (el) => run(async () => {
-    S.tab = 'chats'; S.dm = null; S.chatGang = true; S.gangTab = 'chat'; S.activeGang = Number(el.dataset.id); store.set('activeGang', S.activeGang);
+    S.tab = 'chats'; S.dm = null; S.chatGang = true; S.dmList = false; S.gangTab = 'chat'; S.activeGang = Number(el.dataset.id); store.set('activeGang', S.activeGang);
     const sg = store.get('seenGang', {}); sg[S.activeGang] = Date.now(); store.set('seenGang', sg);
     render(); await Promise.all([loadGang(), loadGangExtra()]); markSeen('chat'); window.scrollTo(0, 0);
     // Гудок банды из Лавки — когда заходишь в чат
@@ -6511,7 +6530,7 @@ const actions = {
     try { g = JSON.parse(el.dataset.go || '{}'); } catch {}
     S.sheet = null;
     const fake = { dataset: { v: g.v, id: g.id, opp: g.opp, nick: g.nick }, classList: { contains: () => false } };
-    if (g.act === 'tab') { S.tab = g.v; S.chatGang = false; S.dm = null; S.battle = null; render(); await run(() => refresh()); }
+    if (g.act === 'tab') { S.tab = g.v; S.chatGang = false; S.dmList = false; S.dm = null; S.battle = null; render(); await run(() => refresh()); }
     else if (actions[g.act]) await actions[g.act](fake);
     if (g.to) requestAnimationFrame(() => setTimeout(() => { const t = findInGangTabs(g.to); if (t) t.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 150));
   },
@@ -6631,8 +6650,8 @@ const actions = {
     if (go === 'near') { S.tab = 'near'; tabSound('near'); }
     else if (go === 'office') { S.tab = 'office'; tabSound('office'); }
     else if (go === 'games') { S.tab = 'games'; tabSound('games'); }
-    else if (go === 'gang' && firstGang) { S.tab = 'chats'; S.chatGang = true; S.dm = null; S.activeGang = firstGang; store.set('activeGang', firstGang); }
-    else if (go === 'dm') { S.tab = 'chats'; S.dm = null; S.chatGang = false; return actions.open({ dataset: { v: 'dm-pick' } }); }
+    else if (go === 'gang' && firstGang) { S.tab = 'chats'; S.chatGang = true; S.dmList = false; S.dm = null; S.activeGang = firstGang; store.set('activeGang', firstGang); }
+    else if (go === 'dm') { S.tab = 'chats'; S.dm = null; S.chatGang = false; S.dmList = true; return actions.open({ dataset: { v: 'dm-pick' } }); }
     else S.tab = 'chats';
     window.scrollTo(0, 0);
     run(() => refresh());
@@ -7059,7 +7078,7 @@ const actions = {
     const g = GUIDE.find((x) => x.id === el.dataset.v);
     if (!g || !g.go) return;
     if (g.go.sheet) { actions.open({ dataset: { v: g.go.sheet } }); return; }
-    S.sheet = null; S.tab = g.go.tab; S.chatGang = false; S.dm = null; S.battle = null; render(); window.scrollTo(0, 0); run(() => refresh());
+    S.sheet = null; S.tab = g.go.tab; S.chatGang = false; S.dmList = false; S.dm = null; S.battle = null; render(); window.scrollTo(0, 0); run(() => refresh());
   },
   'guide-tour'() { S.sheet = null; S.tab = 'near'; S.coach = 1; S.coachStart = 1; render(); window.scrollTo(0, 0); },
   'work-save': () => run(async () => { await post('/api/me/profile', { profile: { role: $('#p-role').value, askMe: $('#p-ask').value } }); await loadMe(); loadExperts((S.experts && S.experts.q) || '').then(render); toast('Сохранено — теперь тебя можно найти по темам'); }),
@@ -7106,7 +7125,7 @@ async function joinByCode(code) {
   await switchable(async (sw) => afterJoin(await post('/api/gangs/join', { code, switch: sw })));
 }
 async function afterJoin(r) {
-  S.activeGang = r.id; store.set('activeGang', r.id); S.tab = 'chats'; S.chatGang = true; S.dm = null; S.sheet = null;
+  S.activeGang = r.id; store.set('activeGang', r.id); S.tab = 'chats'; S.chatGang = true; S.dmList = false; S.dm = null; S.sheet = null;
   await loadMe(); await loadGang();
   toast(r.already ? 'Ты уже в этой банде' : 'Ты в банде!');
 }
@@ -7272,14 +7291,14 @@ document.addEventListener('visibilitychange', async () => {
 // ---------- Старт ----------
 // Ссылки из пушей: #gang/ID, #crew/ID, #battle/ID, #feed, #feedback
 function applyHash(hash) {
-  if (hash.startsWith('#gang/')) { S.tab = 'chats'; S.chatGang = true; S.dm = null; S.activeGang = Number(hash.slice(6)) || S.activeGang; }
-  if (hash === '#near') { S.tab = 'near'; S.chatGang = false; S.dm = null; }
+  if (hash.startsWith('#gang/')) { S.tab = 'chats'; S.chatGang = true; S.dmList = false; S.dm = null; S.activeGang = Number(hash.slice(6)) || S.activeGang; }
+  if (hash === '#near') { S.dmList = false; S.tab = 'near'; S.chatGang = false; S.dm = null; }
   if (hash === '#rate') { S.tab = 'office'; S.chatGang = false; S.dm = null; setTimeout(() => { const c = document.querySelector('.food'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 800); }
   if (hash === '#todos') { S.nearMore = true; S.tab = 'near'; S.chatGang = false; S.dm = null; setTimeout(() => { const c = document.querySelector('.todos'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 600); }
   if (hash === '#battery') { S.sheet = 'battery'; S.bt = { step: 0, answers: [] }; get('/api/battery').then((b) => { S.battery = b; render(); }).catch(() => {}); }
-  if (hash.startsWith('#wave/')) { S.tab = 'chats'; S.chatGang = true; S.dm = null; S.activeGang = Number(hash.slice(6)) || S.activeGang; S.waveScroll = true; }
+  if (hash.startsWith('#wave/')) { S.tab = 'chats'; S.chatGang = true; S.dmList = false; S.dm = null; S.activeGang = Number(hash.slice(6)) || S.activeGang; S.waveScroll = true; }
   if (hash === '#feed') S.tab = 'office';
-  if (hash === '#crew' || hash === '#chats') S.tab = 'chats';
+  if (hash === '#crew' || hash === '#chats') { S.tab = 'chats'; S.dmList = hash === '#crew'; }
   if (hash.startsWith('#crew/')) { S.tab = 'chats'; S.dm = Number(hash.slice(6)) || null; S.dmSecret = false; }
   if (hash.startsWith('#secret/')) { S.tab = 'chats'; S.chatGang = false; S.battle = null; S.dm = Number(hash.slice(8)) || null; S.dmSecret = true; Promise.all([loadDm(), loadSecret()]).then(render).catch(() => {}); }
   if (hash.startsWith('#battle/')) { S.tab = 'chats'; S.battle = Number(hash.slice(8)) || null; }
@@ -7418,7 +7437,7 @@ async function boot() {
     if (pending) { store.set('pendingJoin', null); try { await joinByCode(pending); } catch (e) { toast(e.message); } }
     const pendingCrew = store.get('pendingCrew', null);
     if (pendingCrew) {
-      store.set('pendingCrew', null); S.tab = 'chats';
+      store.set('pendingCrew', null); S.tab = 'chats'; S.dmList = true;
       try { const r = await post('/api/crew/add', { code: pendingCrew }); toast(r.accepted ? 'Теперь можно переписываться!' : r.already ? 'Вы уже на связи' : 'Заявка ушла. Ждём ответа'); } catch (e) { toast(e.message); }
     }
     await refresh({ all: true });
