@@ -2193,12 +2193,12 @@ function renderNear() {
   const prankStrip = pr ? `<div class="prank-strip">${avatar(S.me.look, 34)}<span class="grow"><b>${esc(pr.from)} тебя ${pr.f ? 'разыграла' : 'разыграл'}</b><span class="small">${{ coffee: 'Кофе на одежде', sticker: 'Стикер на лбу', phones: 'Наушники с рок-музыкой' }[pr.v] || 'Подлянка'} — до ${new Date(pr.until).toTimeString().slice(0, 5)}</span></span><button class="btn small" data-act="prank-off">Снять</button></div>` : '';
   return `${pageHead('Рядом', 'Где ты сегодня и кто из твоих людей рядом')}
     ${prankStrip}${aboutCard}
+    ${renderWeatherStrip()}
     ${renderStatusBlock()}
     ${renderPushNudge()}
     ${(S.people && !S.people.length) || !S.me.gangs.length ? findBar() : ''}
     ${renderQuickCalls()}
     ${renderLunchCard()}
-    ${renderWeatherStrip()}
     ${renderWeekNote()}
     ${renderPeople()}
     ${renderBirthdays()}
