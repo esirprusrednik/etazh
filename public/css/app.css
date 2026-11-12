@@ -2421,7 +2421,8 @@ body.fx-shake-l .board-wrap, body.fx-shake-l .b-vs { animation: fx-shake-l .6s c
 .sea-hero .sh-gull i { position: absolute; left: -30px; top: 8px; width: 24px; height: 28px; background: url(/art/gull.webp) 0 0 / 200% 100% no-repeat; animation: sh-flap .6s steps(1) infinite, sh-soar 4s ease-in-out infinite; animation-delay: var(--sea, 0s); filter: drop-shadow(0 2px 2px rgba(0,30,80,.25)); }
 .sea-hero .sh-gull.g2 { animation-duration: 12s; } .sea-hero .sh-gull.g2 i { top: 14px; width: 16px; height: 19px; animation-duration: .5s, 3s; opacity: .9; }
 .sea-hero .sh-gull.g3 { animation-name: sh-fly3; } .sea-hero .sh-gull.g3 i { top: 2px; width: 19px; height: 22px; animation-duration: .75s, 6s; }
-:root[data-theme="dark"] .sea-hero .sh-gull i { filter: brightness(.78) drop-shadow(0 2px 2px rgba(0,0,0,.4)); }
+/* Ночью (тёмная тема) чайки спят */
+:root[data-theme="dark"] .sea-hero .sh-gull { display: none; }
 @keyframes sh-fly { from { transform: translateX(0); } to { transform: translateX(calc(100% + 60px)); } }
 @keyframes sh-fly3 { 0%, 45% { transform: translateX(0); } 95%, 100% { transform: translateX(calc(100% + 60px)); } }
 @keyframes sh-flap { 0% { background-position-x: 0; } 50% { background-position-x: 100%; } }
