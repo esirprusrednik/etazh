@@ -7572,12 +7572,18 @@ async function splash() {
   // Кабина лежит поверх приложения: пока створки закрыты, под ними уже рисуется экран — двери открываются сразу на этаж
   const el = document.createElement('div');
   el.className = 'lift';
-  el.innerHTML = `<div class="lift-door l"><i></i></div><div class="lift-door r"><i></i></div><div class="lift-glow"></div>
-    <div class="lift-top"><div class="lift-disp"><i class="lift-arrow"></i><b class="lift-num">1</b></div><span class="lift-floor">${esc(floorName)}</span></div>
-    <div class="splash lift-in"><div class="logo">Этаж<span>.</span></div>
-    <div class="splash-ava">${avatar(S.me.look, 96)}</div>
-    <p class="splash-hi">${esc(g.text)}</p><p class="splash-day">${esc(g.day)}</p>
-    <button class="btn splash-go" data-act="splash-skip">${esc(g.go)} →</button><div class="splash-bar"><i style="animation-duration:${SPLASH_MS}ms"></i></div></div>`;
+  // Холл у лифта: стальные створки в стене, табло над ними, впереди — стойка с терминалом пропусков.
+  // Здоровается терминал (как настоящая проходная), а не двери; пропуск — карточка с аватаром
+  el.innerHTML = `<div class="lift-scene">
+      <div class="lift-way"><div class="lift-glow"></div><div class="lift-door l"></div><div class="lift-door r"></div></div>
+      <div class="lift-top"><div class="lift-disp"><i class="lift-arrow"></i><b class="lift-num">1</b></div><span class="lift-floor">${esc(floorName)}</span></div>
+      <i class="lift-call"><i></i></i>
+    </div>
+    <div class="lift-desk">
+      <div class="lift-term"><i class="lift-led"></i><p class="lift-hi">${esc(g.text)}</p><p class="lift-day">${esc(g.day)}</p></div>
+      <div class="lift-row"><div class="lift-pass"><i class="lift-clip"></i>${avatar(S.me.look, 64)}<b>${esc(S.me.nick)}</b><span>Этаж<em>.</em> пропуск</span></div>
+        <div class="lift-act"><button class="btn splash-go" data-act="splash-skip">${esc(g.go)} →</button><div class="splash-bar"><i style="animation-duration:${SPLASH_MS}ms"></i></div></div></div>
+    </div>`;
   document.body.appendChild(el);
   root.innerHTML = '';
   // Табло отсчитывает этажи, потом показывает, куда приехали
@@ -7595,7 +7601,7 @@ async function splash() {
   el.classList.add('here', 'go');
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   setTimeout(() => el.classList.add('open'), tapped && !reduce ? 620 : 60);
-  setTimeout(() => el.remove(), (tapped && !reduce ? 620 : 60) + (reduce ? 350 : 1500));
+  setTimeout(() => el.remove(), (tapped && !reduce ? 620 : 60) + (reduce ? 350 : 1750));
 }
 
 async function boot() {

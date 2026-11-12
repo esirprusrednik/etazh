@@ -2437,36 +2437,59 @@ body.fx-shake-l .board-wrap, body.fx-shake-l .b-vs { animation: fx-shake-l .6s c
 @keyframes sh-flap { 0% { background-position-x: 0; } 50% { background-position-x: 100%; } }
 @keyframes sh-soar { 0%,100% { margin-top: 0; } 50% { margin-top: 7px; } }
 
-/* ===== Заставка-лифт: кабина поверх приложения, по кнопке створки разъезжаются и открывают этаж ===== */
-.lift { position: fixed; inset: 0; z-index: 1200; overflow: hidden; color: #fff; }
-.lift-door { position: absolute; top: 0; bottom: 0; width: 50.5%; background: linear-gradient(90deg, #1B2550 0%, #2A3772 18%, #222D61 52%, #2C3A78 82%, #1A234C 100%);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.05); transition: transform .78s cubic-bezier(.55,.06,.3,1); will-change: transform; }
-.lift-door.l { left: 0; border-right: 2px solid #0C1230; } .lift-door.r { right: 0; border-left: 2px solid #0C1230; }
-.lift-door i { position: absolute; inset: 86px 14px 22px; border-radius: 26px; background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.015) 40%, rgba(0,0,20,.16));
-  box-shadow: inset 0 2px 0 rgba(255,255,255,.1), inset 0 -6px 0 rgba(0,0,30,.22); }
-.lift-door.l i { right: 10px; } .lift-door.r i { left: 10px; }
+/* ===== Заставка: холл у лифта. Стена — это тень вокруг проёма, поэтому при наезде камеры проём остаётся прозрачным ===== */
+.lift { position: fixed; inset: 0; z-index: 1200; overflow: hidden; color: #fff; --wall: #E4E0D8; --wall2: #D3CEC4; --frame: #8B929E; --frame2: #5F6672;
+  --st1: #A9B0BB; --st2: #E8EBF0; --st3: #C3C9D2; --st4: #F2F4F7; --st5: #AEB5C0; }
+:root[data-theme="dark"] .lift { --wall: #2B2F3C; --wall2: #232733; --frame: #5A616E; --frame2: #383D48; --st1: #6C7380; --st2: #A7AEBA; --st3: #868D99; --st4: #B4BAC5; --st5: #707783; }
+.lift-scene { position: absolute; inset: 0; transform-origin: 50% 46%; transition: transform .75s cubic-bezier(.5,0,.7,.4), opacity .4s .35s; }
+.lift-way { position: absolute; left: 17%; right: 17%; top: 104px; bottom: 0; overflow: hidden;
+  box-shadow: 0 0 0 5px var(--frame2), 0 0 0 13px var(--frame), 0 0 0 15px var(--frame2), 0 0 0 200vmax var(--wall); }
+/* Стеновые панели: тонкие швы поверх «тени» */
+.lift-scene::before { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1; clip-path: polygon(0 0, 100% 0, 100% 100%, calc(83% + 15px) 100%, calc(83% + 15px) 89px, calc(17% - 15px) 89px, calc(17% - 15px) 100%, 0 100%);
+  background: linear-gradient(180deg, rgba(255,255,255,.28), transparent 30%, rgba(0,0,0,.08)), repeating-linear-gradient(180deg, transparent 0 168px, var(--wall2) 168px 170px); }
+.lift-door { position: absolute; top: 0; bottom: 0; width: 50.4%; z-index: 2; transition: transform .78s cubic-bezier(.55,.06,.3,1); will-change: transform;
+  background: repeating-linear-gradient(180deg, rgba(255,255,255,.05) 0 1px, transparent 1px 3px), linear-gradient(90deg, var(--st1) 0%, var(--st2) 22%, var(--st3) 48%, var(--st4) 76%, var(--st5) 100%); }
+.lift-door.l { left: 0; box-shadow: inset -2px 0 0 rgba(40,46,58,.55), inset 0 0 26px rgba(40,46,58,.16); } .lift-door.r { right: 0; box-shadow: inset 2px 0 0 rgba(40,46,58,.55), inset 0 0 26px rgba(40,46,58,.16); }
 .lift.open .lift-door.l { transform: translateX(-101%); } .lift.open .lift-door.r { transform: translateX(101%); }
-/* Свет с этажа бьёт в щель между створками */
-.lift-glow { position: absolute; top: 0; bottom: 0; left: 50%; width: 46%; transform: translateX(-50%) scaleX(.04); opacity: 0; pointer-events: none;
-  background: linear-gradient(90deg, transparent, rgba(255,236,180,.55) 35%, rgba(255,250,235,.95) 50%, rgba(255,236,180,.55) 65%, transparent); }
-.lift.open .lift-glow { animation: lift-glow .9s ease-out both; }
-@keyframes lift-glow { 0% { opacity: 0; transform: translateX(-50%) scaleX(.04); } 22% { opacity: 1; } 100% { opacity: 0; transform: translateX(-50%) scaleX(2.4); } }
-/* Портал с табло */
-.lift-top { position: absolute; top: 0; left: 0; right: 0; height: 74px; padding-top: env(safe-area-inset-top, 0px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-  background: linear-gradient(180deg, #0F1638, #18214A); box-shadow: 0 3px 0 #0A1030, 0 8px 18px rgba(0,0,20,.35); transition: transform .5s .5s ease-in; z-index: 2; }
-.lift.open .lift-top { transform: translateY(-110%); }
-.lift-disp { display: flex; align-items: center; gap: 8px; min-width: 84px; justify-content: center; padding: 3px 14px; border-radius: 10px; background: #070B1E; box-shadow: inset 0 2px 5px rgba(0,0,0,.7), 0 1px 0 rgba(255,255,255,.08); }
-.lift-num { font: 800 22px/1.2 Unbounded, Onest, sans-serif; color: #FFC93C; text-shadow: 0 0 10px rgba(255,190,60,.7); font-variant-numeric: tabular-nums; min-width: 1.4em; text-align: center; }
-.lift-arrow { width: 0; height: 0; border: 7px solid transparent; border-top: 0; border-bottom: 11px solid #FFC93C; filter: drop-shadow(0 0 6px rgba(255,190,60,.8)); animation: lift-up .7s ease-in-out infinite; }
+.lift-glow { position: absolute; inset: 0; z-index: 1; opacity: 0; pointer-events: none; background: radial-gradient(120% 80% at 50% 45%, rgba(255,250,232,.98), rgba(255,232,170,.7) 55%, rgba(255,220,150,.35)); }
+.lift.open .lift-glow { animation: lift-glow 1.25s ease-out both; }
+@keyframes lift-glow { 0% { opacity: 0; } 12% { opacity: 1; } 55% { opacity: .75; } 100% { opacity: 0; } }
+/* Табло над проёмом */
+.lift-top { position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; z-index: 2; }
+.lift-disp { display: flex; align-items: center; gap: 8px; min-width: 92px; justify-content: center; padding: 5px 16px; border-radius: 9px; background: #0A0D18; box-shadow: inset 0 2px 5px rgba(0,0,0,.8), 0 0 0 3px var(--frame), 0 0 0 4px var(--frame2), 0 3px 6px rgba(0,0,0,.25); }
+.lift-num { font: 800 24px/1.15 Unbounded, Onest, sans-serif; color: #FFB52E; text-shadow: 0 0 10px rgba(255,170,40,.75); font-variant-numeric: tabular-nums; min-width: 1.4em; text-align: center; }
+.lift-arrow { width: 0; height: 0; border: 7px solid transparent; border-top: 0; border-bottom: 11px solid #FFB52E; filter: drop-shadow(0 0 6px rgba(255,170,40,.8)); animation: lift-up .7s ease-in-out infinite; }
 @keyframes lift-up { 0%, 100% { transform: translateY(2px); opacity: .45; } 50% { transform: translateY(-2px); opacity: 1; } }
 .lift.here .lift-arrow { animation: none; opacity: .25; }
-.lift-floor { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #AEB8D6; opacity: 0; transform: translateY(-3px); transition: opacity .35s, transform .35s; }
+.lift-floor { font-size: 10.5px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: #6B6558; opacity: 0; transform: translateY(-3px); transition: opacity .35s, transform .35s; }
+:root[data-theme="dark"] .lift-floor { color: #AEB8D6; }
 .lift.here .lift-floor { opacity: 1; transform: none; }
 .lift.go .lift-num { animation: lift-ding .5s ease-out; }
-@keyframes lift-ding { 0% { transform: scale(1); } 30% { transform: scale(1.35); text-shadow: 0 0 22px rgba(255,220,120,1); } 100% { transform: scale(1); } }
-/* Приветствие — на створках; с первым движением уходит */
-.lift-in { position: absolute; inset: 0; min-height: 0; padding-top: 86px; z-index: 1; transition: opacity .3s .34s, transform .3s .34s; }
-.lift.go .lift-in { opacity: 0; transform: scale(1.04); pointer-events: none; }
+@keyframes lift-ding { 0% { transform: scale(1); } 30% { transform: scale(1.35); text-shadow: 0 0 22px rgba(255,210,110,1); } 100% { transform: scale(1); } }
+/* Кнопка вызова на стене */
+.lift-call { position: absolute; right: calc(8.5% - 13px); top: 40%; width: 26px; height: 50px; border-radius: 7px; z-index: 2; background: linear-gradient(180deg, #C9CED6, #9AA1AD); box-shadow: 0 0 0 1px var(--frame2), 0 2px 4px rgba(0,0,0,.25); display: grid; place-items: center; }
+.lift-call i { width: 13px; height: 13px; border-radius: 50%; background: #FFB52E; box-shadow: 0 0 9px rgba(255,170,40,.9), inset 0 0 0 2px rgba(255,255,255,.5); }
+/* Стойка с терминалом — на переднем плане */
+.lift-desk { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; padding: 16px 16px calc(20px + env(safe-area-inset-bottom, 0px)); border-radius: 30px 30px 0 0; display: flex; flex-direction: column; gap: 14px;
+  background: linear-gradient(180deg, #2C3350, #1A2040 70%); box-shadow: inset 0 3px 0 rgba(255,255,255,.14), 0 -10px 30px rgba(10,14,34,.4); transition: transform .5s .12s cubic-bezier(.5,0,.8,.5); animation: lift-desk-in .5s cubic-bezier(.2,.9,.3,1) both; }
+@keyframes lift-desk-in { from { transform: translateY(40%); opacity: 0; } }
+.lift.go .lift-desk { transform: translateY(110%); }
+.lift-term { position: relative; border-radius: 16px; padding: 18px 16px 14px; text-align: center; background: #070B1A; box-shadow: inset 0 2px 8px rgba(0,0,0,.8), 0 1px 0 rgba(255,255,255,.1); }
+.lift-led { position: absolute; top: 8px; left: 50%; width: 38px; height: 4px; margin-left: -19px; border-radius: 2px; background: #FF5A4E; box-shadow: 0 0 8px rgba(255,90,78,.8); transition: background .15s, box-shadow .15s; }
+.lift.go .lift-led { background: #3EE08C; box-shadow: 0 0 12px rgba(62,224,140,.95); }
+.lift-hi { margin: 4px 0 0; font-size: 20px; font-weight: 800; line-height: 1.25; color: #F3F6FF; animation: sp-in .5s .3s ease both; }
+.lift-day { margin: 6px 0 0; font-size: 12.5px; font-weight: 700; color: #FFB52E; letter-spacing: .02em; animation: sp-in .5s .45s ease both; }
+.lift-row { display: flex; align-items: center; gap: 14px; }
+.lift-pass { position: relative; flex: 0 0 104px; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 14px 6px 8px; border-radius: 12px; background: linear-gradient(180deg, #fff, #EEF1F7); color: #121A33; transform: rotate(-4deg); box-shadow: 0 6px 14px rgba(0,0,20,.45); transition: transform .35s cubic-bezier(.3,1.4,.5,1); }
+.lift.go .lift-pass { transform: rotate(0) translateY(-10px) scale(1.05); }
+.lift-clip { position: absolute; top: 5px; left: 50%; width: 26px; height: 5px; margin-left: -13px; border-radius: 3px; background: #C9CEDA; box-shadow: inset 0 1px 1px rgba(0,0,0,.25); }
+.lift-pass b { font-size: 11.5px; font-weight: 800; max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lift-pass span { font-size: 8.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #7A84A3; } .lift-pass em { font-style: normal; color: #E0A400; }
+.lift-act { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.lift-act .splash-go { margin: 0; min-width: 0; width: 100%; animation: sp-in .5s .6s ease both; }
+.lift-act .splash-bar { margin: 0; width: 70%; }
+/* Наезд: створки ушли в стену — камера проходит в проём */
+.lift.open .lift-scene { transform: scale(3.2); opacity: 0; transition-delay: .55s, .95s; }
 .lift.open { pointer-events: none; }
-@media (prefers-reduced-motion: reduce) { .lift-door, .lift-top, .lift-in { transition: none; } .lift.open { opacity: 0; transition: opacity .3s; } .lift.open .lift-glow, .lift-arrow, .lift.go .lift-num { animation: none; } }
-.lift .logo { color: #fff; }
+@media (max-height: 640px) { .lift-hi { font-size: 17px; } .lift-term { padding: 14px 12px 10px; } }
+@media (prefers-reduced-motion: reduce) { .lift-door, .lift-scene, .lift-desk, .lift-pass { transition: none; animation: none; } .lift.open { opacity: 0; transition: opacity .3s; } .lift.open .lift-glow, .lift-arrow, .lift.go .lift-num, .lift-hi, .lift-day { animation: none; } }
