@@ -2411,8 +2411,18 @@ body.fx-shake-l .board-wrap, body.fx-shake-l .b-vs { animation: fx-shake-l .6s c
 @keyframes sh-wave96 { to { background-position-x: 96px; } }
 @keyframes sh-wave80 { to { background-position-x: 80px; } }
 .duel-start.sea-hero span { z-index: 3; height: 62px; margin-bottom: -6px; filter: drop-shadow(0 6px 6px rgba(0,20,60,.35)); transform-origin: 50% 90%; animation: sh-bob 4s ease-in-out infinite; animation-delay: var(--sea, 0s); }
-.sea-hero .sh-buoy { position: absolute; right: 26px; bottom: 12px; z-index: 2; line-height: 0; transform-origin: 50% 100%; animation: sh-bob 3s ease-in-out infinite reverse; animation-delay: var(--sea, 0s); opacity: .95; }
+.sea-hero .sh-buoy { position: absolute; right: 30px; bottom: 15px; z-index: 2; line-height: 0; transform-origin: 50% 100%; animation: sh-bob 3s ease-in-out infinite reverse; animation-delay: var(--sea, 0s); opacity: .95; }
 @keyframes sh-bob { 0%,100% { transform: translateY(2px) rotate(-4deg); } 50% { transform: translateY(-3px) rotate(4deg); } }
 .duel-start.sea-hero b { z-index: 5; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 0; margin-bottom: 14px; font-size: 19px; line-height: 1.1; font-weight: 800; color: #fff !important; text-align: left; text-shadow: 0 2px 0 rgba(6,34,84,.55), 0 0 12px rgba(6,34,84,.45); }
 .duel-start.sea-hero b small { font-size: 12px; font-weight: 600; opacity: .92; }
-@media (prefers-reduced-motion: reduce) { .sea-hero .sh-sky, .sea-hero .sh-w, .duel-start.sea-hero span, .sea-hero .sh-buoy { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .sea-hero .sh-sky, .sea-hero .sh-w, .duel-start.sea-hero span, .sea-hero .sh-buoy, .sea-hero .sh-gull, .sea-hero .sh-gull i { animation: none !important; } }
+/* Чайки: летят через небо, крылья — два кадра в одном спрайте */
+.sea-hero .sh-gull { position: absolute; left: 0; right: 0; top: 0; height: 0; z-index: 1; pointer-events: none; animation: sh-fly 24s linear infinite; animation-delay: var(--sea, 0s); }
+.sea-hero .sh-gull i { position: absolute; left: -30px; top: 8px; width: 24px; height: 28px; background: url(/art/gull.webp) 0 0 / 200% 100% no-repeat; animation: sh-flap .6s steps(1) infinite, sh-soar 4s ease-in-out infinite; animation-delay: var(--sea, 0s); filter: drop-shadow(0 2px 2px rgba(0,30,80,.25)); }
+.sea-hero .sh-gull.g2 { animation-duration: 12s; } .sea-hero .sh-gull.g2 i { top: 14px; width: 16px; height: 19px; animation-duration: .5s, 3s; opacity: .9; }
+.sea-hero .sh-gull.g3 { animation-name: sh-fly3; } .sea-hero .sh-gull.g3 i { top: 2px; width: 19px; height: 22px; animation-duration: .75s, 6s; }
+:root[data-theme="dark"] .sea-hero .sh-gull i { filter: brightness(.78) drop-shadow(0 2px 2px rgba(0,0,0,.4)); }
+@keyframes sh-fly { from { transform: translateX(0); } to { transform: translateX(calc(100% + 60px)); } }
+@keyframes sh-fly3 { 0%, 45% { transform: translateX(0); } 95%, 100% { transform: translateX(calc(100% + 60px)); } }
+@keyframes sh-flap { 0% { background-position-x: 0; } 50% { background-position-x: 100%; } }
+@keyframes sh-soar { 0%,100% { margin-top: 0; } 50% { margin-top: 7px; } }

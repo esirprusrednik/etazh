@@ -177,6 +177,8 @@ public/art/quiz.webp
 public/art/rps.webp
 public/art/shake.webp
 public/art/shield.webp
+public/art/gull.webp
+public/art/sea_buoy.webp
 public/art/ship.webp
 public/art/ships/s1h.webp
 public/art/ships/s1hw.webp
