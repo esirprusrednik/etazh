@@ -97,6 +97,7 @@ server/seasons.js
 server/util.js
 server/voice.js
 server/ava.js
+server/ava/extra-mug.json
 server/ava/extra-signs.json
 server/ava/extra-signs2.json
 server/ava/extra-signs3.json
@@ -105,6 +106,8 @@ server/ava/la_0.png
 server/ava/la_1.png
 server/ava/la_2.png
 server/ava/la_3.png
+server/ava/mla_0.png
+server/ava/mrgba_0.png
 server/ava/rgba_0.png
 server/ava/rgba_1.png
 server/ava/rgba_2.png

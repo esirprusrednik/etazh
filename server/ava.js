@@ -199,6 +199,8 @@ function deblue(name, p) {
     const r = A.data[i]; const g = A.data[i + 1]; const b = A.data[i + 2];
     // только насыщенный синий манекена: у сиреневой таблички красный канал высокий, её не трогаем
     if (A.data[i + 3] && r < 110 && b > r + 40 && b > g + 25 && g >= r - 8) A.data[i + 3] = 0;
+    // пурпурная кромка: руку для части предметов генерируем пурпурной, чтобы отделить её от торса
+    else if (A.data[i + 3] && r > g + 45 && b > g + 30) A.data[i + 3] = 0;
   }
 }
 
@@ -375,6 +377,7 @@ const MASK = ['medical', 'gauze', 'visor', 'scuba'];
 const PROP = ['mug', 'papers', 'sign', 'laptop', 'mug_best', 'trophy', 'phone', 'torch', 'mimosa', 'pancakes', 'sign_dnd', 'sign_ask', 'sign_coffee', 'sign_deadline', 'sign_plan', 'sign_friday', 'sign_domik', 'sign_tz', 'sign_thanks', 'sign_vacation', 'sign_quiet', 'sign_soon'];
 // Таблички, у которых текст зависит от пола: «ушёл/ушла», «не виноват/не виновата»
 const PROP_G = ['sign_lunch', 'sign_innocent'];
+const MUG_FIT = { sx: 0.74, sy: 0.74, px: 300, py: 330, dx: -22, dy: 8 };
 const PET = ['corgi', 'pug', 'frenchie', 'parrot', 'cat', 'aquarium', 'cactus'];
 const EARRINGS = ['studs', 'pearls', 'hoops', 'drops', 'cross'];
 const LENS = { grey: [59, 63, 74, 0.6], brown: [90, 58, 30, 0.56], blue: [42, 98, 201, 0.48], green: [31, 122, 74, 0.48], pink: [224, 80, 143, 0.4], yellow: [224, 165, 0, 0.4] };
@@ -433,7 +436,10 @@ function lookToSpec(look = {}) {
   const prop = pick(PROP_G, look.prop) ? look.prop + '_' + (f ? 'f' : 'm') : pick(PROP, look.prop);
   // Таблички крупные: уменьшаем их к кулаку и сдвигаем к середине, чтобы не закрывали рот и текст не резался круглой рамкой
   const signFit = prop && prop.startsWith('sign') ? { sx: 0.76, sy: 0.76, px: 275, py: 372, dx: -30, dy: 2 } : null;
-  if (prop) L.push(['p_' + prop + '_hand', signFit], ['p_' + prop, signFit]);
+  // Кружку держат за ручку: рука сбоку, поэтому вся пара шире — уменьшаем и ставим ниже подбородка, чтобы рамка не резала кулак
+  const mugFit = prop === 'mug' || prop === 'mug_best' ? MUG_FIT : null;
+  const fit = signFit || mugFit;
+  if (prop) L.push(['p_' + prop + '_hand', fit], ['p_' + prop, fit]);
   if (pick(PET, look.pet)) L.push('pet_' + look.pet);
   const layers = L.map((x) => (Array.isArray(x) ? (x[1] ? x : x[0]) : x));
   const names = layers.map((x) => (Array.isArray(x) ? x[0] : x));

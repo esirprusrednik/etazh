@@ -1080,7 +1080,9 @@ function avaCode(look) {
   return c;
 }
 // Размер картинки — под экран: в списках хватает 96 px, крупные планы и профиль берут 192 или 400
-const avaSrc = (look, px = 192) => `/api/ava/${avaCode(look)}.png?s=${px <= 96 ? 96 : px <= 192 ? 192 : 400}`;
+// AVA_V — версия картинок: аватары кэшируются на месяц, после замены слоёв на сервере число поднимаем
+const AVA_V = 2;
+const avaSrc = (look, px = 192) => `/api/ava/${avaCode(look)}.png?s=${px <= 96 ? 96 : px <= 192 ? 192 : 400}&v=${AVA_V}`;
 const BG_SCENES = ['office', 'meeting', 'home', 'street', 'cafe'];
 function avaBg(look) {
   if (BG_SCENES.includes(look.bg)) return `background:#DCE6F5 url(/art/bg_${look.bg}.webp) center/cover`;
