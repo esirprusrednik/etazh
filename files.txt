@@ -162,6 +162,7 @@ public/art/medal_locked.webp
 public/art/medal_rare.webp
 public/art/medal_secret.webp
 public/art/megaphone.webp
+public/art/lift/desk.webp
 public/art/lift/door_l.webp
 public/art/lift/door_r.webp
 public/art/lift/wall.webp

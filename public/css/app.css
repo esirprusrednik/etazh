@@ -2460,17 +2460,18 @@ body.fx-shake-l .board-wrap, body.fx-shake-l .b-vs { animation: fx-shake-l .6s c
 .lift.here .lift-floor { opacity: .95; }
 .lift.go .lift-num { animation: lift-ding .5s ease-out; }
 @keyframes lift-ding { 0% { transform: scale(1); } 30% { transform: scale(1.3); text-shadow: 0 0 22px rgba(255,210,110,1); } 100% { transform: scale(1); } }
-/* Стойка с терминалом — на переднем плане */
-.lift-desk { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; padding: 16px 16px calc(20px + env(safe-area-inset-bottom, 0px)); border-radius: 30px 30px 0 0; display: flex; flex-direction: column; gap: 14px;
-  background: linear-gradient(180deg, #2C3350, #1A2040 70%); box-shadow: inset 0 3px 0 rgba(255,255,255,.14), 0 -10px 30px rgba(10,14,34,.4); transition: transform .5s .12s cubic-bezier(.5,0,.8,.5); animation: lift-desk-in .5s cubic-bezier(.2,.9,.3,1) both; }
+/* Стойка с терминалом — на переднем плане. Корпус нарисован (900×598), ниже продолжается тем же цветом; размеры — в долях ширины стойки */
+.lift-desk { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; max-width: 520px; margin: 0 auto; container-type: inline-size; padding: 0 0 calc(18px + env(safe-area-inset-bottom, 0px));
+  background: url(/art/lift/desk.webp) top center / 100% auto no-repeat, linear-gradient(180deg, transparent 0, transparent 60cqw, #212A5A 60cqw); filter: drop-shadow(0 -8px 18px rgba(10,14,34,.35));
+  transition: transform .5s .12s cubic-bezier(.5,0,.8,.5); animation: lift-desk-in .5s cubic-bezier(.2,.9,.3,1) both; }
 @keyframes lift-desk-in { from { transform: translateY(40%); opacity: 0; } }
 .lift.go .lift-desk { transform: translateY(110%); }
-.lift-term { position: relative; border-radius: 16px; padding: 18px 16px 14px; text-align: center; background: #070B1A; box-shadow: inset 0 2px 8px rgba(0,0,0,.8), 0 1px 0 rgba(255,255,255,.1); }
-.lift-led { position: absolute; top: 8px; left: 50%; width: 38px; height: 4px; margin-left: -19px; border-radius: 2px; background: #FF5A4E; box-shadow: 0 0 8px rgba(255,90,78,.8); transition: background .15s, box-shadow .15s; }
-.lift.go .lift-led { background: #3EE08C; box-shadow: 0 0 12px rgba(62,224,140,.95); }
-.lift-hi { margin: 4px 0 0; font-size: 20px; font-weight: 800; line-height: 1.25; color: #F3F6FF; animation: sp-in .5s .3s ease both; }
-.lift-day { margin: 6px 0 0; font-size: 12.5px; font-weight: 700; color: #FFB52E; letter-spacing: .02em; animation: sp-in .5s .45s ease both; }
-.lift-row { display: flex; align-items: center; gap: 14px; }
+.lift-term { position: relative; margin: 0 8.6cqw; padding-top: 10.6cqw; height: 34.6cqw; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.lift-led { position: absolute; top: 4.7cqw; left: 50%; width: 9.6cqw; height: 1.7cqw; margin-left: -4.8cqw; border-radius: 1cqw; background: #3EE08C; box-shadow: 0 0 12px rgba(62,224,140,.95); opacity: 0; transition: opacity .15s; }
+.lift.go .lift-led { opacity: 1; }
+.lift-hi { margin: 0; font-size: clamp(15px, 4.7cqw, 24px); font-weight: 800; line-height: 1.2; color: #F3F6FF; animation: sp-in .5s .3s ease both; }
+.lift-day { margin: 1.2cqw 0 0; font-size: clamp(11px, 3cqw, 15px); font-weight: 700; color: #FFB52E; letter-spacing: .02em; animation: sp-in .5s .45s ease both; }
+.lift-row { display: flex; align-items: center; gap: 14px; padding: 4cqw 16px 0; }
 .lift-pass { position: relative; flex: 0 0 104px; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 14px 6px 8px; border-radius: 12px; background: linear-gradient(180deg, #fff, #EEF1F7); color: #121A33; transform: rotate(-4deg); box-shadow: 0 6px 14px rgba(0,0,20,.45); transition: transform .35s cubic-bezier(.3,1.4,.5,1); }
 .lift.go .lift-pass { transform: rotate(0) translateY(-10px) scale(1.05); }
 .lift-clip { position: absolute; top: 5px; left: 50%; width: 26px; height: 5px; margin-left: -13px; border-radius: 3px; background: #C9CEDA; box-shadow: inset 0 1px 1px rgba(0,0,0,.25); }
@@ -2482,5 +2483,5 @@ body.fx-shake-l .board-wrap, body.fx-shake-l .b-vs { animation: fx-shake-l .6s c
 /* Наезд: створки ушли в стену — камера проходит в проём */
 .lift.open .lift-scene { transform: scale(3.2); opacity: 0; transition-delay: .55s, .95s; }
 .lift.open { pointer-events: none; }
-@media (max-height: 640px) { .lift-hi { font-size: 17px; } .lift-term { padding: 14px 12px 10px; } }
 @media (prefers-reduced-motion: reduce) { .lift-door, .lift-scene, .lift-desk, .lift-pass { transition: none; animation: none; } .lift.open { opacity: 0; transition: opacity .3s; } .lift.open .lift-glow, .lift-arrow, .lift.go .lift-num, .lift-hi, .lift-day { animation: none; } }
+.lift-act .splash-go { background: linear-gradient(180deg, #FFDB6B, #F5B400) !important; color: #3B2A00 !important; }
