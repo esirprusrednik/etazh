@@ -2485,3 +2485,10 @@ body.fx-shake-l .board-wrap, body.fx-shake-l .b-vs { animation: fx-shake-l .6s c
 .lift.open { pointer-events: none; }
 @media (prefers-reduced-motion: reduce) { .lift-door, .lift-scene, .lift-desk, .lift-pass { transition: none; animation: none; } .lift.open { opacity: 0; transition: opacity .3s; } .lift.open .lift-glow, .lift-arrow, .lift.go .lift-num, .lift-hi, .lift-day { animation: none; } }
 .lift-act .splash-go { background: linear-gradient(180deg, #FFDB6B, #F5B400) !important; color: #3B2A00 !important; }
+/* График недели в тёмной теме: яркие клетки, чтобы офис, дом, отпуск и больничный читались с первого взгляда */
+:root[data-theme="dark"] .wk-c { background: rgba(255,255,255,.07); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); color: var(--muted); }
+:root[data-theme="dark"] .wk-c.office { background: #4D9BFF; color: #06203F; box-shadow: none; }
+:root[data-theme="dark"] .wk-c.home { background: #A78BFA; color: #1F1147; box-shadow: none; }
+:root[data-theme="dark"] .wk-c.vacation { background: #FFC93C; color: #3B2A00; box-shadow: none; }
+:root[data-theme="dark"] .wk-c.sick { background: #FF6B6B; color: #3D0A0A; box-shadow: none; }
+:root[data-theme="dark"] .wk-c.off { background: repeating-linear-gradient(135deg, #E5484D 0 3px, rgba(255,255,255,.14) 3px 9px); opacity: .8; box-shadow: none; }
