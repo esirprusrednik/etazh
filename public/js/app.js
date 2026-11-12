@@ -1938,13 +1938,13 @@ function renderNick() {
       <h2>Придумай никнейм</h2>
       <p class="sub">По нему тебя узнают на Этаже. Ник — для веселья, а имя и фамилию спросим следующим шагом, чтобы коллеги понимали, с кем общаются.</p>
       <div class="nick-rules">
-        <p><b>Можно почти всё:</b> гроза_дедлайнов, повелитель_кофемашины, просто_Петя. Буквы, цифры и «_», от 3 до 20 символов.</p>
+        <p><b>Можно почти всё:</b> гроза_дедлайна, король_кофе, просто_Петя. Буквы, цифры и «_», от 3 до 14 символов.</p>
         <p><b>Нельзя:</b> мат, оскорбления и шутки, над которыми смеёшься только ты. Проверка простая: такой ник не стыдно произнести вслух на планёрке.</p>
         <p><b>Передумаешь</b> — сменишь в профиле: первая смена бесплатно, дальше — ${S.cat ? S.cat.nickPrice : 50} зёрен. Ник при регистрации тоже бесплатный, старый после смены сразу освобождается.</p>
       </div>
       <div class="chips">${o.nicks.map((n) => `<button class="chip" data-act="nick-pick" data-v="${esc(n)}">${esc(n)}</button>`).join('')}
         <button class="chip" data-act="nick-more">Ещё варианты</button></div>
-      <label class="field">Никнейм<input id="nick" maxlength="21" autocomplete="off" placeholder="бодрый_енот" value="${esc(o.nick || '')}"></label>
+      <label class="field">Никнейм<input id="nick" maxlength="14" autocomplete="off" placeholder="бодрый_енот" value="${esc(o.nick || '')}"></label>
       <div class="field">Кто ты? <span class="small" style="font-weight:600">— от этого зависят аватар и как к тебе обращаться: «бандит» или «бандитка»</span>
         <div class="row">${['m', 'f'].map((p) => `<button class="chip ${o.preset === p ? 'on' : ''}" data-act="onb-preset" data-v="${p}">${avatar({ preset: p, hairStyle: p === 'f' ? 'long' : 'short' }, 28)} ${p === 'm' ? 'Он' : 'Она'}</button>`).join('')}</div>
       </div>
@@ -3571,7 +3571,7 @@ function renderGangNew() {
       <div class="gh-cols"><div><i>Банда</i><span>с кем обедаешь и ходишь за кофе</span><span>соседи по этажу и проектная тусовка</span><span>часть команды, если вы на одной волне</span></div>
       <div><i>Не банда</i><span>весь отдел по списку</span><span>руководитель «для порядка»</span><span>рабочие задачи — им место в рабочих системах</span></div></div></div>
     <p class="sub" style="margin-top:0">Общий чат, зовы, неделя офиса, опросы. Залог 50 зёрен вернётся, когда в банде будет 3 человека. В банде до 30 человек, а сам|сама ты можешь быть только в одной банде${S.me.gangs.length ? ` — сколотишь новую, выйдешь из «${esc(S.me.gangs[0].name)}»` : ''}.</p>
-    <label class="field">Название<input id="gang-name" maxlength="30" placeholder="Например, Кофейный патруль" value="${esc(d.name || '')}"></label>
+    <label class="field">Название<input id="gang-name" maxlength="16" placeholder="Например, Кофейный патруль" value="${esc(d.name || '')}"></label>
     <label class="field">Что вас объединяет${areaSelect('gang-area', d.area)}</label>
     ${crestField(d, 'new')}
     <div class="field">Кто может вступить${accessPicker(d.access)}</div>
@@ -3706,7 +3706,7 @@ function renderLeagueCard() {
 function renderGangSettings() {
   const d = S.gset;
   if (!d) return '<p class="sub">Загружаем…</p>';
-  return `<label class="field">Название<input id="gs-name" maxlength="30" value="${esc(d.name || '')}"></label>
+  return `<label class="field">Название<input id="gs-name" maxlength="${Math.max(16, (d.name || '').length)}" value="${esc(d.name || '')}"></label>
     ${crestField(d, 'set')}
     <div class="field">Цвет<div class="row" style="gap:8px">${S.cat.gangColors.map((c) => `<button class="swatch ${d.color === c ? 'on' : ''}" style="background:${c}" data-act="gs-color" data-v="${c}" aria-label="Цвет ${c}"></button>`).join('')}</div></div>
     <label class="field">Что вас объединяет${areaSelect('gs-area', d.area)}</label>
@@ -5581,9 +5581,9 @@ function renderProfile() {
     <div class="field">Никнейм
       ${S.nickConfirm ? `<div class="note warn" style="margin:0">Сменить ${nk(me)} на <b>${esc(S.nickConfirm)}</b> ${me.nickFree ? 'бесплатно? Бесплатная смена одна, следующие — за ' + S.cat.nickPrice + ' зёрен.' : `за ${S.cat.nickPrice} зёрен?`} Старый ник освободится, и его сможет занять кто-то другой.</div>
       <div class="row"><button class="btn small grow" data-act="nick-yes">Да, сменить</button><button class="btn small ghost grow" data-act="nick-no">Отмена</button></div>`
-      : `<div class="row"><label class="grow" style="display:flex"><span class="hidden">Новый никнейм</span><input id="p-nick" maxlength="21" value="${esc(me.nick)}" aria-label="Новый никнейм"></label>
+      : `<div class="row"><label class="grow" style="display:flex"><span class="hidden">Новый никнейм</span><input id="p-nick" maxlength="14" value="${esc(me.nick)}" aria-label="Новый никнейм"></label>
       <button class="btn small" data-act="nick-change" ${!me.nickFree && me.beans < S.cat.nickPrice ? 'disabled' : ''}>Сменить</button></div>
-      <span class="small" style="font-weight:600">${me.nickFree ? 'Первая смена бесплатно, дальше — ' + S.cat.nickPrice + ' зёрен. Буквы, цифры и «_», от 3 до 20 символов.' : me.beans < S.cat.nickPrice ? `Смена стоит ${S.cat.nickPrice} зёрен, у тебя ${me.beans}.` : `Стоит ${S.cat.nickPrice} зёрен. Буквы, цифры и «_», от 3 до 20 символов.`}</span>`}</div>
+      <span class="small" style="font-weight:600">${me.nickFree ? 'Первая смена бесплатно, дальше — ' + S.cat.nickPrice + ' зёрен. Буквы, цифры и «_», от 3 до 14 символов.' : me.beans < S.cat.nickPrice ? `Смена стоит ${S.cat.nickPrice} зёрен, у тебя ${me.beans}.` : `Стоит ${S.cat.nickPrice} зёрен. Буквы, цифры и «_», от 3 до 20 символов.`}</span>`}</div>
     <div class="row" style="gap:8px">
       <label class="field grow">Имя<input id="p-first" maxlength="30" value="${esc(p.firstName)}" autocomplete="given-name"></label>
       <label class="field grow">Фамилия<input id="p-last" maxlength="30" value="${esc(p.lastName)}" autocomplete="family-name"></label>
@@ -6990,7 +6990,7 @@ const actions = {
   'nick-change'() {
     const nick = $('#p-nick').value.trim().replace(/^@+/, '');
     if (nick.toLowerCase() === S.me.nick.toLowerCase()) { S.error = 'Впиши новый никнейм'; render(); return; }
-    if (!/^[a-zA-Zа-яА-ЯёЁ0-9_]{3,20}$/.test(nick)) { S.error = 'От 3 до 20 символов: буквы, цифры и «_», без пробелов.'; render(); return; }
+    if (!/^[a-zA-Zа-яА-ЯёЁ0-9_]{3,14}$/.test(nick)) { S.error = 'От 3 до 14 символов: буквы, цифры и «_», без пробелов.'; render(); return; }
     S.error = null; S.nickConfirm = nick; render();
   },
   'nick-no'() { S.nickConfirm = null; render(); },

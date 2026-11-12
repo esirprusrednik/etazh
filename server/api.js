@@ -97,6 +97,9 @@ function applyLook(base, l, owned) {
   return look;
 }
 const NICK_PRICE = 50;
+// Длины подобраны по экрану 360–390 px: ник целиком влезает в шапку, название банды — в одну строку рядом с гербом и на ленту герба.
+// Действуют на новые ники и названия; прежние, длиннее, остаются как были
+const NICK_MAX = 14, GANG_NAME_MAX = 16;
 // Версия интерфейса: отпечаток файлов клиента. Открытое приложение сравнивает её со своей и перезагружается,
 // иначе у коллег, которые неделями не закрывают вкладку, остаётся старая отрисовка (например, аватаров)
 const BUILD = (() => {
@@ -596,7 +599,7 @@ function createApi(db) {
         moods: MOODS, moodsF: { ...MOODS, ...MOODS_F }, idleJokesF: IDLE_JOKES_F,
         calls: Object.fromEntries(Object.entries(CALLS).map(([k, v]) => [k, { label: v.label, opts: v.opts, needsText: !!v.needsText, textLabel: v.textLabel || (v.needsText ? 'Уточни' : null), textHint: v.textHint || '' }])),
         signals: Object.fromEntries(Object.entries(SIGNALS).map(([k, v]) => [k, v.label])),
-        tags: TAGS, days: DAYS, look: LOOK, nickPrice: NICK_PRICE, memes: MEMES.map((m) => ({ ...m, on: SEASON.seasonOn(m.season, U.msk().day) })), memeEmos: MEME_EMOS, seasons: SEASON.activeSeasons(U.msk().day),
+        tags: TAGS, days: DAYS, look: LOOK, nickPrice: NICK_PRICE, nickMax: NICK_MAX, gangNameMax: GANG_NAME_MAX, memes: MEMES.map((m) => ({ ...m, on: SEASON.seasonOn(m.season, U.msk().day) })), memeEmos: MEME_EMOS, seasons: SEASON.activeSeasons(U.msk().day),
         parts: SHOP.filter((it) => it.kind === 'part').map(({ id, slot, value, name, price, legend, award, season }) => ({ id, slot, value, name, price, legend: !!legend, award: !!award, season: season || null, on: SEASON.seasonOn(season, U.msk().day), until: season && SEASON.seasonOn(season, U.msk().day) ? SEASON.nextWindow(season, U.msk().day).to : null })), gangColors: GANG_COLORS, idleJokes: IDLE_JOKES,
         offices: offices(companyOf(u)).map((o) => ({ id: o.id, name: o.name, color: o.color }))
       }
@@ -610,7 +613,7 @@ function createApi(db) {
     let guard = 0;
     while (out.size < 4 && guard++ < 50) {
       const n = adjs[Math.floor(Math.random() * adjs.length)] + '_' + nouns[Math.floor(Math.random() * nouns.length)];
-      if (!q('SELECT 1 FROM users WHERE nick = ?').get(n)) out.add(n);
+      if (n.length <= NICK_MAX && !q('SELECT 1 FROM users WHERE nick = ?').get(n)) out.add(n);
     }
     return { nicks: [...out] };
   });
@@ -618,7 +621,7 @@ function createApi(db) {
   route('POST', '/api/me/nick', async (req, body) => {
     const u = requireUser(req, { nick: false });
     const nick = U.cleanText(body.nick, 21).replace(/^@+/, '');
-    if (!/^[a-zA-Zа-яА-ЯёЁ0-9_]{3,20}$/.test(nick)) throw bad('От 3 до 20 символов: буквы, цифры и «_», без пробелов.');
+    if (!/^[a-zA-Zа-яА-ЯёЁ0-9_]{3,20}$/.test(nick) || nick.length > NICK_MAX) throw bad(`От 3 до ${NICK_MAX} символов: буквы, цифры и «_», без пробелов.`);
     const prob = U.moderationProblem(nick);
     if (prob) throw bad(prob);
     if (u.nick && nick === u.nick) throw bad('Это и так твой никнейм.');
@@ -899,6 +902,7 @@ function createApi(db) {
     const u = requireUser(req);
     const name = U.cleanText(body.name, 30);
     if (name.length < 2) throw bad('Придумай банде название.');
+    if (name.length > GANG_NAME_MAX) throw bad(`Название — до ${GANG_NAME_MAX} символов: так оно целиком влезает рядом с гербом.`);
     const prob = U.moderationProblem(name);
     if (prob) throw bad(prob === 'Такой текст не пройдёт модерацию.' ? 'Такое название не пройдёт модерацию. Банда — за что-то, а не против кого-то.' : prob);
     if (q('SELECT 1 FROM gangs WHERE name = ? COLLATE NOCASE').get(name)) throw bad('Банда с таким названием уже есть.');
@@ -1101,6 +1105,7 @@ function createApi(db) {
     if (body.name !== undefined && U.cleanText(body.name, 30) !== g.name) {
       name = U.cleanText(body.name, 30);
       if (name.length < 2) throw bad('Название — от 2 символов.');
+      if (name.length > GANG_NAME_MAX) throw bad(`Название — до ${GANG_NAME_MAX} символов: так оно целиком влезает рядом с гербом.`);
       const prob = U.moderationProblem(name);
       if (prob) throw bad(prob);
       if (q('SELECT 1 FROM gangs WHERE name = ? COLLATE NOCASE AND id != ?').get(name, g.id)) throw bad('Банда с таким названием уже есть.');

@@ -668,6 +668,12 @@ function startServer(day, extra = {}) {
       await B.post('/api/me/profile', { profile: { focus: null } });
       assert.ok(!(await A.get('/api/people')).json.people.find((p) => p.nick === 'отпускник').focus);
     });
+    await step('длина: новый ник — до 14 символов, название банды — до 16', async () => {
+      const n = await A.post('/api/me/nick', { nick: 'ник_из_15_букв_' });
+      assert.equal(n.status, 400); assert.match(n.json.error, /до 14/);
+      const g = await A.post('/api/gangs', { name: 'Название из 17 бу', access: 'open' });
+      assert.equal(g.status, 400); assert.match(g.json.error, /до 16/);
+    });
     await step('таблички сами: «Тихо, работаю» в фокусе, «Скоро буду» после ответа на зов, выключатель в настройках', async () => {
       const seen = async () => (await A.get('/api/people')).json.people.find((p) => p.nick === 'отпускник').look.prop;
       const before = await seen();

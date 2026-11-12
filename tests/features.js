@@ -446,7 +446,7 @@ const mskToday = () => new Date(Date.now() + SHIFT_H * 3600e3).toISOString().sli
     const v = (await a.post(`/api/crest-vote/${pid}/vote`, { vote: -1 })).json;
     assert.ok(!JSON.stringify(v).includes('бодрый_енот'), 'голос тайный — ников нет');
     assert.equal(v.active.za, 1); assert.equal(v.active.protiv, 1);
-    const outsider = await new Client().login('chuzhoy2@mts.ru', 'посторонний_лис');
+    const outsider = await new Client().login('chuzhoy2@mts.ru', 'чужой_лис');
     assert.equal((await outsider.post(`/api/crest-vote/${pid}/vote`, { vote: 1 })).status, 404);
     // c — за: при банде из трёх это уже больше половины
     const after = (await c.post(`/api/crest-vote/${pid}/vote`, { vote: 1 })).json;
