@@ -4758,11 +4758,8 @@ function renderBlitzCard() {
     return `<section class="card blitz">${head}<p class="sub" style="margin:6px 0 10px">Блиц идёт: осталось <b>${mmss(b.leftMs)}</b>, верных ${b.score}.</p>
       <button class="btn wide" data-act="blitz-open">Продолжить</button></section>`;
   }
-  return `<section class="card blitz">${head}
-    <div class="bl-result"><b>${b.score}</b><span>верных из ${b.answered} отвеченных · за ${mmss(b.secs * 1000)}${b.beans ? ` · +${b.beans} зёрен` : ''}</span></div>
-    ${b.board && b.board.place ? `<p class="small" style="margin:0 0 8px">Место: <b>${b.board.place}</b> из ${b.board.players}</p>` : ''}
-    <div class="eyebrow">Лидеры</div>${blitzBoard(b.board)}
-  </section>`;
+  // Прошёл — только тройка лидеров; своё место — строкой под ней, если ты не в тройке
+  return `<section class="card blitz done">${head}${blitzBoard(b.board, 3)}</section>`;
 }
 function renderBlitzPlay() {
   const b = S.blitz;

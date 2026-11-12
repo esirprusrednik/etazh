@@ -2385,3 +2385,5 @@ body.fx-shake-l .board-wrap, body.fx-shake-l .b-vs { animation: fx-shake-l .6s c
 /* Столовая: сводка оценок и «изменить мою» одной строкой */
 .food > .row > .food-sum { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; }
 .food > .row > .food-sum .food-pct { flex: none; }
+
+.card.blitz.done .bl-board { margin-top: 6px; }
