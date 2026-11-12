@@ -140,6 +140,8 @@ public/art/bg_street.webp
 public/art/bolt.webp
 public/art/buoy.webp
 public/art/clink.webp
+public/art/crest/em.webp
+public/art/crest/tops.webp
 public/art/coffee.webp
 public/art/cup.webp
 public/art/dice.webp

@@ -1,4 +1,5 @@
-// Гербы банд: векторный щит из частей — форма, деление поля, два цвета, фигура, навершие и лента с девизом.
+// Гербы банд: щит из частей — форма, деление поля, два цвета, фигура, навершие и лента с девизом.
+// Щит векторный и «лепится» градиентами; фигуры, навершия и лента — вылепленные картинки (tools/art/README.md).
 // Ключи частей совпадают с CREST в server/catalog.js — сервер проверяет, что пришли только они.
 // Если банда герб не собирала, он собирается сам из того, что объединяет банду, интересов и id — у каждой банды свой.
 
@@ -114,56 +115,75 @@ export function randomCrest(g, keepCharge = false) {
 }
 export const crestOf = (g) => ({ ...autoCrest(g), ...(g.crest || {}) });
 
-let uidN = 0;
-function topLayer(top, gold) {
-  const [g, gd] = TINCTURES.gold;
-  if (top === 'crown') return `<path d="M30 9 L27 -6 L38 2 L50 -10 L62 2 L73 -6 L70 9 Z" fill="${g}" stroke="${gd}" stroke-width="2" stroke-linejoin="round"/><circle cx="50" cy="-10" r="2.6" fill="#D7263D"/><circle cx="27" cy="-6" r="2" fill="${g}" stroke="${gd}"/><circle cx="73" cy="-6" r="2" fill="${g}" stroke="${gd}"/>`;
-  if (top === 'stars') return [[30, 1, 4], [50, -6, 6], [70, 1, 4]].map(([x, y, r]) => `<path transform="translate(${x - 20 * r / 10} ${y - 20 * r / 10}) scale(${r / 10})" d="${C.star}" fill="${g}" stroke="${gd}" stroke-width="2.5"/>`).join('');
-  if (top === 'helm') return `<path d="M34 10 Q34 -12 50 -12 Q66 -12 66 10 Z" fill="#C9D1DD" stroke="#6B7689" stroke-width="2"/><path d="M38 0 H62 M40 4 H60" stroke="#6B7689" stroke-width="2.2"/><path d="M50 -12 Q58 -24 70 -18 Q60 -16 56 -10" fill="#D7263D"/>`;
-  if (top === 'wings') {
-    const w = (f) => `<path transform="${f ? 'translate(100 0) scale(-1 1)' : ''}" d="M10 30 Q-6 22 -8 4 Q2 12 6 10 Q-2 2 -2 -6 Q8 4 12 4 Q8 -4 10 -10 Q16 2 18 12 Z" fill="#F4F6FA" stroke="#9AA3B5" stroke-width="1.6" stroke-linejoin="round"/>`;
-    return w(false) + w(true);
-  }
-  if (top === 'laurel') {
-    const leaf = (x, y, a) => `<ellipse cx="${x}" cy="${y}" rx="6" ry="2.6" transform="rotate(${a} ${x} ${y})" fill="#3E9B58" stroke="#22663A" stroke-width=".8"/>`;
-    const side = (f) => [[8, 96, -60], [3, 82, -75], [1, 66, -88], [2, 50, -100], [5, 34, -112], [10, 20, -125]].map(([x, y, a]) => leaf(f ? 100 - x : x, y, f ? 180 - a : a)).join('');
-    return side(false) + side(true);
-  }
-  return '';
-}
+// ----- Объёмный герб («пластилин») -----
+// Щит, деления и цвета остаются векторными — любая из комбинаций собирается на лету; объём дают градиенты и фаска.
+// Фигуры и навершия — вылепленные картинки из атласов /art/crest/*.webp. Фигура серая и красится фильтром в цвет cc.
+const EM = { file: '/art/crest/em.webp', cell: 160, cols: 6, rows: 6,
+  keys: ['chart', 'search', 'gear', 'code', 'coin', 'megaphone', 'scales', 'tower', 'briefcase', 'bag', 'headset', 'people', 'lock', 'crown', 'star', 'bolt', 'cup', 'book',
+    'note', 'plane', 'ball', 'rocket', 'flame', 'tree', 'heart', 'dice', 'film', 'pizza', 'medal', 'globe', 'snake', 'wolf', 'owl', 'anchor', 'sword'] };
+// Навершия и лента: [x, y, w, h в атласе, x, y, w, h на гербе]
+const TOPS = { file: '/art/crest/tops.webp', w: 960, h: 640,
+  crown: [0, 0, 320, 320, 25.5, -29.5, 49, 49], stars: [320, 0, 320, 320, 21.5, -32, 57, 57], helm: [640, 0, 320, 320, 27.5, -28.5, 45, 45],
+  wings: [0, 320, 320, 320, -13.5, -25.5, 127, 127], laurel: [320, 320, 320, 320, -13.5, 2.5, 127, 127], ribbon: [640, 320, 320, 320, 0, 67, 100, 100] };
+const atlasImg = (a, [sx, sy, sw, sh, x, y, w, h], extra = '') =>
+  `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="${sx} ${sy} ${sw} ${sh}" ${extra}><image href="${a.file}" width="${a.w}" height="${a.h}"/></svg>`;
+const mix = (hex, to, k) => { const a = parseInt(hex.slice(1), 16), b = parseInt(to.slice(1), 16);
+  const ch = (sh) => Math.round(((a >> sh) & 255) * (1 - k) + ((b >> sh) & 255) * k);
+  return '#' + [16, 8, 0].map((sh) => ch(sh).toString(16).padStart(2, '0')).join(''); };
 
 // size — px; full — с навершием и лентой; motto — текст на ленте
 export function crestSvg(crestIn, { size = 40, full = false, motto = '' } = {}) {
   const c = crestIn;
-  const u = 'cr' + (++uidN);
   const shape = SHAPES[c.shape] || SHAPES.heater;
   const [f1, f1d] = TINCTURES[c.c1] || TINCTURES.blue;
   const [f2] = TINCTURES[c.c2] || TINCTURES.gold;
-  const [cc, ccd] = TINCTURES[c.cc] || TINCTURES.gold;
   const div = (DIVS[c.div] || DIVS.plain)(f2).replace('SHAPE', shape);
-  const icon = C[c.charge] || C.star;
-  const fill = ['star', 'bolt', 'flame', 'heart', 'plane', 'crown'].includes(c.charge) ? cc : 'none';
-  const charge = `<g transform="translate(26 36) scale(1.2)" stroke-linecap="round" stroke-linejoin="round">
-      <path d="${icon}" fill="none" stroke="${ccd}" stroke-width="6.4" opacity=".85"/><path d="${icon}" fill="${fill}" stroke="${cc}" stroke-width="3.4"/></g>`;
-  const showTop = full && c.top && c.top !== 'none';
+  const ei = Math.max(0, EM.keys.indexOf(c.charge in C ? c.charge : 'star'));
+  const cell = [(ei % EM.cols) * EM.cell, Math.floor(ei / EM.cols) * EM.cell, EM.cell, EM.cell, 22, 29, 56, 56];
+  const charge = atlasImg({ file: EM.file, w: EM.cols * EM.cell, h: EM.rows * EM.cell }, cell);
+  const showTop = full && c.top && c.top !== 'none' && TOPS[c.top];
   const hasRibbon = full && c.motto !== false && !!motto;
-  const ribbon = hasRibbon ? `<g transform="translate(0 12)"><path d="M2 104 L14 98 H86 L98 104 L90 110 L98 116 H78 L74 112 H26 L22 116 H2 L10 110 Z" fill="${f1d}" stroke="#0D1220" stroke-opacity=".35" stroke-width="1"/>
-      <path d="M14 98 H86 L84 112 H16 Z" fill="${TINCTURES.silver[0]}" stroke="#9AA3B5" stroke-width="1"/>
-      <text x="50" y="108.4" text-anchor="middle" font-family="system-ui,sans-serif" font-weight="900" font-size="${Math.min(8.5, 100 / Math.max(6, String(motto).length))}" fill="#1E2433">${String(motto).replace(/[&<>"]/g, '').slice(0, 22)}</text></g>` : '';
-  const top0 = showTop ? -26 : 0, bottom = hasRibbon ? 130 : 118;
-  const vb = full ? `-12 ${top0} 124 ${bottom - top0}` : '6 3 88 112';
-  const w = size, h = Math.round(size * (full ? (bottom - top0) / 124 : 112 / 88));
+  const ribbon = hasRibbon ? `${atlasImg(TOPS, TOPS.ribbon)}
+      <text x="50" y="113.2" text-anchor="middle" font-family="system-ui,sans-serif" font-weight="900" font-size="${Math.min(8, 84 / Math.max(6, String(motto).length))}" fill="#3A2F1E">${String(motto).replace(/[&<>"]/g, '').slice(0, 22)}</text>` : '';
+  const top0 = showTop && !['wings', 'laurel'].includes(c.top) ? -30 : 0, bottom = hasRibbon ? 137 : c.top === 'laurel' && showTop ? 124 : 120;
+  const vb = full ? `-14 ${top0} 128 ${bottom - top0}` : '5 4 90 114';
+  const w = size, h = Math.round(size * (full ? (bottom - top0) / 128 : 114 / 90));
+  const back = showTop && ['wings', 'laurel'].includes(c.top);
+  const side = mix(f1d, '#000000', 0.25);
+  crestDefs();
+  const sk = SHAPES[c.shape] ? c.shape : 'heater', tk = TINCTURES[c.cc] ? c.cc : 'gold';
   return `<svg class="crest" width="${w}" height="${h}" viewBox="${vb}" aria-hidden="true">
-    <defs><clipPath id="${u}c"><path d="${shape}"/></clipPath>
-      <linearGradient id="${u}g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".18"/></linearGradient></defs>
-    ${showTop && c.top === 'wings' ? topLayer('wings') : ''}
-    ${showTop && c.top === 'laurel' ? topLayer('laurel') : ''}
-    <g clip-path="url(#${u}c)"><rect x="-10" y="-10" width="130" height="140" fill="${f1}"/>${div}${charge}<rect x="-10" y="-10" width="130" height="140" fill="url(#${u}g)"/></g>
-    <path d="${shape}" fill="none" stroke="#0D1220" stroke-opacity=".55" stroke-width="${size < 50 ? 4 : 3}" stroke-linejoin="round"/>
-    <path d="${shape}" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="1.2" transform="translate(50 58) scale(.94) translate(-50 -58)"/>
-    ${showTop && !['wings', 'laurel'].includes(c.top) ? topLayer(c.top) : ''}
+    ${back ? atlasImg(TOPS, TOPS[c.top]) : ''}
+    <path d="${shape}" fill="${side}" transform="translate(0 4)"/>
+    <g clip-path="url(#crc-${sk})"><rect x="-10" y="-10" width="130" height="140" fill="${f1}"/>${div}
+      <rect x="-10" y="-10" width="130" height="140" fill="url(#crg)"/><rect x="-10" y="-10" width="130" height="140" fill="url(#crh)"/>
+      <path d="${shape}" fill="none" stroke="url(#crb)" stroke-width="${size < 50 ? 9 : 7}" stroke-linejoin="round"/>
+      <g filter="url(#crt-${tk})">${charge}</g></g>
+    ${showTop && !back ? atlasImg(TOPS, TOPS[c.top]) : ''}
     ${ribbon}
   </svg>`;
+}
+
+// Общие для всех гербов градиенты, обрезки по форме щита и фильтры покраски фигуры — один раз на страницу, вне #root
+function crestDefs() {
+  if (typeof document === 'undefined' || document.getElementById('crest-defs')) return;
+  const filt = (k, [cc, ccd]) => `<filter id="crt-${k}" x="-15%" y="-15%" width="130%" height="140%" color-interpolation-filters="sRGB">
+      <feFlood flood-color="${cc}"/><feComposite in2="SourceAlpha" operator="in" result="flat"/>
+      <feComponentTransfer in="SourceGraphic" result="sh"><feFuncR type="linear" slope="1.4"/><feFuncG type="linear" slope="1.4"/><feFuncB type="linear" slope="1.4"/></feComponentTransfer>
+      <feBlend in="sh" in2="flat" mode="multiply" result="m"/>
+      <feComponentTransfer in="SourceGraphic" result="hi"><feFuncR type="linear" slope="2.6" intercept="-1.9"/><feFuncG type="linear" slope="2.6" intercept="-1.9"/><feFuncB type="linear" slope="2.6" intercept="-1.9"/></feComponentTransfer>
+      <feBlend in="hi" in2="m" mode="screen" result="lit"/><feComposite in="lit" in2="SourceAlpha" operator="in" result="fig"/>
+      <feFlood flood-color="${mix(ccd, '#000000', 0.5)}" flood-opacity=".55"/><feComposite in2="SourceAlpha" operator="in"/><feOffset dx="1.2" dy="2.4" result="drop"/>
+      <feMerge><feMergeNode in="drop"/><feMergeNode in="fig"/></feMerge></filter>`;
+  const el = document.createElement('div');
+  el.innerHTML = `<svg id="crest-defs" width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    ${Object.entries(SHAPES).map(([k, d]) => `<clipPath id="crc-${k}"><path d="${d}"/></clipPath>`).join('')}
+    <linearGradient id="crg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".30"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".28"/></linearGradient>
+    <linearGradient id="crb" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".75"/><stop offset=".4" stop-color="#fff" stop-opacity=".12"/><stop offset=".6" stop-color="#000" stop-opacity=".12"/><stop offset="1" stop-color="#000" stop-opacity=".5"/></linearGradient>
+    <radialGradient id="crh" cx=".3" cy=".2" r=".5"><stop offset="0" stop-color="#fff" stop-opacity=".42"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    ${Object.entries(TINCTURES).map(([k, t]) => filt(k, t)).join('')}
+  </defs></svg>`;
+  document.body.appendChild(el.firstChild);
 }
 
 export const CREST_PARTS = { shape: Object.keys(SHAPES), div: Object.keys(DIVS), tincture: Object.keys(TINCTURES), charge: Object.keys(C), top: Object.keys(TOP_NAMES) };
