@@ -348,6 +348,18 @@ function startServer(day, extra = {}) {
       assert.ok(!(await B.get('/api/board')).json.items.some((x) => x.id === id));
     });
 
+    await step('доска банды: видят только свои, чужой не повесит и не откликнется', async () => {
+      const r = await B.post('/api/board', { kind: 'company', text: 'Кто со мной на обед в 13:00?', until: '2026-11-12', gang: gb.id });
+      assert.equal(r.status, 200); assert.equal(r.json.item.gang.id, gb.id); assert.equal(r.json.item.office, null);
+      const id = r.json.item.id;
+      assert.ok((await D.get('/api/board')).json.items.some((x) => x.id === id), 'участник банды видит');
+      assert.ok(!(await A.get('/api/board')).json.items.some((x) => x.id === id), 'чужой не видит');
+      assert.equal((await A.post(`/api/board/${id}/metoo`)).status, 404, 'чужой не откликнется');
+      assert.equal((await A.post('/api/board', { kind: 'other', text: 'В чужую банду', gang: gb.id })).status, 400);
+      assert.equal((await D.post(`/api/board/${id}/metoo`)).json.item.metoo, 1);
+      await B.post(`/api/board/${id}/remove`);
+    });
+
     await step('совместное событие двух банд: видят обе, отвечают, сводка гостям', async () => {
       const guests = (await A.get(`/api/gangs/${ga.id}/gevent-guests`)).json.items;
       assert.ok(guests.some((g) => g.id === gb.id) && !guests.some((g) => g.id === ga.id));

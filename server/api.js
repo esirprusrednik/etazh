@@ -1800,7 +1800,7 @@ function createApi(db) {
   league = require('./league').register({ db, q, route, requireUser, U, addBeans, notify, fireAndForget });
   tourney = require('./tourney').register({ db, q, route, requireUser, requireAdmin, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, gangwar, league });
   // ---------- Доска объявлений на весь «Этаж» ----------
-  board = require('./board').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, officeById, publicLook, fullName });
+  board = require('./board').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, officeById, publicLook, fullName, isMember, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   // ---------- Секретный чат один на один (сквозное шифрование) ----------
   secret = require('./secret').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, canDm: (u, t) => (crew ? crew.canDm(u, t) : true) });
   // ---------- Пятничная пятиминутка банды ----------

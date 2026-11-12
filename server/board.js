@@ -1,6 +1,7 @@
 // Доска объявлений на весь «Этаж»: «ищу компанию на обед», «отдам билеты», «кто едет на конференцию», «нашёл зонт».
 // Объявление живёт до даты, которую выбрал автор (не дольше двух недель), и само исчезает.
 // «Я тоже» — отметка интереса: автору приходит пуш (один раз на человека), дальше общение в личке.
+// Кому: весь Этаж, только свой офис или только своя банда — объявление банды видят только её участники.
 
 const KINDS = {
   company: { name: 'Ищу компанию', icon: 'coffee' },
@@ -15,7 +16,7 @@ const MAX_DAYS = 14;
 const PER_DAY = 5;
 
 function register(ctx) {
-  const { db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, officeById, publicLook, fullName } = ctx;
+  const { db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, officeById, publicLook, fullName, isMember, onEvent } = ctx;
 
   db.exec(`
   CREATE TABLE IF NOT EXISTS board_posts (
@@ -31,6 +32,8 @@ function register(ctx) {
     at INTEGER NOT NULL, PRIMARY KEY (post_id, user_id)
   );
   `);
+  try { db.exec('ALTER TABLE board_posts ADD COLUMN gang_id INTEGER'); } catch {}
+  const canSee = (p, uid) => !p.gang_id || (isMember && isMember(p.gang_id, uid));
 
   const today = () => U.msk().day;
   const addDays = (day, n) => new Date(Date.parse(day + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
@@ -41,9 +44,10 @@ function register(ctx) {
     const me = q('SELECT 1 FROM board_metoo WHERE post_id = ? AND user_id = ?').get(p.id, uid);
     const fans = p.user_id === uid ? q('SELECT u.id, u.nick FROM board_metoo m JOIN users u ON u.id = m.user_id WHERE m.post_id = ? ORDER BY m.at').all(p.id) : null;
     const o = p.office_id ? officeById(p.office_id) : null;
+    const g = p.gang_id ? q('SELECT id, name FROM gangs WHERE id = ?').get(p.gang_id) : null;
     return {
       id: p.id, kind: p.kind, kindName: (KINDS[p.kind] || KINDS.other).name, icon: (KINDS[p.kind] || KINDS.other).icon,
-      text: p.text, until: p.until, office: o ? { id: o.id, name: o.name } : null,
+      text: p.text, until: p.until, office: o ? { id: o.id, name: o.name } : null, gang: g ? { id: g.id, name: g.name } : null,
       author: { id: p.user_id, nick: who.nick, name: fullName ? fullName(wp, 'all') : '', look: publicLook ? publicLook(who) : {} }, mine: p.user_id === uid,
       metoo: q('SELECT COUNT(*) AS n FROM board_metoo WHERE post_id = ?').get(p.id).n, iMetoo: !!me, fans, at: p.at
     };
@@ -54,7 +58,7 @@ function register(ctx) {
     // Доска — внутри своей компании
     const rows = q("SELECT p.* FROM board_posts p JOIN users x ON x.id = p.user_id WHERE p.hidden = 0 AND p.until >= ? AND x.company = ? ORDER BY p.at DESC LIMIT 100").all(today(), u.company || 'mts');
     const office = query.office ? String(query.office) : '';
-    const items = rows.filter((p) => !office || !p.office_id || p.office_id === office).map((p) => view(p, u.id));
+    const items = rows.filter((p) => canSee(p, u.id) && (!office || !p.office_id || p.office_id === office)).map((p) => view(p, u.id));
     return { items, kinds: Object.entries(KINDS).map(([id, k]) => ({ id, ...k })), maxDays: MAX_DAYS };
   });
 
@@ -70,8 +74,11 @@ function register(ctx) {
     let until = String(body.until || addDays(t, 3));
     if (!/^\d{4}-\d{2}-\d{2}$/.test(until) || isNaN(Date.parse(until)) || until < t) throw bad('До какого дня висит объявление?');
     if (until > addDays(t, MAX_DAYS)) until = addDays(t, MAX_DAYS);
-    const office = body.office && officeById(String(body.office)) ? String(body.office) : null;
-    const id = Number(q('INSERT INTO board_posts (user_id, kind, text, office_id, until, at) VALUES (?, ?, ?, ?, ?, ?)').run(u.id, kind, text, office, until, U.now()).lastInsertRowid);
+    const gang = body.gang ? Number(body.gang) : null;
+    if (gang && !(isMember && isMember(gang, u.id))) throw bad('Повесить объявление можно только в своей банде.');
+    const office = !gang && body.office && officeById(String(body.office)) ? String(body.office) : null;
+    const id = Number(q('INSERT INTO board_posts (user_id, kind, text, office_id, until, at, gang_id) VALUES (?, ?, ?, ?, ?, ?, ?)').run(u.id, kind, text, office, until, U.now(), gang).lastInsertRowid);
+    if (kind === 'company' && onEvent) onEvent('board_company', u.id);
     return { item: view(q('SELECT * FROM board_posts WHERE id = ?').get(id), u.id) };
   });
 
@@ -86,11 +93,12 @@ function register(ctx) {
     const u = requireUser(req);
     const p = postOr404(params.id);
     if (p.user_id === u.id) throw bad('Это твоё объявление.');
-    if (((q('SELECT company FROM users WHERE id = ?').get(p.user_id) || {}).company || 'mts') !== (u.company || 'mts')) throw new HttpError(404, 'Объявление не найдено.');
+    if (((q('SELECT company FROM users WHERE id = ?').get(p.user_id) || {}).company || 'mts') !== (u.company || 'mts') || !canSee(p, u.id)) throw new HttpError(404, 'Объявление не найдено.');
     const had = q('SELECT 1 FROM board_metoo WHERE post_id = ? AND user_id = ?').get(p.id, u.id);
     if (had) q('DELETE FROM board_metoo WHERE post_id = ? AND user_id = ?').run(p.id, u.id);
     else {
       const r = q('INSERT OR IGNORE INTO board_metoo (post_id, user_id, at) VALUES (?, ?, ?)').run(p.id, u.id, U.now());
+      if (r.changes && p.kind === 'company' && onEvent) onEvent('board_company', u.id);
       if (r.changes) fireAndForget(notify([p.user_id], { title: 'Доска «Этажа»', body: `${u.nick}: «я тоже» — ${p.text.slice(0, 60)}`, url: `/#crew/${u.id}`, tag: `board-${p.id}` }));
     }
     return { item: view(p, u.id) };

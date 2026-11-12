@@ -25,7 +25,7 @@ const ACH = [
   A('first', 'first_dm', 'common', 'Лично в руки', 'Написать кому-то в личку', 'dms', 1),
   A('first', 'thanks_give', 'common', 'Вежливость', 'Сказать спасибо кому-то из банды', 'thanks_given', 1),
   A('first', 'first_meme', 'common', 'Мемолог', 'Отправить мем-открытку', 'memes', 1),
-  A('first', 'first_lunch', 'common', 'Обед по расписанию', 'Собрать обед компанией или присоединиться', 'lunches', 1),
+  A('first', 'first_lunch', 'common', 'Обед по расписанию', 'Позвать компанию на Доске или откликнуться «я тоже»', 'lunches', 1),
   A('first', 'first_food', 'common', 'Ресторанный критик', 'Оценить обед в столовой', 'food', 1),
   A('first', 'first_signal', 'common', 'Сигнальщик', 'Отправить сигнал офиса', 'signals_sent', 1),
   A('first', 'first_look', 'common', 'Стилист', 'Собрать свой аватар в конструкторе', 'looks', 1),
@@ -531,6 +531,8 @@ function register(ctx) {
       if (type === 'guess_any') { completeQuest(uid, 'guess'); completeQuest(uid, 'wguess'); }
       if (type === 'sea_shot') completeQuest(uid, 'sea');
       if (type === 'signal_sent') bump(uid, 'signals_sent');
+      // «Обед компанией» переехал на Доску: позвал или откликнулся на «Ищу компанию» — засчитываем как обед
+      if (type === 'board_company') { bump(uid, 'lunches'); stat('lunches'); }
       if (type === 'blitz') { bump(uid, 'blitz'); if ((data.score || 0) > counter(uid, 'blitz_best')) setCounter(uid, 'blitz_best', data.score); }
       if (type === 'poll') bump(uid, 'polls');
       if (type === 'poll_vote') { bump(uid, 'poll_votes'); completeQuest(uid, 'vote'); }
