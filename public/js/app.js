@@ -2672,7 +2672,7 @@ function renderAdvent(compact = false) {
   </section>`;
 }
 // Новогоднее оформление карточки: гирлянда сверху, хвойные ветки по углам, сугроб снизу. Текст — на чистом поле посередине
-const NY_DECO = '<div class="ny-deco" aria-hidden="true"><img class="ny-fir l" src="/art/ny/fir.webp" alt=""><img class="ny-fir r" src="/art/ny/fir.webp" alt=""><img class="ny-garland" src="/art/ny/garland.webp" alt=""><img class="ny-snow" src="/art/ny/snow.webp" alt=""><img class="ny-balls" src="/art/ny/balls.webp" alt=""></div>';
+const nyDeco = () => '<div class="ny-deco" aria-hidden="true"><img class="ny-fir l" src="/art/ny/fir.webp" alt=""><img class="ny-fir r" src="/art/ny/fir.webp" alt=""><div class="ny-garland" style="--ny:-' + (Date.now() % 12000) + 'ms"><img src="/art/ny/garland.webp" alt=""><i style="left:5.8%;top:56%"></i><i style="left:18.1%;top:69%"></i><i style="left:31.3%;top:73%"></i><i style="left:44.2%;top:63%"></i><i style="left:56.3%;top:63%"></i><i style="left:69%;top:73%"></i><i style="left:82.3%;top:69%"></i><i style="left:94.2%;top:54%"></i></div><img class="ny-snow" src="/art/ny/snow.webp" alt=""><img class="ny-balls" src="/art/ny/balls.webp" alt=""></div>';
 function renderSanta() {
   const s = S.santa;
   if (!s || !s.visible) return '';
@@ -2702,7 +2702,7 @@ function renderSanta() {
       <label class="field">Пожелание<textarea id="santa-wish" maxlength="200" rows="2" placeholder="Люблю чай и настолки, сладкое не дарите"></textarea></label>
       <button class="btn" data-act="santa-join">Участвую</button>${draw}`;
   } else return '';
-  return `<section class="card santa ny">${NY_DECO}<div class="row ny-head" style="justify-content:space-between"><span class="card-title has-art"><img class="art" src="/art/ny/gift.webp" width="34" height="37" alt="">Тайный Санта</span><span class="small">${s.status === 'drawn' ? 'жеребьёвка прошла' : `до ${dd}`}</span></div>${body}</section>`;
+  return `<section class="card santa ny">${nyDeco()}<div class="row ny-head" style="justify-content:space-between"><span class="card-title has-art"><img class="art" src="/art/ny/gift.webp" width="34" height="37" alt="">Тайный Санта</span><span class="small">${s.status === 'drawn' ? 'жеребьёвка прошла' : `до ${dd}`}</span></div>${body}</section>`;
 }
 
 function renderGames() {
