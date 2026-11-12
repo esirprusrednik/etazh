@@ -4092,7 +4092,10 @@ function renderBattleInvite(f) {
 }
 
 const B_COLS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К'];
-const EMOTES = { lol: ['😂', 'Ха-ха!'], angry: ['😡', 'Ну всё!'], bored: ['😴', 'Скукота'], smart: ['🧠', 'Умный ход'], oops: ['😱', 'Ой-ой'], clap: ['👏', 'Браво'], mercy: ['🙏', 'Пощади'], easy: ['😎', 'Изи'] };
+// Реакции в бою: пластилиновые рожицы из одного атласа 4×2 (/art/emo.webp), порядок — как ключи
+const EMOTES = { lol: 'Ха-ха!', angry: 'Ну всё!', bored: 'Скукота', smart: 'Умный ход', oops: 'Ой-ой', clap: 'Браво', mercy: 'Пощади', easy: 'Изи' };
+const EMO_KEYS = Object.keys(EMOTES);
+const emoArt = (k) => { const n = EMO_KEYS.indexOf(k); return n < 0 ? '' : `<i class="emo-art" style="background-position:${(n % 4) * 100 / 3}% ${n < 4 ? 0 : 100}%"></i>`; };
 
 // Части корпуса: нос, середина, корма — чтобы корабль выглядел кораблём, а не набором квадратов
 // Поле 10×10. kind: 'opp' — по нему стреляю я; 'me' — мой флот и выстрелы соперника
@@ -4206,7 +4209,7 @@ function renderEmoteLayer(v) {
   const one = (who, look) => {
     const e = S.bEmote && S.bEmote[who];
     if (!e || Date.now() > e.until) return '';
-    const [em, label] = EMOTES[e.e] || ['', ''];
+    const em = emoArt(e.e), label = EMOTES[e.e] || '';
     // Экран боя перерисовывается каждую секунду: без отрицательной задержки анимация начиналась заново
     // и пузырь «выскакивал» второй раз. Продолжаем с того места, где она была
     const gone = Math.max(0, Date.now() - (e.until - 3200));
@@ -4216,7 +4219,7 @@ function renderEmoteLayer(v) {
 }
 
 function renderEmoteBar() {
-  return `<div class="b-emotes" role="group" aria-label="Реакции">${Object.entries(EMOTES).map(([k, [em, label]]) => `<button class="emo" data-act="bemote" data-v="${k}" aria-label="${label}" title="${label}">${em}</button>`).join('')}</div>`;
+  return `<div class="b-emotes" role="group" aria-label="Реакции">${Object.entries(EMOTES).map(([k, label]) => `<button class="emo" data-act="bemote" data-v="${k}" aria-label="${label}" title="${label}">${emoArt(k)}</button>`).join('')}</div>`;
 }
 
 function renderBattle() {
