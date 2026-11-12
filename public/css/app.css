@@ -2321,3 +2321,7 @@ body.fx-shake-l .board-wrap, body.fx-shake-l .b-vs { animation: fx-shake-l .6s c
 .login-inst-how summary { cursor: pointer; font-weight: 900; min-height: 32px; display: flex; align-items: center; }
 .login-inst-how h3 { margin: 8px 0 4px; font-size: 14px; }
 .login-inst-how .sub, .login-inst-how .small, .login-inst-how .ol { color: inherit; }
+
+.dml-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.dml-head .page-head { flex: 1 1 auto; min-width: 0; }
+.dml-x { flex: 0 0 auto; width: 40px; height: 40px; margin: 2px 16px 0 0; border-radius: 50%; display: grid; place-items: center; background: var(--card); color: var(--ink); border: 1px solid var(--wallet-bd, rgba(0,0,0,.08)); font-size: 16px; font-weight: 900; }

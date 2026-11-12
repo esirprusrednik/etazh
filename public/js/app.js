@@ -2025,17 +2025,18 @@ function renderApp() {
   ${S.sheet ? renderSheet() : ''}`;
 }
 
-// Личка — конверт в шапке: виден на всех вкладках, счётчик непрочитанного и «твой ход» в морском бою
+const DM_SVG = '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 9.5a6 6 0 0 1-8.9 5.2L2.5 15.8l1-3A6 6 0 1 1 14.5 9.5z"/><path d="M17.3 9.2a5.3 5.3 0 0 1 3.3 8.3l.9 2.9-3-1.1a5.3 5.3 0 0 1-7.2-1.7"/></svg>';
+// Личка — значок диалога в шапке: виден на всех вкладках, счётчик непрочитанного и «твой ход» в морском бою
 function renderMailBtn(b) {
   const n = b.crew || 0;
   const turn = (S.battles || []).some((x) => x.myTurn && x.status !== 'done');
   const on = S.tab === 'chats' && (S.dm || S.dmList);
-  return `<button class="mailbtn ${on ? 'on' : ''}" data-act="dm-list" aria-label="Личка${n ? `, новых: ${n}` : ''}${turn ? ', твой ход в морском бою' : ''}">${ico('mail', 20)}${n ? `<span class="badge">${n > 9 ? '9+' : n}</span>` : turn ? '<span class="mdot" aria-hidden="true"></span>' : ''}</button>`;
+  return `<button class="mailbtn ${on ? 'on' : ''}" data-act="dm-list" aria-label="Личка${n ? `, новых: ${n}` : ''}${turn ? ', твой ход в морском бою' : ''}">${DM_SVG}${n ? `<span class="badge">${n > 9 ? '9+' : n}</span>` : turn ? '<span class="mdot" aria-hidden="true"></span>' : ''}</button>`;
 }
 function tabBtn(id, label, n) {
   const icons = {
     near: '<circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6M15 14.5c3 0 5.5 2 5.5 5.5"/>',
-    chats: '<path d="M21 11.5a8.4 8.4 0 0 1-12.2 7.5L3 20.5l1.6-5.2A8.4 8.4 0 1 1 21 11.5z"/><path d="M8.5 11.5h.01M12.5 11.5h.01M16.5 11.5h.01"/>',
+    chats: '<path d="M12 2.5l8 2.8v6.2c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10V5.3z"/><path d="M12 8l1.2 2.5 2.7.3-2 1.9.5 2.7-2.4-1.3-2.4 1.3.5-2.7-2-1.9 2.7-.3z"/>',
     games: '<rect x="2.5" y="7" width="19" height="11" rx="5.5"/><path d="M7.5 10.5v4M5.5 12.5h4M15.5 11.5h.01M18 13.5h.01"/>',
     office: '<path d="M4 21V5l8-3 8 3v16z"/><path d="M9 21v-5h6v5M8 8h2M14 8h2M8 12h2M14 12h2"/>',
     gang: '<circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6M15 14.5c3 0 5.5 2 5.5 5.5"/>',
@@ -2506,7 +2507,7 @@ function renderChats() {
     ${favs.length ? `<div class="fav-strip">${favs.map((f) => { const [, col] = whereText(f); return `<button class="fav" data-act="dm-open" data-id="${f.id}"><span class="ava-ring" style="border-color:${col}">${avatar(f.look, 40)}</span><span class="ellipsis">${nk(f)}</span></button>`; }).join('')}</div>` : ''}`;
   const dmList = dms.length ? dms.map(row).join('')
     : `<div class="empty-art">${art('dove', 84)}</div>` + '<p class="sub chats-empty">Голуби скучают. Напиши кому-нибудь — лично можно любому, кто не закрыл личку: найди по нику или открой карточку человека.</p>';
-  return `${pageHead('Личка', 'Голубиная почта: один на один, видите только вы двое')}
+  return `<div class="dml-head">${pageHead('Личка', 'Найди человека, напиши ему, добавь в подельники')}<button class="dml-x" data-act="dmlist-close" aria-label="Закрыть личку">✕</button></div>
     ${findBar()}
     ${reqs}
     ${store.get('inviteShared') ? `<button class="invite-mini" data-act="crew-share" aria-label="Позвать коллегу в Этаж, +15 зёрен за новичка"><span class="im-ico" aria-hidden="true">mail</span><span class="im-t">Позвать коллегу в Этаж</span><span class="im-pill">+15 ${BEAN}</span><span class="im-go" aria-hidden="true">›</span></button>` : `<button class="invite-app" data-act="crew-share"><span class="grow"><b>Позвать коллегу в Этаж</b><span class="small">Личная ссылка: придёт — сразу будете на связи. +15 зёрен за каждого новичка</span></span><span aria-hidden="true">mail</span></button>`}
@@ -4795,7 +4796,7 @@ const COACH = [
   { cls: 'left', title: 'Это твой профиль', text: 'Нажми на аватар или ник: внешность, имя, план недели, ачивки. Зелёное кольцо — насколько профиль заполнен.' },
   { cls: 'right', title: 'Это твои зёрна', text: 'Их дают за отметки, ответы и квизы. Нажми — откроется Лавка со статусами и рамками.' },
   { tab: 'near', i: 0, title: 'Рядом', text: 'Главный экран. Отметься, где работаешь сегодня, — и увидишь всех своих людей: кто в офисе, кто дома, кто в отпуске. Позвать на кофе — одна кнопка.' },
-  { tab: 'chats', i: 1, title: 'Банда', text: 'Твои люди: общий чат, зовы на кофе и обед, опросы и Лига. Личка и морской бой — под конвертом наверху.' },
+  { tab: 'chats', i: 1, title: 'Банда', text: 'Твои люди: общий чат, зовы на кофе и обед, опросы и Лига. Личка и морской бой — под значком диалога наверху.' },
   { tab: 'office', i: 2, title: 'Офис', text: 'Загрузка столовой и оценка обеда, обед компанией, сигналы с этажа и лента событий.' },
   { tab: 'games', i: 3, title: 'Игры', text: 'Задания дня, квиз недели, морской бой и случайный кофе. За всё дают зёрна — их тратят в Лавке.' }
 ];
@@ -5851,7 +5852,7 @@ function renderGiftPick() {
   if (!it) return '<p class="sub">Вещь не найдена.</p>';
   const prank = it.kind === 'prank';
   const favs = (S.chats && S.chats.favorites) || null;
-  const list = !favs ? '<p class="sub">Загружаем подельников…</p>' : !favs.length ? '<p class="sub">Подельников пока нет. Добавь их в личке — конверт наверху, звёздочка в карточке человека.</p>'
+  const list = !favs ? '<p class="sub">Загружаем подельников…</p>' : !favs.length ? '<p class="sub">Подельников пока нет. Добавь их в личке — значок диалога наверху, звёздочка в карточке человека.</p>'
     : favs.map((f) => `<div class="chat-row">${avatar(f.look, 36)}<span class="grow ellipsis"><b>${nk(f)}</b></span><button class="btn small" data-act="gift-send" data-id="${f.id}">${prank ? 'Разыграть' : 'Подарить'}</button></div>`).join('');
   return `<div class="item">${shopPrev(it)}<div class="grow"><b>${esc(it.name)}</b><div class="small">${it.price} ${BEAN} — спишутся с тебя${prank ? ' · на час на аватаре' : ''}</div></div></div>
     <span class="eyebrow">${prank ? 'Кого разыграть' : 'Кому подарить'}</span>${list}`;
@@ -6340,7 +6341,13 @@ const actions = {
       } finally { S.bBusy = false; }
     });
   },
-  'dm-list': () => run(async () => { sfx('open'); S.tab = 'chats'; S.dmList = true; S.dm = null; S.dmView = null; S.battle = null; S.bv = null; S.sheet = null; render(); window.scrollTo(0, 0); await refresh(); }),
+  'dm-list': () => run(async () => {
+    // Повторное нажатие: из переписки — к списку, из списка — туда, откуда пришёл
+    if (S.tab === 'chats' && S.dmList && !S.dm) return actions['dmlist-close']();
+    if (!(S.tab === 'chats' && (S.dm || S.dmList))) S.dmFrom = S.tab;
+    sfx('open'); S.tab = 'chats'; S.dmList = true; S.dm = null; S.dmView = null; S.battle = null; S.bv = null; S.sheet = null; render(); window.scrollTo(0, 0); await refresh();
+  }),
+  'dmlist-close': () => run(async () => { sfx('close'); S.dmList = false; S.dm = null; S.dmView = null; S.tab = S.dmFrom || 'chats'; S.dmFrom = null; if (S.tab === 'chats') ensureGang(); render(); window.scrollTo(0, 0); await refresh(); }),
   'dm-back': () => run(async () => { S.dm = null; S.dmView = null; S.dmList = true; await Promise.all([loadChats(), loadCrew(), loadState()]); }),
   'chats-back': () => run(async () => { S.chatGang = false; S.dmList = false; ensureGang(); await Promise.all([loadChats(), loadState()]); }),
   'gang-open': (el) => run(async () => {
