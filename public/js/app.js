@@ -2575,16 +2575,18 @@ function renderGames() {
   if (S.practice) return renderPractice();
   const gangChips = S.me.gangs.length > 1 ? `<div class="chips dark">${S.me.gangs.map((g) => `<button class="chip ${g.id === S.activeGang ? 'on' : ''}" data-act="gang-select" data-v="${g.id}">${esc(g.name)}</button>`).join('')}</div>` : '';
   const group = (title) => `<div class="g-group">${title}</div>`;
+  const ownQuiz = renderQuiz();
+  const ownGuess = renderGuess();
   return `${pageHead('Игры', 'Блиц, квизы и бои со своими. За победы — зёрна, их тратят в Лавке')}
     ${renderAdvent()}
     
     ${renderBlitzCard()}
     ${group('Один на один')}
     ${renderDuelsCard()}
-    ${S.quiz && S.quiz.length || S.guess ? group('Про своих') : ''}
-    ${renderQuiz()}
-    ${gangChips}
-    ${renderGuess()}
+    ${ownQuiz || ownGuess ? group('Про своих') : ''}
+    ${ownQuiz}
+    ${ownGuess ? gangChips : ''}
+    ${ownGuess}
     ${group('Банды')}
     ${renderLeagueCard()}
     ${renderTourCard()}`;
