@@ -2499,7 +2499,8 @@ body.fx-shake-l .board-wrap, body.fx-shake-l .b-vs { animation: fx-shake-l .6s c
 .emo-bubble b { display: block; line-height: 0; }
 .emo-bubble b .emo-art { width: 76px; height: 76px; filter: none; }
 .emo-bubble { padding: 6px 12px 6px; }
-/* Шестнадцать реакций — в два ряда по восемь, без прокрутки */
+/* Восемь реакций в один ряд, без прокрутки */
 .b-emotes { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); overflow: visible; }
-.emo { min-width: 0; height: 46px; }
-@media (max-width: 380px) { .emo-art { width: 34px; height: 34px; } }
+.emo { min-width: 0; height: 52px; }
+.emo .emo-art { width: 42px; height: 42px; }
+@media (max-width: 380px) { .emo .emo-art { width: 36px; height: 36px; } }

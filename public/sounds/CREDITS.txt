@@ -3,3 +3,4 @@ battle.mp3, lose.mp3, win.mp3, rally.mp3, horn.mp3, resign.mp3 — сведен�
 miss1/2, hit1/2, sunk1.mp3 — сведены из CC0-записей: пушки и всплески rubberduck и взрывы Superpowers (сборник https://github.com/EternityForest/Free-SFX),
 взрывы и удары металла Kenney Sci-Fi Sounds (kenney.nl). Всё — CC0 1.0.
 emo_lol, emo_angry, emo_bored, emo_smart, emo_oops, emo_clap, emo_mercy, emo_easy.mp3 — реакции в играх, сведены из сэмплов VSCO 2 CE (CC0 1.0); хлопки и щелчки синтезированы. Скрипт — tools/sounds/emotes.py.
+emo_sink, emo_miss, emo_gull, emo_boom, emo_hmm, emo_bye, emo_rage, emo_wait.mp3 — второй набор реакций: сэмплы VSCO 2 CE, пушка и всплеск rubberduck, деревяшки Superpowers (сборник Free-SFX), всё CC0 1.0; пузыри, свисток и чайка синтезированы. Скрипт — tools/sounds/emotes2.py.

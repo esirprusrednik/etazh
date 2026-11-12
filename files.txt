@@ -46,6 +46,14 @@ public/sounds/emo_smart.mp3
 public/sounds/emo_oops.mp3
 public/sounds/emo_clap.mp3
 public/sounds/emo_mercy.mp3
+public/sounds/emo_sink.mp3
+public/sounds/emo_miss.mp3
+public/sounds/emo_gull.mp3
+public/sounds/emo_boom.mp3
+public/sounds/emo_hmm.mp3
+public/sounds/emo_bye.mp3
+public/sounds/emo_rage.mp3
+public/sounds/emo_wait.mp3
 public/sounds/emo_easy.mp3
 public/sounds/CREDITS.txt
 public/js/theme.js

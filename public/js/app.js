@@ -4095,9 +4095,9 @@ const B_COLS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К'];
 // Реакции в бою: пластилиновые рожицы из одного атласа 4×2 (/art/emo.webp), порядок — как ключи
 const EMOTES = { lol: 'Ха-ха!', angry: 'Ну всё!', bored: 'Скукота', smart: 'Умный ход', oops: 'Ой-ой', clap: 'Браво', mercy: 'Пощади', easy: 'Изи',
   sink: 'Буль-буль', miss: 'Мимо!', gull: 'Моё!', boom: 'Попал!', hmm: 'Хм…', bye: 'Пока-пока', rage: 'Псих', wait: 'Ходи уже' };
-// У ситуаций из второго набора звук — от близкой по настроению рожицы
-const EMO_SND = { sink: 'oops', miss: 'lol', gull: 'easy', boom: 'clap', hmm: 'smart', bye: 'mercy', rage: 'angry', wait: 'bored' };
-const emoSfx = (k) => sfx(`emo_${EMO_SND[k] || k}`);
+// На панели — один ряд: ситуации. Рожицы первого набора остались в атласе, чтобы реакция от старой версии приложения показалась как надо
+const EMO_PANEL = ['sink', 'miss', 'gull', 'boom', 'hmm', 'bye', 'rage', 'wait'];
+const emoSfx = (k) => sfx(`emo_${k}`);
 const EMO_KEYS = Object.keys(EMOTES);
 const emoArt = (k) => { const n = EMO_KEYS.indexOf(k); return n < 0 ? '' : `<i class="emo-art" style="background-position:${(n % 4) * 100 / 3}% ${Math.floor(n / 4) * 100 / 3}%"></i>`; };
 
@@ -4223,7 +4223,7 @@ function renderEmoteLayer(v) {
 }
 
 function renderEmoteBar() {
-  return `<div class="b-emotes" role="group" aria-label="Реакции">${Object.entries(EMOTES).map(([k, label]) => `<button class="emo" data-act="bemote" data-v="${k}" aria-label="${label}" title="${label}">${emoArt(k)}</button>`).join('')}</div>`;
+  return `<div class="b-emotes" role="group" aria-label="Реакции">${EMO_PANEL.map((k) => [k, EMOTES[k]]).map(([k, label]) => `<button class="emo" data-act="bemote" data-v="${k}" aria-label="${label}" title="${label}">${emoArt(k)}</button>`).join('')}</div>`;
 }
 
 function renderBattle() {
@@ -4951,10 +4951,11 @@ const SAMPLE_URLS = { bugle: '/sounds/battle.mp3', lose: '/sounds/lose.mp3', vic
   // Морской бой: настоящие записи пушки, взрывов и воды (CC0), по два варианта — чтобы выстрелы не звучали одинаково
   splash: ['/sounds/miss1.mp3', '/sounds/miss2.mp3'], hit: ['/sounds/hit1.mp3', '/sounds/hit2.mp3'], sunk: '/sounds/sunk1.mp3', chicken: '/sounds/resign.mp3',
   // Реакции в играх: короткие «мультяшные» реплики оркестра — у каждой своя, узнаётся без взгляда на экран
-  ...Object.fromEntries(['lol', 'angry', 'bored', 'smart', 'oops', 'clap', 'mercy', 'easy'].map((k) => [`emo_${k}`, `/sounds/emo_${k}.mp3`])) };
+  ...Object.fromEntries([...EMO_KEYS].map((k) => [`emo_${k}`, `/sounds/emo_${k}.mp3`])) };
 // Громкость записей подогнана к остальным звукам: кульминации боя громче всего, но не оглушают
 const SAMPLE_VOL = { bugle: 0.62, lose: 0.75, victory: 0.53, fanfare: 0.26, gangHorn: 0.28, splash: 0.3, hit: 0.25, sunk: 0.4, chicken: 0.13,
-  emo_lol: 0.157, emo_angry: 0.19, emo_bored: 0.126, emo_smart: 0.155, emo_oops: 0.135, emo_clap: 0.159, emo_mercy: 0.126, emo_easy: 0.31 };
+  emo_lol: 0.157, emo_angry: 0.19, emo_bored: 0.126, emo_smart: 0.155, emo_oops: 0.135, emo_clap: 0.159, emo_mercy: 0.126, emo_easy: 0.31,
+  emo_sink: 0.127, emo_miss: 0.127, emo_gull: 0.174, emo_boom: 0.209, emo_hmm: 0.143, emo_bye: 0.204, emo_rage: 0.172, emo_wait: 0.245 };
 const sampleBuf = {};
 function loadSamples(c) {
   for (const [k, urls] of Object.entries(SAMPLE_URLS)) {
@@ -5302,7 +5303,7 @@ const SOUNDS = {
   // Победа: литавры и медный аккорд
   // Победа в бою и дуэли — живой оркестр; без файла — синтезированные фанфары
   victory: (c) => { if (!playSample(c, 'victory')) SOUNDS.fanfare(c); },
-  ...Object.fromEntries(['lol', 'angry', 'bored', 'smart', 'oops', 'clap', 'mercy', 'easy'].map((k) => [`emo_${k}`, (c) => { if (!playSample(c, `emo_${k}`)) SOUNDS.vote(c); }])),
+  ...Object.fromEntries([...EMO_KEYS].map((k) => [`emo_${k}`, (c) => { if (!playSample(c, `emo_${k}`)) SOUNDS.vote(c); }])),
   // Гудок банды из Лавки: боевой рог — валторны с тубой
   gangHorn: (c) => { if (!playSample(c, 'gangHorn')) SOUNDS.waveHorn(c); },
   fanfare: (c) => {
