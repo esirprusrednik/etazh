@@ -1,9 +1,10 @@
 // Клиент «Этажа»: без фреймворков, рендер строками + делегирование событий (CSP запрещает inline-обработчики).
 import { officeSvg } from './building.js';
 import { GUIDE } from './guide.js';
-import { shipSvg, boomSvg, SHIP_DEFS } from './ships.js';
+import { SHIP_DEFS } from './ships.js';
 import { DUEL_DEFS, SIDE, handSvg, handDuo, dieSvg, tttMark, tttLine, confetti, raincloud } from './duelart.js';
 import * as PR from './practice.js';
+import { seaFxSync } from './seafx.js';
 import { crestSvg, crestOf, autoCrest, randomCrest, CREST_PARTS, TINCTURES, TINCTURE_NAMES, SHAPE_NAMES, DIV_NAMES, CHARGE_NAMES, TOP_NAMES } from './crest.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -1807,6 +1808,11 @@ function render() {
   else if (!(S.me.profile && S.me.profile.firstName && S.me.profile.lastName)) root.innerHTML = iconize(renderNameStep());
   else { root.innerHTML = iconize(renderApp()); trackSeen(S.tab); if (['shop', 'league', 'profile'].includes(S.sheet)) trackSeen(S.sheet); }
   window.scrollTo(0, keepScroll);
+  // Эффекты морского боя живут на отдельном холсте: перерисовка экрана их не обрывает
+  seaFxSync({
+    on: !!document.querySelector('.board-wrap'), fresh: S.bFresh, freshUntil: S.bFreshUntil || 0,
+    win: S.bv && S.bShout && Date.now() < S.bShout.until && /^Победа/.test(S.bShout.text) ? S.bv.id || 'pr' : null
+  });
   if (S.beanFx && S.beanFx.fresh) runBeanFx();
   if (focused) {
     const el = document.getElementById(focused.id);
@@ -3989,13 +3995,17 @@ function renderBoard(v, kind) {
     const state = isSunk ? 'sunk' : kind === 'opp' ? 'ghost' : 'ok';
     const hits = isSunk ? [] : sorted.map(([x, y], i) => (shotAt.has(x * 10 + y) ? i : -1)).filter((i) => i >= 0);
     const area = vertical ? `grid-area:${y0 + 1} / ${x0 + 1} / span ${sh.length} / span 1` : `grid-area:${y0 + 1} / ${x0 + 1} / span 1 / span ${sh.length}`;
-    art.push(`<div class="ship-slot ${state}" style="${area}">${shipSvg(sh.length, vertical, state, hits)}</div>`);
+    // Объёмный кораблик-спрайт; потопленный — отдельная картинка с пробоинами. Подбитые палубы — копоть, огонь рисует холст эффектов.
+    // Покачивание продолжается с того же места после перерисовки (отрицательная задержка), иначе корабли дёргались бы раз в секунду
+    const L = sh.length, o = vertical ? 'v' : 'h';
+    const scorch = hits.map((i) => `<i class="scorch" style="${vertical ? `top:${((i + 0.5) / L) * 100}%;left:50%;width:74%` : `left:${((i + 0.5) / L) * 100}%;top:50%;width:${74 / L}%`}"></i>`).join('');
+    art.push(`<div class="ship-slot spr ${state}" style="${area};--bob:-${(Date.now() + (x0 * 7 + y0 * 13) * 190) % 3600}ms"><img class="ship-spr ${o}" src="/art/ships/s${L}${o}${isSunk ? 'w' : ''}.webp" alt="" draggable="false">${scorch}</div>`);
   }
   // Попадания по чужим кораблям, которые ещё на плаву: видно только взрыв
-  if (kind === 'opp') for (const t of shots) if (t.r !== 'miss' && !sunkAt.has(t.x * 10 + t.y)) art.push(`<div class="ship-slot boom" style="grid-area:${t.y + 1} / ${t.x + 1}">${boomSvg(t.x + t.y)}</div>`);
+  if (kind === 'opp') for (const t of shots) if (t.r !== 'miss' && !sunkAt.has(t.x * 10 + t.y)) art.push(`<div class="ship-slot boom" style="grid-area:${t.y + 1} / ${t.x + 1};--bob:-${(Date.now() + (t.x + t.y) * 230) % 1400}ms"><i class="crater"></i></div>`);
   const shout = S.bShout && Date.now() < S.bShout.until && S.bShout.board === pre ? `<div class="b-shout ${S.bShout.cls}" style="animation-delay:-${Math.max(0, Date.now() - (S.bShout.until - 1400))}ms">${esc(S.bShout.text)}</div>` : '';
   return `<div class="board-wrap ${kind}">
-    <div class="board ${canShoot ? 'armed' : ''}">${cells.join('')}<div class="ships-layer">${art.join('')}</div></div>${shout}
+    <div class="board ${canShoot ? 'armed' : ''}" style="--sea:-${Date.now() % 24000}ms">${cells.join('')}<div class="ships-layer">${art.join('')}</div></div>${shout}
   </div>`;
 }
 

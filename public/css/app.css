@@ -2258,3 +2258,45 @@ h3.has-art { display: inline-flex; align-items: center; gap: 8px; }
 /* Одна игра в списке: плитка во всю ширину, картинка слева */
 .duel-new.n1 { grid-template-columns: 1fr; }
 .duel-new.n1 .duel-start.has-art { flex-direction: row; justify-content: center; gap: 12px; padding: 14px; }
+
+/* ===== Морской бой: холст эффектов, тряска, вода ===== */
+.seafx { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 15; }
+@keyframes fx-shake-s { 0%,100% { transform: none; } 15% { transform: translate(-4px, 2px) rotate(-.5deg); } 35% { transform: translate(4px, -3px) rotate(.5deg); } 55% { transform: translate(-3px, -1px); } 75% { transform: translate(2px, 2px); } }
+@keyframes fx-shake-l { 0%,100% { transform: none; } 8% { transform: translate(-9px, 4px) rotate(-1.2deg); } 20% { transform: translate(9px, -6px) rotate(1.1deg); } 32% { transform: translate(-8px, -4px) rotate(-.8deg); } 46% { transform: translate(7px, 5px) rotate(.7deg); } 60% { transform: translate(-5px, 2px); } 76% { transform: translate(4px, -2px); } 90% { transform: translate(-2px, 1px); } }
+body.fx-shake-s .board-wrap, body.fx-shake-s .b-vs { animation: fx-shake-s .32s cubic-bezier(.3,.6,.4,1); }
+body.fx-shake-l .board-wrap, body.fx-shake-l .b-vs { animation: fx-shake-l .6s cubic-bezier(.3,.6,.4,1); }
+@media (prefers-reduced-motion: reduce) { body.fx-shake-s .board-wrap, body.fx-shake-l .board-wrap, body.fx-shake-s .b-vs, body.fx-shake-l .b-vs { animation: none; } }
+
+/* Вода: глубина, блики и бегущая рябь. Экран боя перерисовывается раз в секунду, поэтому анимация продолжается
+   с того же места через отрицательную задержку (--sea, --bob), а не начинается заново */
+.board { background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='60'%3E%3Cpath d='M0 15 Q15 5 30 15 T60 15 T90 15 T120 15' fill='none' stroke='%23ffffff' stroke-opacity='.10' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M-30 45 Q-15 35 0 45 T30 45 T60 45 T90 45 T120 45 T150 45' fill='none' stroke='%23ffffff' stroke-opacity='.07' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") 0 0 / 120px 60px,
+    radial-gradient(90% 60% at 18% 8%, rgba(120,214,255,.42), transparent 62%),
+    radial-gradient(70% 55% at 88% 96%, rgba(20,200,190,.22), transparent 65%),
+    linear-gradient(165deg, #1466B8 0%, #0E4A93 45%, #0A2E63 100%);
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.18), inset 0 -6px 14px rgba(0,10,40,.45), inset 0 0 0 1px rgba(255,255,255,.08);
+  animation: sea-drift 24s linear infinite; animation-delay: var(--sea, 0s); }
+@keyframes sea-drift { from { background-position: 0 0, 0 0, 0 0, 0 0; } to { background-position: 240px 60px, 0 0, 0 0, 0 0; } }
+.board.armed { box-shadow: inset 0 2px 0 rgba(255,255,255,.18), inset 0 -6px 14px rgba(0,10,40,.45), 0 0 0 3px #FFC93C, 0 0 22px rgba(255,201,60,.35); }
+.board:has(.fresh.hit), .board:has(.fresh.sunk) { animation: sea-drift 24s linear infinite; animation-delay: var(--sea, 0s); }
+.bc { background: rgba(255,255,255,.045); box-shadow: inset 0 0 0 1px rgba(255,255,255,.05); border-radius: 6px; }
+.bc.aim:hover, .bc.aim:active { background: rgba(255,214,90,.5); box-shadow: inset 0 0 0 2px #FFE38A, 0 0 12px rgba(255,214,90,.6); }
+/* Промах: круги на воде вместо белой точки */
+.bc.miss::before { width: 26%; height: 26%; background: rgba(220,240,255,.85); box-shadow: 0 0 0 3px rgba(220,240,255,.22), 0 0 0 7px rgba(220,240,255,.1); }
+.bc.miss.auto::before { width: 14%; height: 14%; background: rgba(220,240,255,.4); box-shadow: none; }
+/* Корабли-спрайты */
+.ship-slot.spr { animation: ship-bob 3.6s ease-in-out infinite; animation-delay: var(--bob, 0s); }
+@keyframes ship-bob { 0%,100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-1.5px) rotate(.6deg); } }
+.ship-spr { position: absolute; max-width: none; pointer-events: none; user-select: none; -webkit-user-drag: none; filter: drop-shadow(0 3px 2px rgba(0,12,40,.45)); }
+.ship-spr.h { left: 0; width: 100%; top: -25%; height: 150%; }
+.ship-spr.v { top: 0; height: 100%; left: -25%; width: 150%; }
+.ship-slot.spr.ghost .ship-spr { opacity: .55; filter: grayscale(.7) drop-shadow(0 2px 2px rgba(0,12,40,.3)); }
+.ship-slot.spr.sunk { animation: ship-sink 4.2s ease-in-out infinite alternate; animation-delay: var(--bob, 0s); z-index: 3; }
+@keyframes ship-sink { from { transform: rotate(-1.6deg) translateY(1px); } to { transform: rotate(1.8deg) translateY(2.5px); } }
+.ship-slot.spr.sunk .ship-spr { filter: brightness(.82) saturate(.8) drop-shadow(0 2px 3px rgba(0,0,0,.55)); }
+.scorch { position: absolute; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(8,5,4,.92) 0 20%, rgba(34,18,10,.7) 42%, rgba(60,30,14,.25) 62%, transparent 74%); }
+.ship-slot.boom .crater { position: absolute; inset: 6%; border-radius: 50%; animation: ember 1.4s ease-in-out infinite alternate; animation-delay: var(--bob, 0s);
+  background: radial-gradient(circle, #FFE9A8 0 10%, #FF9A2E 24%, #D2361C 40%, rgba(40,16,10,.85) 60%, transparent 74%); }
+@keyframes ember { from { filter: brightness(.85); transform: scale(.94); } to { filter: brightness(1.25); transform: scale(1.04); } }
+@media (prefers-reduced-motion: reduce) { .board, .ship-slot.spr, .ship-slot.spr.sunk, .ship-slot.boom .crater { animation: none; } }

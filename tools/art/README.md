@@ -34,6 +34,7 @@
 - 0420c12c-9392-49e2-8fc9-55087bb29024 — значки 3: medal_common, medal_rare, medal_legendary, medal_locked, medal_secret, buoy, hourglass (в public/art); popper тоже в public/art, crown не использована
 - 9de4ef67-b4ca-4d67-85c7-1cca4f0b5475 — сценки: win, lose, draw, clink, tasks, cup (в public/art, 240 px); stopwatch и podium тоже, warship не использован
 - 085f7a3a-9f4c-4ffc-9038-357c8e914a5f — signs3: «Не виновата» и «Не виноват» (prop `sign_innocent`, по полу); с того же листа «Хочу в отпуск» (prop `sign_vacation`, сезон summer), «Тихо, работаю» (`sign_quiet`) и «Скоро буду» (`sign_soon`) — последние две ставит сам сервер. Досылки: `extra-signs2.json` + `y*.png`, `extra-signs3.json` + `z*.png`
+- 275cddc9-6dfd-450b-9644-6656f55889ea — корабли для морского боя, вид строго сверху: катер, корвет, эсминец, линкор — целые и разбитые (public/art/ships/s{1-4}{h|v}{w}.webp, 128 px на клетку, вертикальные — поворотом); морская мина не использована
 
 ## Скрипты
 - `layers.py` — режет лист на клетки, совмещает каждую с эталоном (масштаб и сдвиг), сохраняет слой детали.
