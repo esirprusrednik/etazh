@@ -3854,7 +3854,7 @@ function renderGang() {
   const tabs = `<div class="g-tabs" role="tablist">${[['chat', 'Чат', 0], ['life', 'Жизнь', 0], ['crew', 'Банда', reqN]].map(([k, l, n]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" data-act="gang-tab" data-v="${k}">${l}${n ? `<i>${n}</i>` : ''}</button>`).join('')}</div>`;
   const head = `<section class="card g-head" style="${g.gold ? 'border:3px solid #FFC93C' : ''}">
     ${gst(g).cardbg ? `<div class="g-banner ${gst(g).cardbg}" aria-hidden="true"></div>` : ''}
-    <div class="row"><button class="crest-btn ${auraCls(g)}" data-act="crest-open" data-ctx="vote" aria-label="Предложить новый герб банды">${crestSvg(crestOf(g), { size: 78, full: true })}<i aria-hidden="true">✎</i></button><div class="grow" style="min-width:0"><h2 style="margin:0">${gangName(g)}</h2><span class="small">${g.area ? esc(g.area) + ' · ' : ''}${v.gang.count}${g.max ? '/' + g.max : ''} ${plural(v.gang.count, 'участник', 'участника', 'участников')}${g.league && g.league.place ? ` · ${MEDAL[g.league.place - 1] || ''} ${g.league.place} место в Лиге` : ''}</span></div>
+    <div class="row"><button class="crest-btn ${auraCls(g)}" data-act="crest-open" data-ctx="vote" aria-label="Предложить новый герб банды">${crestSvg(crestOf(g), { size: 78, full: true })}<i aria-hidden="true">✎</i></button><div class="grow" style="min-width:0"><h2 style="margin:0">${gangName(g)}</h2><span class="small">${g.floor ? g.floor + ' этаж · ' : ''}${g.area ? esc(g.area) + ' · ' : ''}${v.gang.count}${g.max ? '/' + g.max : ''} ${plural(v.gang.count, 'участник', 'участника', 'участников')}${g.league && g.league.place ? ` · ${MEDAL[g.league.place - 1] || ''} ${g.league.place} место в Лиге` : ''}</span></div>
       ${g.isOwner ? '<button class="icon-btn" data-act="gang-settings" aria-label="Настройки банды">gear</button>' : `<button class="icon-btn" data-act="gang-profile" data-id="${g.id}" aria-label="Профиль банды">help</button>`}</div>
     ${tabs}
   </section>`;
@@ -7568,7 +7568,9 @@ async function splash() {
   const part = dayPart(st.msk ? Number(st.msk.slice(0, 2)) : new Date().getHours());
   const names = LIFT_FLOORS[part] || LIFT_FLOORS.day;
   const floorName = names[Math.floor(Math.random() * names.length)];
-  const target = 4 + Math.floor(Math.random() * 9);
+  // Табло едет до этажа твоей банды; без банды — случайный этаж повыше
+  const mine = (S.me.gangs || []).find((x) => x.id === S.activeGang) || (S.me.gangs || [])[0];
+  const target = mine && mine.floor ? mine.floor : 4 + Math.floor(Math.random() * 9);
   // Кабина лежит поверх приложения: пока створки закрыты, под ними уже рисуется экран — двери открываются сразу на этаж
   const el = document.createElement('div');
   el.className = 'lift';
@@ -7576,8 +7578,8 @@ async function splash() {
   // Здоровается терминал (как настоящая проходная), а не двери; пропуск — карточка с аватаром
   el.innerHTML = `<div class="lift-scene">
       <div class="lift-way"><div class="lift-glow"></div><div class="lift-door l"></div><div class="lift-door r"></div></div>
-      <div class="lift-top"><div class="lift-disp"><i class="lift-arrow"></i><b class="lift-num">1</b></div><span class="lift-floor">${esc(floorName)}</span></div>
-      <i class="lift-call"><i></i></i>
+      <img class="lift-wall" src="/art/lift/wall.webp" alt="">
+      <div class="lift-top"><div class="lift-disp"><i class="lift-arrow"></i><b class="lift-num">1</b></div><span class="lift-floor">${esc(mine && mine.floor ? mine.name : floorName)}</span></div>
     </div>
     <div class="lift-desk">
       <div class="lift-term"><i class="lift-led"></i><p class="lift-hi">${esc(g.text)}</p><p class="lift-day">${esc(g.day)}</p></div>
@@ -7590,9 +7592,9 @@ async function splash() {
   const num = el.querySelector('.lift-num');
   let n = 1;
   const ride = setInterval(() => {
-    n += 1; num.textContent = n;
+    n = Math.min(target, n + Math.max(1, Math.ceil((target - 1) / 30))); num.textContent = n;
     if (n >= target) { clearInterval(ride); el.classList.add('here'); }
-  }, 2200 / target);
+  }, Math.max(60, 2200 / Math.max(1, target - 1)));
   let tapped = false;
   await new Promise((res) => { S.splashDone = () => { tapped = true; res(); }; setTimeout(res, SPLASH_MS); });
   S.splashDone = null;

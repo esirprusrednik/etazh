@@ -16,6 +16,14 @@ function openDb(file) {
     try { db.exec(`ALTER TABLE gangs ADD COLUMN ${col}`); } catch {}
   }
   db.exec(`CREATE TABLE IF NOT EXISTS gang_requests (gang_id INTEGER NOT NULL REFERENCES gangs(id) ON DELETE CASCADE, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, at INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'pending', PRIMARY KEY (gang_id, user_id))`);
+  // Башня: у каждой банды свой этаж. Номер выдаётся по порядку создания внутри компании и не меняется; первый этаж — лобби
+  try { db.exec('ALTER TABLE gangs ADD COLUMN floor INTEGER'); } catch {}
+  try {
+    const next = {};
+    for (const r of db.prepare('SELECT company, MAX(floor) AS m FROM gangs GROUP BY company').all()) next[r.company || ''] = r.m || 1;
+    const set = db.prepare('UPDATE gangs SET floor = ? WHERE id = ?');
+    for (const r of db.prepare('SELECT id, company FROM gangs WHERE floor IS NULL ORDER BY id').all()) { const k = r.company || ''; next[k] = (next[k] || 1) + 1; set.run(next[k], r.id); }
+  } catch {}
   // Лавка для банды: флаг над офисом, гудок; пицца на всю банду
   for (const col of ['flag INTEGER NOT NULL DEFAULT 0', 'horn INTEGER NOT NULL DEFAULT 0']) { try { db.exec(`ALTER TABLE gangs ADD COLUMN ${col}`); } catch {} }
   db.exec(`CREATE TABLE IF NOT EXISTS gang_pizza (id INTEGER PRIMARY KEY, gang_id INTEGER NOT NULL REFERENCES gangs(id) ON DELETE CASCADE, by_id INTEGER NOT NULL, slices INTEGER NOT NULL, at INTEGER NOT NULL, until INTEGER NOT NULL);

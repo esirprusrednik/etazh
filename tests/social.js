@@ -68,6 +68,12 @@ function startServer(day, extra = {}) {
     const gb = (await B.post('/api/gangs', { name: 'Бета', access: 'open' })).json;
     await D.post(`/api/gangs/${gb.id}/apply`);
 
+    await step('башня: банды получают этажи по порядку, первый этаж — лобби', async () => {
+      const fa = (await A.get('/api/me')).json.user.gangs[0].floor, fb = (await B.get('/api/me')).json.user.gangs[0].floor;
+      assert.equal(fa, 2); assert.equal(fb, 3);
+      assert.equal((await A.get(`/api/gangs/${ga.id}`)).json.gang.floor, 2);
+    });
+
     await step('объёмный аватар: PNG по образу только для вошедших, с долгим кэшем', async () => {
       const code = Buffer.from(JSON.stringify({ hairStyle: 'curly', hoodie: 'green', prop: 'mug', pet: 'corgi' })).toString('base64url');
       const anon = await fetch(`${sv.BASE}/api/ava/${code}.png?s=96`);

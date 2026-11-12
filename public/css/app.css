@@ -2437,38 +2437,29 @@ body.fx-shake-l .board-wrap, body.fx-shake-l .b-vs { animation: fx-shake-l .6s c
 @keyframes sh-flap { 0% { background-position-x: 0; } 50% { background-position-x: 100%; } }
 @keyframes sh-soar { 0%,100% { margin-top: 0; } 50% { margin-top: 7px; } }
 
-/* ===== Заставка: холл у лифта. Стена — это тень вокруг проёма, поэтому при наезде камеры проём остаётся прозрачным ===== */
-.lift { position: fixed; inset: 0; z-index: 1200; overflow: hidden; color: #fff; --wall: #E4E0D8; --wall2: #D3CEC4; --frame: #8B929E; --frame2: #5F6672;
-  --st1: #A9B0BB; --st2: #E8EBF0; --st3: #C3C9D2; --st4: #F2F4F7; --st5: #AEB5C0; }
-:root[data-theme="dark"] .lift { --wall: #2B2F3C; --wall2: #232733; --frame: #5A616E; --frame2: #383D48; --st1: #6C7380; --st2: #A7AEBA; --st3: #868D99; --st4: #B4BAC5; --st5: #707783; }
-.lift-scene { position: absolute; inset: 0; transform-origin: 50% 46%; transition: transform .75s cubic-bezier(.5,0,.7,.4), opacity .4s .35s; }
-.lift-way { position: absolute; left: 17%; right: 17%; top: 104px; bottom: 0; overflow: hidden;
-  box-shadow: 0 0 0 5px var(--frame2), 0 0 0 13px var(--frame), 0 0 0 15px var(--frame2), 0 0 0 200vmax var(--wall); }
-/* Стеновые панели: тонкие швы поверх «тени» */
-.lift-scene::before { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1; clip-path: polygon(0 0, 100% 0, 100% 100%, calc(83% + 15px) 100%, calc(83% + 15px) 89px, calc(17% - 15px) 89px, calc(17% - 15px) 100%, 0 100%);
-  background: linear-gradient(180deg, rgba(255,255,255,.28), transparent 30%, rgba(0,0,0,.08)), repeating-linear-gradient(180deg, transparent 0 168px, var(--wall2) 168px 170px); }
-.lift-door { position: absolute; top: 0; bottom: 0; width: 50.4%; z-index: 2; transition: transform .78s cubic-bezier(.55,.06,.3,1); will-change: transform;
-  background: repeating-linear-gradient(180deg, rgba(255,255,255,.05) 0 1px, transparent 1px 3px), linear-gradient(90deg, var(--st1) 0%, var(--st2) 22%, var(--st3) 48%, var(--st4) 76%, var(--st5) 100%); }
-.lift-door.l { left: 0; box-shadow: inset -2px 0 0 rgba(40,46,58,.55), inset 0 0 26px rgba(40,46,58,.16); } .lift-door.r { right: 0; box-shadow: inset 2px 0 0 rgba(40,46,58,.55), inset 0 0 26px rgba(40,46,58,.16); }
+/* ===== Заставка: холл у лифта. Сцена — рисованная стена с прозрачным проёмом (800×1205), створки едут за раму ===== */
+.lift { position: fixed; inset: 0; z-index: 1200; overflow: hidden; color: #fff; }
+.lift-scene { position: absolute; top: 0; left: 50%; width: max(100vw, 66.39vh); margin-left: calc(max(100vw, 66.39vh) / -2); aspect-ratio: 800 / 1205; transform-origin: 50% 52%; transition: transform .75s cubic-bezier(.5,0,.7,.4), opacity .4s .35s; }
+.lift-wall { position: absolute; inset: 0; width: 100%; height: 100%; display: block; z-index: 2; pointer-events: none; }
+.lift-way { position: absolute; left: 24.125%; width: 51.75%; top: 18.09%; bottom: 0; overflow: hidden; z-index: 1; }
+.lift-door { position: absolute; top: 0; bottom: 0; width: 50.2%; z-index: 2; background-size: 100% 100%; transition: transform .78s cubic-bezier(.55,.06,.3,1); will-change: transform; }
+.lift-door.l { left: 0; background-image: url(/art/lift/door_l.webp); } .lift-door.r { right: 0; background-image: url(/art/lift/door_r.webp); }
 .lift.open .lift-door.l { transform: translateX(-101%); } .lift.open .lift-door.r { transform: translateX(101%); }
+:root[data-theme="dark"] .lift-wall, :root[data-theme="dark"] .lift-door { filter: brightness(.5) saturate(.75); }
 .lift-glow { position: absolute; inset: 0; z-index: 1; opacity: 0; pointer-events: none; background: radial-gradient(120% 80% at 50% 45%, rgba(255,250,232,.98), rgba(255,232,170,.7) 55%, rgba(255,220,150,.35)); }
 .lift.open .lift-glow { animation: lift-glow 1.25s ease-out both; }
 @keyframes lift-glow { 0% { opacity: 0; } 12% { opacity: 1; } 55% { opacity: .75; } 100% { opacity: 0; } }
-/* Табло над проёмом */
-.lift-top { position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; z-index: 2; }
-.lift-disp { display: flex; align-items: center; gap: 8px; min-width: 92px; justify-content: center; padding: 5px 16px; border-radius: 9px; background: #0A0D18; box-shadow: inset 0 2px 5px rgba(0,0,0,.8), 0 0 0 3px var(--frame), 0 0 0 4px var(--frame2), 0 3px 6px rgba(0,0,0,.25); }
-.lift-num { font: 800 24px/1.15 Unbounded, Onest, sans-serif; color: #FFB52E; text-shadow: 0 0 10px rgba(255,170,40,.75); font-variant-numeric: tabular-nums; min-width: 1.4em; text-align: center; }
-.lift-arrow { width: 0; height: 0; border: 7px solid transparent; border-top: 0; border-bottom: 11px solid #FFB52E; filter: drop-shadow(0 0 6px rgba(255,170,40,.8)); animation: lift-up .7s ease-in-out infinite; }
+/* Табло: цифры лежат на нарисованном экране над дверями, название этажа — на верхней перекладине рамы */
+.lift-top { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.lift-disp { position: absolute; left: 37.75%; width: 24.5%; top: 5.15%; height: 5.3%; display: flex; align-items: center; justify-content: center; gap: 7px; }
+.lift-num { font: 800 clamp(18px, 3.4vh, 30px)/1 Unbounded, Onest, sans-serif; color: #FFB52E; text-shadow: 0 0 10px rgba(255,170,40,.75); font-variant-numeric: tabular-nums; text-align: center; }
+.lift-arrow { width: 0; height: 0; border: 6px solid transparent; border-top: 0; border-bottom: 10px solid #FFB52E; filter: drop-shadow(0 0 6px rgba(255,170,40,.8)); animation: lift-up .7s ease-in-out infinite; }
 @keyframes lift-up { 0%, 100% { transform: translateY(2px); opacity: .45; } 50% { transform: translateY(-2px); opacity: 1; } }
 .lift.here .lift-arrow { animation: none; opacity: .25; }
-.lift-floor { font-size: 10.5px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: #6B6558; opacity: 0; transform: translateY(-3px); transition: opacity .35s, transform .35s; }
-:root[data-theme="dark"] .lift-floor { color: #AEB8D6; }
-.lift.here .lift-floor { opacity: 1; transform: none; }
+.lift-floor { position: absolute; left: 24%; right: 24%; top: 14.1%; height: 3.4%; display: flex; align-items: center; justify-content: center; font-size: clamp(9px, 1.45vh, 13px); font-weight: 800; letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; overflow: hidden; color: #F1F2F5; text-shadow: 0 1px 0 rgba(0,0,0,.45); opacity: 0; transition: opacity .35s; }
+.lift.here .lift-floor { opacity: .95; }
 .lift.go .lift-num { animation: lift-ding .5s ease-out; }
-@keyframes lift-ding { 0% { transform: scale(1); } 30% { transform: scale(1.35); text-shadow: 0 0 22px rgba(255,210,110,1); } 100% { transform: scale(1); } }
-/* Кнопка вызова на стене */
-.lift-call { position: absolute; right: calc(8.5% - 13px); top: 40%; width: 26px; height: 50px; border-radius: 7px; z-index: 2; background: linear-gradient(180deg, #C9CED6, #9AA1AD); box-shadow: 0 0 0 1px var(--frame2), 0 2px 4px rgba(0,0,0,.25); display: grid; place-items: center; }
-.lift-call i { width: 13px; height: 13px; border-radius: 50%; background: #FFB52E; box-shadow: 0 0 9px rgba(255,170,40,.9), inset 0 0 0 2px rgba(255,255,255,.5); }
+@keyframes lift-ding { 0% { transform: scale(1); } 30% { transform: scale(1.3); text-shadow: 0 0 22px rgba(255,210,110,1); } 100% { transform: scale(1); } }
 /* Стойка с терминалом — на переднем плане */
 .lift-desk { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; padding: 16px 16px calc(20px + env(safe-area-inset-bottom, 0px)); border-radius: 30px 30px 0 0; display: flex; flex-direction: column; gap: 14px;
   background: linear-gradient(180deg, #2C3350, #1A2040 70%); box-shadow: inset 0 3px 0 rgba(255,255,255,.14), 0 -10px 30px rgba(10,14,34,.4); transition: transform .5s .12s cubic-bezier(.5,0,.8,.5); animation: lift-desk-in .5s cubic-bezier(.2,.9,.3,1) both; }

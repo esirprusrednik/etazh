@@ -598,7 +598,7 @@ function createApi(db) {
         // Погода на завтра для «Рядом»: с 15:00 накануне офисного дня, только если погода необычная
         weather: weather && U.msk().hour >= 15 ? weather.adviceFor(u.id, u.profile) : null,
         nickChangeableAt: u.nick_changed_at ? u.nick_changed_at + 30 * 864e5 : null, nickFree: !!u.nick && !u.nick_free_used,
-        gangs: myGangs(u.id).map((g) => ({ id: g.id, name: g.name, color: g.color, emoji: g.emoji || null, ...U.crestPub(g) }))
+        gangs: myGangs(u.id).map((g) => ({ id: g.id, name: g.name, color: g.color, emoji: g.emoji || null, floor: g.floor || null, ...U.crestPub(g) }))
       },
       vapidKey: config.vapid.publicKey || null, build: BUILD,
       domains: config.allowedDomains,
@@ -921,8 +921,9 @@ function createApi(db) {
     let code;
     do code = U.shortCode(6); while (q('SELECT 1 FROM gangs WHERE code = ?').get(code));
     const prof = gangProfileInput(body, {});
-    const r = q('INSERT INTO gangs (name, color, code, owner_id, deposit, created_at, about, area, interests, emoji, access, crest, company) VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(name, color, code, u.id, U.now(), prof.about, prof.area, JSON.stringify(prof.interests), prof.emoji, prof.access || 'request', prof.crest || null, companyOf(u));
+    const floor = (q('SELECT MAX(floor) AS m FROM gangs WHERE company IS ?').get(companyOf(u)).m || 1) + 1;
+    const r = q('INSERT INTO gangs (name, color, code, owner_id, deposit, created_at, about, area, interests, emoji, access, crest, company, floor) VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(name, color, code, u.id, U.now(), prof.about, prof.area, JSON.stringify(prof.interests), prof.emoji, prof.access || 'request', prof.crest || null, companyOf(u), floor);
     for (const o of was) leaveGang(u.id, o.id);
     q('INSERT INTO gang_members (gang_id, user_id, joined_at) VALUES (?, ?, ?)').run(r.lastInsertRowid, u.id, U.now());
     if (league) league.touch(Number(r.lastInsertRowid), [u.id]);
@@ -1329,7 +1330,7 @@ function createApi(db) {
     return {
       gang: {
         id: g.id, name: g.name, color: g.color, motto: g.motto, gold: !!g.gold, mottoOwned: !!g.motto_owned, flag: !!g.flag, horn: !!g.horn, pizza: pizzaOf(g.id, u.id),
-        code: (g.who_invites || 'all') === 'all' || g.owner_id === u.id ? g.code : null, link: (g.who_invites || 'all') === 'all' || g.owner_id === u.id ? `${config.baseUrl}/g/${g.code}` : null, isOwner: g.owner_id === u.id,
+        code: (g.who_invites || 'all') === 'all' || g.owner_id === u.id ? g.code : null, link: (g.who_invites || 'all') === 'all' || g.owner_id === u.id ? `${config.baseUrl}/g/${g.code}` : null, isOwner: g.owner_id === u.id, floor: g.floor || null,
         depositPending: !!g.deposit && members.length < 3, count: members.length,
         about: g.about || '', ...U.crestPub(g), emoji: g.emoji || null, access: g.access || 'invite',
         max: gangLimit(g), maxSet: g.max_members || 0, glory: treasury ? treasury.balance(g.id) : 0, league: league ? league.weekPlace(g.id) : null, trophies: league ? league.trophies(g.id) : null, legend: g.legend_month && league ? legendLabel(g.legend_month) : null, whoInvites: g.who_invites || 'all', office: g.office_id || null, canInvite: (g.who_invites || 'all') === 'all' || g.owner_id === u.id
