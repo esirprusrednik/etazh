@@ -1279,7 +1279,7 @@ async function loadWave() {
   try { S.wave = await get(`/api/gangs/${S.activeGang}/wave`); if (S.wave.active) S.waveOff = S.wave.active.now - Date.now(); } catch { S.wave = null; }
 }
 async function loadFriday() {
-  if (!S.activeGang) { S.friday = null; return; }
+  if (!FRIDAY_ON || !S.activeGang) { S.friday = null; return; }
   try { S.friday = await get(`/api/gangs/${S.activeGang}/friday`); } catch { S.friday = null; }
 }
 // ----- «Дела дня»: до трёх дел, сроки — сегодня, завтра или следующий офисный день -----
@@ -1488,6 +1488,8 @@ setInterval(() => {
   if (left <= 0 && !S.waveReloading) { S.waveReloading = true; loadWave().then(render).finally(() => { S.waveReloading = false; }); }
 }, 1000);
 
+// Пятничная пятиминутка выключена (FRIDAY_ON): не прижилась. Код и ответы сохранены, включается флагом здесь и в server/api.js
+const FRIDAY_ON = false;
 // Пятничная пятиминутка: три вопроса недели; ответил — видишь ответы банды и ставишь реакции
 // Окно серии: после отметки (офис или «из дома») — сколько дней подряд, сколько дали, сколько будет завтра
 function showStreak(r) {
@@ -1764,7 +1766,7 @@ async function refresh({ all = false } = {}) {
   if (!S.me || !S.me.nick) return;
   const t = S.tab;
   const jobs = [loadState(), loadInbox()];
-  if (all || t === 'near') jobs.push(loadPeople(), loadMatch(), loadTodos(), S.fx ? Promise.resolve() : loadFeatures().catch(() => {}));
+  if (all || t === 'near') jobs.push(loadBoard(), loadPeople(), loadMatch(), loadTodos(), S.fx ? Promise.resolve() : loadFeatures().catch(() => {}));
   if (all || t === 'near' || t === 'office' || t === 'games') jobs.push(loadFeatures());
   if (all || t === 'near' || t === 'games') jobs.push(loadAdvent());
   if (all || t === 'chats') jobs.push(loadChats());
@@ -2195,6 +2197,7 @@ function renderNear() {
     ${renderPushNudge()}
     ${(S.people && !S.people.length) || !S.me.gangs.length ? findBar() : ''}
     ${renderQuickCalls()}
+    ${renderLunchCard()}
     ${renderWeatherStrip()}
     ${renderWeekNote()}
     ${renderPeople()}
@@ -2330,8 +2333,8 @@ function renderExperts() {
   </section>`;
 }
 // ----- Доска объявлений -----
-// Подкатегории: «Обед» (время, кто идёт, пуши) и «На кухне» (угощение, висит час) — короткие, сверху; остальное — обычные объявления
-const BOARD_CATS = [['all', 'Всё'], ['lunch', 'Обед'], ['kitchen', 'Кухня'], ['other', 'Другое']];
+// В «Офисе» — «На кухне» (угощение, висит час) и обычные объявления. Обед живёт в «Рядом»: renderLunchCard
+const BOARD_CATS = [['all', 'Всё'], ['kitchen', 'Кухня'], ['other', 'Объявления']];
 const minsLeft = (ts) => Math.max(1, Math.round((ts - Date.now()) / 60e3));
 function renderBoardCard() {
   const b = S.board;
@@ -2339,18 +2342,33 @@ function renderBoardCard() {
   const home = S.me.profile && S.me.profile.home;
   const gang = (S.me.gangs || [])[0] || null;
   const scope = S.boardScope === 'office' && !home ? 'all' : S.boardScope === 'gang' && !gang ? 'all' : S.boardScope || 'all';
-  const cat = S.boardCat || 'all';
-  const live = b.items.filter((x) => !x.expiresAt || x.expiresAt > Date.now());
+  const cat = S.boardCat === 'kitchen' || S.boardCat === 'other' ? S.boardCat : 'all';
+  const live = b.items.filter((x) => x.kind !== 'lunch' && (!x.expiresAt || x.expiresAt > Date.now()));
   const inScope = live.filter((x) => scope === 'all' || (scope === 'office' ? !x.gang && (!x.office || x.office.id === home) : x.gang && x.gang.id === gang.id));
   const inCat = (x, c) => c === 'all' || (c === 'other' ? x.kind !== 'lunch' && x.kind !== 'kitchen' : x.kind === c);
-  // Короткие — наверх: обед по времени, угощение — свежее первым
-  const items = inScope.filter((x) => inCat(x, cat)).sort((p, q) => (p.kind === 'lunch') - (q.kind === 'lunch') ? (q.kind === 'lunch') - (p.kind === 'lunch')
-    : p.kind === 'lunch' ? String(p.time).localeCompare(String(q.time)) : (!!q.expiresAt - !!p.expiresAt) || q.at - p.at);
+  // Угощение — наверх: оно живёт час
+  const items = inScope.filter((x) => inCat(x, cat)).sort((p, q) => (!!q.expiresAt - !!p.expiresAt) || q.at - p.at);
   const chips = [['all', 'Весь Этаж'], home && ['office', 'Мой офис'], gang && ['gang', 'Банда']].filter(Boolean);
   const cnt = (c) => inScope.filter((x) => inCat(x, c)).length;
+  const empty = {
+    kitchen: 'На кухне яблоки, мармелад или торт после дня рождения? Напиши — объявление провисит час: обычно за это время всё разбирают.',
+    gang: 'Здесь объявления только для своих: «Скинемся на торт», «Кто завтра в офисе?», «Отдам монитор». Видит только банда.',
+    all: '«На кухне яблоки», «Отдам билеты», «Кто едет на конференцию», «Нашёл зонт на 5-м» — сюда. Объявление само исчезнет в срок. Позвать на обед — во вкладке «Рядом».'
+  };
+  const emptyText = cat === 'kitchen' ? empty.kitchen : scope === 'gang' ? empty.gang : empty.all;
+  const newAct = `data-act="board-new" data-v="${cat === 'kitchen' ? 'kitchen' : 'other'}"`;
+  return `<section class="card bboard"><div class="chats-head"><h3 class="has-art">${art('megaphone', 28)}Доска</h3><button class="linkbtn" ${newAct}>＋ ${cat === 'kitchen' ? 'Что на кухне' : 'Объявление'}</button></div>
+    ${chips.length > 1 ? `<div class="chips">${chips.map(([v, t]) => `<button class="chip ${scope === v ? 'on' : ''}" data-act="board-filter" data-v="${v}">${t}</button>`).join('')}</div>` : ''}
+    <div class="chips bp-cats">${BOARD_CATS.map(([v, t]) => { const n = v === 'all' ? 0 : cnt(v); return `<button class="chip small ${cat === v ? 'on' : ''}" data-act="board-cat" data-v="${v}">${v === 'kitchen' ? ico('gift', 14) + ' ' : ''}${t}${n ? ` <b>${n}</b>` : ''}</button>`; }).join('')}</div>
+    ${items.length ? items.slice(0, S.boardAll ? 100 : 5).map(boardRow).join('') : `<p class="small" style="margin:0">${emptyText}</p>`}
+    ${items.length > 5 && !S.boardAll ? `<button class="linkbtn" data-act="board-all">Ещё ${items.length - 5}</button>` : ''}
+  </section>`;
+}
+// Одно объявление Доски: обед (время, кто идёт), угощение на кухне (таймер) или обычное
+function boardRow(x) {
   const where = (x) => x.gang ? `только банда «${esc(x.gang.name)}»` : x.office ? esc(x.office.name) : 'весь Этаж';
   const people = (x) => x.fans && x.fans.length ? x.fans.map((f) => `<button class="linkbtn" data-act="dm-open" data-id="${f.id}">${nk(f)}</button>`).join(', ') : '';
-  const row = (x) => {
+  {
     const head = `<div class="row" style="gap:10px;align-items:flex-start">${tap(x.author.id, avatar(x.author.look, 36))}
       <div class="grow" style="min-width:0"><div class="bp-head"><b>${nk(x.author)}</b>${x.author.name ? `<span class="small">${esc(x.author.name)}</span>` : ''}<span class="bp-kind">${ico(x.icon, 14)} ${esc(x.kindName)}</span></div>`;
     const rep = `<button class="linkbtn bp-rep" data-act="report" data-type="board" data-id="${x.id}" aria-label="Пожаловаться">⚑</button>`;
@@ -2373,20 +2391,18 @@ function renderBoardCard() {
         <div class="bp-text">${esc(x.text)}</div>
         <div class="small">до ${ddmm(x.until)} · ${where(x)}${x.mine && x.fans && x.fans.length ? ` · откликнулись: ${people(x)}` : ''}</div></div></div>
     <div class="row bp-acts">${x.mine ? `<button class="linkbtn" data-act="board-remove" data-id="${x.id}">Снять</button>` : `<button class="chip ${x.iMetoo ? 'on' : ''}" data-act="board-metoo" data-id="${x.id}">${x.iMetoo ? 'check ' : ''}Я тоже${x.metoo ? ' · ' + x.metoo : ''}</button><button class="chip" data-act="dm-open" data-id="${x.author.id}">Написать</button>${rep}`}${x.mine && x.metoo ? `<span class="small">«я тоже» · ${x.metoo}</span>` : ''}</div></div>`;
-  };
-  const empty = {
-    lunch: 'Позови на обед: выбери время и где встречаетесь. Кто нажмёт «Я с вами» — придёт пуш. Сбор снимется сам через час после обеда или когда ты отметишь в столовой «Поел».',
-    kitchen: 'На кухне яблоки, мармелад или торт после дня рождения? Напиши — объявление провисит час: обычно за это время всё разбирают.',
-    gang: 'Здесь объявления только для своих: «Кто со мной на обед в 13:00?», «Скинемся на торт», «Кто завтра в офисе?» Видит только банда.',
-    all: '«Кто на обед в 13:00?», «На кухне яблоки», «Отдам билеты», «Нашёл зонт на 5-м» — сюда. Объявление само исчезнет в срок.'
-  };
-  const emptyText = cat === 'lunch' || cat === 'kitchen' ? empty[cat] : scope === 'gang' ? empty.gang : empty.all;
-  const newAct = cat === 'lunch' || cat === 'kitchen' ? `data-act="board-new" data-v="${cat}"` : 'data-act="board-new"';
-  return `<section class="card bboard"><div class="chats-head"><h3 class="has-art">${art('megaphone', 28)}Доска</h3><button class="linkbtn" ${newAct}>＋ ${cat === 'lunch' ? 'Позвать на обед' : cat === 'kitchen' ? 'Что на кухне' : 'Объявление'}</button></div>
-    ${chips.length > 1 ? `<div class="chips">${chips.map(([v, t]) => `<button class="chip ${scope === v ? 'on' : ''}" data-act="board-filter" data-v="${v}">${t}</button>`).join('')}</div>` : ''}
-    <div class="chips bp-cats">${BOARD_CATS.map(([v, t]) => { const n = v === 'all' ? 0 : cnt(v); return `<button class="chip small ${cat === v ? 'on' : ''}" data-act="board-cat" data-v="${v}">${v === 'lunch' ? ico('lunch', 14) + ' ' : v === 'kitchen' ? ico('gift', 14) + ' ' : ''}${t}${n ? ` <b>${n}</b>` : ''}</button>`; }).join('')}</div>
-    ${items.length ? items.slice(0, S.boardAll ? 100 : 5).map(row).join('') : `<p class="small" style="margin:0">${emptyText}</p>`}
-    ${items.length > 5 && !S.boardAll ? `<button class="linkbtn" data-act="board-all">Ещё ${items.length - 5}</button>` : ''}
+  }
+}
+// «Кто на обед?» во вкладке «Рядом»: сборы на обед (это объявления Доски вида lunch) и кнопка «Позвать»
+function renderLunchCard() {
+  const b = S.board;
+  if (!b) return '';
+  const items = b.items.filter((x) => x.kind === 'lunch' && (!x.expiresAt || x.expiresAt > Date.now())).sort((p, q) => String(p.time).localeCompare(String(q.time)));
+  const can = (b.lunchTimes || []).length > 0;
+  if (!items.length && !can) return ''; // вечером звать уже некуда — карточку не показываем
+  return `<section class="card bboard lunch-card"><div class="chats-head"><h3 class="has-art">${art('lunch', 28)}Кто на обед?</h3>${can ? '<button class="linkbtn" data-act="board-new" data-v="lunch">＋ Позвать</button>' : ''}</div>
+    ${items.length ? items.slice(0, S.lunchAll ? 50 : 3).map(boardRow).join('') : '<p class="small" style="margin:0">Позови на обед: выбери время и где встречаетесь. Кто нажмёт «Я с вами» — тебе придёт пуш. Сбор снимется сам, когда отметишь в столовой «Поел».</p>'}
+    ${items.length > 3 && !S.lunchAll ? `<button class="linkbtn" data-act="lunch-all">Ещё ${items.length - 3}</button>` : ''}
   </section>`;
 }
 function renderBoardNew() {
@@ -2408,7 +2424,7 @@ function renderBoardNew() {
   const audience = d.gang ? 'Объявление увидит только твоя банда' + (lunch ? ', и каждому придёт пуш.' : '.') : d.office ? `Объявление увидят в «${esc(offName)}» и все, кто смотрит весь Этаж.` : 'Объявление видят все.';
   const life = lunch ? 'Кто нажмёт «Я с вами» — придёт пуш. Сбор снимется сам через час после обеда или когда ты отметишь в столовой «Поел».'
     : kitchen ? (d.office && !d.gang ? 'Кто сейчас отмечен в этом офисе, получит пуш. ' : '') + 'Провисит час — обычно за это время всё разбирают.' : '«Я тоже» придёт тебе пушем, дальше — в личке. Не дольше двух недель, потом исчезнет само.';
-  return `<div class="field">О чём<div class="chips">${kinds.map((k) => `<button class="chip ${d.kind === k.id ? 'on' : ''}" data-act="board-kind" data-v="${k.id}">${ico(k.icon, 14)} ${esc(k.name)}</button>`).join('')}</div></div>
+  return `${lunch ? '' : `<div class="field">О чём<div class="chips">${kinds.filter((k) => k.id !== 'lunch').map((k) => `<button class="chip ${d.kind === k.id ? 'on' : ''}" data-act="board-kind" data-v="${k.id}">${ico(k.icon, 14)} ${esc(k.name)}</button>`).join('')}</div></div>`}
     ${lunch ? `<div class="field">Во сколько${times.length ? `<div class="chips">${times.map((t) => `<button class="chip ${d.time === t ? 'on' : ''}" data-act="board-time" data-v="${t}">${t}</button>`).join('')}</div>` : '<p class="small" style="margin:0">На сегодня обеды уже закончились — позвать можно завтра с 11:00.</p>'}</div>
       <label class="field">Где встречаемся<input id="bd-place" maxlength="40" placeholder="У лифтов на 3 этаже" value="${esc(d.place || '')}"></label>` : ''}
     <label class="field">${lunch ? 'Пара слов (необязательно)' : 'Текст'}<textarea id="bd-text" maxlength="200" rows="${lunch ? 2 : 3}" placeholder="${ph}">${esc(d.text)}</textarea></label>
@@ -4407,8 +4423,13 @@ function renderCrewWeek(v, g) {
   const fake = ['office', 'home', 'office', 'office', 'home'];
   const rank = (m) => m.me ? 0 : m.where === 'office' ? 1 : 2;
   const all = [...v.members].sort((a, b) => rank(a) - rank(b));
-  const SHOW = 5, cut = all.length > SHOW + 1 && !S.membersAll;
-  const list = cut ? all.slice(0, SHOW) : all;
+  // В списке — только те, кто показал график целиком (и ты). Остальные — по кнопке: участники банды всё равно должны быть доступны
+  const full = (m) => { const r = rowOf.get(m.id); return !!r && !r.cells.includes('unknown'); };
+  const strict = !!(w && !w.locked && days.length);
+  const shown = strict ? all.filter((m) => m.me || full(m)) : all;
+  const rest = all.length - shown.length;
+  const cut = !S.membersAll && (strict ? rest > 0 : all.length > 6);
+  const list = S.membersAll ? all : strict ? shown : cut ? all.slice(0, 5) : all;
   const dots = (m, k) => {
     const r = rowOf.get(m.id);
     if (!days.length) return '';
@@ -4442,7 +4463,7 @@ function renderCrewWeek(v, g) {
     ${w && w.locked ? planLockMsg(w.locked, true) : ''}
     ${reqN ? `<div class="g-req"><b>Хотят в банду · ${reqN}</b>${v.requests.map((r) => `<div class="person2">${tap(r.id, avatar(r.look, 30))}<span class="grow ellipsis" style="font-weight:800">${nk(r)}</span><button class="btn small" data-act="greq" data-id="${r.id}" data-v="accept">Принять</button><button class="btn small ghost" data-act="greq" data-id="${r.id}" data-v="decline" aria-label="Отклонить">✕</button></div>`).join('')}</div>` : ''}
     <div class="cw-list">${list.map(row).join('')}</div>
-    ${all.length > SHOW + 1 ? `<button class="linkbtn" data-act="members-all" aria-expanded="${!cut}">${cut ? `Показать всех · ${all.length}` : 'Свернуть'}</button>` : ''}
+    ${cut || S.membersAll ? `<button class="linkbtn" data-act="members-all" aria-expanded="${!cut}">${!cut ? 'Свернуть' : strict ? `Ещё ${rest} — без графика на всю неделю` : `Показать всех · ${all.length}`}</button>` : ''}
     <div class="wk-legend"><span><i class="wk-c office"></i>офис</span><span><i class="wk-c home"></i>дома</span><span><i class="wk-c vacation"></i>отпуск</span><span><i class="wk-c sick"></i>болеет</span>${days.some((d) => d.holiday) ? '<span><i class="wk-c off"></i>праздник</span>' : ''}</div>
     <p class="small cw-hint">Нажми — карточка. Удерживай — «Позвать» и «Написать».${w && !w.locked ? ' <button class="linkbtn" data-act="open-sec" data-v="work">Мой план</button>' : ''}</p>
     ${w && !w.locked ? renderWeekNotes(w) : ''}
@@ -4581,7 +4602,7 @@ function renderSheet() {
     case 'shop': return sheetWrap('Лавка', renderShop());
     case 'gift-pick': return sheetWrap(S.giftMode === 'prank' ? 'Разыграть подельника' : 'Подарить подельнику', (S.giftMode === 'prank' ? '' : `<div class="res-hero">${art('gift', 88)}</div>`) + renderGiftPick());
     case 'inbox': return sheetWrap('Этаж', renderInbox());
-    case 'board-new': return sheetWrap('Объявление', renderBoardNew());
+    case 'board-new': return sheetWrap(S.boardDraft && S.boardDraft.kind === 'lunch' ? 'Позвать на обед' : 'Объявление', renderBoardNew());
     case 'coffee': return sheetWrap('Случайный кофе', `<div class="coffee-sheet">${renderCoffee()}</div><p class="small">Раз в неделю, в понедельник в 10:00, знакомим с коллегой из твоего офиса, который не в твоих бандах. Договориться о времени можно прямо здесь — кнопками.</p>${S.fx && S.fx.coffee && S.fx.coffee.optIn ? '<button class="linkbtn" data-act="coffee-off">Больше не участвовать</button>' : ''}`);
     case 'install': return sheetWrap('Установи на телефон', renderInstall());
     case 'compose': return sheetWrap(S.cat.calls[S.compose.kind].label, renderCompose());
@@ -6662,10 +6683,11 @@ const actions = {
   'board-cat'(el) { S.boardCat = el.dataset.v; S.boardAll = false; render(); },
   'board-time'(el) { boardSync(); S.boardDraft.time = el.dataset.v; render(); },
   'board-all'() { S.boardAll = true; render(); },
+  'lunch-all'() { S.lunchAll = true; render(); },
   'board-new'(el) {
     const t = new Date(Date.now() + 3 * 3600e3 + 3 * 864e5).toISOString().slice(0, 10);
     const home = S.me.profile && S.me.profile.home, gid = ((S.me.gangs || [])[0] || {}).id || null;
-    const kind = (el && el.dataset && el.dataset.v) || (S.boardCat === 'lunch' || S.boardCat === 'kitchen' ? S.boardCat : 'lunch');
+    const kind = (el && el.dataset && el.dataset.v) || 'other';
     const ci = S.state && S.state.checkin && S.state.checkin.office;
     // Угощение на кухне имеет смысл только в своём офисе — туда и ставим по умолчанию
     S.boardDraft = { kind, text: '', until: t, place: '', time: '', gang: S.boardScope === 'gang' ? gid : null, office: S.boardScope === 'gang' ? '' : kind === 'kitchen' ? (ci || home || '') : S.boardScope === 'office' ? home || '' : '' };
@@ -6676,7 +6698,7 @@ const actions = {
   'board-save': () => run(async () => {
     boardSync();
     await post('/api/board', S.boardDraft);
-    const k = S.boardDraft.kind; S.sheet = null; S.boardDraft = null; toast(k === 'lunch' ? meG('Позвал на обед — кто пойдёт, придёт пуш', 'Позвала на обед — кто пойдёт, придёт пуш') : 'Объявление на доске'); sfx('confirm'); S.boardCat = k === 'lunch' || k === 'kitchen' ? k : S.boardCat; await loadBoard();
+    const k = S.boardDraft.kind; S.sheet = null; S.boardDraft = null; toast(k === 'lunch' ? meG('Позвал на обед — кто пойдёт, придёт пуш', 'Позвала на обед — кто пойдёт, придёт пуш') : 'Объявление на доске'); sfx('confirm'); if (k === 'kitchen') S.boardCat = 'kitchen'; await loadBoard();
   }),
   'board-metoo': (el) => run(async () => {
     const r = await post(`/api/board/${el.dataset.id}/metoo`);
@@ -7377,7 +7399,7 @@ document.addEventListener('visibilitychange', async () => {
 function applyHash(hash) {
   if (hash.startsWith('#gang/')) { S.tab = 'chats'; S.chatGang = true; S.dmList = false; S.dm = null; S.activeGang = Number(hash.slice(6)) || S.activeGang; }
   if (hash === '#kitchen') { S.dmList = false; S.tab = 'office'; S.chatGang = false; S.dm = null; S.boardCat = 'kitchen'; }
-  if (hash === '#office') { S.dmList = false; S.tab = 'office'; S.chatGang = false; S.dm = null; S.boardCat = 'lunch'; }
+  if (hash === '#lunch' || hash === '#office') { S.dmList = false; S.tab = hash === '#lunch' ? 'near' : 'office'; S.chatGang = false; S.dm = null; if (hash === '#lunch') setTimeout(() => { const c = document.querySelector('.lunch-card'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 800); }
   if (hash === '#near') { S.dmList = false; S.tab = 'near'; S.chatGang = false; S.dm = null; }
   if (hash === '#rate') { S.tab = 'office'; S.chatGang = false; S.dm = null; setTimeout(() => { const c = document.querySelector('.food'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 800); }
   if (hash === '#todos') { S.nearMore = true; S.tab = 'near'; S.chatGang = false; S.dm = null; setTimeout(() => { const c = document.querySelector('.todos'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 600); }

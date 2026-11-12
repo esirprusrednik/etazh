@@ -164,7 +164,6 @@ const QUESTS = [
   { id: 'thanks', name: 'Скажи кому-нибудь спасибо — хоть коллеге не из банды', go: 'gang', need: 'gang2' },
   { id: 'dmnew', name: 'Напиши в личку тому, с кем ещё не общался', go: 'dmnew', need: 'fresh' },
   { id: 'todo', name: 'Закрой дело дня', go: 'near', to: '.todos', need: 'todo' },
-  { id: 'friday', name: 'Ответь в пятиминутке банды', go: 'gang', to: '.friday', need: 'friday' },
   { id: 'wave', name: 'Встань в волну — банда ждёт', go: 'gang', to: '.wave', need: 'wave' },
   { id: 'vote', name: 'Проголосуй в опросе банды', go: 'gang', to: '.polls', need: 'poll' },
   { id: 'sea', name: 'Сделай ход в морском бою — твой ход', go: 'games', need: 'seaTurn' },
@@ -184,7 +183,7 @@ const GUESS_ON = false;
 const QUEST_POOL_PICK = 3;
 const WEEKEND_PICK = 2;
 // Самые полезные — первыми: если доступны, попадают в набор раньше случайных
-const QUEST_PRIORITY = ['wave', 'friday', 'todo', 'dmnew', 'vote', 'sea'];
+const QUEST_PRIORITY = ['wave', 'todo', 'dmnew', 'vote', 'sea'];
 // Бонусные задания: появляются днём, когда становятся возможны, и не влияют на награду «за все»
 const BONUS_QUESTS = [
   { id: 'food', name: 'Оцени обед в столовой', go: 'office' },

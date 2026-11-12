@@ -97,6 +97,7 @@ function applyLook(base, l, owned) {
   return look;
 }
 const NICK_PRICE = 50;
+const FRIDAY_ON = false;
 // Длины подобраны по экрану 360–390 px: ник целиком влезает в шапку, название банды — в одну строку рядом с гербом и на ленту герба.
 // Действуют на новые ники и названия; прежние, длиннее, остаются как были
 const NICK_MAX = 14, GANG_NAME_MAX = 16;
@@ -1806,7 +1807,8 @@ function createApi(db) {
   // ---------- Секретный чат один на один (сквозное шифрование) ----------
   secret = require('./secret').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, canDm: (u, t) => (crew ? crew.canDm(u, t) : true) });
   // ---------- Пятничная пятиминутка банды ----------
-  friday = require('./friday').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, readProfile, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
+  // Пятиминутка выключена: не прижилась. Модуль и ответы сохранены — включается этим флагом и FRIDAY_ON в app.js
+  if (FRIDAY_ON) friday = require('./friday').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, readProfile, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   // ---------- «Мой стиль»: личная карточка поведения по действиям (без текстов), видит только сам человек ----------
   {
     style = require('./style').register({ db, q, route, requireUser, U, publicLook, myGangs, gangMembers, bad });

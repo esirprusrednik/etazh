@@ -119,7 +119,7 @@ function register(ctx) {
     // Обед для банды — своим сразу пуш: их немного, и это то, ради чего банда
     if (kind === 'lunch' && gang && gangMembers) {
       const to = gangMembers(gang).map((m) => m.id).filter((x) => x !== u.id);
-      if (to.length) fireAndForget(notify(to, { title: 'Кто на обед?', body: `${u.nick} зовёт на обед в ${time}${place ? ' · ' + place : ''}`, url: '/#office', tag: `board-${id}` }));
+      if (to.length) fireAndForget(notify(to, { title: 'Кто на обед?', body: `${u.nick} зовёт на обед в ${time}${place ? ' · ' + place : ''}`, url: '/#lunch', tag: `board-${id}` }));
     }
     return { item: view(q('SELECT * FROM board_posts WHERE id = ?').get(id), u.id) };
   });
@@ -128,7 +128,7 @@ function register(ctx) {
   function cancelLunch(p, why) {
     const joiners = q('SELECT user_id FROM board_metoo WHERE post_id = ?').all(p.id).map((r) => r.user_id);
     q('DELETE FROM board_posts WHERE id = ?').run(p.id);
-    if (why && joiners.length) fireAndForget(notify(joiners, { title: 'Обед', body: `${why}: ${p.lunch_time || ''}`.trim(), url: '/#office', tag: `board-${p.id}` }));
+    if (why && joiners.length) fireAndForget(notify(joiners, { title: 'Обед', body: `${why}: ${p.lunch_time || ''}`.trim(), url: '/#lunch', tag: `board-${p.id}` }));
   }
   // Автор пообедал («Поел» в столовой) или ушёл из офиса — его сбор на обед снимается сам, без пушей
   function authorAte(uid) { q("DELETE FROM board_posts WHERE user_id = ? AND kind = 'lunch' AND until = ?").run(uid, today()); }
@@ -153,7 +153,7 @@ function register(ctx) {
       const msg = p.kind === 'lunch' ? { title: 'Обед', body: `${u.nick} идёт с тобой в ${p.lunch_time}` }
         : p.kind === 'kitchen' ? { title: 'На кухне', body: `${u.nick} говорит спасибо за угощение` }
         : { title: 'Доска «Этажа»', body: `${u.nick}: «я тоже» — ${p.text.slice(0, 60)}` };
-      if (r.changes) fireAndForget(notify([p.user_id], { ...msg, url: p.kind === 'lunch' ? '/#office' : `/#crew/${u.id}`, tag: `board-${p.id}` }));
+      if (r.changes) fireAndForget(notify([p.user_id], { ...msg, url: p.kind === 'lunch' ? '/#lunch' : `/#crew/${u.id}`, tag: `board-${p.id}` }));
     }
     return { item: view(p, u.id) };
   });

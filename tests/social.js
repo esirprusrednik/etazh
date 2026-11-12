@@ -302,34 +302,6 @@ function startServer(day, extra = {}) {
       assert.ok((await E2.get('/api/features')).json.achievements.find((a) => a.id === 'todo1').got, 'ачивка «Чистый день»');
     });
 
-    await step('пятиминутка: ответ, зёрна раз в неделю, чужие ответы — после своего, реакции', async () => {
-      let f = (await B.get(`/api/gangs/${gb.id}/friday`)).json;
-      assert.equal(f.canAnswer, true); assert.equal(f.questions.length, 3);
-      const q0 = f.questions[0].id;
-      const before = (await D.get('/api/me')).json.user.beans;
-      f = (await D.post(`/api/gangs/${gb.id}/friday`, { q: q0, text: 'Закрыли релиз' })).json;
-      assert.equal(f.beans, 3);
-      f = (await D.post(`/api/gangs/${gb.id}/friday`, { q: f.questions[1].id, text: 'Научился SQL' })).json;
-      assert.equal(f.beans, 0, 'зёрна — за первый ответ недели');
-      assert.ok((await D.get('/api/me')).json.user.beans >= before + 3, '+3 за пятиминутку (и задание дня сверху)');
-      let fb = (await B.get(`/api/gangs/${gb.id}/friday`)).json;
-      assert.equal(fb.questions[0].answers.length, 1);
-      fb = (await B.post(`/api/gangs/${gb.id}/friday`, { q: q0, text: 'Всё было норм' })).json;
-      const aid = fb.questions[0].answers.find((x) => !x.me).id;
-      fb = (await B.post(`/api/friday/${aid}/react`, { e: '🔥' })).json;
-      assert.equal(fb.questions[0].answers.find((x) => x.id === aid).counts['🔥'], 1);
-      assert.equal((await A.get(`/api/gangs/${gb.id}/friday`)).status, 404, 'чужая банда');
-      assert.equal((await D.post(`/api/gangs/${gb.id}/friday`, { q: 'нет-такого', text: 'x' })).status, 400);
-      // Свёрнутая полоска: кто ответил, сколько чужих ответов; «пнуть банду» — раз в неделю и только ответившему
-      fb = (await B.get(`/api/gangs/${gb.id}/friday`)).json;
-      assert.ok(fb.answered.some((p) => p.id === D.id) && fb.answered.some((p) => p.id === B.id));
-      assert.ok(fb.othersCount >= 2);
-      assert.equal(fb.poked, false);
-      const pk = (await B.post(`/api/gangs/${gb.id}/friday/poke`)).json;
-      assert.equal(pk.poked, true);
-      assert.equal((await D.post(`/api/gangs/${gb.id}/friday/poke`)).status, 400, 'второй раз за неделю — нельзя');
-    });
-
     await step('доска: объявление, «я тоже» с отметкой автору, снять может только автор, срок', async () => {
       const r = await A.post('/api/board', { kind: 'company', text: 'Ищу компанию на обед в 13:00', until: '2026-11-12', office: 'smol' });
       assert.equal(r.status, 200);
