@@ -7573,8 +7573,9 @@ function greetFill(t, addr, sex, hol = '') {
   return t.replace(/\{([^{}|]+)\|([^{}|]+)\}/g, (m, a, b) => (sex === 'f' ? b : a))
     .replace(/\{a\}/g, addr).replace(/\{A\}/g, addr[0].toUpperCase() + addr.slice(1)).replace(/\{hol\}/g, hol);
 }
-// Заставка: логотип, аватар и приветствие. До 10 секунд (полоска показывает, сколько осталось), кнопка — дальше сразу
-const SPLASH_MS = 10000;
+// Заставка с лестницей. Первый вход за день — до 10 секунд, чтобы успеть прочитать приветствие; дальше в тот же день — 4 секунды.
+// Полоска показывает, сколько осталось, кнопка — дальше сразу
+const SPLASH_MS = 10000, SPLASH_SHORT_MS = 4000;
 // Подпись над лестницей для тех, кто без банды: куда поднимаемся — по времени суток
 const LIFT_FLOORS = {
   night: ['Этаж сов', 'Этаж «не спится»', 'Ночной этаж'],
@@ -7593,23 +7594,34 @@ async function splash() {
   const where = mine && mine.floor ? `${mine.floor} этаж · ${mine.name}` : names[Math.floor(Math.random() * names.length)];
   // Заставка лежит поверх приложения: человечек бесконечно поднимается по лестнице, пока под ней рисуется экран.
   // Как в пластилиновом мультике, всё движется покадрово: за три кадра ступени сдвигаются ровно на одну, и опорная нога с них не съезжает
+  const today = st.today || new Date().toDateString();
+  const ms = store.get('splashDay', '') === today ? SPLASH_SHORT_MS : SPLASH_MS;
+  store.set('splashDay', today);
   const el = document.createElement('div');
   el.className = 'climb';
   const steps = Array.from({ length: 18 }, (_, k) => `<i style="--k:${k - 8}"></i>`).join('');
+  // Табличка этажа: вырастает на ступеньке впереди, когда человечек дошёл. Без банды этажа нет — и таблички нет
+  const sign = mine && mine.floor ? `<div class="climb-sign"><b>${esc(mine.floor)}</b><span>этаж</span></div>` : '';
   // Сцена — на весь экран: лестница уходит под нижний край, приветствие крупно наверху, кнопка внизу поверх ступеней
   el.innerHTML = `<div class="climb-bg"><i></i><i></i><i></i></div>
-    <div class="climb-scene"><div class="climb-stairs">${steps}</div><i class="climb-guy"></i></div>
+    <div class="climb-scene"><div class="climb-stairs">${steps}</div>${sign}<i class="climb-guy"></i></div>
     <div class="climb-top"><div class="logo">Этаж<span>.</span></div>
       <div class="climb-chip"><i></i>${esc(where)}</div>
       <p class="climb-hi">${esc(g.text)}</p><p class="climb-day">${esc(g.day)}</p></div>
-    <div class="climb-act"><button class="btn splash-go" data-act="splash-skip">${esc(g.go)} →</button><div class="splash-bar"><i style="animation-duration:${SPLASH_MS}ms"></i></div></div>`;
+    <div class="climb-act"><button class="btn splash-go" data-act="splash-skip">${esc(g.go)} →</button><div class="splash-bar"><i style="animation-duration:${ms}ms"></i></div></div>`;
   document.body.appendChild(el);
   root.innerHTML = '';
-  await new Promise((res) => { S.splashDone = res; setTimeout(res, SPLASH_MS); });
+  await new Promise((res) => { S.splashDone = res; setTimeout(res, ms); });
   S.splashDone = null;
-  // Дошли: человечек подпрыгивает, заставка уезжает вверх и открывает этаж
-  el.classList.add('go');
+  // Дошли: шаг замирает в первом кадре (обе ноги на ступенях), впереди вырастает табличка этажа, человечек подпрыгивает —
+  // и заставка уезжает вверх, открывая этаж
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  try {
+    for (const q of ['.climb-stairs', '.climb-guy']) el.querySelector(q).getAnimations().forEach((a) => { a.currentTime = 0; a.pause(); });
+  } catch {}
+  el.classList.add('top');
+  await new Promise((res) => setTimeout(res, reduce ? 350 : sign ? 800 : 380));
+  el.classList.add('go');
   setTimeout(() => el.remove(), reduce ? 300 : 750);
 }
 
