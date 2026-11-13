@@ -54,6 +54,7 @@ public/sounds/emo_hmm.mp3
 public/sounds/emo_bye.mp3
 public/sounds/emo_rage.mp3
 public/sounds/emo_wait.mp3
+public/sounds/climb_loop.mp3
 public/sounds/emo_easy.mp3
 public/sounds/CREDITS.txt
 public/js/theme.js

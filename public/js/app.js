@@ -7599,10 +7599,30 @@ async function splash() {
   vid.muted = true; vid.defaultMuted = true;
   document.body.appendChild(el);
   try { const pr = vid.play(); if (pr && pr.catch) pr.catch(() => {}); } catch {}
+  // Фоновый мотивчик: петля ровно в 5 секунд, как видео. Браузер даёт звук до первого касания не везде
+  // (в установленном приложении на Android — даёт, на iPhone — нет): где нельзя, заставка идёт молча
+  let stopMusic = () => {}, closed = false;
+  const ac = actx();
+  if (ac) {
+    fetch('/sounds/climb_loop.mp3').then((r) => r.arrayBuffer()).then((b) => ac.decodeAudioData(b)).then((buf) => {
+      if (closed) return;
+      const src = ac.createBufferSource(), gn = ac.createGain();
+      src.buffer = buf; src.loop = true; src.loopStart = 0.05; src.loopEnd = 5.05;
+      gn.gain.setValueAtTime(0, ac.currentTime); gn.gain.linearRampToValueAtTime(0.5, ac.currentTime + 0.5);
+      src.connect(gn); gn.connect(master); src.start(0, 0.05);
+      stopMusic = () => {
+        try {
+          if (ac.state !== 'running') { src.stop(); return; }
+          const t = ac.currentTime; gn.gain.cancelScheduledValues(t); gn.gain.setValueAtTime(gn.gain.value, t); gn.gain.linearRampToValueAtTime(0, t + 0.45); src.stop(t + 0.5);
+        } catch {}
+      };
+    }).catch(() => {});
+  }
   root.innerHTML = '';
   await new Promise((res) => { S.splashDone = res; setTimeout(res, ms); });
   S.splashDone = null;
   // Человечек идёт без остановки, пока не нажмут кнопку или не выйдет время; потом заставка просто уезжает вверх
+  closed = true; stopMusic();
   el.classList.add('go');
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   setTimeout(() => el.remove(), reduce ? 300 : 750);
