@@ -463,10 +463,9 @@ function startServer(day, extra = {}) {
       assert.notEqual((await R.post(`/api/gangs/${gM.id}/apply`)).status, 200, 'в банду другой компании нельзя');
       const gR = (await R.post('/api/gangs', { name: 'Нефтяники', access: 'open' })).json;
       assert.equal((await R2.post(`/api/gangs/${gR.id}/apply`)).status, 200);
-      // Поиск: чужую компанию — только по нику целиком
-      assert.equal((await M.get('/api/search?q=нефт')).json.items.length, 0);
-      const hit = (await M.get('/api/search?q=нефтяник')).json.items;
-      assert.equal(hit.length, 1); assert.equal(hit[0].company, 'Роснефть');
+      // Поиск: человека из чужой компании находим и по части ника; имя его при этом не видно
+      const hit = (await M.get('/api/search?q=' + encodeURIComponent('нефт'))).json.items.filter((x) => x.company === 'Роснефть');
+      assert.ok(hit.length >= 1 && hit.every((x) => x.name === ''), JSON.stringify(hit));
       // Писать до подельников нельзя, после — можно
       { const rr = await M.post(`/api/crew/${R.id}/messages`, { type: 'text', text: 'привет' }); assert.ok(rr.status !== 200 && /другой компании/.test(rr.json.error), JSON.stringify(rr.json)); }
       await M.post('/api/crew/add', { nick: 'нефтяник' });
@@ -649,6 +648,18 @@ function startServer(day, extra = {}) {
       const me = (await O.get('/api/me')).json;
       assert.equal(me.user.companyName, 'НьюКо');
       assert.deepEqual(me.catalog.offices.map((o) => o.name), ['Ленина, 5']);
+      // Поиск через границу компаний: по части ника находим, имя не показываем и по имени не находим — пока человек сам не разрешил
+      await O.post('/api/me/profile', { profile: { firstName: 'Ольга', lastName: 'Новикова' } });
+      await A.post('/api/me/profile', { profile: { firstName: 'Борис', lastName: 'Главный' } });
+      const byNick = (await A.get('/api/search?q=' + encodeURIComponent('ньюко'))).json.items;
+      assert.equal(byNick.length, 1); assert.equal(byNick[0].nick, 'ольга_ньюко'); assert.equal(byNick[0].name, ''); assert.equal(byNick[0].company, 'НьюКо');
+      assert.equal((await A.get('/api/search?q=' + encodeURIComponent('Новикова'))).json.items.length, 0, 'по имени из чужой компании не находим');
+      await O.post('/api/me/profile', { profile: { nameAbroad: true } });
+      const byName = (await A.get('/api/search?q=' + encodeURIComponent('Новикова'))).json.items;
+      assert.equal(byName.length, 1); assert.equal(byName[0].name, 'Ольга Новикова');
+      // Счётчик в шапке — по всему Этажу
+      const stA = (await A.get('/api/me')).json.stats || (await A.get('/api/state')).json.stats;
+      assert.equal(stA.allUsers, 2); assert.equal(stA.users, 1);
       // Отказ: адреса удаляются, новые заявки с домена не принимаются
       const Y = new sa.Client();
       const r2 = (await Y.post('/api/auth/request', { email: 'p@spamco.ru', consent: true, companyName: 'Спам', officeName: 'Нигде' })).json;

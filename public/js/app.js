@@ -2002,7 +2002,7 @@ function renderTopStrip() {
   const st = S.state && S.state.stats;
   return `<button class="top-strip" data-act="open" data-v="stats" aria-label="Статистика Этажа">
     <span class="ts-date">${todayLabel(true)}</span><span class="ts-beta">β-тест</span>
-    ${st ? `<span class="ts-nums">${st.gangs} ${plural(st.gangs, 'банда', 'банды', 'банд')} · ${st.users} ${plural(st.users, 'бандит', 'бандита', 'бандитов')}</span>` : ''}</button>`;
+    ${st ? `<span class="ts-nums">${st.allGangs || st.gangs} ${plural(st.allGangs || st.gangs, 'банда', 'банды', 'банд')} · ${st.allUsers || st.users} ${plural(st.allUsers || st.users, 'бандит', 'бандита', 'бандитов')}</span>` : ''}</button>`;
 }
 function renderStats() {
   const st = S.state && S.state.stats;
@@ -5759,6 +5759,7 @@ function renderProfile() {
     <label class="check"><input type="checkbox" data-act="weather-toggle" ${p.weather !== false ? 'checked' : ''}> <span>Погода на завтра: вечером накануне офисного дня — пуш, если ждёт дождь, снег, мороз или жара</span></label>
     <label class="check"><input type="checkbox" data-act="digest-toggle" ${p.digest !== false ? 'checked' : ''}> <span>Утренняя сводка: один пуш в рабочий день около 11:30, если есть дела и ты ещё не заходил${meG('', 'а')}</span></label>
     <label class="check"><input type="checkbox" data-act="findable-toggle" ${p.findable !== false ? 'checked' : ''}> <span>Меня можно найти по нику и рабочей почте — и позвать в банду</span></label>
+    <label class="check"><input type="checkbox" data-act="name-abroad-toggle" ${p.nameAbroad === true ? 'checked' : ''}> <span>Людям из других компаний можно находить меня по имени и видеть его. Без этого они находят только по нику и видят ник с аватаром</span></label>
     <div class="field">Кто может писать мне в личку<div class="chips">${[['all', 'Все'], ['gang', 'Моя банда'], ['none', 'Никто']].map(([k, t]) => `<button class="chip ${(p.dmFrom || 'all') === k ? 'on' : ''}" data-act="dm-from" data-v="${k}">${t}</button>`).join('')}</div>
       <span class="small" style="font-weight:600">Подельники (избранные) могут писать всегда. Уже начатые переписки ограничение не обрывает — их закрывают крестиком.</span></div>
     <div class="field">Оформление<div class="seg">${[['auto', 'Как в телефоне'], ['light', ico('sun', 16) + ' Светлое'], ['dark', ico('moon', 16) + ' Тёмное']].map(([k, t]) => `<button class="seg-b ${themePref() === k ? 'on' : ''}" data-act="theme-set" data-v="${k}">${t}</button>`).join('')}</div></div>
@@ -7112,6 +7113,7 @@ const actions = {
     render();
   },
   'coach-skip'() { S.coach = 0; store.set('coachDone', 2); store.set('ia2', 1); if (S.tab !== 'near') { S.tab = 'near'; run(() => refresh()); } render(); },
+  'name-abroad-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { nameAbroad: el.checked } }); await loadMe(); toast(el.checked ? 'Имя видно и в других компаниях' : 'В других компаниях видят только ник'); }),
   'findable-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { findable: el.checked } }); await loadMe(); toast(el.checked ? 'Тебя можно найти' : 'Тебя больше не найти поиском'); }),
   'vibro-toggle'(el) { store.set('vibro', el.checked); if (el.checked) sfx('confirm'); },
   'theme-set'(el) { store.set('theme', el.dataset.v); if (window.etazhTheme) window.etazhTheme.apply(); render(); },

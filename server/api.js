@@ -420,6 +420,9 @@ function createApi(db) {
     const C = company;
     const v = {
       users: q('SELECT COUNT(*) AS n FROM users WHERE nick IS NOT NULL AND company = ?').get(C).n,
+      // Счётчик в шапке — по всему Этажу, по всем компаниям сразу; остальные числа — по своей
+      allUsers: q('SELECT COUNT(*) AS n FROM users WHERE nick IS NOT NULL').get().n,
+      allGangs: q('SELECT COUNT(*) AS n FROM gangs WHERE hidden = 0').get().n,
       gangs: q('SELECT COUNT(*) AS n FROM gangs WHERE hidden = 0 AND company = ?').get(C).n,
       inGangs: q('SELECT COUNT(DISTINCT m.user_id) AS n FROM gang_members m JOIN gangs g ON g.id = m.gang_id WHERE g.hidden = 0 AND g.company = ?').get(C).n,
       today: q("SELECT COUNT(*) AS n FROM counters c JOIN users x ON x.id = c.user_id WHERE c.key = 'last_active' AND c.n >= ? AND x.company = ?").get(tn, C).n,
@@ -775,6 +778,7 @@ function createApi(db) {
         prof.callTpl = list;
       }
       if (p.findable !== undefined) prof.findable = !!p.findable;
+      if (p.nameAbroad !== undefined) prof.nameAbroad = !!p.nameAbroad;
       if (['all', 'gang', 'none'].includes(p.dmFrom)) prof.dmFrom = p.dmFrom;
     }
     const share = body.shareOffice === undefined ? u.share_office : body.shareOffice ? 1 : 0;
@@ -1197,11 +1201,12 @@ function createApi(db) {
     } else {
       const needle = raw.replace(/^@+/, '').toLocaleLowerCase('ru');
       const all = q('SELECT * FROM users WHERE nick IS NOT NULL AND id != ?').all(u.id);
-      // Из другой компании находим только по нику целиком или по почте: чужой список коллег не листаем
+      // Ник ищется по всему Этажу, в любой компании. Имя — у своих коллег; у людей из другой компании —
+      // только если человек сам разрешил находить себя по имени за пределами компании (по умолчанию выключено)
       rows = all.filter((r) => {
-        if (companyOf(r) !== companyOf(u)) return r.nick.toLocaleLowerCase('ru') === needle;
         if (r.nick.toLocaleLowerCase('ru').includes(needle)) return true;
         const p = readProfile(r.profile);
+        if (companyOf(r) !== companyOf(u) && p.nameAbroad !== true) return false;
         if (!hasOwnName(u.profile)) return false; // по имени ищет тот, кто сам указал имя
         return [p.firstName, p.lastName].filter(Boolean).join(' ').toLocaleLowerCase('ru').includes(needle);
       });
@@ -1216,7 +1221,7 @@ function createApi(db) {
         id: g.id, name: g.name,
         pending: !!q("SELECT 1 FROM gang_invites WHERE gang_id = ? AND to_id = ? AND status = 'pending'").get(g.id, r.id)
       }));
-      return { id: r.id, nick: r.nick, look: publicLook({ look: r.look }), company: companyOf(r) !== companyOf(u) ? (U.companyInfo(companyOf(r)) || {}).name || null : null, name: companyOf(r) !== companyOf(u) ? '' : fullName(prof, 'all'), status: statusName(JSON.parse(r.look || '{}').status), shared: shared.map((g) => g.name), invitable };
+      return { id: r.id, nick: r.nick, look: publicLook({ look: r.look }), company: companyOf(r) !== companyOf(u) ? (U.companyInfo(companyOf(r)) || {}).name || null : null, name: companyOf(r) !== companyOf(u) && prof.nameAbroad !== true ? '' : fullName(prof, 'all'), status: statusName(JSON.parse(r.look || '{}').status), shared: shared.map((g) => g.name), invitable };
     });
     return { items, hint: items.length ? '' : 'Никого не нашли. Человек мог отключить поиск в настройках — тогда позови его ссылкой' };
   });
