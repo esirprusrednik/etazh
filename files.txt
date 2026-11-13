@@ -170,10 +170,6 @@ public/art/medal_locked.webp
 public/art/medal_rare.webp
 public/art/medal_secret.webp
 public/art/megaphone.webp
-public/art/lift/desk.webp
-public/art/lift/door_l.webp
-public/art/lift/door_r.webp
-public/art/lift/wall.webp
 public/art/ny/balls.webp
 public/art/ny/cane.webp
 public/art/ny/fir.webp
@@ -191,6 +187,7 @@ public/art/shake.webp
 public/art/shield.webp
 public/art/emo.webp
 public/art/gull.webp
+public/art/walk.webp
 public/art/sea_buoy.webp
 public/art/ship.webp
 public/art/ships/s1h.webp
