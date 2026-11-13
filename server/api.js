@@ -527,7 +527,7 @@ function createApi(db) {
     const company = U.companyByEmail(email);
     if (body.consent !== true) throw bad('Нужно согласие с политикой и правилами.');
     // Компании ещё нет в Этаже — заявка модератору через подтверждение почты
-    if (!company) return access.request(email, req);
+    if (!company) return access.request(email, req, body);
     const emailHash = U.hashEmail(email);
     rateLimit('auth-mail:' + emailHash, 3, 15 * 60e3);
     const token = U.randomToken(32);

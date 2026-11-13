@@ -1891,6 +1891,21 @@ function renderLogin() {
   const params = new URLSearchParams(location.search);
   const expired = params.get('login') === 'expired';
   const acc = params.get('access');
+  if (o.step === 'company') {
+    return `<div class="onb">
+      <div class="logo">Этаж<span>.</span></div>
+      <div class="card">
+        <h2>Твоей компании тут ещё нет</h2>
+        <p class="sub">Этаж для почты <b>@${esc((o.email.split('@')[1] || ''))}</b> пока не открыт. Расскажи, что за компания и где ваш офис, — модератор заведёт их, и вам не придётся ждать уточнений.</p>
+        <label class="field">Название компании<input id="co-name" maxlength="40" autocomplete="organization" placeholder="Как её называют сами сотрудники" value="${esc(o.companyName || '')}"></label>
+        <label class="field">Первый офис<input id="co-office" maxlength="40" placeholder="«Главный» или адрес" value="${esc(o.officeName || '')}"></label>
+        <p class="small">Остальные офисы можно будет добавить позже. Дальше пришлём письмо — подтвердить, что почта твоя.</p>
+        ${o.error ? `<div class="err">${esc(o.error)}</div>` : ''}
+        <button class="btn wide" data-act="company-submit" ${S.busy ? 'disabled' : ''}>Отправить заявку</button>
+        <button class="linkbtn" data-act="onb-back">Ввести другую почту</button>
+      </div>
+    </div>`;
+  }
   if (o.step === 'access') {
     return `<div class="onb">
       <div class="logo">Этаж<span>.</span></div>
@@ -6011,6 +6026,18 @@ const actions = {
     try {
       const r = await post('/api/auth/request', { email, consent: true, join: store.get('pendingJoin', null) || undefined, crew: store.get('pendingCrew', null) || undefined });
       // Компании ещё нет в Этаже — сервер прислал письмо для подтверждения заявки
+      // …или сначала спросил, что за компания и какой у неё офис
+      S.onb = { ...S.onb, step: r.needCompany ? 'company' : r.access ? 'access' : 'sent', error: '', devLink: r.devLink || null, devCode: r.devCode || null };
+    } catch (e) { S.onb.error = e.message; }
+    S.busy = false; render();
+  },
+  async 'company-submit'() {
+    const companyName = $('#co-name').value.trim(), officeName = $('#co-office').value.trim();
+    S.onb = { ...S.onb, companyName, officeName };
+    if (companyName.length < 2 || officeName.length < 2) { S.onb.error = 'Напиши название компании и офиса — хотя бы по два символа.'; return render(); }
+    S.busy = true; S.onb.error = ''; render();
+    try {
+      const r = await post('/api/auth/request', { email: S.onb.email, consent: true, companyName, officeName });
       S.onb = { ...S.onb, step: r.access ? 'access' : 'sent', error: '', devLink: r.devLink || null, devCode: r.devCode || null };
     } catch (e) { S.onb.error = e.message; }
     S.busy = false; render();

@@ -113,10 +113,10 @@ function accessCard(a) {
   if (!a) return '';
   const day = (t) => new Date(t).toLocaleDateString('ru-RU');
   return `<div class="card"><h2>Заявки новых компаний</h2>
-    <p class="small">Каждый подтвердил рабочую почту письмом. Открыть — заведём компанию с первым офисом и всем пришлём ссылку для входа. Отказать — адреса удалятся, новые заявки с этого домена не принимаются.</p>
+    <p class="small">Каждый подтвердил рабочую почту письмом. Название компании и офиса указал первый заявитель — проверь и при необходимости поправь. Открыть — заведём компанию с первым офисом и всем пришлём ссылку для входа. Отказать — адреса удалятся, новые заявки с этого домена не принимаются.</p>
     ${a.requests.length ? a.requests.map((r) => `<div class="item" style="flex-wrap:wrap;gap:8px"><div class="grow"><b>@${esc(r.domain)}</b><div class="small">человек: ${r.people} · первая заявка ${day(r.first_at)}, последняя ${day(r.last_at)}</div></div>
-      <label class="field" style="width:150px">Компания<input id="ac-n-${esc(r.domain)}" maxlength="40" placeholder="Название"></label>
-      <label class="field" style="width:150px">Первый офис<input id="ac-o-${esc(r.domain)}" maxlength="40" placeholder="Например, Главный"></label>
+      <label class="field" style="width:150px">Компания<input id="ac-n-${esc(r.domain)}" maxlength="40" placeholder="Название" value="${esc(r.companyName || '')}"></label>
+      <label class="field" style="width:150px">Первый офис<input id="ac-o-${esc(r.domain)}" maxlength="40" placeholder="Например, Главный" value="${esc(r.officeName || '')}"></label>
       <div class="row" style="gap:4px"><button class="btn small" data-a="access-open" data-d="${esc(r.domain)}">Открыть</button><button class="btn small ghost" data-a="access-reject" data-d="${esc(r.domain)}">Отказать</button></div></div>`).join('') : '<p class="sub">Новых заявок нет.</p>'}
     ${a.companies.length ? `<p class="small">Открыты по заявкам: ${a.companies.map((c) => `${esc(c.name)} (@${esc(c.domains)})`).join(', ')}</p>` : ''}</div>`;
 }

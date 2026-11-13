@@ -74,7 +74,9 @@ async function waitUp() {
   await step('личная почта отклоняется, чужой домен — только заявка модератору, без входа', async () => {
     const r = await a.post('/api/auth/request', { email: 'x@gmail.com', consent: true });
     assert.equal(r.status, 400);
-    const r2 = await a.post('/api/auth/request', { email: 'x@evilmts.ru', consent: true });
+    const r1 = await a.post('/api/auth/request', { email: 'x@evilmts.ru', consent: true });
+    assert.ok(r1.json.needCompany && !r1.json.devCode && !r1.json.devLink, 'сначала спрашиваем компанию и офис');
+    const r2 = await a.post('/api/auth/request', { email: 'x@evilmts.ru', consent: true, companyName: 'Чужие', officeName: 'Главный' });
     assert.equal(r2.status, 200);
     assert.ok(r2.json.access && !r2.json.devCode, 'кода для входа нет — только подтверждение заявки');
   });

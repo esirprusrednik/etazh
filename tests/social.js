@@ -625,7 +625,10 @@ function startServer(day, extra = {}) {
       const bad = await new sa.Client().post('/api/auth/request', { email: 'vasya@yandex.ru', consent: true });
       assert.equal(bad.status, 400, 'личная почта не годится');
       const X = new sa.Client();
-      const r = (await X.post('/api/auth/request', { email: 'olga@newco.ru', consent: true })).json;
+      const ask = (await X.post('/api/auth/request', { email: 'olga@newco.ru', consent: true })).json;
+      assert.ok(ask.needCompany && !ask.devLink, 'сначала спрашиваем компанию и офис, письмо не шлём');
+      assert.equal((await X.post('/api/auth/request', { email: 'olga@newco.ru', consent: true, companyName: 'Н', officeName: '' })).status, 400);
+      const r = (await X.post('/api/auth/request', { email: 'olga@newco.ru', consent: true, companyName: ' НьюКо ', officeName: 'Ленина, 5' })).json;
       assert.ok(r.access && r.devLink, JSON.stringify(r));
       const res = await fetch(r.devLink, { redirect: 'manual' });
       assert.equal(res.headers.get('location'), '/?access=sent');
@@ -634,17 +637,21 @@ function startServer(day, extra = {}) {
       const A = await new sa.Client().login('boss@mts.ru', 'модератор');
       const list = (await A.get('/api/admin/access')).json;
       assert.equal(list.requests.length, 1); assert.equal(list.requests[0].domain, 'newco.ru'); assert.equal(list.requests[0].people, 1);
+      assert.equal(list.requests[0].companyName, 'НьюКо'); assert.equal(list.requests[0].officeName, 'Ленина, 5');
+      // Коллегу из той же компании второй раз не спрашиваем
+      const r1b = (await new sa.Client().post('/api/auth/request', { email: 'petr@newco.ru', consent: true })).json;
+      assert.ok(r1b.access && !r1b.needCompany, JSON.stringify(r1b));
       assert.ok(!JSON.stringify(list).includes('olga'), 'адресов модератор не видит');
       assert.equal((await new sa.Client().get('/api/admin/access')).status !== 200, true);
-      const op = (await A.post('/api/admin/access/open', { domain: 'newco.ru', name: 'НьюКо', office: 'Главный' })).json;
+      const op = (await A.post('/api/admin/access/open', { domain: 'newco.ru', name: list.requests[0].companyName, office: list.requests[0].officeName })).json;
       assert.equal(op.sent, 1);
       const O = await new sa.Client().login('olga@newco.ru', 'ольга_ньюко');
       const me = (await O.get('/api/me')).json;
       assert.equal(me.user.companyName, 'НьюКо');
-      assert.deepEqual(me.catalog.offices.map((o) => o.name), ['Главный']);
+      assert.deepEqual(me.catalog.offices.map((o) => o.name), ['Ленина, 5']);
       // Отказ: адреса удаляются, новые заявки с домена не принимаются
       const Y = new sa.Client();
-      const r2 = (await Y.post('/api/auth/request', { email: 'p@spamco.ru', consent: true })).json;
+      const r2 = (await Y.post('/api/auth/request', { email: 'p@spamco.ru', consent: true, companyName: 'Спам', officeName: 'Нигде' })).json;
       await fetch(r2.devLink, { redirect: 'manual' });
       await A.post('/api/admin/access/reject', { domain: 'spamco.ru' });
       assert.equal((await new sa.Client().post('/api/auth/request', { email: 'q@spamco.ru', consent: true })).status, 400);

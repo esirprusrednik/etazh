@@ -19,21 +19,33 @@ function register(ctx) {
   CREATE TABLE IF NOT EXISTS access_requests (email_hash TEXT PRIMARY KEY, domain TEXT NOT NULL, email_sealed TEXT NOT NULL, at INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS access_domains (domain TEXT PRIMARY KEY, status TEXT NOT NULL, first_at INTEGER NOT NULL, last_at INTEGER NOT NULL, notified_at INTEGER);
   `);
+  // Название компании и первого офиса человек указывает сам, прямо в заявке: модератору остаётся проверить и открыть
+  for (const sql of ['ALTER TABLE access_tokens ADD COLUMN company_name TEXT', 'ALTER TABLE access_tokens ADD COLUMN office_name TEXT',
+    'ALTER TABLE access_domains ADD COLUMN company_name TEXT', 'ALTER TABLE access_domains ADD COLUMN office_name TEXT']) { try { db.exec(sql); } catch {} }
+  const clean = (v, max) => String(v || '').replace(/[\u0000-\u001f\u007f<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
   const loadCompanies = () => U.setExtraCompanies(Object.fromEntries(q('SELECT * FROM companies').all().map((c) => [c.id, { name: c.name, domains: c.domains.split(',') }])));
   loadCompanies();
 
   // Вызывается из /api/auth/request, когда домен незнаком
-  async function request(email, req) {
+  async function request(email, req, body = {}) {
     const domain = email.split('@')[1] || '';
     if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) throw bad('Проверь адрес почты.');
     if (FREE_MAIL.has(domain)) throw bad('Нужна рабочая почта компании — личная (Gmail, Яндекс, Mail.ru и т. п.) не подойдёт.');
     const d = q('SELECT * FROM access_domains WHERE domain = ?').get(domain);
     if (d && d.status === 'rejected') throw bad('Для этой компании Этаж пока не открыт.');
+    // Первый человек от компании называет её и офис. Если их уже назвал коллега — второй раз не спрашиваем
+    const companyName = clean(body.companyName, 40), officeName = clean(body.officeName, 40);
+    const known = !!(d && d.company_name && d.office_name);
+    if (!known && (companyName.length < 2 || officeName.length < 2)) {
+      if (body.companyName != null || body.officeName != null) throw bad('Напиши название компании и офиса — хотя бы по два символа.');
+      return { ok: true, needCompany: true };
+    }
     rateLimit('access-ip:' + req.ip, 5, 3600e3);
     rateLimit('access-domain:' + domain, 30, 864e5);
     if (q('SELECT COUNT(*) AS n FROM access_requests WHERE domain = ?').get(domain).n >= 50) throw bad('От твоей компании уже много заявок — модератор скоро ответит.');
     const token = U.randomToken(32);
-    q('INSERT INTO access_tokens (token_hash, domain, email_sealed, expires_at) VALUES (?, ?, ?, ?)').run(U.sha256(token), domain, U.seal(email), U.now() + 864e5);
+    q('INSERT INTO access_tokens (token_hash, domain, email_sealed, expires_at, company_name, office_name) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(U.sha256(token), domain, U.seal(email), U.now() + 864e5, known ? null : companyName, known ? null : officeName);
     const link = `${config.baseUrl}/auth/access?t=${token}`;
     try { await sendAccessCheck(email, link); } catch (e) {
       console.error('[mail] заявка не отправлена:', String(e.message).replace(/[^\s<>@]+@[^\s<>@]+/g, '***'));
@@ -52,11 +64,13 @@ function register(ctx) {
     q('INSERT INTO access_requests (email_hash, domain, email_sealed, at) VALUES (?, ?, ?, ?) ON CONFLICT(email_hash) DO UPDATE SET at = excluded.at')
       .run(U.hashEmail(email), t.domain, t.email_sealed, U.now());
     q(`INSERT INTO access_domains (domain, status, first_at, last_at) VALUES (?, 'pending', ?, ?) ON CONFLICT(domain) DO UPDATE SET last_at = excluded.last_at`).run(t.domain, U.now(), U.now());
+    // Названия берём у первого, кто подтвердил почту
+    if (t.company_name && t.office_name) q('UPDATE access_domains SET company_name = ?, office_name = ? WHERE domain = ? AND company_name IS NULL').run(t.company_name, t.office_name, t.domain);
     const d = q('SELECT * FROM access_domains WHERE domain = ?').get(t.domain);
     if (!d.notified_at || d.notified_at < U.now() - 864e5) {
       q('UPDATE access_domains SET notified_at = ? WHERE domain = ?').run(U.now(), t.domain);
       const n = q('SELECT COUNT(*) AS n FROM access_requests WHERE domain = ?').get(t.domain).n;
-      fireAndForget(notify(adminIds(), { title: 'Заявка в Этаж', body: `Компания с почтой @${t.domain} просит открыть Этаж · человек: ${n}`, url: '/admin.html', tag: 'access-' + t.domain }));
+      fireAndForget(notify(adminIds(), { title: 'Заявка в Этаж', body: `${d.company_name ? '«' + d.company_name + '», ' : 'Компания с почтой '}@${t.domain} просит открыть Этаж · человек: ${n}`, url: '/admin.html', tag: 'access-' + t.domain }));
     }
     return true;
   }
@@ -64,7 +78,7 @@ function register(ctx) {
   route('GET', '/api/admin/access', async (req) => {
     requireAdmin(req);
     return {
-      requests: q(`SELECT d.domain, d.status, d.first_at, d.last_at, (SELECT COUNT(*) FROM access_requests r WHERE r.domain = d.domain) AS people
+      requests: q(`SELECT d.domain, d.status, d.first_at, d.last_at, d.company_name AS companyName, d.office_name AS officeName, (SELECT COUNT(*) FROM access_requests r WHERE r.domain = d.domain) AS people
                    FROM access_domains d WHERE d.status = 'pending' ORDER BY d.last_at DESC`).all(),
       companies: q('SELECT id, name, domains, created_at FROM companies ORDER BY created_at DESC').all()
     };
@@ -74,7 +88,7 @@ function register(ctx) {
   route('POST', '/api/admin/access/open', async (req, body) => {
     requireAdmin(req);
     const domain = String(body.domain || '').toLowerCase();
-    const name = String(body.name || '').trim().slice(0, 40), office = String(body.office || '').trim().slice(0, 40);
+    const name = clean(body.name, 40), office = clean(body.office, 40);
     if (!q("SELECT 1 FROM access_domains WHERE domain = ? AND status = 'pending'").get(domain)) throw bad('Заявки с этим доменом нет.');
     if (name.length < 2 || office.length < 2) throw bad('Нужны название компании и офиса.');
     const id = 'c' + crypto.createHash('sha256').update(domain).digest('hex').slice(0, 8);
