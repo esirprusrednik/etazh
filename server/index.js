@@ -18,7 +18,7 @@ const PUBLIC = path.join(__dirname, '..', 'public');
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.woff': 'font/woff', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8', '.mp3': 'audio/mpeg'
+  '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.webp': 'image/webp', '.mp4': 'video/mp4', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.woff': 'font/woff', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8', '.mp3': 'audio/mpeg'
 };
 
 const SECURITY_HEADERS = {
@@ -48,13 +48,21 @@ function serveStatic(req, res, pathname) {
   fs.stat(file, (err, st) => {
     const target = !err && st.isFile() ? file : path.join(PUBLIC, 'index.html'); // SPA: всё неизвестное → index.html
     const ext = path.extname(target);
-    const isImg = ['.png', '.svg', '.ico', '.webp', '.jpg', '.woff', '.woff2', '.mp3'].includes(ext);
+    const isImg = ['.png', '.svg', '.ico', '.webp', '.jpg', '.woff', '.woff2', '.mp3', '.mp4'].includes(ext);
     const cache = isImg ? 'public, max-age=86400' : 'no-cache';
     fs.readFile(target, (e, buf) => {
       if (e) return send(res, 404, 'Not found');
       const etag = '"' + crypto.createHash('sha1').update(buf).digest('base64url') + '"';
       if (req.headers['if-none-match'] === etag) return send(res, 304, '', { ETag: etag, 'Cache-Control': cache });
-      send(res, 200, buf, { 'Content-Type': TYPES[ext] || 'application/octet-stream', 'Cache-Control': cache, ETag: etag });
+      // Видео: Safari на iPhone не проигрывает <video>, если сервер не умеет отдавать кусками (Range → 206)
+      const rng = ext === '.mp4' && /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+      if (rng && (rng[1] || rng[2])) {
+        const start = rng[1] ? Number(rng[1]) : Math.max(0, buf.length - Number(rng[2]));
+        const end = rng[1] && rng[2] ? Math.min(Number(rng[2]), buf.length - 1) : buf.length - 1;
+        if (start > end || start >= buf.length) return send(res, 416, '', { 'Content-Range': `bytes */${buf.length}` });
+        return send(res, 206, buf.subarray(start, end + 1), { 'Content-Type': TYPES[ext], 'Content-Range': `bytes ${start}-${end}/${buf.length}`, 'Accept-Ranges': 'bytes', 'Cache-Control': cache, ETag: etag });
+      }
+      send(res, 200, buf, { 'Content-Type': TYPES[ext] || 'application/octet-stream', 'Cache-Control': cache, ETag: etag, ...(ext === '.mp4' ? { 'Accept-Ranges': 'bytes' } : {}) });
     });
   });
 }

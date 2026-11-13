@@ -2463,36 +2463,20 @@ img.ei.ei-art { width: 1.55em; height: 1.55em; vertical-align: -0.42em; margin: 
 .duel-ico .ei-art, .sm-ico .ei-art, .bi-ico .ei-art, .crew-turn .ei-art { width: 26px; height: 26px; margin: 0; vertical-align: middle; }
 .war-kindbtn > span:first-child .ei-art { width: 34px; height: 34px; }
 button.ava-tap { padding: 0; border: 0; background: none; cursor: pointer; font: inherit; color: inherit; }
-/* ===== Заставка: человечек поднимается по бесконечной лестнице. Покадрово, как пластилиновый мультик:
-   ступень 66×32, за три кадра (0,42 с) лестница сдвигается на одну ступень, человечек перебирает шесть кадров ===== */
-.climb { position: fixed; inset: 0; z-index: 1200; overflow: hidden; color: #fff; text-align: center; background: linear-gradient(180deg, #2A3A8C 0%, #1D2767 48%, #141B4B 100%);
+/* ===== Заставка: зацикленное пластилиновое видео на весь экран (720×1280), поверх — приветствие и кнопка ===== */
+.climb { position: fixed; inset: 0; z-index: 1200; overflow: hidden; color: #fff; text-align: center; background: linear-gradient(180deg, #3552A6 0%, #1B2A6E 45%, #2A3CA8 100%);
   transition: transform .6s cubic-bezier(.6,0,.8,.3), opacity .45s .15s; }
 .climb.go { transform: translateY(-104%); opacity: 0; pointer-events: none; }
-.climb-bg { position: absolute; inset: 0; pointer-events: none; }
-.climb-bg i { position: absolute; border-radius: 50%; }
-.climb-bg i:nth-child(1) { width: 120px; height: 120px; right: -34px; top: 31%; background: radial-gradient(circle at 35% 35%, #FFE08A, #F5B400 62%, #D99A00); box-shadow: 0 0 70px rgba(245,180,0,.3); }
-.climb-bg i:nth-child(2) { width: 220px; height: 70px; left: -60px; top: 43%; background: rgba(255,255,255,.08); animation: climb-cloud 14s ease-in-out infinite alternate; }
-.climb-bg i:nth-child(3) { width: 150px; height: 50px; right: 22%; top: 27%; background: rgba(255,255,255,.07); animation: climb-cloud 18s ease-in-out infinite alternate-reverse; }
-@keyframes climb-cloud { to { transform: translateX(40px); } }
-.climb-scene { position: absolute; inset: 0; overflow: hidden; }
-.climb-stairs { position: absolute; left: 50%; bottom: 0; width: 0; height: 100%; animation: climb-roll .42s steps(3) infinite; }
-@keyframes climb-roll { to { transform: translate(-66px, 32px); } }
-.climb-stairs i { position: absolute; left: calc(var(--k) * 66px - 56px); bottom: calc(var(--k) * 32px + 34% - 1400px); width: 67px; height: 1400px; border-radius: 9px 3px 0 0;
-  background: linear-gradient(180deg, #FFD45E 0 5px, #7C8FF0 5px 13px, #4658BC 13px 15px, #3D4CAA 15px, #2F3C8E 180px, #232D70 520px, #1C2460 100%);
-  box-shadow: inset 2px 0 0 rgba(255,255,255,.1), inset -6px 0 8px rgba(10,14,50,.38); }
-.climb-guy { position: absolute; left: 50%; bottom: 34%; width: 150px; height: 204px; margin: 0 0 -4px -75px; background: url(/art/walk.webp) 0 0 / 600% 100% no-repeat; animation: climb-walk .84s steps(6) infinite; filter: drop-shadow(0 7px 5px rgba(6,10,40,.45)); transition: transform .35s cubic-bezier(.3,1.6,.5,1); }
-@keyframes climb-walk { to { background-position-x: 120%; } }
-/* Табличка этажа на столбике: стоит на ступеньке через одну от опорной ноги, появляется в конце подъёма */
-/* Текст — наверху, на чистом небе: там он читается */
-.climb-top { position: absolute; left: 0; right: 0; top: 0; padding: calc(16px + env(safe-area-inset-top, 0px)) 22px 0; display: flex; flex-direction: column; align-items: center; }
+.climb-vid { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 62%; pointer-events: none; }
+/* Широкий экран: видео не растягиваем, по бокам — фон в тон сцене */
+@media (min-aspect-ratio: 3/4) { .climb-vid { object-fit: contain; } }
+.climb::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 46%; z-index: 1; pointer-events: none; background: linear-gradient(180deg, rgba(16,24,72,.55), rgba(16,24,72,0)); }
+.climb-top { position: absolute; z-index: 2; left: 0; right: 0; top: 0; padding: calc(18px + env(safe-area-inset-top, 0px)) 22px 0; display: flex; flex-direction: column; align-items: center; }
 .climb .logo { font-size: 30px; color: #fff; }
-.climb-chip { display: inline-flex; align-items: center; gap: 7px; margin-top: 8px; padding: 6px 13px; border-radius: 999px; font-size: 12.5px; font-weight: 800; letter-spacing: .03em; color: #FFD45E; background: rgba(8,12,40,.5); box-shadow: inset 0 0 0 1px rgba(255,212,94,.4); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.climb-chip i { width: 0; height: 0; flex: none; border: 5px solid transparent; border-top: 0; border-bottom: 8px solid #FFD45E; }
 .climb-hi { margin: 18px 0 0; max-width: 460px; font-size: clamp(25px, 7.4vw, 34px); font-weight: 900; line-height: 1.16; letter-spacing: -.01em; color: #fff; text-shadow: 0 2px 0 rgba(10,14,50,.55), 0 0 18px rgba(10,14,50,.5); text-wrap: balance; }
-.climb-day { margin: 10px 0 0; font-size: 15px; font-weight: 800; color: #C9D2F5; }
-.climb-act { position: absolute; left: 0; right: 0; bottom: 0; padding: 0 22px calc(22px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; align-items: center; }
+.climb-day { margin: 10px 0 0; font-size: 15px; font-weight: 800; color: #D5DCFA; text-shadow: 0 1px 0 rgba(10,14,50,.5); }
+.climb-act { position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; padding: 0 22px calc(22px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; align-items: center; }
 .climb .splash-go { margin: 0; width: min(100%, 340px); min-height: 56px; font-size: 18px; animation: sp-in .35s .15s ease both; background: linear-gradient(180deg, #FFDB6B, #F5B400) !important; color: #3B2A00 !important; box-shadow: 0 5px 0 #B98400, 0 12px 22px rgba(6,10,40,.45) !important; }
-.climb .splash-bar { margin-top: 14px; width: 150px; background: rgba(255,255,255,.2); }
-
+.climb .splash-bar { margin-top: 14px; width: 150px; background: rgba(255,255,255,.25); }
 @media (max-height: 640px) { .climb-hi { font-size: 23px; margin-top: 10px; } .climb .logo { font-size: 24px; } .climb-day { margin-top: 6px; } }
-@media (prefers-reduced-motion: reduce) { .climb-stairs, .climb-guy, .climb-bg i { animation: none; } .climb { transition: opacity .25s; } .climb.go { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .climb { transition: opacity .25s; } .climb.go { transform: none; } }

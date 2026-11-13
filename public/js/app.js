@@ -7576,38 +7576,29 @@ function greetFill(t, addr, sex, hol = '') {
 // Заставка с лестницей. Первый вход за день — до 10 секунд, чтобы успеть прочитать приветствие; дальше в тот же день — 4 секунды.
 // Полоска показывает, сколько осталось, кнопка — дальше сразу
 const SPLASH_MS = 10000, SPLASH_SHORT_MS = 4000;
-// Подпись над лестницей для тех, кто без банды: куда поднимаемся — по времени суток
-const LIFT_FLOORS = {
-  night: ['Этаж сов', 'Этаж «не спится»', 'Ночной этаж'],
-  morning: ['Этаж кофе', 'Этаж «ещё пять минут»', 'Этаж бодрости', 'Этаж первых созвонов'],
-  day: ['Этаж дедлайнов', 'Этаж, где обед', 'Этаж созвонов', 'Этаж «сейчас гляну»'],
-  evening: ['Этаж последних правок', 'Этаж «добиваем день»', 'Этаж «почти всё»'],
-  late: ['Этаж дивана', 'Этаж «только гляну»', 'Этаж заслуженного отдыха']
-};
 async function splash() {
   try { await loadState(); } catch {}
   const g = greeting();
   const st = S.state || {};
-  const part = dayPart(st.msk ? Number(st.msk.slice(0, 2)) : new Date().getHours());
-  const names = LIFT_FLOORS[part] || LIFT_FLOORS.day;
-  const mine = (S.me.gangs || []).find((x) => x.id === S.activeGang) || (S.me.gangs || [])[0];
-  const where = mine && mine.floor ? `${mine.floor} этаж · ${mine.name}` : names[Math.floor(Math.random() * names.length)];
-  // Заставка лежит поверх приложения: человечек бесконечно поднимается по лестнице, пока под ней рисуется экран.
-  // Как в пластилиновом мультике, всё движется покадрово: за три кадра ступени сдвигаются ровно на одну, и опорная нога с них не съезжает
+  // Первый вход за день — до 10 секунд, чтобы успеть прочитать приветствие; дальше в тот же день — 4 секунды
   const today = st.today || new Date().toDateString();
   const ms = store.get('splashDay', '') === today ? SPLASH_SHORT_MS : SPLASH_MS;
   store.set('splashDay', today);
+  // Заставка лежит поверх приложения. Сцена — зацикленное пластилиновое видео на весь экран: человечек в капюшоне
+  // с рюкзаком и кофе бесконечно поднимается по лестнице (мальчик или девочка — по роду в профиле).
+  // Пока видео грузится, виден его первый кадр; идёт до нажатия кнопки или конца времени
   const el = document.createElement('div');
   el.className = 'climb';
-  const steps = Array.from({ length: 18 }, (_, k) => `<i style="--k:${k - 8}"></i>`).join('');
-  // Сцена — на весь экран: лестница уходит под нижний край, приветствие крупно наверху, кнопка внизу поверх ступеней
-  el.innerHTML = `<div class="climb-bg"><i></i><i></i><i></i></div>
-    <div class="climb-scene"><div class="climb-stairs">${steps}</div><i class="climb-guy"></i></div>
+  const who = meG('boy', 'girl');
+  el.innerHTML = `<video class="climb-vid" autoplay muted loop playsinline preload="auto" poster="/art/climb/${who}.jpg" src="/art/climb/${who}.mp4"></video>
     <div class="climb-top"><div class="logo">Этаж<span>.</span></div>
-      <div class="climb-chip"><i></i>${esc(where)}</div>
       <p class="climb-hi">${esc(g.text)}</p><p class="climb-day">${esc(g.day)}</p></div>
     <div class="climb-act"><button class="btn splash-go" data-act="splash-skip">${esc(g.go)} →</button><div class="splash-bar"><i style="animation-duration:${ms}ms"></i></div></div>`;
+  // muted из разметки браузеры учитывают не всегда, а без него автозапуск запрещён
+  const vid = el.querySelector('video');
+  vid.muted = true; vid.defaultMuted = true;
   document.body.appendChild(el);
+  try { const pr = vid.play(); if (pr && pr.catch) pr.catch(() => {}); } catch {}
   root.innerHTML = '';
   await new Promise((res) => { S.splashDone = res; setTimeout(res, ms); });
   S.splashDone = null;
