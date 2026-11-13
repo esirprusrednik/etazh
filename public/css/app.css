@@ -2504,3 +2504,4 @@ body.fx-shake-l .board-wrap, body.fx-shake-l .b-vs { animation: fx-shake-l .6s c
 .emo { min-width: 0; height: 52px; }
 .emo .emo-art { width: 42px; height: 42px; }
 @media (max-width: 380px) { .emo .emo-art { width: 36px; height: 36px; } }
+.duel-start.sea-hero.on { box-shadow: 0 0 0 3px var(--gold, #F5B400); }
