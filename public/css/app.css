@@ -2510,3 +2510,4 @@ img.ei.ei-art { width: 1.55em; height: 1.55em; vertical-align: -0.42em; margin: 
 .ei-art { display: inline-block; flex: none; filter: drop-shadow(0 1px 1px rgba(0,10,40,.25)); }
 .duel-ico .ei-art, .sm-ico .ei-art, .bi-ico .ei-art, .crew-turn .ei-art { width: 26px; height: 26px; margin: 0; vertical-align: middle; }
 .war-kindbtn > span:first-child .ei-art { width: 34px; height: 34px; }
+button.ava-tap { padding: 0; border: 0; background: none; cursor: pointer; font: inherit; color: inherit; }

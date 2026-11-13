@@ -4058,8 +4058,8 @@ function renderDm() {
   <button class="linkbtn back" data-act="dm-back">‹ Личка</button>
   <section class="card">
     <div class="row">
-      <span class="ava-wrap"><span class="ava-ring" style="border-color:${color}">${avatar(f.look, 32)}</span><span class="ava-dot" style="background:${color}"></span></span>
-      <div class="grow" style="min-width:0"><div style="font-weight:900;font-size:17px">${nk(f)}</div><div class="where ellipsis">${esc(w)}${f.mood && f.where === 'office' ? ' · ' + esc(f.mood) : ''}</div></div>
+      <button class="ava-wrap ava-tap" data-act="person" data-id="${f.id}" aria-label="Открыть профиль"><span class="ava-ring" style="border-color:${color}">${avatar(f.look, 32)}</span><span class="ava-dot" style="background:${color}"></span></button>
+      <div class="grow" style="min-width:0"><div class="tapname" style="font-weight:900;font-size:17px" data-act="person" data-id="${f.id}">${nk(f)}</div><div class="where ellipsis">${esc(w)}${f.mood && f.where === 'office' ? ' · ' + esc(f.mood) : ''}</div></div>
       ${star}
     </div>
     ${away ? '<div class="note warn">Сейчас отдыхает: пуш не придёт, увидит, когда вернётся.</div>' : ''}
