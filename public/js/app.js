@@ -1183,7 +1183,9 @@ const ICONS = {
   circle: 'M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16z',
   grid: 'M4 9h16M4 15h16M9 4v16M15 4v16'
 };
-const ico = (name, size = 20) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICONS[name]}"/></svg>`;
+// Часть значков нарисована в пластилиновом стиле: вместо линейной иконки ставится картинка из /art (якорь морского боя — кораблик)
+const ART_ICON = { anchor: 'ship' };
+const ico = (name, size = 20) => ART_ICON[name] ? `<img class="ei-art" src="/art/${ART_ICON[name]}.webp" width="${Math.round(size * 1.4)}" height="${Math.round(size * 1.4)}" alt="">` : `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICONS[name]}"/></svg>`;
 // Эмодзи в интерфейсе заменены монохромными иконками: в коде они записаны токеном \uE000имя\uE001,
 // при отрисовке токен превращается в линейную иконку под цвет текста (в атрибутах — просто выкидывается)
 // Мягкие переносы для подписей плиток: длинные слова делятся по слогам (В|СВ, ВС|СВ, Й|С), чтобы не вылезать за плитку
@@ -1200,7 +1202,7 @@ const hy = (t) => String(t).replace(/[А-Яа-яЁё]{8,}/g, hyWord);
 const ICON_TOKEN = /\uE000(\w+)\uE001/g;
 // Род: в текстах интерфейса токен \uE002мужская|женская\uE003 — разворачивается по полу из профиля при отрисовке и в тостах
 const genderize = (s) => String(s).replace(/\uE002([^|\uE003]*)\|([^\uE003]*)\uE003/g, (_, m, f) => meG(m, f));
-const iconize = (html) => genderize(html).replace(/(<[^>]*>)|\uE000(\w+)\uE001/g, (m, tag, n) => tag ? tag.replace(/\uE000\w+\uE001\s?/g, '') : ICONS[n] ? `<svg class="ei ei-${n}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICONS[n]}"/></svg>` : '');
+const iconize = (html) => genderize(html).replace(/(<[^>]*>)|\uE000(\w+)\uE001/g, (m, tag, n) => tag ? tag.replace(/\uE000\w+\uE001\s?/g, '') : ART_ICON[n] ? `<img class="ei ei-art" src="/art/${ART_ICON[n]}.webp" alt="">` : ICONS[n] ? `<svg class="ei ei-${n}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICONS[n]}"/></svg>` : '');
 const plain = (t) => genderize(String(t ?? '')).replace(/\uE000\w+\uE001\s?/g, '').trim();
 const OFFICE_BG = { smol: '#E5484D', mark: '#3A86FF', vor: '#F4A72C' };
 const CALL_STYLE = {

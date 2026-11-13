@@ -2505,3 +2505,8 @@ body.fx-shake-l .board-wrap, body.fx-shake-l .b-vs { animation: fx-shake-l .6s c
 .emo .emo-art { width: 42px; height: 42px; }
 @media (max-width: 380px) { .emo .emo-art { width: 36px; height: 36px; } }
 .duel-start.sea-hero.on { box-shadow: 0 0 0 3px var(--gold, #F5B400); }
+/* Рисованные значки на месте линейных (кораблик морского боя) */
+img.ei.ei-art { width: 1.55em; height: 1.55em; vertical-align: -0.42em; margin: -0.2em 0; object-fit: contain; }
+.ei-art { display: inline-block; flex: none; filter: drop-shadow(0 1px 1px rgba(0,10,40,.25)); }
+.duel-ico .ei-art, .sm-ico .ei-art, .bi-ico .ei-art, .crew-turn .ei-art { width: 26px; height: 26px; margin: 0; vertical-align: middle; }
+.war-kindbtn > span:first-child .ei-art { width: 34px; height: 34px; }
