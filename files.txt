@@ -190,8 +190,10 @@ public/art/emo.webp
 public/art/gull.webp
 public/art/climb/boy.jpg
 public/art/climb/boy.mp4
+public/art/climb/boy.webp
 public/art/climb/girl.jpg
 public/art/climb/girl.mp4
+public/art/climb/girl.webp
 public/art/sea_buoy.webp
 public/art/ship.webp
 public/art/ships/s1h.webp

@@ -29,3 +29,5 @@
 - Сервер: `server/index.js` отдаёт `.mp4` кусками (Range → 206) — без этого Safari на iPhone видео не играет.
 - Стиль-референс: e52a79ff-30ff-4ee8-b6ae-10ba78134d14.
 - Звук: `public/sounds/climb_loop.mp3` — петля 5 с (96 уд/мин, 8 долей), собрана `tools/sounds/climb_loop.py`; в клиенте играет через WebAudio с loopStart 0,05 / loopEnd 5,05.
+- Запасной вариант: `boy.webp`, `girl.webp` — анимированные картинки 432×768, 12 кадров/с (`ffmpeg -vf fps=12,scale=432:-2 -c:v libwebp_anim -q:v 55 -loop 0`). Клиент подменяет ими видео, если оно не пошло за 1,5 с (iPhone в режиме энергосбережения).
+- Ответы сервера идут с Content-Length: видео с chunked-ответом Safari не играет.

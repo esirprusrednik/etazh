@@ -30,7 +30,9 @@ const SECURITY_HEADERS = {
 };
 
 function send(res, status, body, headers = {}) {
-  res.writeHead(status, { ...SECURITY_HEADERS, ...headers });
+  // Длину указываем всегда: без Content-Length ответ уходит кусками (chunked), а Safari на iPhone такое видео не проигрывает
+  const len = body == null ? 0 : Buffer.isBuffer(body) ? body.length : Buffer.byteLength(String(body));
+  res.writeHead(status, { ...SECURITY_HEADERS, ...(status === 304 || status === 204 ? {} : { 'Content-Length': len }), ...headers });
   res.end(body);
 }
 

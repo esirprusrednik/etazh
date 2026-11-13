@@ -7627,7 +7627,18 @@ async function splash() {
   const vid = el.querySelector('video');
   vid.muted = true; vid.defaultMuted = true;
   document.body.appendChild(el);
-  try { const pr = vid.play(); if (pr && pr.catch) pr.catch(() => {}); } catch {}
+  // Если видео не пошло (iPhone в режиме энергосбережения запрещает автозапуск, либо ролик не загрузился),
+  // через полторы секунды подменяем его анимированной картинкой: её браузер крутит всегда
+  let swapped = false;
+  const toImg = () => {
+    if (swapped || !el.isConnected) return; swapped = true;
+    const im = new Image(); im.className = 'climb-vid'; im.alt = '';
+    im.onload = () => { if (vid.isConnected) vid.replaceWith(im); };
+    im.src = `/art/climb/${who}.webp`;
+  };
+  vid.addEventListener('error', toImg);
+  try { const pr = vid.play(); if (pr && pr.catch) pr.catch(toImg); } catch { toImg(); }
+  setTimeout(() => { if (vid.paused || vid.readyState < 2 || vid.currentTime < 0.05) toImg(); }, 1500);
   // Фоновый мотивчик: петля ровно в 5 секунд, как видео. Браузер даёт звук до первого касания не везде
   // (в установленном приложении на Android — даёт, на iPhone — нет): где нельзя, заставка идёт молча
   let stopMusic = () => {}, closed = false;
