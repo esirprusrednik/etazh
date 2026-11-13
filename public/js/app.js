@@ -7592,16 +7592,17 @@ async function splash() {
   const mine = (S.me.gangs || []).find((x) => x.id === S.activeGang) || (S.me.gangs || [])[0];
   const where = mine && mine.floor ? `${mine.floor} этаж · ${mine.name}` : names[Math.floor(Math.random() * names.length)];
   // Заставка лежит поверх приложения: человечек бесконечно поднимается по лестнице, пока под ней рисуется экран.
-  // Ступени едут вниз-влево ровно на одну ступень за полцикла шага, человечек стоит на месте и перебирает шесть кадров
+  // Как в пластилиновом мультике, всё движется покадрово: за три кадра ступени сдвигаются ровно на одну, и опорная нога с них не съезжает
   const el = document.createElement('div');
   el.className = 'climb';
-  const steps = Array.from({ length: 16 }, (_, k) => `<i style="--k:${k - 6}"></i>`).join('');
+  const steps = Array.from({ length: 18 }, (_, k) => `<i style="--k:${k - 8}"></i>`).join('');
+  // Сцена — на весь экран: лестница уходит под нижний край, приветствие крупно наверху, кнопка внизу поверх ступеней
   el.innerHTML = `<div class="climb-bg"><i></i><i></i><i></i></div>
-    <div class="logo">Этаж<span>.</span></div>
-    <div class="climb-chip"><i></i>${esc(where)}</div>
     <div class="climb-scene"><div class="climb-stairs">${steps}</div><i class="climb-guy"></i></div>
-    <div class="climb-text"><p class="climb-hi">${esc(g.text)}</p><p class="climb-day">${esc(g.day)}</p>
-      <button class="btn splash-go" data-act="splash-skip">${esc(g.go)} →</button><div class="splash-bar"><i style="animation-duration:${SPLASH_MS}ms"></i></div></div>`;
+    <div class="climb-top"><div class="logo">Этаж<span>.</span></div>
+      <div class="climb-chip"><i></i>${esc(where)}</div>
+      <p class="climb-hi">${esc(g.text)}</p><p class="climb-day">${esc(g.day)}</p></div>
+    <div class="climb-act"><button class="btn splash-go" data-act="splash-skip">${esc(g.go)} →</button><div class="splash-bar"><i style="animation-duration:${SPLASH_MS}ms"></i></div></div>`;
   document.body.appendChild(el);
   root.innerHTML = '';
   await new Promise((res) => { S.splashDone = res; setTimeout(res, SPLASH_MS); });
