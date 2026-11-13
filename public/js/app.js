@@ -7600,11 +7600,9 @@ async function splash() {
   const el = document.createElement('div');
   el.className = 'climb';
   const steps = Array.from({ length: 18 }, (_, k) => `<i style="--k:${k - 8}"></i>`).join('');
-  // Табличка этажа: вырастает на ступеньке впереди, когда человечек дошёл. Без банды этажа нет — и таблички нет
-  const sign = mine && mine.floor ? `<div class="climb-sign"><b>${esc(mine.floor)}</b><span>этаж</span></div>` : '';
   // Сцена — на весь экран: лестница уходит под нижний край, приветствие крупно наверху, кнопка внизу поверх ступеней
   el.innerHTML = `<div class="climb-bg"><i></i><i></i><i></i></div>
-    <div class="climb-scene"><div class="climb-stairs">${steps}</div>${sign}<i class="climb-guy"></i></div>
+    <div class="climb-scene"><div class="climb-stairs">${steps}</div><i class="climb-guy"></i></div>
     <div class="climb-top"><div class="logo">Этаж<span>.</span></div>
       <div class="climb-chip"><i></i>${esc(where)}</div>
       <p class="climb-hi">${esc(g.text)}</p><p class="climb-day">${esc(g.day)}</p></div>
@@ -7613,15 +7611,9 @@ async function splash() {
   root.innerHTML = '';
   await new Promise((res) => { S.splashDone = res; setTimeout(res, ms); });
   S.splashDone = null;
-  // Дошли: шаг замирает в первом кадре (обе ноги на ступенях), впереди вырастает табличка этажа, человечек подпрыгивает —
-  // и заставка уезжает вверх, открывая этаж
-  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  try {
-    for (const q of ['.climb-stairs', '.climb-guy']) el.querySelector(q).getAnimations().forEach((a) => { a.currentTime = 0; a.pause(); });
-  } catch {}
-  el.classList.add('top');
-  await new Promise((res) => setTimeout(res, reduce ? 350 : sign ? 800 : 380));
+  // Человечек идёт без остановки, пока не нажмут кнопку или не выйдет время; потом заставка просто уезжает вверх
   el.classList.add('go');
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   setTimeout(() => el.remove(), reduce ? 300 : 750);
 }
 
