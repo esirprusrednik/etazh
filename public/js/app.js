@@ -2068,7 +2068,9 @@ function renderMailBtn(b) {
   const n = b.crew || 0;
   const turn = (S.battles || []).some((x) => x.myTurn && x.status !== 'done');
   const on = S.tab === 'chats' && (S.dm || S.dmList);
-  return `<button class="mailbtn ${on ? 'on' : ''}" data-act="dm-list" aria-label="Личка${n ? `, новых: ${n}` : ''}${turn ? ', твой ход в морском бою' : ''}">${DM_SVG}${n ? `<span class="badge">${n > 9 ? '9+' : n}</span>` : turn ? '<span class="mdot" aria-hidden="true"></span>' : ''}</button>`;
+  // Новое в личке: кнопка загорается и пульсирует, пока не откроют. Фаза анимации — от часов, чтобы перерисовка шапки её не сбрасывала
+  const hot = n > 0 && !on;
+  return `<button class="mailbtn ${on ? 'on' : ''} ${hot ? 'hot' : ''}" ${hot ? `style="--hot:-${Date.now() % 2400}ms"` : ''} data-act="dm-list" aria-label="Личка${n ? `, новых: ${n}` : ''}${turn ? ', твой ход в морском бою' : ''}">${DM_SVG}${n ? `<span class="badge">${n > 9 ? '9+' : n}</span>` : turn ? '<span class="mdot" aria-hidden="true"></span>' : ''}</button>`;
 }
 function tabBtn(id, label, n) {
   const icons = {

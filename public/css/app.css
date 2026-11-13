@@ -2480,3 +2480,13 @@ button.ava-tap { padding: 0; border: 0; background: none; cursor: pointer; font:
 .climb .splash-bar { margin-top: 14px; width: 150px; background: rgba(255,255,255,.25); }
 @media (max-height: 640px) { .climb-hi { font-size: 23px; margin-top: 10px; } .climb .logo { font-size: 24px; } .climb-day { margin-top: 6px; } }
 @media (prefers-reduced-motion: reduce) { .climb { transition: opacity .25s; } .climb.go { transform: none; } }
+/* Кнопка лички с новым сообщением: горит тёплым, от неё расходятся кольца, значок покачивается */
+.mailbtn.hot { background: linear-gradient(180deg, #FFB03A, #FF6A2B); color: #fff; border-color: transparent; box-shadow: 0 3px 0 #C2410C, 0 0 0 0 rgba(255,122,43,.55); animation: mail-glow 1.2s ease-in-out infinite; animation-delay: var(--hot, 0s); }
+.mailbtn.hot::before, .mailbtn.hot::after { content: ''; position: absolute; inset: -2px; border-radius: 50%; border: 2px solid #FF7A2B; opacity: 0; pointer-events: none; animation: mail-ring 2.4s ease-out infinite; animation-delay: var(--hot, 0s); }
+.mailbtn.hot::after { animation-delay: calc(var(--hot, 0s) + 1.2s); }
+.mailbtn.hot svg { animation: mail-wag 2.4s ease-in-out infinite; animation-delay: var(--hot, 0s); transform-origin: 50% 60%; }
+.mailbtn.hot .badge { background: #fff; color: #C2410C; box-shadow: 0 0 0 2px #FF6A2B; }
+@keyframes mail-glow { 0%, 100% { box-shadow: 0 3px 0 #C2410C, 0 0 4px 0 rgba(255,122,43,.35); filter: brightness(1); } 50% { box-shadow: 0 3px 0 #C2410C, 0 0 18px 4px rgba(255,140,50,.75); filter: brightness(1.12); } }
+@keyframes mail-ring { 0% { transform: scale(1); opacity: .8; } 70%, 100% { transform: scale(1.75); opacity: 0; } }
+@keyframes mail-wag { 0%, 18%, 100% { transform: rotate(0); } 3% { transform: rotate(-16deg); } 7% { transform: rotate(14deg); } 11% { transform: rotate(-9deg); } 15% { transform: rotate(5deg); } }
+@media (prefers-reduced-motion: reduce) { .mailbtn.hot, .mailbtn.hot svg, .mailbtn.hot::before, .mailbtn.hot::after { animation: none; } }
