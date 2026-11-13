@@ -2430,7 +2430,7 @@ function renderLunchCard() {
   if (!b) return '';
   const items = b.items.filter((x) => x.kind === 'lunch' && (!x.expiresAt || x.expiresAt > Date.now())).sort((p, q) => String(p.time).localeCompare(String(q.time)));
   const can = (b.lunchTimes || []).length > 0;
-  if (!items.length && !can) return ''; // вечером звать уже некуда — карточку не показываем
+  if (!items.length) return ''; // пока никто не собирает компанию, карточки нет: позвать можно кнопкой «На обед» выше
   return `<section class="card bboard lunch-card"><div class="chats-head"><h3 class="has-art">${art('lunch', 28)}Кто на обед?</h3>${can ? '<button class="linkbtn" data-act="board-new" data-v="lunch">＋ Позвать</button>' : ''}</div>
     ${items.length ? items.slice(0, S.lunchAll ? 50 : 3).map(boardRow).join('') : '<p class="small" style="margin:0">Позови на обед: выбери время и где встречаетесь. Кто нажмёт «Я с вами» — тебе придёт пуш. Сбор снимется сам, когда отметишь в столовой «Поел».</p>'}
     ${items.length > 3 && !S.lunchAll ? `<button class="linkbtn" data-act="lunch-all">Ещё ${items.length - 3}</button>` : ''}
@@ -4690,6 +4690,7 @@ function renderCompose() {
     ${def.opts.length ? `<div class="field">Когда / где<div class="chips">${def.opts.map((o) => `<button class="chip ${c.opt === o ? 'on' : ''}" data-act="c-opt" data-v="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>` : ''}
     ${def.textLabel ? `<label class="field">${esc(def.textLabel)}<input id="c-text" maxlength="40" placeholder="${esc(def.textHint)}" value="${esc(c.text || '')}"></label>` : ''}
     <button class="btn wide" data-act="call-send">Позвать</button>
+    ${c.kind === 'lunch' && S.board && (S.board.lunchTimes || []).length ? '<button class="linkbtn" style="display:block;margin:10px auto 0" data-act="board-new" data-v="lunch">Или собрать компанию ко времени — с местом и откликами</button>' : ''}
     <div class="row" style="justify-content:space-between;gap:8px"><p class="small" style="margin:0">Не больше 3 зовов в час.</p><button class="linkbtn small" data-act="tpl-save">${ico('star', 14)}Сохранить шаблоном</button></div>`;
 }
 
