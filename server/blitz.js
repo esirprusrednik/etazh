@@ -31,7 +31,9 @@ const SETS = [
     ]
   },
   {
-    id: 'ba1', title: 'Бизнес-анализ за 5 минут', emoji: '📈', secs: 300, from: '2026-11-16', to: '2026-12-19',
+    // ba2 — перезапуск ba1 от 16.11: у части айфонов блиц обрывался, времени не хватало. Новый id = попытка у всех заново,
+    // старые прохождения ba1 остаются в базе, но нигде не показываются
+    id: 'ba2', title: 'Бизнес-анализ за 10 минут', emoji: '📈', secs: 600, from: '2026-11-16', to: '2026-12-19',
     desc: 'Метрики, ловушки в данных, требования и приоритеты. Вопросы-ситуации: читай внимательно, считай быстро.',
     questions: [
       ['Выручка выросла на 20%, а прибыль упала. Что проверить первым?', ['Как изменились затраты и маржа', 'Сколько человек в отделе продаж', 'Как изменился курс валют', 'Сколько клиентов пришло']],
@@ -212,6 +214,22 @@ function register(ctx) {
   }
 
   route('GET', '/api/blitz', async (req) => view(requireUser(req).id));
+  // Ошибки в браузере: без них поломку на чужом телефоне не найти. Пишем только текст ошибки, место в коде,
+  // семейство устройства и версию приложения — без пользователя, без адреса. Храним последние 300
+  db.exec('CREATE TABLE IF NOT EXISTS client_errors (id INTEGER PRIMARY KEY, at INTEGER NOT NULL, msg TEXT NOT NULL, place TEXT, device TEXT, build TEXT, screen TEXT)');
+  const deviceOf = (ua) => { ua = String(ua || ''); const os = /iPhone|iPad|iPod/.test(ua) ? 'iOS ' + ((ua.match(/OS (\d+)[_.](\d+)/) || []).slice(1).join('.') || '?') : /Android/.test(ua) ? 'Android ' + ((ua.match(/Android (\d+)/) || [])[1] || '?') : /Mac OS X/.test(ua) ? 'macOS' : /Windows/.test(ua) ? 'Windows' : 'другое';
+    return os + ' · ' + (/YaBrowser/.test(ua) ? 'Яндекс' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /FxiOS|Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'другой'); };
+  let errBudget = { at: 0, n: 0 };
+  route('POST', '/api/client-error', async (req, body) => {
+    requireUser(req);
+    const now = Date.now();
+    if (now - errBudget.at > 60e3) errBudget = { at: now, n: 0 };
+    if (++errBudget.n > 30) return { ok: true }; // не больше 30 записей в минуту со всех
+    const cut = (v, n) => String(v || '').replace(/[\w.+-]+@[\w.-]+/g, '<почта>').slice(0, n);
+    q('INSERT INTO client_errors (at, msg, place, device, build, screen) VALUES (?, ?, ?, ?, ?, ?)').run(now, cut(body && body.msg, 300), cut(body && body.place, 200), deviceOf(req.headers['user-agent']), cut(body && body.build, 40), cut(body && body.screen, 40));
+    q('DELETE FROM client_errors WHERE id <= (SELECT MAX(id) FROM client_errors) - 300').run();
+    return { ok: true };
+  });
   route('GET', '/api/blitz/past', async (req) => ({ sets: past(requireUser(req).id) }));
 
   route('POST', '/api/blitz/start', async (req) => {

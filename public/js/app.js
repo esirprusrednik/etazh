@@ -54,6 +54,17 @@ async function api(method, url, body, waitMs) {
   if (!res.ok) throw new Error(json.error || 'Сервер не ответил. Проверь интернет.');
   return json;
 }
+// Ошибка в коде на чужом телефоне: шлём на сервер текст и место (без пользователя), не больше пяти за запуск
+let errSent = 0;
+function reportError(msg, place) {
+  if (errSent >= 5 || !S.me) return; errSent++;
+  try {
+    fetch('/api/client-error', { method: 'POST', credentials: 'same-origin', keepalive: true, headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ msg: String(msg || '').slice(0, 300), place: String(place || '').slice(0, 200), build: S.build || '', screen: `${S.tab || ''}/${S.sheet || ''}` }) }).catch(() => {});
+  } catch {}
+}
+window.addEventListener('error', (e) => { if (e && e.message) reportError(e.message, `${(e.filename || '').split('/').pop()}:${e.lineno}:${e.colno}`); });
+window.addEventListener('unhandledrejection', (e) => { const r = e && e.reason; reportError(r && r.message ? r.message : String(r), r && r.stack ? String(r.stack).split('\n').slice(0, 3).join(' | ') : 'promise'); });
 // GET-запросы одного мгновения уходят одной пачкой: на старте вместо ~30 запросов — один, при смене вкладки — тоже
 const BATCH = { q: [], t: 0 };
 function get(u) {
@@ -6029,6 +6040,8 @@ function confirmTwice(id, text) {
 async function run(fn, { rerender = true } = {}) {
   S.error = '';
   try { await fn(); } catch (e) {
+    // Сбой сети — обычное дело, а вот ошибка в самом коде должна дойти до нас
+    if (e && !(e instanceof Error && /Провер|Сервер|связ|сеть/i.test(e.message)) && (e instanceof TypeError || e instanceof ReferenceError || e instanceof RangeError)) reportError(e.message, e.stack ? String(e.stack).split('\n').slice(0, 3).join(' | ') : 'run');
     sfx('error');
     if (S.sheet) S.error = e.message; else toast(e.message);
   }

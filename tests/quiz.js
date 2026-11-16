@@ -266,6 +266,7 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.equal(v.beans, 10, 'не больше 10 зёрен');
     assert.ok((await a.get('/api/me')).json.user.beans - before >= 10);
     assert.equal((await a.post('/api/blitz/start')).json.state, 'done', 'вторая попытка не начинается');
+    assert.equal((await a.post('/api/client-error', { msg: 'TypeError: x is undefined, пишите на test@mts.ru', place: 'app.js:1:1', build: 'b', screen: 'games/blitz' })).status, 200, 'сбой из браузера принимается');
     const past = (await a.get('/api/blitz/past')).json.sets;
     assert.ok(Array.isArray(past) && past.every((x) => x.id !== v.set.id && x.board && x.title), 'прошлые блицы: без текущего набора');
     assert.equal((await a.get('/api/blitz')).json.past, past.length);
