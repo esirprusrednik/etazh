@@ -183,7 +183,24 @@ function register(ctx) {
     return { top: rows.slice(0, LEADERS).map((r, i) => ({ place: i + 1, nick: r.nick, score: r.score, secs: Math.round(r.ms / 1000), me: r.user_id === uid })), place: place >= 0 ? place + 1 : null, players: rows.length };
   }
 
-  function view(uid) {
+  // Прошедшие наборы, в которых кто-то дошёл до конца: свежие сверху
+  const pastSets = () => {
+    const d = U.msk().day;
+    const played = new Set(q('SELECT DISTINCT set_id AS id FROM blitz_runs WHERE finished_at IS NOT NULL').all().map((r) => r.id));
+    return SETS.filter((s) => s.to < d && played.has(s.id)).sort((a, b) => (a.to < b.to ? 1 : -1));
+  };
+  function past(uid) {
+    return pastSets().map((set) => {
+      const run = runOf(uid, set);
+      return {
+        id: set.id, title: set.title, from: set.from, to: set.to, count: set.questions.length, board: leaderboard(set, uid),
+        my: run && run.finished_at ? { score: run.score, answered: run.pos, secs: Math.round((run.finished_at - run.started_at) / 1000) } : null
+      };
+    });
+  }
+
+  function view(uid) { return { ...viewNow(uid), past: pastSets().length }; }
+  function viewNow(uid) {
     const set = activeSet();
     if (!set) return { set: null };
     let run = runOf(uid, set);
@@ -195,6 +212,7 @@ function register(ctx) {
   }
 
   route('GET', '/api/blitz', async (req) => view(requireUser(req).id));
+  route('GET', '/api/blitz/past', async (req) => ({ sets: past(requireUser(req).id) }));
 
   route('POST', '/api/blitz/start', async (req) => {
     const u = requireUser(req);

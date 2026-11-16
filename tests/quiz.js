@@ -266,6 +266,9 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.equal(v.beans, 10, 'не больше 10 зёрен');
     assert.ok((await a.get('/api/me')).json.user.beans - before >= 10);
     assert.equal((await a.post('/api/blitz/start')).json.state, 'done', 'вторая попытка не начинается');
+    const past = (await a.get('/api/blitz/past')).json.sets;
+    assert.ok(Array.isArray(past) && past.every((x) => x.id !== v.set.id && x.board && x.title), 'прошлые блицы: без текущего набора');
+    assert.equal((await a.get('/api/blitz')).json.past, past.length);
     const w = (await b.post('/api/blitz/start')).json;
     const r1 = (await b.post('/api/blitz/answer', { n: w.question.n, pick: 0 })).json;
     assert.equal(typeof r1.result.correct, 'boolean');

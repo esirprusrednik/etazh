@@ -2515,3 +2515,8 @@ main { padding-bottom: 122px; }
 .bl-opt.pend { background: var(--pri-bg) !important; color: var(--pri-fg) !important; opacity: 1; animation: bl-pend .9s ease-in-out infinite; }
 @keyframes bl-pend { 50% { filter: brightness(1.15); transform: scale(.985); } }
 @media (prefers-reduced-motion: reduce) { .bl-opt.pend { animation: none; } }
+
+/* Прошлые блицы */
+.bl-past { padding: 12px 0; border-top: 1px solid var(--card-bd, rgba(0,0,0,.08)); }
+.bl-past:first-child { border-top: 0; padding-top: 0; }
+.bl-pastlink { margin-top: 10px; align-self: flex-start; }

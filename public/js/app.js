@@ -4612,6 +4612,7 @@ function renderSheet() {
     case 'changes': if (S.changes && S.changes[0]) store.set('changesSeen', S.changes[0].day); return sheetWrap('Что нового', changesHtml());
     case 'crest': return sheetWrap('Герб банды', renderCrestEditor());
     case 'gang-switch': return sheetWrap('Перейти в другую банду?', renderGangSwitch());
+    case 'blitz-past': return sheetWrap('Прошлые блицы', renderBlitzPast());
     case 'league': return sheetWrap('Лига банд', `<div class="res-hero">${art('podium', 88)}</div>` + renderLeague());
     case 'crew-new': return sheetWrap('Позвать в личку', `<p class="sub">С участниками твоих банд переписываться можно сразу. Тех, кто не в банде, зови по нику или личной ссылкой.</p>
       <div class="row"><label class="field grow" style="gap:0"><span class="hidden">Ник</span><input id="crew-nick" maxlength="21" placeholder="ник" autocapitalize="off" autocomplete="off" aria-label="Ник"></label><button class="btn" data-act="crew-add">Позвать</button></div>
@@ -4775,9 +4776,20 @@ function blitzBoard(b, limit = 10) {
   return `<div class="bl-board">${b.top.slice(0, limit).map((r) => `<div class="bl-row ${r.me ? 'me' : ''}"><span class="bl-place">${r.place <= 3 ? ['medal', 'medal', 'medal'][r.place - 1] : r.place}</span><span class="grow ellipsis">${nk(r)}${r.me ? ' (ты)' : ''}</span><b>${r.score}</b><span class="small">${mmss(r.secs * 1000)}</span></div>`).join('')}</div>
     ${b.place && b.place > limit ? `<p class="small" style="margin:6px 0 0">Ты на ${b.place} месте из ${b.players}</p>` : ''}`;
 }
+// Прошлые блицы: по каждому набору — десятка лидеров и свой результат
+function renderBlitzPast() {
+  const sets = S.blitzPast;
+  if (!sets) return '<p class="sub">Загружаем…</p>';
+  if (!sets.length) return '<p class="sub">Прошлых блицев пока нет.</p>';
+  return sets.map((x) => `<div class="bl-past"><div class="row" style="justify-content:space-between"><b>${esc(x.title)}</b><span class="small">${ddmm(x.from)} – ${ddmm(x.to)}</span></div>
+    <p class="small" style="margin:2px 0 8px">${x.my ? `Твой результат: <b>${x.my.score}</b> из ${x.count} за ${mmss(x.my.secs * 1000)}${x.board.place ? ` · ${x.board.place} место из ${x.board.players}` : ''}` : `Ты не ${meG('играл', 'играла')} · участников: ${x.board.players}`}</p>
+    ${blitzBoard(x.board)}</div>`).join('');
+}
+const blitzPastLink = (b) => (b && b.past ? `<button class="linkbtn bl-pastlink" data-act="blitz-past">Прошлые блицы (${b.past})</button>` : '');
 function renderBlitzCard() {
   const b = S.blitz;
-  if (!b || !b.set) return '';
+  if (!b) return '';
+  if (!b.set) return b.past ? `<section class="card blitz"><span class="card-title has-art">${art('stopwatch', 30)}Блиц</span><p class="sub" style="margin:6px 0 4px">Сейчас блица нет — следующий скоро.</p>${blitzPastLink(b)}</section>` : '';
   const st = b.set;
   const head = `<div class="row" style="justify-content:space-between"><span class="card-title has-art">${art('stopwatch', 30)}Блиц: ${esc(st.title)}</span><span class="small">до ${ddmm(st.to)}</span></div>`;
   if (b.state === 'new') {
@@ -4787,6 +4799,7 @@ function renderBlitzCard() {
       <button class="btn wide" data-act="blitz-start">Начать — таймер пойдёт сразу</button>
       <p class="small" style="margin:8px 0 6px">Одна попытка. Закроешь окно — время всё равно идёт.</p>
       ${b.board && b.board.top.length ? `<div class="eyebrow">Лидеры</div>${blitzBoard(b.board, 3)}` : ''}
+      ${blitzPastLink(b)}
     </section>`;
   }
   if (b.state === 'play') {
@@ -4794,7 +4807,7 @@ function renderBlitzCard() {
       <button class="btn wide" data-act="blitz-open">Продолжить</button></section>`;
   }
   // Прошёл — только тройка лидеров; своё место — строкой под ней, если ты не в тройке
-  return `<section class="card blitz done">${head}${blitzBoard(b.board, 3)}</section>`;
+  return `<section class="card blitz done">${head}${blitzBoard(b.board, 3)}${blitzPastLink(b)}</section>`;
 }
 function renderBlitzPlay() {
   const b = S.blitz;
@@ -6271,6 +6284,7 @@ const actions = {
     }
     S.crestEd = null;
   }),
+  'blitz-past': () => run(async () => { S.blitzPast = null; S.sheet = 'blitz-past'; render(); S.blitzPast = (await get('/api/blitz/past')).sets; }),
   'league-open': () => run(async () => { S.sheet = 'league'; render(); await loadLeague(); }),
   'league-tab': (el) => run(async () => { S.leagueType = el.dataset.v; render(); await loadLeague(el.dataset.v); }),
   'gang-switch-go': () => run(async () => { const a = S.switchAsk; S.switchAsk = null; S.sheet = null; if (a) await a.go(); }),
