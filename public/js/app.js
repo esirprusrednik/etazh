@@ -46,10 +46,12 @@ async function api(method, url, body, waitMs) {
       body: payload
     });
   } catch (e) {
+    clearTimeout(timer);
     throw new Error(e && e.name === 'AbortError' ? 'Сервер долго не отвечает. Проверь интернет и попробуй ещё раз.' : 'Нет связи с сервером. Проверь интернет.');
-  } finally { clearTimeout(timer); }
+  }
+  // Таймер не снимаем, пока не прочитано тело: связь может оборваться после заголовков, и чтение повиснет навсегда
   let json = {};
-  try { json = await res.json(); } catch {}
+  try { json = await res.json(); } catch {} finally { clearTimeout(timer); }
   if (res.status === 401) { S.me = null; render(); }
   if (!res.ok) throw new Error(json.error || 'Сервер не ответил. Проверь интернет.');
   return json;
@@ -4850,6 +4852,7 @@ function renderBlitzPlay() {
     <span class="bl-time ${b.leftMs < 15000 ? 'hot' : ''}" id="bl-time">${mmss(b.leftMs)}</span><span class="small grow" style="text-align:right">вопрос ${qn.n} из ${qn.total} · верных <b>${b.score}</b>${st >= 3 ? `<span class="bl-streak">${T('flame')}${st} подряд</span>` : ''}</span></div>
     <div class="bl-bar"><i id="bl-bar" style="width:${pct}%"></i></div>
     <p class="bl-q">${esc(qn.text)}</p>
+    ${S.blitzStuck && !S.blitzOver ? '<button class="btn ghost wide bl-reload" data-act="blitz-reload">Кнопки не отвечают? Перезапустить блиц</button><p class="small" style="margin:6px 0 10px;text-align:center">Ответы сохранены, вернёшься на тот же вопрос</p>' : ''}
     ${S.blitzOver ? '<div class="note warn bl-over">Время вышло — считаем итог…</div>' : `<div class="bl-opts">${qn.options.map((o, i) => `<button class="gopt bl-opt ${fb && fb.n === qn.n ? (i === fb.right ? 'ok' : i === fb.pick ? 'bad' : 'dim') : S.blitzPend && S.blitzPend.n === qn.n ? (i === S.blitzPend.pick ? 'pend' : 'dim') : ''}" data-act="blitz-pick" data-n="${qn.n}" data-v="${i}" ${fb && fb.n === qn.n ? 'disabled' : ''}>${esc(o)}</button>`).join('')}</div>`}`;
 }
 // Время вышло. Сервер ещё 3 секунды ждёт ответы, отправленные в последний миг, и только потом закрывает блиц.
@@ -6866,31 +6869,55 @@ const actions = {
     run(() => refresh());
   },
   'blitz-start': () => run(async () => {
-    S.blitzWar = null; S.blitzOver = false; S.blitzBusy = false;
+    S.blitzWar = null; S.blitzOver = false; S.blitzBusy = 0; S.blitzStuck = false; S.blitzPend = null;
     S.blitz = await post('/api/blitz/start'); S.blitzFb = null; S.blitzLastTick = null;
     S.sheet = 'blitz'; blitzTick();
   }),
-  'blitz-open': () => run(async () => { S.blitzWar = null; S.blitzBusy = false; await loadBlitz(); S.blitzFb = null; S.sheet = 'blitz'; blitzTick(); }),
-  // Нажатие видно сразу: вариант подсвечивается до ответа сервера. Сеть молчит 6 с — повторяем один раз
-  // (сервер второй раз ответ не засчитает), не вышло — говорим прямо и даём нажать снова
+  'blitz-open': () => run(async () => { S.blitzWar = null; S.blitzBusy = 0; S.blitzOver = false; S.blitzStuck = false; S.blitzPend = null; await loadBlitz(); S.blitzFb = null; S.sheet = 'blitz'; blitzTick(); }),
+  // Нажатие видно сразу: вариант подсвечивается до ответа сервера. Главное правило — кнопки не должны умереть:
+  // у каждой отправки жёсткий срок (даже если запрос в браузере завис и не обрывается), одна автоповторная попытка,
+  // после неудачи — сверка с сервером, а замок от двойного нажатия сам снимается через 22 секунды
   'blitz-pick': (el) => {
-    if (S.blitzBusy || S.blitzOver) return;
-    S.blitzBusy = true;
+    if (S.blitzOver) return;
+    if (S.blitzBusy && Date.now() - S.blitzBusy < 22000) return;
+    if (S.blitzBusy) reportError('blitz: замок не снялся за 22 с', 'blitz-pick');
+    const lock = Date.now(); S.blitzBusy = lock;
+    const mine = () => S.blitzBusy === lock;
     const n = Number(el.dataset.n), pick = Number(el.dataset.v);
     S.blitzPend = { n, pick }; sfx('pick');
-    for (const b of document.querySelectorAll('.bl-opt')) b.classList.add(b === el ? 'pend' : 'dim');
+    for (const b of document.querySelectorAll('.bl-opt')) { b.classList.remove('pend', 'dim'); b.classList.add(b === el ? 'pend' : 'dim'); }
+    const url = S.blitzWar ? `/api/wars/${S.blitzWar}/answer` : '/api/blitz/answer';
+    const hard = (ms, what) => new Promise((_, no) => setTimeout(() => no(new Error('HANG:' + what)), ms));
+    const send = (ms, what) => Promise.race([api('POST', url, { n, pick }, ms), hard(ms + 1000, what)]);
+    const netFail = (e) => /^HANG:|Сервер долго|Нет связи/.test(e.message);
     run(async () => {
       try {
-        const url = S.blitzWar ? `/api/wars/${S.blitzWar}/answer` : '/api/blitz/answer';
         let r;
-        try { r = await api('POST', url, { n, pick }, 6000); }
+        try { r = await send(4000, 'answer1'); }
         catch (e) {
-          if (/Сервер долго|Нет связи/.test(e.message)) {
-            try { r = await api('POST', url, { n, pick }, 8000); }
-            catch (e2) { throw new Error(/Сервер долго|Нет связи/.test(e2.message) ? 'Ответ не дошёл — сеть пропала. Нажми вариант ещё раз' : e2.message); }
-          } else throw e;
+          if (!netFail(e)) throw e;
+          reportError('blitz: ' + e.message, 'попытка 1');
+          try { r = await send(4500, 'answer2'); }
+          catch (e2) {
+            if (!netFail(e2)) throw e2;
+            reportError('blitz: ' + e2.message, 'попытка 2');
+            // Ответ мог дойти, а потеряться — подтверждение. Сверяемся: если сервер уже на следующем вопросе, просто идём дальше
+            let moved = false;
+            try {
+              const v = await Promise.race([api('GET', S.blitzWar ? `/api/wars/${S.blitzWar}/play` : '/api/blitz', undefined, 4000), hard(5000, 'sync')]);
+              if (mine() && v && v.set) {
+                const left = S.blitzEnd ? S.blitzEnd - Date.now() : v.leftMs; S.blitz = v; if (v.state === 'play') S.blitz.leftMs = left;
+                moved = v.state !== 'play' || !v.question || v.question.n !== n;
+                if (v.state === 'done') clearInterval(blitzTimer);
+              }
+            } catch (e3) { reportError('blitz: ' + e3.message, 'сверка'); }
+            if (moved) { reportError('blitz: ответ дошёл, подтверждение потерялось', 'сверка'); return; }
+            S.blitzStuck = true;
+            throw new Error('Ответ не дошёл: связь с сервером пропала. Нажми вариант ещё раз.');
+          }
         }
-        S.blitzPend = null;
+        if (!mine()) return;
+        S.blitzPend = null; S.blitzStuck = false;
         if (r.result) {
           S.blitzFb = { n, pick, right: r.result.right };
           S.blitzStreak = r.result.correct ? (S.blitzStreak || 0) + 1 : 0;
@@ -6902,9 +6929,11 @@ const actions = {
         S.blitz = r; if (r.state === 'play') S.blitz.leftMs = left;
         S.blitzFb = null;
         if (r.state === 'done') { clearInterval(blitzTimer); sfx(r.score >= 10 ? 'fanfare' : 'confirm'); loadMe().catch(() => {}); if (S.blitzWar) loadWars().catch(() => {}); else loadFeatures().catch(() => {}); }
-      } finally { S.blitzBusy = false; S.blitzPend = null; }
+      } finally { if (mine()) { S.blitzBusy = 0; S.blitzPend = null; S.blitzFb = null; } }
     });
   },
+  // Крайний случай: запросы зависли в самом браузере. Перезапуск приложения возвращает прямо в блиц — прохождение хранит сервер
+  'blitz-reload'() { try { sessionStorage.setItem('etazh:blitzResume', '1'); } catch {} location.reload(); },
   'splash-skip'() { if (S.splashDone) { sfx('stairs'); S.splashDone(); } },
   close() { S.sheet = null; S.error = ''; render(); },
   'close-bg'(el, e) { if (e.target === el) actions.close(); },
@@ -7724,8 +7753,11 @@ async function boot() {
   // Приветствие — при обычном входе; по ссылке из пуша или приглашения сразу к делу
   let greeted = false;
   try { greeted = !!sessionStorage.getItem('etazh:greeted'); sessionStorage.setItem('etazh:greeted', '1'); } catch {}
-  if (S.me && S.me.nick && !hash && !greeted) await splash();
+  let blitzResume = false;
+  try { blitzResume = !!sessionStorage.getItem('etazh:blitzResume'); sessionStorage.removeItem('etazh:blitzResume'); } catch {}
+  if (S.me && S.me.nick && !hash && !greeted && !blitzResume) await splash();
   applyHash(hash);
+  if (blitzResume && S.me && S.me.nick) { S.tab = 'games'; setTimeout(() => actions['blitz-open'](), 0); }
   const openFeedback = hash === '#feedback';
   const join = /^#join=([A-Z0-9]{6})$/i.exec(hash);
   if (join) store.set('pendingJoin', join[1]);
