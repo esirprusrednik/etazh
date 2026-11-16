@@ -2519,3 +2519,10 @@ main { padding-bottom: 122px; }
 .bl-past { padding: 12px 0; border-top: 1px solid var(--card-bd, rgba(0,0,0,.08)); }
 .bl-past:first-child { border-top: 0; padding-top: 0; }
 .bl-pastlink { margin-top: 10px; align-self: flex-start; }
+
+/* Плитки выбора в редакторе аватара: три в ряд на телефоне, аватар круглый и крупный, подписи без разрыва слов.
+   Раньше max-width у подписи доставался и самому аватару (он тоже span) — круг сжимался в овал */
+.ava-tiles { grid-template-columns: repeat(auto-fill, minmax(98px, 1fr)); gap: 10px; }
+.ava-tile { padding: 8px 5px 9px; gap: 6px; justify-content: flex-start; }
+.ava-tile > .ava { width: 100% !important; max-width: 104px; height: auto !important; aspect-ratio: 1 / 1; flex: 0 0 auto; }
+.ava-tile > span:not(.ava) { font-size: 12.5px; line-height: 1.2; overflow-wrap: normal; word-break: normal; hyphens: none; -webkit-hyphens: none; }

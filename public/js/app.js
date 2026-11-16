@@ -5450,27 +5450,27 @@ function renderCompletion(inProfile) {
 // Профиль собран из раскрывающихся секций: в заголовке — краткая сводка и карандаш, внутри — редактирование
 const PENCIL = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>';
 const HAIR_NAMES = { short: 'Короткие', long: 'Длинные', tail: 'Хвост', curly: 'Кудри', bob: 'Каре', bun: 'Пучок', side: 'Набок', mohawk: 'Ирокез', afro: 'Афро', bald: 'Без волос',
-  undercut: 'Андеркат', quiff: 'Кок', crop: 'Кроп', slick: 'Зачёс назад', buzz: 'Ёжик', manbun: 'Мужской пучок', waves: 'Локоны', bangs: 'С чёлкой', lob: 'Удлинённое каре', pixie: 'Пикси', ponytail: 'Высокий хвост', braid: 'Коса', buns: 'Два пучка', anime: 'Аниме' };
+  undercut: 'Андеркат', quiff: 'Кок', crop: 'Кроп', slick: 'Зачёс назад', buzz: 'Ёжик', manbun: 'Мужской пучок', waves: 'Локоны', bangs: 'С чёлкой', lob: 'Длинное каре', pixie: 'Пикси', ponytail: 'Высокий хвост', braid: 'Коса', buns: 'Два пучка', anime: 'Аниме' };
 const FACE_NAMES = { oval: 'Овал', round: 'Круглое', square: 'Квадрат', long: 'Вытянутое', heart: 'Сердечко' };
-const OUTFIT_NAMES = { hoodie: 'Худи', tee: 'Футболка', dev: 'Футболка разработчика', shirt: 'Рубашка', suit: 'Костюм', jacket: 'Бомбер', puffer: 'Пуховик', dress: 'Платье', cami: 'Топ на бретельках', biker: 'Косуха', cyber: 'Неон', armor: 'Доспехи', vampire: 'Плащ вампира', nysweater: 'Новогодний свитер', telnyashka: 'Тельняшка' };
-const MASK_NAMES = { none: 'Без маски', medical: 'Медицинская', gauze: 'Марлевая', visor: 'Кибервизор', scuba: 'Аквалангист' };
+const OUTFIT_NAMES = { hoodie: 'Худи', tee: 'Футболка', dev: 'Футболка с кодом', shirt: 'Рубашка', suit: 'Костюм', jacket: 'Бомбер', puffer: 'Пуховик', dress: 'Платье', cami: 'Топ', biker: 'Косуха', cyber: 'Неон', armor: 'Доспехи', vampire: 'Плащ вампира', nysweater: 'Зимний свитер', telnyashka: 'Тельняшка' };
+const MASK_NAMES = { none: 'Без маски', medical: 'Медмаска', gauze: 'Марлевая', visor: 'Кибервизор', scuba: 'Акваланг' };
 const COLOR_NAMES = { same: 'Как одежда', red: 'Красный', blue: 'Синий', green: 'Зелёный', violet: 'Фиолетовый', navy: 'Тёмно-синий', black: 'Чёрный', white: 'Белый', beige: 'Бежевый', yellow: 'Жёлтый', pink: 'Розовый', orange: 'Оранжевый', khaki: 'Хаки', burgundy: 'Бордовый', grey: 'Серый' };
-const NECK_NAMES = { none: 'Ничего', tie: 'Галстук', tie_crooked: 'Галстук набок', bow: 'Бабочка', badge: 'Пропуск', beads: 'Бусы', chain: 'Цепочка', tie_gold: 'Золотой галстук', chain_gold: 'Золотая цепь', snake: 'Змея', garland: 'Ёлочная гирлянда' };
-const PET_NAMES = { none: 'Без питомца', corgi: 'Корги', pug: 'Мопс', frenchie: 'Французский бульдог', parrot: 'Попугай на плече', cat: 'Кот на клавиатуре', aquarium: 'Аквариум', cactus: 'Кактус' };
+const NECK_NAMES = { none: 'Ничего', tie: 'Галстук', tie_crooked: 'Галстук набок', bow: 'Бабочка', badge: 'Пропуск', beads: 'Бусы', chain: 'Цепочка', tie_gold: 'Золотой галстук', chain_gold: 'Золотая цепь', snake: 'Змея', garland: 'Гирлянда' };
+const PET_NAMES = { none: 'Без питомца', corgi: 'Корги', pug: 'Мопс', frenchie: 'Бульдог', parrot: 'Попугай', cat: 'Кот', aquarium: 'Аквариум', cactus: 'Кактус' };
 const LENS_NAMES = { clear: 'Прозрачные', grey: 'Серые', brown: 'Коричневые', blue: 'Голубые', green: 'Зелёные', pink: 'Розовые', yellow: 'Жёлтые' };
 const LENS_SWATCH = { clear: 'repeating-linear-gradient(45deg,#fff 0 4px,#E3E8F2 4px 8px)', grey: '#555B68', brown: '#7A5232', blue: '#4A86E0', green: '#3A9A68', pink: '#F08BB4', yellow: '#F2C230' };
-const HAT_NAMES = { none: 'Без шапки', beanie: 'Шапка', cap: 'Кепка', headset: 'Гарнитура', laurel: 'Лавровый венок', knight: 'Рыцарский шлем', royal: 'Корона', fedora: 'Шляпа', ushanka: 'Ушанка', tricorn: 'Треуголка капитана', dedmoroz: 'Шапка Деда Мороза', kokoshnik: 'Кокошник Снегурочки', wreath: 'Весенний венок', shawl: 'Расписной платок' };
-const EYE_NAMES = { normal: 'Круглые', almond: 'Миндаль', narrow: 'Узкие', hooded: 'Нависшее веко', down: 'Опущенные уголки', up: 'Приподнятые уголки', tired: 'После совещания', sly: 'Хитрые', wide: 'Удивлённые', anime: 'Аниме' };
+const HAT_NAMES = { none: 'Без шапки', beanie: 'Шапка', cap: 'Кепка', headset: 'Гарнитура', laurel: 'Лавровый венок', knight: 'Рыцарский шлем', royal: 'Корона', fedora: 'Шляпа', ushanka: 'Ушанка', tricorn: 'Треуголка', dedmoroz: 'Дед Мороз', kokoshnik: 'Кокошник', wreath: 'Весенний венок', shawl: 'Платок' };
+const EYE_NAMES = { normal: 'Круглые', almond: 'Миндаль', narrow: 'Узкие', hooded: 'Нависшее веко', down: 'Уголки вниз', up: 'Уголки вверх', tired: 'Уставшие', sly: 'Хитрые', wide: 'Удивлённые', anime: 'Аниме' };
 const EYE_ANAT = ['normal', 'almond', 'narrow', 'hooded', 'down', 'up', 'anime'];
 const BROW_NAMES = { auto: 'Как у всех', straight: 'Прямые', arch: 'Дугой', peak: 'Домиком', thin: 'Тонкие', thick: 'Густые', uni: 'Сросшиеся' };
 const GAP_NAMES = { close: 'Близко', normal: 'Обычно', wide: 'Широко' };
-const AGE_NAMES = { 0: 'Без морщин', 1: 'Лёгкие у глаз', 2: 'Выраженные' };
+const AGE_NAMES = { 0: 'Без морщин', 1: 'Лёгкие у глаз', 2: 'Заметные' };
 const HAIRLINE_NAMES = { normal: 'Обычная', high: 'Высокий лоб', receding: 'Залысины', m: 'Глубокие залысины' };
 const PART_NAMES = { left: 'Слева', right: 'Справа' };
 const LIPS_NAMES = { thin: 'Тонкие', normal: 'Средние', full: 'Пухлые' };
 const MOLE_NAMES = { none: 'Нет', cheekL: 'Щека слева', cheekR: 'Щека справа', lip: 'Над губой', chin: 'Подбородок' };
 const HAIR_COLOR_NAMES = { '#0F0E12': 'Чёрный', '#2B1D14': 'Тёмно-каштановый', '#4A3326': 'Тёмно-русый', '#6B3E26': 'Каштановый', '#8C6A4F': 'Русый', '#B5532A': 'Медный', '#C2412F': 'Рыжий', '#CFAE74': 'Пшеничный', '#E0B04B': 'Блонд', '#F2E6C9': 'Платина', '#6E6A66': 'Соль с перцем', '#9AA3B5': 'Седой', '#7C4DFF': 'Фиолетовый', '#FF6FA8': 'Розовый' };
-const PROP_NAMES = { sign_lunch: 'Ушёл на обед', sign_dnd: 'Не беспокоить', sign_ask: 'Я просто спросить', sign_coffee: 'Кофе? Я угощаю', sign_deadline: 'Дедлайн вчера', sign_plan: 'Всё по плану', sign_friday: 'Пятница!', sign_domik: 'Я в домике', sign_tz: 'Где ТЗ?', sign_thanks: 'Спасибо!', sign_innocent: 'Это не я', sign_vacation: 'Хочу в отпуск', none: 'Ничего', torch: 'Факел', phone: 'Телефон', mimosa: 'Букет мимозы', pancakes: 'Стопка блинов', mug: 'Кружка', papers: 'Квартальный отчёт', sign: 'Табличка', laptop: 'Ноутбук', mug_best: 'Лучший сотрудник', trophy: 'Кубок Лиги' };
+const PROP_NAMES = { sign_lunch: 'Ушёл на обед', sign_dnd: 'Не мешать', sign_ask: 'Просто спросить', sign_coffee: 'Кофе? Я угощаю', sign_deadline: 'Дедлайн вчера', sign_plan: 'Всё по плану', sign_friday: 'Пятница!', sign_domik: 'Я в домике', sign_tz: 'Где ТЗ?', sign_thanks: 'Спасибо!', sign_innocent: 'Это не я', sign_vacation: 'Хочу в отпуск', none: 'Ничего', torch: 'Факел', phone: 'Телефон', mimosa: 'Букет мимозы', pancakes: 'Стопка блинов', mug: 'Кружка', papers: 'Отчёт', sign: 'Табличка', laptop: 'Ноутбук', mug_best: 'Лучший сотрудник', trophy: 'Кубок Лиги' };
 // Две группы: «Внешность» — кто ты (по этому узнают), «Стиль» — что на тебе надето и вокруг
 const AVA_CATS = [['face', 'Лицо'], ['eyes', 'Глаза и брови'], ['hair', 'Волосы'], ['mouth', 'Рот'], ['beard', 'Борода'], ['makeup', 'Макияж'], ['age', 'Возраст и приметы'], ['outfit', 'Одежда'], ['acc', 'Аксессуары'], ['pet', 'Питомец'], ['bg', 'Фон'], ['meme', 'Мемы']];
 // Что по умолчанию снимаем в превью вкладки, чтобы оно не закрывало выбираемую часть
@@ -5487,7 +5487,7 @@ const EARRING_NAMES = { none: 'Без серёг', studs: 'Гвоздики', pe
 const GLASSES_NAMES = { none: 'Без очков', classic: 'Классика', round: 'Круглые', square: 'Квадратные', aviator: 'Авиаторы', cat: 'Кошачий глаз' };
 // Порядок оправ: сначала то, что чаще выбирают «М» или «Ж», но доступны все
 const GLASSES_ORDER = { m: ['classic', 'square', 'round', 'aviator', 'cat'], f: ['cat', 'round', 'classic', 'aviator', 'square'] };
-const BG_NAMES = { auto: 'Под кожу', sky: 'Небо', mint: 'Мята', peach: 'Персик', lilac: 'Лаванда', sun: 'Солнце', slate: 'Графит', office: 'Офис', meeting: 'Переговорка', home: 'Дом', street: 'Улица', cafe: 'Кафе' };
+const BG_NAMES = { auto: 'Под кожу', sky: 'Небо', mint: 'Мята', peach: 'Персик', lilac: 'Лаванда', sun: 'Солнце', slate: 'Графит', office: 'Офис', meeting: 'Встреча', home: 'Дом', street: 'Улица', cafe: 'Кафе' };
 // Мемные пресеты меняют одежду, аксессуары и выражение лица, а лицо, кожу и причёску оставляют твоими
 const AVA_PRESETS = [
   { id: 'boss', name: 'Начальник отдела', look: { outfit: 'suit', hoodie: 'navy', neck: 'tie', hat: 'none', prop: 'none', mouth: 'smirk', eyeShape: 'sly', glasses: false } },
@@ -5617,7 +5617,7 @@ function renderAvatarEditor() {
   const offSeason = (key, v) => { const pt = (S.cat.parts || []).find((x) => x.slot === key && x.value === v); return pt && ((pt.season && !pt.on) || pt.award) && !(S.me.owned || []).includes(pt.id) && d[key] !== v && !(pt.award && pt.slot !== 'neck'); };
   const tiles = (key, vals, names, zoom = false) => `<div class="ava-tiles">${vals.filter((v) => !offSeason(key, v)).map((v) => {
     const lock = partLocked(key, v);
-    return `<button class="ava-tile ${(d[key] || DEF_LOOK[key]) === v ? 'on' : ''} ${lock ? 'paid' : ''}" data-act="ava-set" data-k="${key}" data-v="${v}">${avatar(view({ ...d, [key]: v, frame: null, crown: false, ...(zoom ? { pet: 'none', prop: 'none' } : {}) }), 60, zoom)}<span>${hy(names[v] || v)}</span>${lock ? `<em>${lock.award ? 'trophy Лига' : `${lock.price} ${BEAN}`}</em>` : ''}</button>`;
+    return `<button class="ava-tile ${(d[key] || DEF_LOOK[key]) === v ? 'on' : ''} ${lock ? 'paid' : ''}" data-act="ava-set" data-k="${key}" data-v="${v}">${avatar(view({ ...d, [key]: v, frame: null, crown: false, ...(zoom ? { pet: 'none', prop: 'none' } : {}) }), 60, zoom)}<span>${names[v] || v}</span>${lock ? `<em>${lock.award ? 'trophy Лига' : `${lock.price} ${BEAN}`}</em>` : ''}</button>`;
   }).join('')}</div>`;
   const tog = (k, label) => `<button class="chip ${(d[k] ?? (k === 'lashes' && d.preset === 'f')) ? 'on' : ''}" data-act="ava-toggle" data-k="${k}">${label}</button>`;
   const sex = d.preset === 'f' ? 'f' : 'm';
