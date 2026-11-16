@@ -7634,9 +7634,11 @@ async function splash() {
   // с рюкзаком и кофе бесконечно поднимается по лестнице (мальчик или девочка — по роду в профиле).
   // Пока видео грузится, виден его первый кадр; идёт до нажатия кнопки или конца времени
   const el = document.createElement('div');
+  // Ролики лежат в кэше браузера сутки: после замены файла поднимай номер, иначе люди увидят старый
+  const CLIMB_V = 3;
   el.className = 'climb';
   const who = meG('boy', 'girl');
-  el.innerHTML = `<video class="climb-vid" autoplay muted loop playsinline preload="auto" poster="/art/climb/${who}.jpg" src="/art/climb/${who}.mp4"></video>
+  el.innerHTML = `<video class="climb-vid" autoplay muted loop playsinline preload="auto" poster="/art/climb/${who}.jpg?v=${CLIMB_V}" src="/art/climb/${who}.mp4?v=${CLIMB_V}"></video>
     <div class="climb-top"><div class="logo">Этаж<span>.</span></div>
       <p class="climb-hi">${esc(g.text)}</p><p class="climb-day">${esc(g.day)}</p></div>
     <div class="climb-act"><button class="btn splash-go" data-act="splash-skip">${esc(g.go)} →</button><div class="splash-bar"><i style="animation-duration:${ms}ms"></i></div></div>`;
@@ -7651,7 +7653,7 @@ async function splash() {
     if (swapped || !el.isConnected) return; swapped = true;
     const im = new Image(); im.className = 'climb-vid'; im.alt = '';
     im.onload = () => { if (vid.isConnected) vid.replaceWith(im); };
-    im.src = `/art/climb/${who}.webp`;
+    im.src = `/art/climb/${who}.webp?v=${CLIMB_V}`;
   };
   vid.addEventListener('error', toImg);
   try { const pr = vid.play(); if (pr && pr.catch) pr.catch(toImg); } catch { toImg(); }
