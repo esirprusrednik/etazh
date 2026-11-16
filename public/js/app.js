@@ -7671,7 +7671,11 @@ async function splash() {
   };
   vid.addEventListener('error', toImg);
   try { const pr = vid.play(); if (pr && pr.catch) pr.catch(toImg); } catch { toImg(); }
-  setTimeout(() => { if (vid.paused || vid.readyState < 2 || vid.currentTime < 0.05) toImg(); }, 1500);
+  // «Пошло» — значит время хоть раз сдвинулось. Смотреть на currentTime в момент проверки нельзя:
+  // петля короче полутора секунд, и ролик в этот миг как раз перескакивает в начало
+  let moved = false;
+  vid.addEventListener('timeupdate', () => { if (vid.currentTime > 0.05) moved = true; });
+  setTimeout(() => { if (!moved || vid.paused) toImg(); }, 1500);
   // Фоновый мотивчик: петля ровно в 5 секунд, как видео. Браузер даёт звук до первого касания не везде
   // (в установленном приложении на Android — даёт, на iPhone — нет): где нельзя, заставка идёт молча
   let stopMusic = () => {}, closed = false;
