@@ -2041,7 +2041,6 @@ function renderApp() {
           </span>
         </span>
       </button>
-      ${renderMailBtn(b)}
       <button class="beans3d ${S.beanFx ? 'gain' : ''} ${S.coach === 2 ? 'coach-focus' : ''}" data-act="open" data-v="shop" aria-label="Зёрна: ${me.beans}. Открыть лавку${shopDot() ? '. Есть что купить' : ''}">${BEAN}<span class="bnum">${S.beanFx ? S.beanFx.from : me.beans}</span><span class="bcart"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11h10.2L20 8H6.3"/><circle cx="9.5" cy="19.5" r="1.4"/><circle cx="16.5" cy="19.5" r="1.4"/></svg></span>${shopDot() ? '<span class="bdot" aria-hidden="true"></span>' : ''}${S.beanFx ? `<span class="bplus" aria-hidden="true">+${S.beanFx.to - S.beanFx.from}</span>` : ''}</button>
     </header>
     ${S.tab === 'near' ? renderTopStrip() : ''}
@@ -2058,6 +2057,7 @@ function renderApp() {
     <nav class="tabs"><div class="in">
       ${tabBtn('near', 'Рядом', 0)}${tabBtn('chats', 'Банда', chatNews().reduce((a, x) => a + (x.dm ? 0 : x.n), 0))}${tabBtn('office', 'Офис', 0)}${tabBtn('games', 'Игры', (b.duels || 0) + (S.quiz || []).filter((z) => !z.answered).length + (S.battles || []).filter((x) => x.myTurn && x.status !== 'done').length)}
     </div></nav>
+    ${renderMailBtn(b)}
   </div>
   ${S.sheet ? renderSheet() : ''}`;
 }
@@ -2065,12 +2065,14 @@ function renderApp() {
 const DM_SVG = '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 9.5a6 6 0 0 1-8.9 5.2L2.5 15.8l1-3A6 6 0 1 1 14.5 9.5z"/><path d="M17.3 9.2a5.3 5.3 0 0 1 3.3 8.3l.9 2.9-3-1.1a5.3 5.3 0 0 1-7.2-1.7"/></svg>';
 // Личка — значок диалога в шапке: виден на всех вкладках, счётчик непрочитанного и «твой ход» в морском бою
 function renderMailBtn(b) {
+  // Личка — плавающая кнопка справа над нижним меню: всегда под рукой и не теснит шапку.
+  // В покое слегка покачивается; при новом сообщении загорается, от неё идут кольца. Фаза анимации — от часов,
+  // чтобы перерисовка экрана её не сбрасывала
   const n = b.crew || 0;
   const turn = (S.battles || []).some((x) => x.myTurn && x.status !== 'done');
   const on = S.tab === 'chats' && (S.dm || S.dmList);
-  // Новое в личке: кнопка загорается и пульсирует, пока не откроют. Фаза анимации — от часов, чтобы перерисовка шапки её не сбрасывала
   const hot = n > 0 && !on;
-  return `<button class="mailbtn ${on ? 'on' : ''} ${hot ? 'hot' : ''}" ${hot ? `style="--hot:-${Date.now() % 2400}ms"` : ''} data-act="dm-list" aria-label="Личка${n ? `, новых: ${n}` : ''}${turn ? ', твой ход в морском бою' : ''}">${DM_SVG}${n ? `<span class="badge">${n > 9 ? '9+' : n}</span>` : turn ? '<span class="mdot" aria-hidden="true"></span>' : ''}</button>`;
+  return `<button class="mailfab ${on ? 'on' : ''} ${hot ? 'hot' : ''}" style="--hot:-${Date.now() % 2400}ms;--idle:-${Date.now() % 6000}ms" data-act="dm-list" aria-label="Личка${n ? `, новых: ${n}` : ''}${turn ? ', твой ход в морском бою' : ''}">${DM_SVG}${n ? `<span class="badge">${n > 9 ? '9+' : n}</span>` : turn ? '<span class="mdot" aria-hidden="true"></span>' : ''}</button>`;
 }
 function tabBtn(id, label, n) {
   const icons = {

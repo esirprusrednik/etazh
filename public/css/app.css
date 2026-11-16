@@ -2490,3 +2490,23 @@ button.ava-tap { padding: 0; border: 0; background: none; cursor: pointer; font:
 @keyframes mail-ring { 0% { transform: scale(1); opacity: .8; } 70%, 100% { transform: scale(1.75); opacity: 0; } }
 @keyframes mail-wag { 0%, 18%, 100% { transform: rotate(0); } 3% { transform: rotate(-16deg); } 7% { transform: rotate(14deg); } 11% { transform: rotate(-9deg); } 15% { transform: rotate(5deg); } }
 @media (prefers-reduced-motion: reduce) { .mailbtn.hot, .mailbtn.hot svg, .mailbtn.hot::before, .mailbtn.hot::after { animation: none; } }
+/* ===== Личка — плавающая кнопка справа над нижним меню ===== */
+.mailfab { position: fixed; z-index: 7; right: max(14px, calc(50% - 216px)); bottom: calc(92px + env(safe-area-inset-bottom)); width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; padding: 0; cursor: pointer;
+  background: var(--card); color: var(--ink); border: 0; box-shadow: inset 0 2px 0 var(--clay-hi, rgba(255,255,255,.7)), inset 0 -4px 0 var(--clay-lo, rgba(20,30,80,.12)), 0 10px 22px rgba(10,16,45,.28);
+  animation: fab-float 6s ease-in-out infinite; animation-delay: var(--idle, 0s); -webkit-tap-highlight-color: transparent; }
+.mailfab svg { width: 26px; height: 26px; animation: fab-wag 6s ease-in-out infinite; animation-delay: var(--idle, 0s); transform-origin: 50% 60%; }
+.mailfab:active { transform: scale(.94); }
+.mailfab.on { background: var(--blue, #2B3A8C); color: #fff; animation: none; } .mailfab.on svg { animation: none; }
+.mailfab .badge { position: absolute; top: -3px; right: -3px; min-width: 22px; height: 22px; font-size: 12px; }
+.mailfab .mdot { position: absolute; top: 3px; right: 3px; width: 13px; height: 13px; border-radius: 50%; background: #FF5A5F; border: 2px solid var(--card); }
+@keyframes fab-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -4px; } }
+@keyframes fab-wag { 0%, 8%, 100% { transform: rotate(0) scale(1); } 2% { transform: rotate(-12deg) scale(1.08); } 4% { transform: rotate(10deg) scale(1.08); } 6% { transform: rotate(-5deg) scale(1.04); } }
+/* Новое сообщение: огонь, кольца, значок звонит */
+.mailfab.hot { background: linear-gradient(180deg, #FFB03A, #FF6A2B); color: #fff; box-shadow: 0 4px 0 #C2410C, 0 10px 22px rgba(194,65,12,.4); animation: mail-glow 1.2s ease-in-out infinite, fab-float 6s ease-in-out infinite; animation-delay: var(--hot, 0s), var(--idle, 0s); }
+.mailfab.hot::before, .mailfab.hot::after { content: ''; position: absolute; inset: -2px; border-radius: 50%; border: 3px solid #FF7A2B; opacity: 0; pointer-events: none; animation: mail-ring 2.4s ease-out infinite; animation-delay: var(--hot, 0s); }
+.mailfab.hot::after { animation-delay: calc(var(--hot, 0s) + 1.2s); }
+.mailfab.hot svg { animation: mail-wag 2.4s ease-in-out infinite; animation-delay: var(--hot, 0s); }
+.mailfab.hot .badge { background: #fff; color: #C2410C; box-shadow: 0 0 0 2px #FF6A2B; }
+/* Чтобы последняя строка страницы не оставалась под кнопкой */
+main { padding-bottom: 122px; }
+@media (prefers-reduced-motion: reduce) { .mailfab, .mailfab svg, .mailfab.hot, .mailfab.hot svg, .mailfab.hot::before, .mailfab.hot::after { animation: none; } }
