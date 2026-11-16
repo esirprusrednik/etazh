@@ -1766,7 +1766,9 @@ async function loadGangExtra() {
   try { S.gx = await get(`/api/gangs/${S.activeGang}/extra`); } catch { S.gx = null; }
   try { S.guess = await get(`/api/gangs/${S.activeGang}/guess`); } catch { S.guess = null; }
 }
-async function loadBlitz() { try { S.blitz = await get('/api/blitz'); } catch { S.blitz = null; } }
+// В тренировке (повтор без рейтинга) окно блица показывает её, а карточка в «Играх» — по-прежнему зачётный результат
+async function loadBlitz() { try { S.blitz = await get(S.blitzPrac ? '/api/blitz?practice=1' : '/api/blitz'); } catch { S.blitz = null; } }
+function endPractice() { if (!S.blitzPrac) return; S.blitzPrac = false; clearInterval(blitzTimer); if (S.blitzKeep) S.blitz = S.blitzKeep; S.blitzKeep = null; loadBlitz().then(render).catch(() => {}); }
 async function afterInvite(r) {
   toast('Ты в банде!'); await loadMe();
   S.activeGang = r.gang; store.set('activeGang', r.gang); S.chatGang = true; S.dmList = false; S.dm = null;
@@ -4810,7 +4812,7 @@ function renderBlitzPast() {
 }
 const blitzPastLink = (b) => (b && b.past ? `<button class="linkbtn bl-pastlink" data-act="blitz-past">Прошлые блицы (${b.past})</button>` : '');
 function renderBlitzCard() {
-  const b = S.blitz;
+  const b = S.blitzPrac ? S.blitzKeep : S.blitz;
   if (!b) return '';
   if (!b.set) return b.past ? `<section class="card blitz"><span class="card-title has-art">${art('stopwatch', 30)}Блиц</span><p class="sub" style="margin:6px 0 4px">Сейчас блица нет — следующий скоро.</p>${blitzPastLink(b)}</section>` : '';
   const st = b.set;
@@ -4830,7 +4832,8 @@ function renderBlitzCard() {
       <button class="btn wide" data-act="blitz-open">Продолжить</button></section>`;
   }
   // Прошёл — только тройка лидеров; своё место — строкой под ней, если ты не в тройке
-  return `<section class="card blitz done">${head}${blitzBoard(b.board, 3)}${blitzPastLink(b)}</section>`;
+  return `<section class="card blitz done">${head}${blitzBoard(b.board, 3)}
+    <button class="btn ghost wide" style="margin-top:10px" data-act="blitz-practice">Пройти ещё раз — без рейтинга</button>${blitzPastLink(b)}</section>`;
 }
 function renderBlitzPlay() {
   const b = S.blitz;
@@ -4849,9 +4852,11 @@ function renderBlitzPlay() {
     S.blitzStreak = 0;
     const mood = (b.score || 0) >= 10 ? 'win' : (b.score || 0) >= 5 ? 'happy' : 'meh';
     return `<div class="bl-end duel-fx"><span class="bl-me mood-${mood}"><span class="dvs-ava">${avatar(moodLook(S.me.look, mood), 64)}</span></span>${mood === 'win' && b.state === 'done' ? confetti(22) : ''}</div>${['win', 'happy'].includes(mood) ? `<div class="res-hero">${art('win', 96)}</div>` : ['lose', 'sad'].includes(mood) ? `<div class="res-hero">${art('lose', 96)}</div>` : ''}<div class="bl-result big"><b>${b.score || 0}</b><span>верных${b.answered != null ? ` из ${b.answered}` : ''}${b.beans ? ` · +${b.beans} зёрен` : ''}</span></div>
-      ${b.board && b.board.place ? `<p class="sub" style="text-align:center">Твоё место — ${b.board.place} из ${b.board.players}</p>` : ''}
+      ${b.practice ? `<p class="sub" style="text-align:center">Тренировка: в рейтинг и зёрна не идёт${b.secs != null ? ` · ${mmss(b.secs * 1000)}` : ''}</p>
+      <button class="btn wide" style="margin-top:12px" data-act="close">Готово</button><button class="btn ghost wide" style="margin-top:8px" data-act="blitz-practice">Ещё раз</button>`
+      : `${b.board && b.board.place ? `<p class="sub" style="text-align:center">Твоё место — ${b.board.place} из ${b.board.players}</p>` : ''}
       <div class="eyebrow">Лидеры</div>${blitzBoard(b.board)}
-      <button class="btn wide" style="margin-top:12px" data-act="close">Готово</button>`;
+      <button class="btn wide" style="margin-top:12px" data-act="close">Готово</button>`}`;
   }
   const qn = b.question;
   const fb = S.blitzFb;
@@ -4861,6 +4866,7 @@ function renderBlitzPlay() {
   return `<div class="bl-top"><span class="bl-me ${ok === true ? 'mood-happy fresh' : ok === false ? 'mood-sad fresh' : ''}"><span class="dvs-ava">${avatar(moodLook(S.me.look, ok === true ? 'happy' : ok === false ? 'sad' : 'smirk'), 38)}</span>${ok === true ? '<i class="bl-plus">+1</i>' : ''}</span>
     <span class="bl-time ${b.leftMs < 15000 ? 'hot' : ''}" id="bl-time">${mmss(b.leftMs)}</span><span class="small grow" style="text-align:right">вопрос ${qn.n} из ${qn.total} · верных <b>${b.score}</b>${st >= 3 ? `<span class="bl-streak">${T('flame')}${st} подряд</span>` : ''}</span></div>
     <div class="bl-bar"><i id="bl-bar" style="width:${pct}%"></i></div>
+    ${b.practice ? '<p class="small" style="margin:-8px 0 8px">Тренировка — без рейтинга и зёрен</p>' : ''}
     <p class="bl-q">${esc(qn.text)}</p>
     ${S.blitzStuck && !S.blitzOver ? '<button class="btn ghost wide bl-reload" data-act="blitz-reload">Кнопки не отвечают? Перезапустить блиц</button><p class="small" style="margin:6px 0 10px;text-align:center">Ответы сохранены, вернёшься на тот же вопрос</p>' : ''}
     ${S.blitzOver ? '<div class="note warn bl-over">Время вышло — считаем итог…</div>' : `<div class="bl-opts">${qn.options.map((o, i) => `<button class="gopt bl-opt ${fb && fb.n === qn.n ? (i === fb.right ? 'ok' : i === fb.pick ? 'bad' : 'dim') : S.blitzPend && S.blitzPend.n === qn.n ? (i === S.blitzPend.pick ? 'pend' : 'dim') : ''}" data-act="blitz-pick" data-n="${qn.n}" data-v="${i}" ${fb && fb.n === qn.n ? 'disabled' : ''}>${esc(o)}</button>`).join('')}</div>`}`;
@@ -6879,11 +6885,19 @@ const actions = {
     run(() => refresh());
   },
   'blitz-start': () => run(async () => {
-    S.blitzWar = null; S.blitzOver = false; S.blitzBusy = 0; S.blitzStuck = false; S.blitzPend = null;
+    S.blitzWar = null; S.blitzOver = false; S.blitzBusy = 0; S.blitzStuck = false; S.blitzPend = null; S.blitzPrac = false; S.blitzKeep = null;
     S.blitz = await post('/api/blitz/start'); S.blitzFb = null; S.blitzLastTick = null;
     S.sheet = 'blitz'; blitzTick();
   }),
-  'blitz-open': () => run(async () => { S.blitzWar = null; S.blitzBusy = 0; S.blitzOver = false; S.blitzStuck = false; S.blitzPend = null; await loadBlitz(); S.blitzFb = null; S.sheet = 'blitz'; blitzTick(); }),
+  // Повтор без рейтинга: каждый запуск — новая тренировка с перемешанными вопросами
+  'blitz-practice': () => run(async () => {
+    if (!S.blitzPrac) S.blitzKeep = S.blitz;
+    S.blitzWar = null; S.blitzOver = false; S.blitzBusy = 0; S.blitzStuck = false; S.blitzPend = null; S.blitzFb = null; S.blitzLastTick = null; S.blitzStreak = 0;
+    const v = await post('/api/blitz/start', { practice: true });
+    S.blitzPrac = true; S.blitz = v; S.sheet = 'blitz'; blitzTick();
+  }),
+  'blitz-prac-resume': () => run(async () => { S.blitzWar = null; S.blitzBusy = 0; S.blitzOver = false; S.blitzStuck = false; S.blitzPend = null; S.blitzKeep = S.blitz; S.blitzPrac = true; await loadBlitz(); S.blitzFb = null; S.sheet = 'blitz'; blitzTick(); }),
+  'blitz-open': () => run(async () => { S.blitzPrac = false; S.blitzKeep = null; S.blitzWar = null; S.blitzBusy = 0; S.blitzOver = false; S.blitzStuck = false; S.blitzPend = null; await loadBlitz(); S.blitzFb = null; S.sheet = 'blitz'; blitzTick(); }),
   // Нажатие видно сразу: вариант подсвечивается до ответа сервера. Главное правило — кнопки не должны умереть:
   // у каждой отправки жёсткий срок (даже если запрос в браузере завис и не обрывается), одна автоповторная попытка,
   // после неудачи — сверка с сервером, а замок от двойного нажатия сам снимается через 22 секунды
@@ -6898,7 +6912,7 @@ const actions = {
     for (const b of document.querySelectorAll('.bl-opt')) { b.classList.remove('pend', 'dim'); b.classList.add(b === el ? 'pend' : 'dim'); }
     const url = S.blitzWar ? `/api/wars/${S.blitzWar}/answer` : '/api/blitz/answer';
     const hard = (ms, what) => new Promise((_, no) => setTimeout(() => no(new Error('HANG:' + what)), ms));
-    const send = (ms, what) => Promise.race([api('POST', url, { n, pick }, ms), hard(ms + 1000, what)]);
+    const send = (ms, what) => Promise.race([api('POST', url, S.blitzPrac ? { n, pick, practice: true } : { n, pick }, ms), hard(ms + 1000, what)]);
     const netFail = (e) => /^HANG:|Сервер долго|Нет связи/.test(e.message);
     run(async () => {
       try {
@@ -6914,7 +6928,7 @@ const actions = {
             // Ответ мог дойти, а потеряться — подтверждение. Сверяемся: если сервер уже на следующем вопросе, просто идём дальше
             let moved = false;
             try {
-              const v = await Promise.race([api('GET', S.blitzWar ? `/api/wars/${S.blitzWar}/play` : '/api/blitz', undefined, 4000), hard(5000, 'sync')]);
+              const v = await Promise.race([api('GET', S.blitzWar ? `/api/wars/${S.blitzWar}/play` : S.blitzPrac ? '/api/blitz?practice=1' : '/api/blitz', undefined, 4000), hard(5000, 'sync')]);
               if (mine() && v && v.set) {
                 const left = S.blitzEnd ? S.blitzEnd - Date.now() : v.leftMs; S.blitz = v; if (v.state === 'play') S.blitz.leftMs = left;
                 moved = v.state !== 'play' || !v.question || v.question.n !== n;
@@ -6938,14 +6952,14 @@ const actions = {
         const left = S.blitzEnd ? S.blitzEnd - Date.now() : r.leftMs;
         S.blitz = r; if (r.state === 'play') S.blitz.leftMs = left;
         S.blitzFb = null;
-        if (r.state === 'done') { clearInterval(blitzTimer); sfx(r.score >= 10 ? 'fanfare' : 'confirm'); loadMe().catch(() => {}); if (S.blitzWar) loadWars().catch(() => {}); else loadFeatures().catch(() => {}); }
+        if (r.state === 'done') { clearInterval(blitzTimer); sfx(r.score >= 10 ? 'fanfare' : 'confirm'); if (!S.blitzPrac) loadMe().catch(() => {}); if (S.blitzWar) loadWars().catch(() => {}); else loadFeatures().catch(() => {}); }
       } finally { if (mine()) { S.blitzBusy = 0; S.blitzPend = null; S.blitzFb = null; } }
     });
   },
   // Крайний случай: запросы зависли в самом браузере. Перезапуск приложения возвращает прямо в блиц — прохождение хранит сервер
-  'blitz-reload'() { try { sessionStorage.setItem('etazh:blitzResume', '1'); } catch {} location.reload(); },
+  'blitz-reload'() { try { sessionStorage.setItem('etazh:blitzResume', S.blitzPrac ? 'p' : '1'); } catch {} location.reload(); },
   'splash-skip'() { if (S.splashDone) { sfx('stairs'); S.splashDone(); } },
-  close() { S.sheet = null; S.error = ''; render(); },
+  close() { const wasBlitz = S.sheet === 'blitz'; S.sheet = null; S.error = ''; if (wasBlitz) endPractice(); render(); },
   'close-bg'(el, e) { if (e.target === el) actions.close(); },
   'b-mine-big'() { S.bMineBig = !S.bMineBig; sfx('pick'); render(); if (S.bMineBig) setTimeout(() => { const m = document.querySelector('.b-sea.mine'); if (m) m.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 50); },
   'shop-gang'(el) { S.shopGang = Number(el.dataset.v); render(); },
@@ -7764,10 +7778,10 @@ async function boot() {
   let greeted = false;
   try { greeted = !!sessionStorage.getItem('etazh:greeted'); sessionStorage.setItem('etazh:greeted', '1'); } catch {}
   let blitzResume = false;
-  try { blitzResume = !!sessionStorage.getItem('etazh:blitzResume'); sessionStorage.removeItem('etazh:blitzResume'); } catch {}
+  try { blitzResume = sessionStorage.getItem('etazh:blitzResume') || false; sessionStorage.removeItem('etazh:blitzResume'); } catch {}
   if (S.me && S.me.nick && !hash && !greeted && !blitzResume) await splash();
   applyHash(hash);
-  if (blitzResume && S.me && S.me.nick) { S.tab = 'games'; setTimeout(() => actions['blitz-open'](), 0); }
+  if (blitzResume && S.me && S.me.nick) { S.tab = 'games'; setTimeout(() => actions[blitzResume === 'p' ? 'blitz-prac-resume' : 'blitz-open'](), 0); }
   const openFeedback = hash === '#feedback';
   const join = /^#join=([A-Z0-9]{6})$/i.exec(hash);
   if (join) store.set('pendingJoin', join[1]);

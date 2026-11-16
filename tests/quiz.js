@@ -268,6 +268,20 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.equal((await a.post('/api/blitz/start')).json.state, 'done', 'вторая попытка не начинается');
     assert.equal((await a.post('/api/client-error', { msg: 'TypeError: x is undefined, пишите на test@mts.ru', place: 'app.js:1:1', build: 'b', screen: 'games/blitz' })).status, 200, 'сбой из браузера принимается');
     assert.equal((await a.get('/api/ping')).json.ok, 1);
+    // Тренировка: только после зачётной попытки, без зёрен и без следа в рейтинге
+    assert.equal((await b.post('/api/blitz/start', { practice: true })).status, 400, 'тренировка до зачёта не начинается');
+    const beansBefore = (await a.get('/api/me')).json.user.beans;
+    const boardBefore = JSON.stringify((await a.get('/api/blitz')).json.board);
+    let pv = (await a.post('/api/blitz/start', { practice: true })).json;
+    assert.ok(pv.practice && pv.state === 'play' && pv.question.n === 1);
+    assert.equal((await a.get('/api/blitz')).json.state, 'done', 'зачётный результат на месте');
+    assert.equal((await a.get('/api/blitz?practice=1')).json.state, 'play');
+    let pg = 0;
+    while (pv.state === 'play' && pg++ < 40) pv = (await a.post('/api/blitz/answer', { n: pv.question.n, pick: 0, practice: true })).json;
+    assert.ok(pv.practice && pv.state === 'done' && !pv.beans);
+    assert.equal((await a.get('/api/me')).json.user.beans, beansBefore, 'за тренировку зёрен нет');
+    assert.equal(JSON.stringify((await a.get('/api/blitz')).json.board), boardBefore, 'рейтинг не изменился');
+    assert.equal((await a.post('/api/blitz/start', { practice: true })).json.question.n, 1, 'тренировку можно начать заново');
     const past = (await a.get('/api/blitz/past')).json.sets;
     assert.ok(Array.isArray(past) && past.every((x) => x.id !== v.set.id && x.board && x.title), 'прошлые блицы: без текущего набора');
     assert.equal((await a.get('/api/blitz')).json.past, past.length);

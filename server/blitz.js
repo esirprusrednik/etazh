@@ -158,16 +158,19 @@ function register(ctx) {
     const d = U.msk().day;
     return SETS.filter((s) => s.from <= d && d <= s.to).sort((a, b) => (a.from < b.from ? 1 : -1))[0] || null;
   };
-  const runOf = (uid, set) => q('SELECT * FROM blitz_runs WHERE user_id = ? AND set_id = ?').get(uid, set.id);
+  // Тренировка — повторное прохождение без рейтинга и зёрен. Живёт в той же таблице под ключом «набор:p»,
+  // поэтому в лидеры, прошлые блицы и сводку не попадает; каждая новая тренировка заменяет прежнюю
+  const keyOf = (set, prac) => (prac ? set.id + ':p' : set.id);
+  const runOf = (uid, set, prac) => q('SELECT * FROM blitz_runs WHERE user_id = ? AND set_id = ?').get(uid, keyOf(set, prac));
   const deadline = (run, set) => run.started_at + set.secs * 1000;
 
-  function finish(run, set) {
+  function finish(run, set, prac) {
     if (run.finished_at) return run;
     const at = Math.min(U.now(), deadline(run, set));
-    const beans = addBeans(run.user_id, 'blitz', Math.min(run.score, MAX_BEANS) || 0) || 0;
-    q('UPDATE blitz_runs SET finished_at = ?, beans = ? WHERE user_id = ? AND set_id = ?').run(at, beans, run.user_id, set.id);
-    if (onEvent) onEvent('blitz', run.user_id, { score: run.score });
-    return runOf(run.user_id, set);
+    const beans = prac ? 0 : addBeans(run.user_id, 'blitz', Math.min(run.score, MAX_BEANS) || 0) || 0;
+    q('UPDATE blitz_runs SET finished_at = ?, beans = ? WHERE user_id = ? AND set_id = ?').run(at, beans, run.user_id, keyOf(set, prac));
+    if (!prac && onEvent) onEvent('blitz', run.user_id, { score: run.score });
+    return runOf(run.user_id, set, prac);
   }
 
   function questionView(run, set) {
@@ -201,19 +204,20 @@ function register(ctx) {
     });
   }
 
-  function view(uid) { return { ...viewNow(uid), past: pastSets().length }; }
-  function viewNow(uid) {
+  function view(uid, prac) { return { ...viewNow(uid, prac), past: pastSets().length }; }
+  function viewNow(uid, prac) {
     const set = activeSet();
     if (!set) return { set: null };
-    let run = runOf(uid, set);
-    if (run && !run.finished_at && U.now() > deadline(run, set) + GRACE_MS) run = finish(run, set);
-    const base = { set: { id: set.id, title: set.title, emoji: set.emoji, desc: set.desc, secs: set.secs, count: set.questions.length, to: set.to, maxBeans: MAX_BEANS } };
+    let run = runOf(uid, set, prac);
+    if (run && !run.finished_at && U.now() > deadline(run, set) + GRACE_MS) run = finish(run, set, prac);
+    const base = { ...(prac ? { practice: true } : {}), set: { id: set.id, title: set.title, emoji: set.emoji, desc: set.desc, secs: set.secs, count: set.questions.length, to: set.to, maxBeans: MAX_BEANS } };
     if (!run) return { ...base, state: 'new', board: leaderboard(set, uid) };
     if (!run.finished_at) return { ...base, state: 'play', leftMs: Math.max(0, deadline(run, set) - U.now()), score: run.score, question: questionView(run, set) };
     return { ...base, state: 'done', score: run.score, answered: run.pos, beans: run.beans, secs: Math.round((run.finished_at - run.started_at) / 1000), board: leaderboard(set, uid) };
   }
+  const isPrac = (v) => v === true || v === 1 || v === '1' || v === 'true';
 
-  route('GET', '/api/blitz', async (req) => view(requireUser(req).id));
+  route('GET', '/api/blitz', async (req, body, query) => view(requireUser(req).id, isPrac(query && query.practice)));
   // Ошибки в браузере: без них поломку на чужом телефоне не найти. Пишем только текст ошибки, место в коде,
   // семейство устройства и версию приложения — без пользователя, без адреса. Храним последние 300
   db.exec('CREATE TABLE IF NOT EXISTS client_errors (id INTEGER PRIMARY KEY, at INTEGER NOT NULL, msg TEXT NOT NULL, place TEXT, device TEXT, build TEXT, screen TEXT)');
@@ -235,10 +239,19 @@ function register(ctx) {
   route('GET', '/api/ping', async () => ({ ok: 1 }));
   route('GET', '/api/blitz/past', async (req) => ({ sets: past(requireUser(req).id) }));
 
-  route('POST', '/api/blitz/start', async (req) => {
+  route('POST', '/api/blitz/start', async (req, body) => {
     const u = requireUser(req);
     const set = activeSet();
     if (!set) throw bad('Сейчас блица нет — загляни позже.');
+    if (isPrac(body && body.practice)) {
+      // Только после зачётной попытки — иначе тренировкой можно подсмотреть вопросы
+      const rated = runOf(u.id, set);
+      if (!rated || !rated.finished_at) throw bad('Сначала пройди блиц на результат.');
+      const plan = shuffle(set.questions.map((_, i) => i)).map((qi) => ({ q: qi, perm: shuffle(set.questions[qi][1].map((_, i) => i)) }));
+      q('DELETE FROM blitz_runs WHERE user_id = ? AND set_id = ?').run(u.id, keyOf(set, true));
+      q('INSERT INTO blitz_runs (user_id, set_id, started_at, plan) VALUES (?, ?, ?, ?)').run(u.id, keyOf(set, true), U.now(), JSON.stringify(plan));
+      return view(u.id, true);
+    }
     if (!runOf(u.id, set)) {
       const plan = shuffle(set.questions.map((_, i) => i)).map((qi) => ({ q: qi, perm: shuffle(set.questions[qi][1].map((_, i) => i)) }));
       q('INSERT OR IGNORE INTO blitz_runs (user_id, set_id, started_at, plan) VALUES (?, ?, ?, ?)').run(u.id, set.id, U.now(), JSON.stringify(plan));
@@ -250,22 +263,23 @@ function register(ctx) {
     const u = requireUser(req);
     const set = activeSet();
     if (!set) throw bad('Блиц уже закончился.');
-    let run = runOf(u.id, set);
+    const prac = isPrac(body && body.practice);
+    let run = runOf(u.id, set, prac);
     if (!run) throw bad('Сначала нажми «Начать».');
-    if (run.finished_at) return { ...view(u.id), late: true };
-    if (U.now() > deadline(run, set) + GRACE_MS) { finish(run, set); return { ...view(u.id), late: true }; }
+    if (run.finished_at) return { ...view(u.id, prac), late: true };
+    if (U.now() > deadline(run, set) + GRACE_MS) { finish(run, set, prac); return { ...view(u.id, prac), late: true }; }
     const plan = JSON.parse(run.plan);
     const item = plan[run.pos];
     // Ответ на уже пройденный вопрос (двойное нажатие) — просто текущее состояние
-    if (Number(body.n) !== run.pos + 1) return view(u.id);
+    if (Number(body.n) !== run.pos + 1) return view(u.id, prac);
     const pick = Number(body.pick);
     if (!Number.isInteger(pick) || pick < 0 || pick >= item.perm.length) throw bad('Выбери вариант.');
     const correct = item.perm[pick] === 0; // правильный ответ в наборе всегда записан первым
     const right = item.perm.indexOf(0);
-    q('UPDATE blitz_runs SET pos = pos + 1, score = score + ? WHERE user_id = ? AND set_id = ?').run(correct ? 1 : 0, u.id, set.id);
-    run = runOf(u.id, set);
-    if (run.pos >= plan.length) finish(run, set);
-    return { ...view(u.id), result: { correct, right } };
+    q('UPDATE blitz_runs SET pos = pos + 1, score = score + ? WHERE user_id = ? AND set_id = ?').run(correct ? 1 : 0, u.id, keyOf(set, prac));
+    run = runOf(u.id, set, prac);
+    if (run.pos >= plan.length) finish(run, set, prac);
+    return { ...view(u.id, prac), result: { correct, right } };
   });
 
   return { activeSet };
