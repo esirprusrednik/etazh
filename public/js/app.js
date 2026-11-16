@@ -33,11 +33,11 @@ const S = {
 };
 
 // ---------- API ----------
-async function api(method, url, body) {
+async function api(method, url, body, waitMs) {
   // Мобильная сеть иногда «залипает»: без ответа за 20 секунд (45 — для больших отправок) обрываем, чтобы кнопки не висели
   const payload = body !== undefined ? JSON.stringify(body) : undefined;
   const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), payload && payload.length > 100000 ? 45000 : 20000);
+  const timer = setTimeout(() => ctl.abort(), waitMs || (payload && payload.length > 100000 ? 45000 : 20000));
   let res;
   try {
     res = await fetch(url, {
@@ -4826,7 +4826,7 @@ function renderBlitzPlay() {
     <span class="bl-time ${b.leftMs < 15000 ? 'hot' : ''}" id="bl-time">${mmss(b.leftMs)}</span><span class="small grow" style="text-align:right">вопрос ${qn.n} из ${qn.total} · верных <b>${b.score}</b>${st >= 3 ? `<span class="bl-streak">${T('flame')}${st} подряд</span>` : ''}</span></div>
     <div class="bl-bar"><i id="bl-bar" style="width:${pct}%"></i></div>
     <p class="bl-q">${esc(qn.text)}</p>
-    ${S.blitzOver ? '<div class="note warn bl-over">Время вышло — считаем итог…</div>' : `<div class="bl-opts">${qn.options.map((o, i) => `<button class="gopt bl-opt ${fb && fb.n === qn.n ? (i === fb.right ? 'ok' : i === fb.pick ? 'bad' : 'dim') : ''}" data-act="blitz-pick" data-n="${qn.n}" data-v="${i}" ${fb && fb.n === qn.n ? 'disabled' : ''}>${esc(o)}</button>`).join('')}</div>`}`;
+    ${S.blitzOver ? '<div class="note warn bl-over">Время вышло — считаем итог…</div>' : `<div class="bl-opts">${qn.options.map((o, i) => `<button class="gopt bl-opt ${fb && fb.n === qn.n ? (i === fb.right ? 'ok' : i === fb.pick ? 'bad' : 'dim') : S.blitzPend && S.blitzPend.n === qn.n ? (i === S.blitzPend.pick ? 'pend' : 'dim') : ''}" data-act="blitz-pick" data-n="${qn.n}" data-v="${i}" ${fb && fb.n === qn.n ? 'disabled' : ''}>${esc(o)}</button>`).join('')}</div>`}`;
 }
 // Время вышло. Сервер ещё 3 секунды ждёт ответы, отправленные в последний миг, и только потом закрывает блиц.
 // Раньше клиент спрашивал итог через 0,4 с, получал «ещё идёт» — и вопрос с 0:00 висел, пока не нажмёшь вариант
@@ -4837,11 +4837,11 @@ async function blitzTimeout() {
   try {
     if (S.blitzWar) { await wait(400); S.blitz = await post(`/api/wars/${S.blitzWar}/timeout`); await loadWars(); }
     else {
-      await wait(3400);
-      for (let i = 0; i < 6; i++) {
+      await wait(3200);
+      for (let i = 0; i < 4; i++) {
         await loadBlitz();
         if (!S.blitz || S.blitz.state !== 'play') break;
-        await wait(1500);
+        await wait(800);
       }
     }
     sfx('confirm'); loadMe().catch(() => {});
@@ -6844,13 +6844,26 @@ const actions = {
     S.sheet = 'blitz'; blitzTick();
   }),
   'blitz-open': () => run(async () => { S.blitzWar = null; S.blitzBusy = false; await loadBlitz(); S.blitzFb = null; S.sheet = 'blitz'; blitzTick(); }),
+  // Нажатие видно сразу: вариант подсвечивается до ответа сервера. Сеть молчит 6 с — повторяем один раз
+  // (сервер второй раз ответ не засчитает), не вышло — говорим прямо и даём нажать снова
   'blitz-pick': (el) => {
     if (S.blitzBusy || S.blitzOver) return;
     S.blitzBusy = true;
     const n = Number(el.dataset.n), pick = Number(el.dataset.v);
+    S.blitzPend = { n, pick }; sfx('pick');
+    for (const b of document.querySelectorAll('.bl-opt')) b.classList.add(b === el ? 'pend' : 'dim');
     run(async () => {
       try {
-        const r = await post(S.blitzWar ? `/api/wars/${S.blitzWar}/answer` : '/api/blitz/answer', { n, pick });
+        const url = S.blitzWar ? `/api/wars/${S.blitzWar}/answer` : '/api/blitz/answer';
+        let r;
+        try { r = await api('POST', url, { n, pick }, 6000); }
+        catch (e) {
+          if (/Сервер долго|Нет связи/.test(e.message)) {
+            try { r = await api('POST', url, { n, pick }, 8000); }
+            catch (e2) { throw new Error(/Сервер долго|Нет связи/.test(e2.message) ? 'Ответ не дошёл — сеть пропала. Нажми вариант ещё раз' : e2.message); }
+          } else throw e;
+        }
+        S.blitzPend = null;
         if (r.result) {
           S.blitzFb = { n, pick, right: r.result.right };
           S.blitzStreak = r.result.correct ? (S.blitzStreak || 0) + 1 : 0;
@@ -6862,7 +6875,7 @@ const actions = {
         S.blitz = r; if (r.state === 'play') S.blitz.leftMs = left;
         S.blitzFb = null;
         if (r.state === 'done') { clearInterval(blitzTimer); sfx(r.score >= 10 ? 'fanfare' : 'confirm'); loadMe().catch(() => {}); if (S.blitzWar) loadWars().catch(() => {}); else loadFeatures().catch(() => {}); }
-      } finally { S.blitzBusy = false; }
+      } finally { S.blitzBusy = false; S.blitzPend = null; }
     });
   },
   'splash-skip'() { if (S.splashDone) { sfx('stairs'); S.splashDone(); } },
