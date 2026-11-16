@@ -33,7 +33,17 @@ const S = {
 };
 
 // ---------- API ----------
+// Когда последний раз ходили на сервер. Если давно — «пульс» ниже отправит крошечный запрос, чтобы соединение не уснуло
+let lastNet = Date.now();
+setInterval(() => {
+  if (document.hidden || !S.me || !S.me.nick) return;
+  const gap = S.sheet === 'blitz' && S.blitz && S.blitz.state === 'play' ? 4000 : 9000; // в блице тишина дороже всего: время идёт
+  if (Date.now() - lastNet < gap) return;
+  lastNet = Date.now();
+  fetch('/api/ping', { credentials: 'same-origin', cache: 'no-store' }).catch(() => {});
+}, 1000);
 async function api(method, url, body, waitMs) {
+  lastNet = Date.now();
   // Мобильная сеть иногда «залипает»: без ответа за 20 секунд (45 — для больших отправок) обрываем, чтобы кнопки не висели
   const payload = body !== undefined ? JSON.stringify(body) : undefined;
   const ctl = new AbortController();

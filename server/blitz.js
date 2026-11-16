@@ -230,6 +230,9 @@ function register(ctx) {
     q('DELETE FROM client_errors WHERE id <= (SELECT MAX(id) FROM client_errors) - 300').run();
     return { ok: true };
   });
+  // «Пульс»: пока открыто окно (блиц, форма), клиент ничего не запрашивает, и простаивающее соединение на мобильной сети
+  // или за VPN может молча умереть — следующий запрос тогда висит. Крошечный запрос раз в несколько секунд держит его живым
+  route('GET', '/api/ping', async () => ({ ok: 1 }));
   route('GET', '/api/blitz/past', async (req) => ({ sets: past(requireUser(req).id) }));
 
   route('POST', '/api/blitz/start', async (req) => {
