@@ -2644,33 +2644,40 @@ main > .top-strip { margin: 6px 0 0; width: 100%; opacity: .8; }
 /* Шапка профиля банды в тёмной теме: фон темнеет вместе с темой, иначе белое название на светлой плашке не читается */
 
 
-/* ----- Профиль банды: объёмная шапка в цвете банды, уровень внутри неё ----- */
-.gprof { display: contents; }
-.gprof .g-hero { position: relative; overflow: hidden; flex: none; gap: 14px; padding: 16px 16px 18px; border-radius: 22px; color: #fff;
-  background:
-    radial-gradient(120% 90% at 12% 0%, rgba(255,255,255,.34), transparent 55%),
-    linear-gradient(150deg, color-mix(in srgb, var(--gc) 86%, #fff) 0%, color-mix(in srgb, var(--gc) 92%, #000) 48%, color-mix(in srgb, var(--gc) 52%, #0B1030) 100%);
-  box-shadow: 0 6px 0 color-mix(in srgb, var(--gc) 42%, #0B1030), 0 16px 28px color-mix(in srgb, var(--gc) 35%, transparent), inset 0 1px 0 rgba(255,255,255,.45); margin-bottom: 6px; }
-.gprof .g-hero::after { content: ''; position: absolute; right: -40px; bottom: -60px; width: 190px; height: 190px; border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,.2), transparent 68%); pointer-events: none; }
-.gprof .g-hero .g-crest { filter: drop-shadow(0 0 12px rgba(255,255,255,.4)) drop-shadow(0 6px 8px rgba(0,0,0,.35)); position: relative; z-index: 1; }
-.gprof .gh-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 8px; position: relative; z-index: 1; }
-.gprof .g-hero .g-title, .gprof .g-hero .g-title .gname { color: #fff; font-size: 24px; line-height: 1.1; text-shadow: 0 2px 0 rgba(0,0,0,.22); }
-.gprof .gh-lvl { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.gprof .gh-badge { font-weight: 900; font-size: 13px; padding: 4px 11px; border-radius: 999px; color: #5B3B00; background: linear-gradient(180deg, #FFE27A, #FFB020); box-shadow: 0 2px 0 #C97F00, inset 0 1px 0 rgba(255,255,255,.7); }
-.gprof .gh-num { font-size: 12.5px; font-weight: 800; color: rgba(255,255,255,.92); }
-.gprof .gh-xp { height: 12px; border-radius: 999px; background: rgba(0,0,0,.28); box-shadow: inset 0 2px 3px rgba(0,0,0,.35); overflow: hidden; }
-.gprof .gh-xp i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(180deg, #FFF3B0, #FFC53D 55%, #F59E0B); box-shadow: inset 0 1px 0 rgba(255,255,255,.8); }
-.gprof .g-level { background: none; padding: 0; gap: 6px; }
-.gprof .gl-week { margin: 0; font-size: 13.5px; font-weight: 700; color: var(--muted); }
-.gprof .gl-week b { color: var(--ink); font-weight: 900; }
-.gprof .g-troph { display: flex; align-items: center; gap: 8px; margin: 0; padding: 8px 12px; border-radius: 14px; font-size: 13.5px; font-weight: 800; color: #5B3B00; background: linear-gradient(135deg, #FFF1BF, #FFD76A); box-shadow: 0 3px 0 #E0A92E; }
+/* ----- Профиль банды. Палитра из трёх тонов: глубокий цвет банды, тёмная или светлая основа, слоновая кость;
+   единственный акцент — латунь у уровня. Объём — мягкой тенью и тонкой световой кромкой, без глянца ----- */
+.gprof { display: contents; --iv: #F3EBDD; --brass: #D9B56E; --deep: color-mix(in srgb, var(--gc) 62%, #140F14); --deep2: color-mix(in srgb, var(--gc) 38%, #140F14); }
+.gprof .g-hero { position: relative; flex: none; gap: 16px; padding: 18px 18px 20px; border-radius: 24px; color: var(--iv);
+  background: linear-gradient(160deg, var(--deep), var(--deep2));
+  box-shadow: 0 14px 30px -12px color-mix(in srgb, var(--gc) 55%, #000), 0 2px 0 rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.14); }
+.gprof .g-hero .g-crest { filter: drop-shadow(0 10px 14px rgba(0,0,0,.45)); }
+.gprof .gh-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.gprof .g-hero .g-title, .gprof .g-hero .g-title .gname { color: var(--iv); font-size: 24px; line-height: 1.15; text-wrap: balance; overflow-wrap: anywhere; }
+.gprof .gh-lvl { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.gprof .gh-badge { font-size: 11.5px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--brass); }
+.gprof .gh-num { font-size: 12.5px; font-weight: 700; color: color-mix(in srgb, var(--iv) 78%, transparent); font-variant-numeric: tabular-nums; }
+.gprof .gh-xp { height: 6px; border-radius: 999px; background: rgba(0,0,0,.32); overflow: hidden; }
+.gprof .gh-xp i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #B98F45, var(--brass)); box-shadow: 0 0 10px rgba(217,181,110,.55); }
+.gprof .gp-eb { margin: 8px 0 -4px; font-size: 11px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.gprof .gp-motto { margin: 0; font-style: italic; font-weight: 700; color: var(--ink); text-wrap: balance; }
+.gprof .gp-about { margin: 0; color: var(--muted); font-weight: 600; text-wrap: pretty; }
 .gprof .g-tags.big { gap: 6px; margin: 0; }
-.gprof .g-tags.big i { font-size: 13px; padding: 5px 12px; background: var(--s1); color: var(--ink); box-shadow: 0 2px 0 var(--s2); }
-.gprof .g-tags.big i.area { color: #fff; background: linear-gradient(180deg, color-mix(in srgb, var(--gc) 88%, #fff), color-mix(in srgb, var(--gc) 78%, #000)); box-shadow: 0 2px 0 color-mix(in srgb, var(--gc) 48%, #0B1030); text-shadow: 0 1px 0 rgba(0,0,0,.2); }
-.gprof .g-stats { gap: 8px; }
-.gprof .g-stats div { padding: 10px 4px 9px; border-radius: 16px; background: linear-gradient(180deg, var(--card), var(--s1)); box-shadow: 0 4px 0 var(--s2), inset 0 1px 0 rgba(255,255,255,.5); border: 1px solid var(--line); }
-.gprof .g-stats b { font-size: 21px; background: linear-gradient(180deg, color-mix(in srgb, var(--gc) 70%, var(--ink)), var(--ink)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.gprof .g-tags.big i { font-size: 13px; padding: 6px 12px; background: none; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--s2); }
+.gprof .g-tags.big i.area { color: var(--iv); background: var(--deep); box-shadow: none; }
+.gprof .g-stats { flex: none; gap: 0; border-radius: 18px; background: var(--s1); box-shadow: inset 0 0 0 1px var(--line), 0 8px 18px -12px rgba(10,16,35,.35); overflow: hidden; }
+.gprof .g-stats div { background: none; border-radius: 0; padding: 12px 4px 11px; gap: 3px; box-shadow: none; }
+.gprof .g-stats div + div { box-shadow: inset 1px 0 0 var(--line); }
+.gprof .g-stats b { font-size: 22px; line-height: 1; color: var(--ink); font-variant-numeric: tabular-nums; }
+.gprof .g-stats span { font-size: 11px; line-height: 1.25; }
+.gprof .g-level { background: none; padding: 0; gap: 8px; }
+.gprof .gl-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.gprof .gl-facts span { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 14px; background: var(--s1); font-size: 12px; font-weight: 700; color: var(--muted); }
+.gprof .gl-facts b { font-size: 17px; font-weight: 900; color: var(--ink); }
+.gprof .g-level .lg-rules summary { font-size: 14px; }
 .gprof .g-faces { gap: 4px; }
-:root[data-theme="dark"] .gprof .g-stats div { background: linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.03)); box-shadow: 0 4px 0 rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.12); }
-:root[data-theme="dark"] .gprof .g-stats b { background: linear-gradient(180deg, #fff, color-mix(in srgb, var(--gc) 45%, #fff)); -webkit-background-clip: text; background-clip: text; color: transparent; }
-:root[data-theme="dark"] .gprof .g-tags.big i:not(.area) { background: rgba(255,255,255,.08); box-shadow: 0 2px 0 rgba(0,0,0,.3); }
+.gprof .gp-dl { margin: 2px 0 0; display: flex; flex-direction: column; }
+.gprof .gp-dl div { display: grid; grid-template-columns: 104px 1fr; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
+.gprof .gp-dl dt { color: var(--muted); font-weight: 700; }
+.gprof .gp-dl dd { margin: 0; color: var(--ink); font-weight: 700; text-wrap: pretty; }
+:root[data-theme="dark"] .gprof .g-stats, :root[data-theme="dark"] .gprof .gl-facts span { background: rgba(255,255,255,.05); }
+:root[data-theme="dark"] .gprof .g-tags.big i:not(.area) { box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.16); }
