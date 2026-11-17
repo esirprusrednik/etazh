@@ -129,13 +129,19 @@ function startServer(day) {
       v = (await A.get(`/api/gangs/${g.id}/santa`)).json;
       assert.equal(v.canDraw, false, 'двоих мало');
       assert.equal((await A.post(`/api/gangs/${g.id}/santa/draw`)).status, 400);
-      await C.post(`/api/gangs/${g.id}/santa/join`, { wish: '' });
+      // Пожелание — одна попытка: без него не записаться, поменять нельзя, выход и повторная запись его не сбрасывают
+      assert.equal((await C.post(`/api/gangs/${g.id}/santa/join`, { wish: '' })).status, 400, 'без пожелания не записаться');
+      await C.post(`/api/gangs/${g.id}/santa/join`, { wish: 'Что-нибудь к чаю' });
+      assert.equal((await C.post(`/api/gangs/${g.id}/santa/wish`, { wish: 'Передумал: плед' })).status, 400, 'пожелание не изменить');
       await D.post(`/api/gangs/${g.id}/santa/join`, { wish: 'Носки' });
+      await D.post(`/api/gangs/${g.id}/santa/leave`);
+      assert.equal((await D.get(`/api/gangs/${g.id}/santa`)).json.keptWish, 'Носки');
+      assert.equal((await D.post(`/api/gangs/${g.id}/santa/join`, { wish: 'Самокат' })).json.wish, 'Носки', 'вернулся — пожелание прежнее');
       await D.post(`/api/gangs/${g.id}/santa/leave`);
       assert.equal((await B.post(`/api/gangs/${g.id}/santa/draw`)).status, 400, 'раньше срока — только владелец');
       const r = await A.post(`/api/gangs/${g.id}/santa/draw`);
       assert.equal(r.status, 200, JSON.stringify(r.json));
-      const wishes = { [A.id]: 'Люблю чай', [B.id]: 'Книги', [C.id]: '' };
+      const wishes = { [A.id]: 'Люблю чай', [B.id]: 'Книги', [C.id]: 'Что-нибудь к чаю' };
       const targets = [];
       for (const x of [A, B, C]) {
         const w = (await x.get(`/api/gangs/${g.id}/santa`)).json;

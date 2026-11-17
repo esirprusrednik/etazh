@@ -2,6 +2,8 @@
 // С 1 ноября любой член банды записывается и пишет пожелание (что любит, чего не надо дарить).
 // 4 декабря — автоматическая жеребьёвка (владелец может провести раньше, если записались трое и больше).
 // Каждый видит только своего подопечного и его пожелание; кто дарит ему самому — не видит никто.
+// Пожелание пишется один раз, при записи, и потом не меняется: Санта должен быть уверен, что готовит то, о чём просили.
+// Вышел и записался снова — пожелание останется прежним (оно хранится отдельно).
 // Подарки вручают на встрече банды; «Подарок вручён» отмечает дарящий. Карточка видна до 15 января.
 
 const WISH_MAX = 200;
@@ -32,6 +34,14 @@ function register(ctx) {
   );
   `);
   try { db.exec('ALTER TABLE santa_members ADD COLUMN reminded INTEGER NOT NULL DEFAULT 0'); } catch {}
+  db.exec(`CREATE TABLE IF NOT EXISTS santa_wish_lock (
+    gang_id INTEGER NOT NULL REFERENCES gangs(id) ON DELETE CASCADE, year INTEGER NOT NULL,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, wish TEXT NOT NULL, at INTEGER NOT NULL,
+    PRIMARY KEY (gang_id, year, user_id))`);
+  const WISH_MIN = 3;
+  const keptWish = (gid, year, uid) => (q('SELECT wish FROM santa_wish_lock WHERE gang_id = ? AND year = ? AND user_id = ?').get(gid, year, uid) || {}).wish || '';
+  const lockWish = (gid, year, uid, wish) => q('INSERT OR IGNORE INTO santa_wish_lock (gang_id, year, user_id, wish, at) VALUES (?, ?, ?, ?, ?)').run(gid, year, uid, wish, U.now());
+  const needWish = (w) => { const t = cleanWish(w); if (t.length < WISH_MIN) throw bad('Напиши пожелание — пару слов о том, что любишь. Потом его не изменить.'); return t; };
 
   // Сезон Санты: ноябрь–декабрь текущего года и январь (до 15-го) — прошлого
   function season(day = U.msk().day) {
@@ -88,7 +98,7 @@ function register(ctx) {
     return {
       visible: s.visible, year: s.year, status: r.status, drawDay: drawDay(s.year),
       regOpen: s.visible && r.status === 'open' && today < drawDay(s.year),
-      count, gifted, min: MIN_PEOPLE, budget: BUDGET, joined: !!me, wish: me ? me.wish : '', target, myGifted: !!(me && me.gifted_at),
+      count, gifted, min: MIN_PEOPLE, budget: BUDGET, joined: !!me, wish: me ? me.wish : '', keptWish: me ? '' : keptWish(g.id, s.year, u.id), wishLocked: !!(me && me.wish), target, myGifted: !!(me && me.gifted_at),
       canDraw: g.owner_id === u.id && r.status === 'open' && count >= MIN_PEOPLE
     };
   }
@@ -104,7 +114,10 @@ function register(ctx) {
     if (!s.visible) throw bad('Тайный Санта открывается 1 ноября.');
     const r = ensure(g.id, s.year);
     if (r.status !== 'open' || U.msk().day >= drawDay(s.year)) throw bad('Запись закрыта — жеребьёвка уже прошла.');
-    q('INSERT OR IGNORE INTO santa_members (gang_id, year, user_id, wish, joined_at) VALUES (?, ?, ?, ?, ?)').run(g.id, s.year, u.id, cleanWish(body.wish), U.now());
+    // Пожелание — одна попытка: если человек уже писал его в этом году, берём прежнее
+    const wish = keptWish(g.id, s.year, u.id) || needWish(body.wish);
+    const ins = q('INSERT OR IGNORE INTO santa_members (gang_id, year, user_id, wish, joined_at) VALUES (?, ?, ?, ?, ?)').run(g.id, s.year, u.id, wish, U.now());
+    if (ins.changes) lockWish(g.id, s.year, u.id, wish);
     return view(u, g);
   });
 
@@ -120,8 +133,14 @@ function register(ctx) {
   route('POST', '/api/gangs/:id/santa/wish', async (req, body, query, params) => {
     const { u, g } = gangOr404(req, params);
     const s = season();
-    const res = q('UPDATE santa_members SET wish = ? WHERE gang_id = ? AND year = ? AND user_id = ?').run(cleanWish(body.wish), g.id, s.year, u.id);
-    if (!res.changes) throw bad('Сначала запишись в Тайного Санту.');
+    // Дописать можно только пустое пожелание (записались до этого правила) — и тоже один раз
+    const me = q('SELECT wish FROM santa_members WHERE gang_id = ? AND year = ? AND user_id = ?').get(g.id, s.year, u.id);
+    if (!me) throw bad('Сначала запишись в Тайного Санту.');
+    if (me.wish) throw bad('Пожелание уже отправлено — изменить его нельзя.');
+    if ((row(g.id, s.year) || {}).status === 'drawn') throw bad('Жеребьёвка прошла — пожелание уже не дописать.');
+    const wish = needWish(body.wish);
+    q('UPDATE santa_members SET wish = ? WHERE gang_id = ? AND year = ? AND user_id = ?').run(wish, g.id, s.year, u.id);
+    lockWish(g.id, s.year, u.id, wish);
     return view(u, g);
   });
 

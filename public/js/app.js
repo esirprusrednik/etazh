@@ -1509,11 +1509,28 @@ function renderWave() {
     </section>`;
   }
   const last = w.last;
-  if (!w.canLaunch && !last) return '';
+  if (!last) return '';
   return `<section class="card wave idle">
     ${last ? `<div class="wave-last ${last.kind}">hand <span>${esc(last.text)}${last.mine ? '' : ` · ты ${meG('пропустил', 'пропустила')}`}</span></div>` : ''}
-    ${w.canLaunch ? `<div class="row"><div class="grow"><b>Подними банду волной</b><div class="small">Клич своим: у всех ${w.windowMin} минут, чтобы встать. Одна волна на банду в неделю — успей первым. ${esc(w.autoHint)}</div></div><button class="btn small" data-act="wave-launch-open">Запустить</button></div>` : `<div class="small">${esc(w.why)}</div>`}
+    ${w.canLaunch ? '' : `<div class="small">${esc(w.why)}</div>`}
   </section>`;
+}
+// Боевое знамя банды: горит в шапке, пока волну на этой неделе ещё можно поднять. Нажал — вспыхнуло и открыло запуск
+function waveBanner() {
+  const w = S.wave;
+  if (!w || !w.canLaunch || w.active) return '';
+  const flame = (c, x, y, sc, d) => `<i class="wb-fl" style="left:${x}px;top:${y}px;--sc:${sc};--d:${d}s;--c:${c}"></i>`;
+  return `<button class="wave-call" data-act="wave-banner" style="--gc:${esc((S.gang && S.gang.gang && S.gang.gang.color) || '#C23B4A')}"><span class="wave-banner" aria-hidden="true">
+    <svg viewBox="0 0 60 64" width="54" height="58" aria-hidden="true">
+      <rect x="8" y="4" width="4.5" height="58" rx="2.2" fill="#8A5A2B"/><circle cx="10.2" cy="5" r="4" fill="#FFC93C"/>
+      <path class="wb-flag" d="M12 9 C22 4 30 14 40 9 S54 6 56 10 L54 40 C46 36 38 46 28 41 S16 38 12 42 Z" fill="var(--gc, #1B6CC4)" stroke="rgba(0,0,0,.25)" stroke-width="1.2"/>
+      <g transform="translate(33 25)">
+        <path d="M-10 -3 a10 9.5 0 1 1 20 0 c0 4 -2 6 -4 7 v4 h-12 v-4 c-2 -1 -4 -3 -4 -7z" fill="#FFF8E8" stroke="#2B2B3A" stroke-width="1.3"/>
+        <ellipse cx="-4.2" cy="-3" rx="2.6" ry="3" fill="#2B2B3A"/><path d="M1.8 -3.2 q2.6 -2.8 5.2 0" fill="none" stroke="#2B2B3A" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M0 1 l-1.4 2.4 h2.8z" fill="#2B2B3A"/><path d="M-5 5.2 q5 3.6 10 0" fill="none" stroke="#2B2B3A" stroke-width="1.4" stroke-linecap="round"/>
+        <path d="M-2.6 6.6 v2.6 M0 7 v2.8 M2.6 6.6 v2.6" stroke="#2B2B3A" stroke-width="1.1"/>
+      </g>
+    </svg>${flame('#FF6A2B', 40, -4, 1, 0)}${flame('#FFB020', 28, -8, 1.25, .25)}${flame('#FFE680', 34, -2, .7, .5)}${flame('#FF6A2B', 16, -3, .85, .4)}</span><span class="grow"><b>Подними банду волной</b><span class="small">Перекличка своих: один клич — и видно, кто на связи и встанет за банду</span></span><span class="chev" aria-hidden="true">›</span></button>`;
 }
 const WAVE_PREVIEW = ['{nick} запустил волну. Встань, подними руки — у банды 10 минут', 'Это волна, а не спам. Ну почти. Зайди и нажми «Встать» — банда считает', 'Срочно: ничего срочного. Просто {nick} запустил волну', 'Даже кофемашина уже встала. Твоя очередь'];
 function renderWaveLaunch() {
@@ -1523,6 +1540,7 @@ function renderWaveLaunch() {
   return `<div class="wave-launch">
     <div class="stands demo-stands" aria-hidden="true">${demo}</div>
     <div class="push-preview"><span class="pp-ico">Э.</span><div class="grow"><b>Этаж</b><span>${esc(txt)}</span></div></div>
+    <p class="sub" style="margin:0"><b>Зачем это.</b> Волна — перекличка банды: один клич, и сразу видно, кто на связи и готов встать за своих. Повод всем заглянуть в Этаж в одно время, а не поодиночке.</p>
     <ol class="ol"><li>Своим придёт смешной клич — повод заглянуть в Этаж.</li><li>У всех ${S.wave ? S.wave.windowMin : 10} минут, чтобы нажать «Встать за своих».</li><li>Встанут больше половины — банда в силе. Встанут все — ты капитан.</li></ol>
     <p class="small" style="margin:0">Одна волна на банду в неделю: кто первый, тот и запускает. Если до среды никто не соберётся, Этаж поднимет банду сам в 12:00. Тем, кто в отпуске или в тихих часах, пуш не придёт.</p>
     <button class="btn wave-go" data-act="wave-launch">Запустить волну!</button>
@@ -2855,38 +2873,42 @@ const nyDeco = () => '<div class="ny-deco" aria-hidden="true"><img class="ny-fir
 function renderSanta() {
   const s = S.santa;
   if (!s || !s.visible) return '';
-  if (s.status === 'cancelled') return s.joined ? '<section class="card santa"><span class="card-title">gift Тайный Санта</span><p class="sub">В этом году не состоялся: записалось меньше трёх человек.</p></section>' : '';
-  const dd = dayHuman(s.drawDay);
+  const dd = dayHuman(s.drawDay), money = s.budget || 500;
+  const gift = (w) => `<img class="sx-gift" src="/art/ny/gift.webp" width="${w}" height="${Math.round(w * 1.1)}" alt="">`;
+  if (s.status === 'cancelled') return s.joined ? `<section class="card sx sx-flat">${gift(54)}<div class="grow"><b>Тайный Санта не состоялся</b><span class="small">Записалось меньше трёх человек. Попробуем в следующем году.</span></div></section>` : '';
+  if (s.status !== 'drawn' && !s.joined && !s.regOpen) return '';
+  // Свёрнуто — одна строка с главным; подробности и действия — по нажатию
   if (!S.santaOpen) {
-    const line = s.status === 'drawn' ? (s.joined ? `Ты даришь: <b>${esc(s.target ? s.target.nick : '—')}</b>${s.myGifted ? ' · вручено' : ` · до ${s.budget || 500} ₽`}` : `Жеребьёвка прошла без тебя · участников ${s.count}`)
-      : s.joined ? `Ты участвуешь · жеребьёвка ${dd} · записалось ${s.count}` : s.regOpen ? `Запись до ${dd} · подарок до ${s.budget || 500} ₽ · записалось ${s.count}` : '';
-    if (!line) return '';
-    return `<button class="st-strip santa-strip" data-act="santa-toggle" aria-expanded="false"><span class="st-ico"><img class="art" src="/art/ny/gift.webp" width="28" height="30" alt=""></span><span class="grow"><b>Тайный Санта</b><span class="small">${line}</span></span><span class="pm" aria-hidden="true">+</span></button>`;
+    const line = s.status === 'drawn' ? (s.joined ? `Ты даришь: <b>${esc(s.target ? s.target.nick : '—')}</b>${s.myGifted ? ' · вручено' : ` · до ${money} ₽`}` : `Жеребьёвка прошла без тебя · участников ${s.count}`)
+      : s.joined ? `Ты в игре · жеребьёвка ${dd} · записалось ${s.count}` : `Запись до ${dd} · подарок до ${money} ₽ · записалось ${s.count}`;
+    return `<button class="sx sx-strip" data-act="santa-toggle" aria-expanded="false">${gift(46)}<span class="grow"><b>Тайный Санта</b><span class="small">${line}</span></span><span class="pm" aria-hidden="true">+</span></button>`;
   }
-  const draw = s.canDraw ? `<button class="btn btn-santa-draw" data-act="santa-draw">${ico('dice', 18)} Провести жеребьёвку сейчас</button><span class="small" style="text-align:center">Ты владелец банды — можно не ждать ${dd}</span>` : '';
+  // Три шага — это и есть порядок игры: записался, дождался жеребьёвки, вручил
+  const at = s.status === 'drawn' ? (s.myGifted ? 3 : 2) : s.joined ? 1 : 0;
+  const steps = `<ol class="sx-steps">${[['Запись', `до ${ddmm(s.drawDay)}`], ['Жеребьёвка', ddmm(s.drawDay)], ['Подарок', `до ${money} ₽`]].map(([t, sub], i) => `<li class="${i < at ? 'done' : i === at ? 'on' : ''}"><i>${i < at ? '✓' : i + 1}</i><b>${t}</b><span>${sub}</span></li>`).join('')}</ol>`;
+  const warn = `<div class="sx-warn">lock<span><b>Одна попытка.</b> После отправки пожелание не изменить — выбирай тщательно: Санта будет искать именно это.</span></div>`;
+  const wishForm = (btn, act) => `<label class="sx-field">Чего ты хочешь<textarea id="santa-wish" maxlength="200" rows="2" placeholder="Люблю чай и настолки, сладкое не дарите"></textarea></label>${warn}<button class="btn" data-act="${act}">${btn}</button>`;
+  const locked = (w) => `<div class="sx-panel"><span class="sx-cap">Твоё пожелание lock</span><p>«${esc(w)}»</p><span class="small">Отправлено Санте — изменить нельзя</span></div>`;
+  const draw = s.canDraw ? `<button class="btn ghost" data-act="santa-draw">dice Провести жеребьёвку сейчас</button><span class="small sx-c">Ты владелец банды — можно не ждать ${dd}</span>` : '';
   let body;
   if (s.status === 'drawn') {
-    body = !s.joined ? `<p class="sub">Жеребьёвка прошла без тебя: участников ${s.count}, подарки вручены ${s.gifted}.</p>`
-      : `<div class="santa-target"><span class="small">Ты даришь</span><b>${esc(s.target ? s.target.nick : '—')}</b>
-          ${s.target && s.target.wish ? `<p>«${esc(s.target.wish)}»</p>` : '<p class="small">Пожелания нет — придётся угадывать.</p>'}<span class="small">Бюджет — до ${s.budget || 500} ₽</span></div>
-        ${s.myGifted ? `<div class="adv-done">${ico('check', 16)} Подарок вручён</div>` : '<button class="btn" data-act="santa-gifted">Подарок вручён</button>'}
-        <p class="small" style="margin:0">Вручено ${s.gifted} из ${s.count}. Кто дарит тебе — секрет. Видно его только в момент вручения.</p>`;
+    body = !s.joined ? `<p class="sx-lead">Жеребьёвка прошла без тебя. Участников ${s.count}, подарков вручено ${s.gifted}.</p>`
+      : `<div class="sx-panel sx-target"><span class="sx-cap">Ты даришь</span><b class="sx-nick">${esc(s.target ? s.target.nick : '—')}</b>
+          <p>${s.target && s.target.wish ? `«${esc(s.target.wish)}»` : 'Пожелания нет — придётся угадывать.'}</p><span class="small">Бюджет — до ${money} ₽</span></div>
+        ${s.myGifted ? `<div class="sx-done">check Подарок вручён</div>` : '<button class="btn" data-act="santa-gifted">Подарок вручён</button>'}
+        <p class="small sx-c">Вручено ${s.gifted} из ${s.count}. Кто дарит тебе — секрет до самого вручения.</p>`;
   } else if (s.joined) {
-    const wishBox = S.santaEdit
-      ? `<label class="field">Пожелание для своего Санты<textarea id="santa-wish" maxlength="200" rows="2" placeholder="Что любишь и чего дарить не надо">${esc(s.wish)}</textarea></label>
-        <div class="row" style="gap:8px"><button class="btn small grow" data-act="santa-wish">Сохранить</button><button class="linkbtn santa-quiet" data-act="santa-edit">Отмена</button></div>`
-      : `<div class="santa-wish"><span class="small">Твоё пожелание</span><p>${s.wish ? `«${esc(s.wish)}»` : '<span class="small">Пока пусто — Санте придётся угадывать</span>'}</p>
-        <button class="btn small btn-santa-edit" data-act="santa-edit">${ico('pencil', 16)} ${s.wish ? 'Редактировать пожелание' : 'Написать пожелание'}</button></div>`;
-    body = `<p class="sub">Ты участвуешь. Записалось ${s.count}, жеребьёвка ${dd}${s.count < s.min ? `, нужно хотя бы ${s.min}` : ''}. Подарок — до ${s.budget || 500} ₽.</p>
-      ${wishBox}
+    body = `${s.wish ? locked(s.wish) : `<p class="sx-lead">Ты в игре, но без пожелания — Санте придётся угадывать.</p>${wishForm('Отправить пожелание', 'santa-wish')}`}
+      <p class="sx-lead">Записалось ${s.count}${s.count < s.min ? ` — для жеребьёвки нужно хотя бы ${s.min}` : ''}. ${dd} каждый узнает, кому дарит.</p>
       ${draw}
-      <div class="row" style="justify-content:center"><button class="linkbtn santa-quiet" data-act="santa-leave">${ico('x', 14)} Не участвую</button></div>`;
-  } else if (s.regOpen) {
-    body = `<p class="sub">Каждый тайно дарит подарок одному из банды, до ${s.budget || 500} ₽. Жеребьёвка ${dd}. Записалось: ${s.count}.</p>
-      <label class="field">Пожелание<textarea id="santa-wish" maxlength="200" rows="2" placeholder="Люблю чай и настолки, сладкое не дарите"></textarea></label>
-      <button class="btn" data-act="santa-join">Участвую</button>${draw}`;
-  } else return '';
-  return `<section class="card santa ny">${nyDeco()}<div class="row ny-head" style="justify-content:space-between"><span class="card-title has-art"><img class="art" src="/art/ny/gift.webp" width="34" height="37" alt="">Тайный Санта</span><button class="pm" data-act="santa-toggle" aria-label="Свернуть">−</button></div>${body}</section>`;
+      <button class="linkbtn sx-quiet" data-act="santa-leave">Не участвую</button>`;
+  } else {
+    body = `<p class="sx-lead">Каждый тайно дарит подарок одному из банды, до ${money} ₽. Кому — решит жеребьёвка ${dd}. Записалось: ${s.count}.</p>
+      ${s.keptWish ? `${locked(s.keptWish)}<button class="btn" data-act="santa-join">Вернуться в игру</button>` : wishForm('Записаться с этим пожеланием', 'santa-join')}${draw}`;
+  }
+  return `<section class="card sx"><div class="sx-sky" aria-hidden="true"></div>${gift(96)}
+    <div class="sx-head"><div class="grow"><h3>Тайный Санта</h3><span class="sx-when">${s.status === 'drawn' ? 'жеребьёвка прошла' : `жеребьёвка ${dd}`}</span></div><button class="pm" data-act="santa-toggle" aria-label="Свернуть">−</button></div>
+    ${steps}${body}</section>`;
 }
 
 function renderGames() {
@@ -4128,7 +4150,7 @@ function renderGang() {
   const lifeTab = `<div class="g-group">События</div>${w && w.active && w.active.mine ? renderWave() : ''}${renderGEvents()}${renderSanta()}${renderGangBirthdays()}${w && !w.active ? renderWave() : ''}<div class="g-group">Объявления</div>${renderGangBoard(g)}<div class="g-group">Опросы</div>${renderPolls()}${renderCrestVote()}`;
   // ----- Банда: кто мы, люди, неделя, казна, лига, битвы
   // «Банда на неделе» — первой: кто когда в офисе важнее описания банды
-  const crewTab = `${renderCrewWeek(v, g)}
+  const crewTab = `${waveBanner()}${renderCrewWeek(v, g)}
   ${create}`;
   return `${multi}${chips}${head}${tab === 'life' ? lifeTab : tab === 'crew' ? crewTab : chatTab}`;
 }
@@ -7251,11 +7273,11 @@ const actions = {
     S.sheet = null; sfx('send'); toast('Открытка в чате банды');
     if (S.activeGang === gid) await loadGang();
   }),
-  'santa-join': () => run(async () => { S.santa = await post(`/api/gangs/${S.activeGang}/santa/join`, { wish: ($('#santa-wish') || {}).value || '' }); S.santaEdit = false; toast('Ты в Тайном Санте'); }),
-  'santa-wish': () => run(async () => { S.santa = await post(`/api/gangs/${S.activeGang}/santa/wish`, { wish: ($('#santa-wish') || {}).value || '' }); S.santaEdit = false; toast('Пожелание сохранено'); }),
+  'santa-join': () => run(async () => { S.santa = await post(`/api/gangs/${S.activeGang}/santa/join`, { wish: ($('#santa-wish') || {}).value || '' }); S.santaEdit = false; toast('Ты в игре. Пожелание отправлено и больше не меняется'); }),
+  'santa-wish': () => run(async () => { S.santa = await post(`/api/gangs/${S.activeGang}/santa/wish`, { wish: ($('#santa-wish') || {}).value || '' }); S.santaEdit = false; toast('Пожелание отправлено и больше не меняется'); }),
   'santa-edit'() { S.santaEdit = !S.santaEdit; render(); if (S.santaEdit) requestAnimationFrame(() => { const t = $('#santa-wish'); if (t) t.focus(); }); },
   'santa-leave': (el) => run(async () => {
-    if (!confirmInline('santa-leave', 'Нажми ещё раз, чтобы выйти из Тайного Санты')) return;
+    if (!confirmInline('santa-leave', 'Нажми ещё раз, чтобы выйти. Пожелание сохранится — вернёшься с ним же')) return;
     S.santa = await post(`/api/gangs/${S.activeGang}/santa/leave`); toast('Ты вышел|вышла из Тайного Санты');
   }),
   'santa-draw': () => run(async () => {
@@ -7556,6 +7578,18 @@ const actions = {
     toast(next.includes(id) ? 'Бейдж в карточке — коллеги увидят' : 'Бейдж убран из карточки');
   }),
   'wave-launch-open'() { S.sheet = 'wave-launch'; render(); },
+  // Знамя вспыхивает и разлетается искрами — и только потом открывается запуск волны
+  'wave-banner'(btn) {
+    const el = btn.querySelector('.wave-banner') || btn;
+    if (el.classList.contains('boom')) return;
+    el.classList.add('boom'); sfx('open');
+    const r = el.getBoundingClientRect(), box = document.createElement('div');
+    box.className = 'wb-boom'; box.setAttribute('aria-hidden', 'true');
+    box.style.left = r.left + r.width / 2 + 'px'; box.style.top = r.top + r.height / 2 + 'px';
+    box.innerHTML = Array.from({ length: 14 }, (_, i) => { const a = (i / 14) * 6.283, d = 46 + (i % 3) * 22; return `<i style="--x:${Math.round(Math.cos(a) * d)}px;--y:${Math.round(Math.sin(a) * d)}px;--c:${['#FFE680', '#FFB020', '#FF6A2B'][i % 3]}"></i>`; }).join('') + '<b></b>';
+    document.body.appendChild(box);
+    setTimeout(() => { box.remove(); S.sheet = 'wave-launch'; render(); }, 520);
+  },
   'wave-launch': () => run(async () => {
     S.wave = await post(`/api/gangs/${S.activeGang}/wave`, {});
     if (S.wave.active) S.waveOff = S.wave.active.now - Date.now();
