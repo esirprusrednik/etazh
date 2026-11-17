@@ -121,6 +121,11 @@ const { b64url, fromB64url, moderationProblem, emailDomainAllowed } = require('.
     assert.ok(days.every((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)));
     assert.deepEqual(days, [...new Set(days)].sort().reverse(), 'дни без повторов, свежие сверху');
     assert.ok(log.every((d) => ['new', 'better', 'fix'].every((k) => Array.isArray(d[k])) && d.new.length + d.better.length + d.fix.length > 0));
+    // С 9 ноября пишем коротко: строка до 100 знаков, не больше шести строк в списке
+    for (const d of log.filter((x) => x.day >= '2026-11-09')) for (const k of ['new', 'better', 'fix']) {
+      assert.ok(d[k].length <= 6, `${d.day}: в «${k}» больше шести строк`);
+      for (const t of d[k]) assert.ok(t.length <= 100, `${d.day}: длинная строка — ${t.slice(0, 40)}…`);
+    }
     console.log('  ✓ журнал изменений');
   }
   // Объёмные аватары: свой PNG туда-обратно, сборка из слоёв, окраска кожи, размеры, мусор во входе
