@@ -3929,7 +3929,7 @@ function renderGangProfile() {
     ${c.about ? `<p class="sub" style="margin:0">${esc(c.about)}</p>` : ''}
     ${c.interests.length ? `<div class="g-tags big">${c.interests.map((t) => `<i>${esc(t)}</i>`).join('')}</div>` : ''}
     <div class="g-stats"><div><b>${c.count}${c.max ? '/' + c.max : ''}</b><span>${plural(c.count, 'участник', 'участника', 'участников')}</span></div><div><b>${c.inOffice}</b><span>в офисе сегодня</span></div><div><b>${c.msgsWeek}</b><span>сообщений за неделю</span></div><div><b>${days}</b><span>${plural(days, 'день', 'дня', 'дней')} банде</span></div></div>
-    <div class="g-faces">${c.faces.map((m) => `<span title="${esc(m.nick)}">${avatar(m.look, 34)}</span>`).join('')}${c.count > c.faces.length ? `<span class="small">и ещё ${c.count - c.faces.length}</span>` : ''}</div>
+    <div class="g-faces">${c.faces.map((m) => tap(m.id, avatar(m.look, 34))).join('')}${c.count > c.faces.length ? (own ? `<button class="linkbtn small" data-act="gang-crew-open">и ещё ${c.count - c.faces.length} — все свои</button>` : `<span class="small">и ещё ${c.count - c.faces.length}</span>`) : ''}</div>
     <p class="small" style="margin:0"><b>${accT}</b> — ${accD}${c.owner ? ` · владелец ${esc(c.owner)}` : ''}${c.officeName ? ` · офис ${esc(c.officeName)}` : ''}</p>
     ${own ? '' : gangCardHtml(c).replace(/^<div class="g-card"><button class="g-main"[\s\S]*?<\/button>/, '<div class="g-card solo">')}
     ${mine}`;
@@ -6488,6 +6488,7 @@ const actions = {
     S.crestEd = null;
   }),
   'blitz-past': () => run(async () => { S.blitzPast = null; S.sheet = 'blitz-past'; render(); S.blitzPast = (await get('/api/blitz/past')).sets; }),
+  'gang-crew-open'() { S.sheet = null; S.tab = 'chats'; S.dm = null; S.dmList = false; S.gangTab = 'crew'; S.membersAll = true; render(); window.scrollTo(0, 0); },
   'gang-profile-mine': () => { const g = (S.me.gangs || [])[0]; if (g) actions['gang-profile']({ dataset: { id: g.id } }); },
   'league-open': () => run(async () => { S.sheet = 'league'; render(); await loadLeague(); }),
   'league-tab': (el) => run(async () => { S.leagueType = el.dataset.v; render(); await loadLeague(el.dataset.v); }),
