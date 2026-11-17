@@ -1925,6 +1925,7 @@ const ABOUT_TILES = [
 function aboutHtml({ cta = true } = {}) {
   return `<div class="about">
     <p class="about-lead"><b>Этаж</b> — неофициальное приложение для своих, чтобы <b>видеть, кто рядом, и собираться без лишней переписки</b>. Рабочие задачи — в рабочих системах. Тут — кофе, обед, игры и банда.</p>
+    ${renderTopStrip()}
     <div class="about-grid">${ABOUT_TILES.map(([e, t, d]) => `<div class="about-tile"><span class="about-emo" aria-hidden="true">${e}</span><b>${t}</b><span>${d}</span></div>`).join('')}</div>
     <div class="about-not"><b>Чего Этаж не делает</b>
       <span>Не следит: никакой геолокации — только твоя кнопка «я в офисе», и её можно скрыть. Не хранит почту — только зашифрованный отпечаток. Не для начальства: это не табель, а кофе-машина с интерфейсом.</span></div>
@@ -2079,11 +2080,13 @@ function todayLabel(short = false) {
   const d = new Date(Date.now() + 3 * 3600e3); // по Москве
   return `${short ? ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'][d.getUTCDay()] : WD_FULL[d.getUTCDay()]}, ${d.getUTCDate()} ${MON_GEN[d.getUTCMonth()]}`;
 }
+// «β-тест» и счётчик банд и людей — в «Об Этаже»: на «Рядом» строка отвлекала от главного. По нажатию — статистика
 function renderTopStrip() {
   const st = S.state && S.state.stats;
-  return `<button class="top-strip" data-act="open" data-v="stats" aria-label="Статистика Этажа">
-    <span class="ts-date">${todayLabel(true)}</span><span class="ts-beta">β-тест</span>
-    ${st ? `<span class="ts-nums">${st.allGangs || st.gangs} ${plural(st.allGangs || st.gangs, 'банда', 'банды', 'банд')} · ${st.allUsers || st.users} ${plural(st.allUsers || st.users, 'бандит', 'бандита', 'бандитов')}</span>` : ''}</button>`;
+  if (!S.me || !st) return '';
+  return `<button class="top-strip about-strip" data-act="open" data-v="stats" aria-label="Статистика Этажа">
+    <span class="ts-beta">β-тест</span>
+    <span class="ts-nums grow">${st.allGangs || st.gangs} ${plural(st.allGangs || st.gangs, 'банда', 'банды', 'банд')} · ${st.allUsers || st.users} ${plural(st.allUsers || st.users, 'бандит', 'бандита', 'бандитов')}</span><span class="chev" aria-hidden="true">›</span></button>`;
 }
 function renderStats() {
   const st = S.state && S.state.stats;
@@ -2124,7 +2127,6 @@ function renderApp() {
       ${renderMailBtn(b)}
       <button class="beans3d ${S.beanFx ? 'gain' : ''} ${S.coach === 2 ? 'coach-focus' : ''}" data-act="open" data-v="shop" aria-label="Зёрна: ${me.beans}. Открыть лавку${shopDot() ? '. Есть что купить' : ''}">${BEAN}<span class="bnum">${S.beanFx ? S.beanFx.from : me.beans}</span><span class="bcart"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11h10.2L20 8H6.3"/><circle cx="9.5" cy="19.5" r="1.4"/><circle cx="16.5" cy="19.5" r="1.4"/></svg></span>${shopDot() ? '<span class="bdot" aria-hidden="true"></span>' : ''}${S.beanFx ? `<span class="bplus" aria-hidden="true">+${S.beanFx.to - S.beanFx.from}</span>` : ''}</button>
     </header>
-    ${S.tab === 'near' ? renderTopStrip() : ''}
     ${renderCoach()}
     ${S.newBuild ? '<button class="upd-bar" data-act="reload">spark Вышло обновление — нажми, чтобы обновить</button>' : ''}
     <main>

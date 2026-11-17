@@ -2591,3 +2591,8 @@ main > .top-strip { margin: 6px 0 0; width: 100%; opacity: .8; }
 .prof-stats b { font-size: 24px; line-height: 1.1; font-weight: 900; color: var(--ink); display: inline-flex; align-items: center; gap: 4px; }
 .prof-stats span { font-size: 14px; font-weight: 800; color: var(--ink); }
 .prof-stats i { font-style: normal; font-size: 12px; line-height: 1.3; color: var(--muted); }
+
+/* «β-тест» и счётчик — строкой в «Об Этаже» */
+.about .about-strip { margin: 0 0 12px; width: 100%; text-align: left; }
+.about-strip .ts-nums { text-align: left; }
+.about-strip .chev { font-size: 18px; color: var(--muted); }
