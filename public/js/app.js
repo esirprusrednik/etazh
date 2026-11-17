@@ -76,8 +76,10 @@ async function api(method, url, body, waitMs) {
     throw new Error(e && e.name === 'AbortError' ? 'Сервер долго не отвечает. Проверь интернет и попробуй ещё раз.' : 'Нет связи с сервером. Проверь интернет.');
   }
   // Таймер не снимаем, пока не прочитано тело: связь может оборваться после заголовков, и чтение повиснет навсегда
-  let json = {};
-  try { json = await res.json(); } catch {} finally { clearTimeout(timer); }
+  // Тело не дочиталось (связь оборвалась после заголовков) — это сбой сети, а не «пустой успешный ответ»
+  let json = {}, text = '';
+  try { text = await res.text(); } catch (e) { throw new Error(e && e.name === 'AbortError' ? 'Сервер долго не отвечает. Проверь интернет и попробуй ещё раз.' : 'Нет связи с сервером. Проверь интернет.'); } finally { clearTimeout(timer); }
+  if (text) { try { json = JSON.parse(text); } catch { if (res.ok) throw new Error('Нет связи с сервером. Проверь интернет.'); } }
   if (res.status === 401) { S.me = null; render(); }
   if (!res.ok) throw new Error(json.error || 'Сервер не ответил. Проверь интернет.');
   return json;
@@ -1874,10 +1876,22 @@ function render() {
     if (S.shownBeans != null && S.me.beans > S.shownBeans && !S.beanFx) S.beanFx = { from: S.shownBeans, to: S.me.beans, fresh: true };
     S.shownBeans = S.me.beans;
   }
-  if (!S.me) root.innerHTML = iconize(renderLogin());
-  else if (!S.me.nick) root.innerHTML = iconize(renderNick());
-  else if (!(S.me.profile && S.me.profile.firstName && S.me.profile.lastName)) root.innerHTML = iconize(renderNameStep());
-  else { root.innerHTML = iconize(renderApp()); trackSeen(S.tab); if (['shop', 'league', 'profile'].includes(S.sheet)) trackSeen(S.sheet); }
+  // Ошибка в отрисовке не должна молча оставлять старый экран: человек жмёт кнопки, а «ничего не происходит».
+  // Сообщаем себе, показываем человеку и закрываем окно, в котором сломалось, — остальное приложение живо
+  let html;
+  try {
+    html = !S.me ? renderLogin() : !S.me.nick ? renderNick() : !(S.me.profile && S.me.profile.firstName && S.me.profile.lastName) ? renderNameStep() : renderApp();
+  } catch (e) {
+    reportError('render: ' + (e && e.message), e && e.stack ? String(e.stack).split('\n').slice(0, 3).join(' | ') : '', true);
+    if (S.renderFail) { S.renderFail = false; return; } // второй раз подряд — не зацикливаемся
+    S.renderFail = true;
+    const where = S.sheet; S.sheet = null; S.error = '';
+    try { render(); } finally { S.renderFail = false; }
+    toast(`Экран${where ? ' «' + where + '»' : ''} сломался: ${e && e.message}. Мы уже знаем — попробуй ещё раз`);
+    return;
+  }
+  root.innerHTML = iconize(html);
+  if (S.me && S.me.nick && S.me.profile && S.me.profile.firstName && S.me.profile.lastName) { trackSeen(S.tab); if (['shop', 'league', 'profile'].includes(S.sheet)) trackSeen(S.sheet); }
   window.scrollTo(0, keepScroll);
   // Эффекты морского боя живут на отдельном холсте: перерисовка экрана их не обрывает
   seaFxSync({
@@ -4880,10 +4894,10 @@ function renderBlitzPlay() {
   const ok = fb && fb.n === qn.n ? fb.pick === fb.right : null;
   const st = S.blitzStreak || 0;
   return `<div class="bl-top"><span class="bl-me ${ok === true ? 'mood-happy fresh' : ok === false ? 'mood-sad fresh' : ''}"><span class="dvs-ava">${avatar(moodLook(S.me.look, ok === true ? 'happy' : ok === false ? 'sad' : 'smirk'), 38)}</span>${ok === true ? '<i class="bl-plus">+1</i>' : ''}</span>
-    <span class="bl-time ${b.leftMs < 15000 ? 'hot' : ''}" id="bl-time">${mmss(b.leftMs)}</span><span class="small grow" style="text-align:right">вопрос ${qn.n} из ${qn.total} · верных <b>${b.score}</b>${st >= 3 ? `<span class="bl-streak">${T('flame')}${st} подряд</span>` : ''}</span></div>
+    <span class="bl-time ${b.leftMs < 15000 ? 'hot' : ''}" id="bl-time">${mmss(b.leftMs)}</span><span class="small grow" style="text-align:right">вопрос ${qn.n} из ${qn.total} · верных <b>${b.score}</b>${st >= 3 ? `<span class="bl-streak">${ico('flame', 13)}${st} подряд</span>` : ''}</span></div>
     <div class="bl-bar"><i id="bl-bar" style="width:${pct}%"></i></div>
     ${b.practice ? '<p class="small" style="margin:-8px 0 8px">Тренировка — без рейтинга и зёрен</p>' : ''}
-    ${S.me.isAdmin ? `<p class="small bl-diag">${S.blitzDiag ? esc(S.blitzDiag) : 'Диагностика включена (её видит только администратор). Медленных ответов пока не было. Если ответ завис — не закрывай окно, подожди 15 секунд: здесь появится, где потеряно время.'}</p>` : ''}
+    ${S.me.isAdmin && S.blitzDiag ? `<p class="small bl-diag">${esc(S.blitzDiag)}</p>` : ''}
     <p class="bl-q">${esc(qn.text)}</p>
     ${S.blitzStuck && !S.blitzOver ? '<button class="btn ghost wide bl-reload" data-act="blitz-reload">Кнопки не отвечают? Перезапустить блиц</button><p class="small" style="margin:6px 0 10px;text-align:center">Ответы сохранены, вернёшься на тот же вопрос</p>' : ''}
     ${S.blitzOver ? '<div class="note warn bl-over">Время вышло — считаем итог…</div>' : `<div class="bl-opts">${qn.options.map((o, i) => `<button class="gopt bl-opt ${fb && fb.n === qn.n ? (i === fb.right ? 'ok' : i === fb.pick ? 'bad' : 'dim') : S.blitzPend && S.blitzPend.n === qn.n ? (i === S.blitzPend.pick ? 'pend' : 'dim') : ''}" data-act="blitz-pick" data-n="${qn.n}" data-v="${i}" ${fb && fb.n === qn.n ? 'disabled' : ''}>${esc(o)}</button>`).join('')}</div>`}`;
@@ -6965,6 +6979,7 @@ const actions = {
           }
         }
         if (!mine()) return;
+        if (!r || !r.set || !r.state) throw new Error('Сервер ответил непонятно. Нажми вариант ещё раз.');
         diag('ok');
         S.blitzPend = null; S.blitzStuck = false;
         if (r.result) {

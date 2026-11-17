@@ -96,6 +96,24 @@ const { b64url, fromB64url, moderationProblem, emailDomainAllowed } = require('.
     assert.deepEqual(missing, [], 'нет в files.txt: ' + missing.join(', '));
     console.log('  ✓ files.txt содержит все файлы сервера и клиента');
   }
+  // Клиент: в шаблонах `${...}` не вызываются несуществующие функции. Такая опечатка не видна, пока экран не дойдёт
+  // до нужной ветки: блиц молча вставал на серии из трёх верных ответов
+  {
+    const fs = require('node:fs'), path = require('node:path');
+    const dir = path.join(__dirname, '..', 'public', 'js');
+    const srcs = fs.readdirSync(dir).filter((f) => f.endsWith('.js')).map((f) => [f, fs.readFileSync(path.join(dir, f), 'utf8')]);
+    const decl = new Set(Object.getOwnPropertyNames(globalThis));
+    for (const [, src] of srcs) {
+      for (const m of src.matchAll(/\b(?:function\*?|const|let|var|class)\s+([A-Za-z_$][\w$]*)/g)) decl.add(m[1]);
+      for (const m of src.matchAll(/([A-Za-z_$][\w$]*)\s*=>/g)) decl.add(m[1]);
+      for (const m of src.matchAll(/\(([^()]*)\)\s*(?:=>|\{)/g)) for (const p of m[1].split(',')) { const n = p.replace(/[{}[\].]/g, ' ').split('=')[0].trim().split(/\s+/).pop(); if (n) decl.add(n); }
+      for (const m of src.matchAll(/,\s*([A-Za-z_$][\w$]*)\s*=\s*[^=>]/g)) decl.add(m[1]);
+    }
+    const bad = new Set();
+    for (const [f, src] of srcs) for (const m of src.replace(/\/\/[^\n]*/g, '').matchAll(/\$\{\s*([A-Za-z_$][\w$]*)\(/g)) if (!decl.has(m[1])) bad.add(`${f}: ${m[1]}()`);
+    assert.deepEqual([...bad], [], 'вызов необъявленной функции в шаблоне: ' + [...bad].join(', '));
+    console.log('  ✓ в шаблонах клиента нет вызовов необъявленных функций');
+  }
   // Журнал изменений: валидный JSON, один день — одна запись, свежие сверху
   {
     const log = JSON.parse(require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'public', 'changelog.json'), 'utf8'));
