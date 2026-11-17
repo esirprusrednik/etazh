@@ -2613,3 +2613,10 @@ main > .top-strip { margin: 6px 0 0; width: 100%; opacity: .8; }
 .pg-avas .ava:first-child { margin-left: 0; }
 .pg-more { padding: 10px 0 4px; font-size: 13px; font-weight: 800; }
 .pgroup.fold + .pgroup.fold { border-top: 1px solid var(--line); }
+
+/* Шапка банды: герб и название — вход в профиль банды */
+.g-who { display: flex; align-items: center; gap: 12px; flex: 1 1 auto; min-width: 0; background: none; border: 0; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.g-who .crest-btn { flex: 0 0 auto; display: inline-flex; }
+.g-who .chev { color: var(--muted); font-weight: 400; }
+.g-own { display: flex; flex-direction: column; gap: 12px; margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--line); }
+.sheet .g-own > .card { box-shadow: none; }

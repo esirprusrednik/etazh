@@ -3917,6 +3917,17 @@ function renderGangFind() {
 function renderGangProfile() {
   const c = S.gprofile;
   if (!c) return '<p class="sub">Загружаем…</p>';
+  // Своя банда: здесь же герб, казна, битвы и выход — по аналогии с досье человека
+  const own = S.gang && S.gang.gang && S.gang.gang.id === c.id ? S.gang.gang : null;
+  const mine = !own ? '' : `<div class="g-own">
+      <div class="row"><button class="btn ghost grow" data-act="crest-open" data-ctx="vote">${own.isOwner ? 'Изменить герб' : 'Предложить новый герб'}</button>${own.isOwner ? '<button class="btn ghost grow" data-act="gang-settings">Настройки банды</button>' : ''}</div>
+      <button class="tr-strip" data-act="treasury-open">bank Казна: <b>${own.glory || 0}</b> славы <span class="small">— оформление банды за общие победы</span></button>
+      ${own.depositPending ? '<div class="note warn">Залог 50 зёрен вернётся, когда в банде будет 3 человека.</div>' : ''}
+      ${renderWars()}
+      <div class="row g-foot" style="justify-content:space-between">
+        <button class="linkbtn" data-act="report" data-type="gang" data-id="${own.id}">Пожаловаться на банду</button>
+        <button class="linkbtn" data-act="gang-leave">Выйти из банды</button>
+      </div></div>`;
   const [accT, accD] = ACCESS_NAMES[c.access] || ACCESS_NAMES.invite;
   const days = Math.max(1, Math.round((Date.now() - c.since) / 864e5));
   return `<div class="g-hero" style="--gc:${esc(c.color)}"><span class="g-crest ${auraCls(c)}">${crestSvg(crestOf(c), { size: 92, full: true, motto: c.motto || c.name })}</span><div><div class="g-title">${gangName(c)}${c.gold ? ' crown' : ''}</div>
@@ -3928,9 +3939,9 @@ function renderGangProfile() {
     ${c.interests.length ? `<div class="g-tags big">${c.interests.map((t) => `<i>${esc(t)}</i>`).join('')}</div>` : ''}
     <div class="g-stats"><div><b>${c.count}${c.max ? '/' + c.max : ''}</b><span>${plural(c.count, 'участник', 'участника', 'участников')}</span></div><div><b>${c.inOffice}</b><span>в офисе сегодня</span></div><div><b>${c.msgsWeek}</b><span>сообщений за неделю</span></div><div><b>${days}</b><span>${plural(days, 'день', 'дня', 'дней')} банде</span></div></div>
     <div class="g-faces">${c.faces.map((m) => `<span title="${esc(m.nick)}">${avatar(m.look, 34)}</span>`).join('')}${c.count > c.faces.length ? `<span class="small">и ещё ${c.count - c.faces.length}</span>` : ''}</div>
-    ${leagueRules()}
     <p class="small" style="margin:0"><b>${accT}</b> — ${accD}${c.owner ? ` · владелец ${esc(c.owner)}` : ''}${c.officeName ? ` · офис ${esc(c.officeName)}` : ''}</p>
-    ${gangCardHtml(c).replace(/^<div class="g-card"><button class="g-main"[\s\S]*?<\/button>/, '<div class="g-card solo">')}`;
+    ${own ? '' : gangCardHtml(c).replace(/^<div class="g-card"><button class="g-main"[\s\S]*?<\/button>/, '<div class="g-card solo">')}
+    ${mine}`;
 }
 function renderGangSwitch() {
   const a = S.switchAsk || {};
@@ -4055,8 +4066,8 @@ function renderGang() {
   const tabs = `<div class="g-tabs" role="tablist">${[['chat', 'Чат', 0], ['life', 'Жизнь', 0], ['crew', 'Состав', reqN]].map(([k, l, n]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" data-act="gang-tab" data-v="${k}">${l}${n ? `<i>${n}</i>` : ''}</button>`).join('')}</div>`;
   const head = `<section class="card g-head" style="${g.gold ? 'border:3px solid #FFC93C' : ''}">
     ${gst(g).cardbg ? `<div class="g-banner ${gst(g).cardbg}" aria-hidden="true"></div>` : ''}
-    <div class="row"><button class="crest-btn ${auraCls(g)}" data-act="crest-open" data-ctx="vote" aria-label="Предложить новый герб банды">${crestSvg(crestOf(g), { size: 78, full: true })}<i aria-hidden="true">✎</i></button><div class="grow" style="min-width:0"><h2 style="margin:0">${gangName(g)}</h2><span class="small">${g.floor ? g.floor + ' этаж · ' : ''}${g.area ? esc(g.area) + ' · ' : ''}${v.gang.count}${g.max ? '/' + g.max : ''} ${plural(v.gang.count, 'участник', 'участника', 'участников')}${g.league && g.league.place ? ` · ${MEDAL[g.league.place - 1] || ''} ${g.league.place} место в Лиге` : ''}</span></div>
-      ${g.isOwner ? '<button class="icon-btn" data-act="gang-settings" aria-label="Настройки банды">gear</button>' : `<button class="icon-btn" data-act="gang-profile" data-id="${g.id}" aria-label="Профиль банды">help</button>`}</div>
+    <div class="row"><button class="g-who" data-act="gang-profile" data-id="${g.id}" aria-label="Профиль банды «${esc(g.name)}»"><span class="crest-btn ${auraCls(g)}">${crestSvg(crestOf(g), { size: 78, full: true })}</span><span class="grow" style="min-width:0"><h2 style="margin:0">${gangName(g)} <span class="chev" aria-hidden="true">›</span></h2><span class="small">${g.area ? esc(g.area) + ' · ' : ''}${v.gang.count}${g.max ? '/' + g.max : ''} ${plural(v.gang.count, 'участник', 'участника', 'участников')}</span></span></button>
+      ${g.isOwner ? '<button class="icon-btn" data-act="gang-settings" aria-label="Настройки банды">gear</button>' : ''}</div>
     ${tabs}
   </section>`;
   // ----- Чат: сейчас важно, зовы, переписка
@@ -4087,21 +4098,6 @@ function renderGang() {
   // ----- Банда: кто мы, люди, неделя, казна, лига, битвы
   // «Банда на неделе» — первой: кто когда в офисе важнее описания банды
   const crewTab = `${renderCrewWeek(v, g)}
-  <section class="card g-about">
-    ${g.legend ? `<div class="g-legend">crown ${esc(g.legend)}</div>` : ''}
-    ${g.motto ? `<p class="sub" style="font-style:italic;margin:0">«${esc(g.motto)}»</p>` : ''}
-    ${g.about ? `<p class="sub" style="margin:0">${esc(g.about)}</p>` : ''}
-    ${g.interests && g.interests.length ? `<div class="g-tags"><span class="g-tags-l">Интересы банды:</span>${g.interests.map((t) => `<i>${esc(t)}</i>`).join('')}</div>` : ''}
-    <button class="tr-strip" data-act="treasury-open">bank Казна: <b>${g.glory || 0}</b> славы <span class="small">— оформление банды за общие победы</span></button>
-    ${g.league ? `<button class="lg-strip" data-act="league-open">trophy Лига недели: <b>${g.league.place ? `${MEDAL[g.league.place - 1] || ''} ${g.league.place} место из ${g.league.of}` : g.league.eligible ? 'пока без очков' : 'нужно 3 человека'}</b> · счёт ${g.league.score}${trophyLine(g.trophies) ? ` · ${trophyLine(g.trophies)}` : ''}</button>` : ''}
-    ${g.league ? leagueRules() : ''}
-    ${g.depositPending ? '<div class="note warn">Залог 50 зёрен вернётся, когда в банде будет 3 человека.</div>' : ''}
-  </section>
-  ${renderWars()}
-  <div class="row g-foot" style="justify-content:space-between">
-    <button class="linkbtn" data-act="report" data-type="gang" data-id="${g.id}">Пожаловаться на банду</button>
-    <button class="linkbtn" data-act="gang-leave">Выйти из банды</button>
-  </div>
   ${create}`;
   return `${multi}${chips}${head}${tab === 'life' ? lifeTab : tab === 'crew' ? crewTab : chatTab}`;
 }
