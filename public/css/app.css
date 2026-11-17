@@ -2628,3 +2628,13 @@ main > .top-strip { margin: 6px 0 0; width: 100%; opacity: .8; }
 .g-level li.muted { color: var(--muted); }
 .ring-silver svg { filter: drop-shadow(0 0 3px #B8C2D6) drop-shadow(0 0 1px #8D99B3); }
 .ring-gold svg { filter: drop-shadow(0 0 3px #FFC53D) drop-shadow(0 0 1px #D99400); }
+
+/* Плюс и минус у раскрывающихся блоков, столовая в одну строку, подпись «блиц на весь Этаж» */
+.pm { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--s2); color: var(--ink); font: 900 18px/1 system-ui, sans-serif; }
+.cant { gap: 10px; }
+.cant-row { display: flex; align-items: center; gap: 10px; }
+.cant-main { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 10px; background: none; border: 0; padding: 0; text-align: left; color: var(--ink); font: inherit; cursor: pointer; }
+.cant-main .grow { display: flex; flex-direction: column; min-width: 0; }
+.cant-main b { font-size: 16px; font-weight: 900; }
+.bl-all { margin: 6px 0 0; font-size: 12.5px; font-weight: 800; color: var(--violet); }
+:root[data-theme="dark"] .bl-all { color: #C9B8FF; }

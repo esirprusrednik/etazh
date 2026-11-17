@@ -1032,7 +1032,9 @@ function register(ctx) {
     const tags = (Array.isArray(body.tags) ? body.tags : []).filter((t) => allowed.includes(t)).slice(0, 3);
     const comment = U.cleanText(body.comment || '', 140);
     if (comment) { const prob = U.moderationProblem(comment); if (prob) throw bad(prob); }
-    const first = !q('SELECT 1 FROM canteen_rates WHERE day = ? AND office_id = ? AND user_id = ?').get(today(), officeId, u.id);
+    // Оценка — одна в день и насовсем: если её можно переписать, сводке для столовой нельзя верить
+    if (q('SELECT 1 FROM canteen_rates WHERE day = ? AND office_id = ? AND user_id = ?').get(today(), officeId, u.id)) throw bad(`Сегодняшний обед ты уже ${U.g(u.look, 'оценил', 'оценила')} — поменять оценку нельзя.`);
+    const first = true;
     q(`INSERT INTO canteen_rates (day, office_id, user_id, up, tags, comment, at) VALUES (?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(day, office_id, user_id) DO UPDATE SET up = excluded.up, tags = excluded.tags, comment = excluded.comment, at = excluded.at`)
       .run(today(), officeId, u.id, up ? 1 : 0, JSON.stringify(tags), comment || null, U.now());

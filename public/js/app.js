@@ -1584,7 +1584,7 @@ function ensureGang() {
 function findInGangTabs(sel) {
   let t = document.querySelector(sel);
   if (t || !inGang()) return t;
-  for (const k of ['chat', 'life', 'crew']) { if (t) break; S.gangTab = k; render(); t = document.querySelector(sel); }
+  for (const k of ['crew', 'life', 'chat']) { if (t) break; S.gangTab = k; render(); t = document.querySelector(sel); }
   return t;
 }
 // Свёрнутая пятиминутка: после своих ответов — полоска с фразой, кто ответил и сколько новых чужих ответов
@@ -2309,13 +2309,13 @@ function renderPeople() {
     const open = !!openG[key];
     const stack = `<span class="pg-avas" aria-hidden="true">${g.slice(0, 6).map((p) => avatar(p.look, 26)).join('')}</span>`;
     if (!lim) {
-      return `<div class="pgroup ${open ? 'open' : 'fold'}"><button class="pg-fold" data-act="pg-toggle" data-v="${key}" aria-expanded="${open}"><span class="eyebrow">${title} · ${g.length}</span>${open ? '' : stack}<span class="chev" aria-hidden="true">${open ? '⌃' : '⌄'}</span></button>
+      return `<div class="pgroup ${open ? 'open' : 'fold'}"><button class="pg-fold" data-act="pg-toggle" data-v="${key}" aria-expanded="${open}"><span class="eyebrow">${title} · ${g.length}</span>${open ? '' : stack}<span class="pm" aria-hidden="true">${open ? '−' : '+'}</span></button>
         ${(open ? g : urgent).map(personRow).join('')}</div>`;
     }
     const first = open ? g : [...urgent, ...g.filter((p) => !p.unread)].slice(0, Math.max(lim, urgent.length));
     const rest = g.length - first.length;
     return `<div class="pgroup"><div class="eyebrow">${title} · ${g.length}</div>${first.map(personRow).join('')}
-      ${rest > 0 ? `<button class="pg-more" data-act="pg-toggle" data-v="${key}"><span class="pg-avas" aria-hidden="true">${g.filter((p) => !first.includes(p)).slice(0, 6).map((p) => avatar(p.look, 26)).join('')}</span><span>Ещё ${rest}</span><span class="chev" aria-hidden="true">⌄</span></button>` : open && g.length > lim ? `<button class="pg-more" data-act="pg-toggle" data-v="${key}"><span>Свернуть</span><span class="chev" aria-hidden="true">⌃</span></button>` : ''}</div>`;
+      ${rest > 0 ? `<button class="pg-more" data-act="pg-toggle" data-v="${key}"><span class="pg-avas" aria-hidden="true">${g.filter((p) => !first.includes(p)).slice(0, 6).map((p) => avatar(p.look, 26)).join('')}</span><span>Ещё ${rest}</span><span class="pm" aria-hidden="true">+</span></button>` : open && g.length > lim ? `<button class="pg-more" data-act="pg-toggle" data-v="${key}"><span>Свернуть</span><span class="pm" aria-hidden="true">−</span></button>` : ''}</div>`;
   }).join('');
   const nl = S.state && S.state.nameLock;
   const nameStrip = nl ? `<button class="week-lock-strip" data-act="open-sec" data-v="name">${ico('lock', 16)}<span>Имена коллег скрыты: ${nl.named} из ${nl.total} ${plural(nl.total, 'бандита', 'бандитов', 'бандитов')} указали имя, и ты видишь только ники. <b>Указать своё →</b></span></button>` : '';
@@ -2407,7 +2407,7 @@ function renderNearMore() {
   const bits = [c ? (p ? `Кофе с ${esc(p.partner.nick)}` : 'Случайный кофе') : '', MATCH_ON && S.match && !S.match.off ? 'Совпадаем' : ''].filter(Boolean);
   if (!bits.length) return '';
   return `<section class="near-more ${open ? 'on' : ''}">
-      <button class="near-more-head" data-act="near-more" aria-expanded="${open}"><span class="grow"><b>Ещё полезное</b><span class="small">${bits.join(' · ')}</span></span>${coffeeHot && !open ? '<i class="gq-dot" aria-label="ждёт ответа"></i>' : ''}<span class="chev" aria-hidden="true">${open ? '⌃' : '⌄'}</span></button>
+      <button class="near-more-head" data-act="near-more" aria-expanded="${open}"><span class="grow"><b>Ещё полезное</b><span class="small">${bits.join(' · ')}</span></span>${coffeeHot && !open ? '<i class="gq-dot" aria-label="ждёт ответа"></i>' : ''}<span class="pm" aria-hidden="true">${open ? '−' : '+'}</span></button>
       ${open ? `<div class="near-more-body">${renderCoffeeStrip()}${renderMatch()}</div>` : ''}
     </section>`;
 }
@@ -2909,7 +2909,7 @@ const compOpen = () => !!S.compOpen;
 function collapseAll() {
   S.awayOpen = false; S.compOpen = false; S.nearMore = false; S.todoOpen = false; S.todoDoneOpen = false; S.todoAdd = false;
   S.callsOpen = false; S.questOpen = null; S.fridayOpen = false; S.hintOpen = {}; S.guideOpen = null; S.shopOwnOpen = false;
-  S.boardAll = false; S.feedAll = false; S.membersAll = false; S.thxAll = false; S.lunchAll = false; S.pgOpen = {};
+  S.boardAll = false; S.feedAll = false; S.membersAll = false; S.thxAll = false; S.lunchAll = false; S.pgOpen = {}; S.canteenOpen = false;
   S.sec.clear();
 }
 function renderComp() {
@@ -3049,45 +3049,35 @@ function renderCanteen() {
       ${f.slots.map((s, i) => `<span style="height:${Math.max(8, Math.min(100, Math.round(s.load * 100)))}%;background:${color(s.load)}${i === f.current ? ';outline:2px solid #1A2547;outline-offset:2px' : ''}"></span>`).join('')}
     </div>
     <div class="fc-axis"><span>12:00</span>${f.current >= 0 ? '<span>сейчас</span>' : ''}<span>${f.peak} пик</span><span>14:30</span></div>` : '';
-  return `<section class="card">
-    <div class="row" style="justify-content:space-between">
-      <span class="card-title">${ico('lunch', 18)}Столовая</span>
-      <span class="trend-chip ${trend[1]}">${trend[0]}</span>
-    </div>
-    <div class="row" style="align-items:flex-end;justify-content:space-between;gap:10px">
-      <div style="display:flex;flex-direction:column;gap:2px">
-        <span class="big" style="color:${tone}">${esc(c.label)}</span>
-        <span class="${c.wait ? 'ttl-wait' : 'ttl-ok'}" style="font-size:13px;font-weight:700">${c.wait ? `Очередь ≈ ${c.wait} мин` : 'Очереди нет'}${c.lowData ? '<span class="small" title="Мало отметок за 15 минут. Отмечайся в столовой — оценка станет точнее"> · примерно, мало отметок</span>' : ''}</span>
-      </div>
-      ${st.inCanteen
-        ? '<button class="btn green" data-act="canteen-out">Поел</button>'
-        : '<button class="btn" style="white-space:nowrap" data-act="canteen-in">Я тут · +2</button>'}
-    </div>
-    ${bars}
-    ${c.tone === 'good' && !c.wait && !bars ? '' : `<p class="note ${c.advice.tone}" style="margin:0">${esc(c.advice.text)}</p>`}
-    ${renderFood()}
+  // Свёрнуто — одна строка: как там сейчас и одна кнопка. Прогноз, совет и оценки — по нажатию на строку
+  const f2 = S.fx && S.fx.food;
+  const line = `${c.wait ? `очередь ≈ ${c.wait} мин` : 'очереди нет'}${f2 && f2.n ? ` · thumbUp ${f2.upPct}%` : ''}`;
+  const btn = st.inCanteen ? '<button class="btn small green" data-act="canteen-out">Поел</button>' : '<button class="btn small" style="white-space:nowrap" data-act="canteen-in">Я тут · +2</button>';
+  const more = `${bars}${c.tone === 'good' && !c.wait && !bars ? '' : `<p class="note ${c.advice.tone}" style="margin:0">${esc(c.advice.text)}</p>`}${c.lowData ? '<p class="small" style="margin:0">Оценка примерная: мало отметок за 15 минут. Жми «Я тут» в столовой — станет точнее.</p>' : ''}`;
+  const food = renderFood(!!S.canteenOpen);
+  return `<section class="card cant">
+    <div class="cant-row"><button class="cant-main" data-act="canteen-toggle" aria-expanded="${!!S.canteenOpen}">${ico('lunch', 20)}<span class="grow"><b>Столовая</b><span class="small"><span style="color:${tone};font-weight:800">${esc(c.label)}</span> · ${line}</span></span><span class="pm" aria-hidden="true">${S.canteenOpen ? '−' : '+'}</span></button>${btn}</div>
+    ${S.canteenOpen ? more : ''}
+    ${food}
   </section>`;
 }
 
 // Оценка обеда: thumbUp/thumbDown, метки и комментарий для модератора. Коллеги видят только сводку
-function renderFood() {
+function renderFood(open = true) {
   const f = S.fx && S.fx.food;
   if (!f) return '';
   const sum = f.n ? `<div class="food-sum"><span class="food-pct ${f.upPct >= 60 ? 'good' : f.upPct >= 40 ? 'mid' : 'bad'}">thumbUp ${f.upPct}%</span><span>${f.n} ${plural(f.n, 'оценка', 'оценки', 'оценок')} сегодня${f.top.length ? ' · ' + f.top.map((t) => `«${esc(t.toLowerCase())}»`).join(', ') : ''}</span></div>` : '';
-  if (!f.canRate) return sum ? `<div class="food">${sum}</div>` : '';
+  // Оценку можно поставить один раз: поменять нельзя, иначе сводка для столовой ничего не стоит
+  if (!f.canRate || f.mine) return open && sum ? `<div class="food">${sum}</div>` : '';
   const d = S.foodDraft;
-  if (f.mine && !d) {
-    // Свою оценку человек и так помнит — показываем общую сводку и одну ссылку «изменить мою»
-    return `<div class="food"><div class="row" style="justify-content:space-between;gap:8px">${sum || '<span class="small">Оценка принята</span>'}<button class="linkbtn" style="flex:none" data-act="food-edit">изменить мою</button></div></div>`;
-  }
   if (!d) {
-    return `<div class="food">${sum}<div class="food-q">Как обед?</div><div class="row"><button class="btn grow food-up" data-act="food-pick" data-v="1">thumbUp Понравилось</button><button class="btn ghost grow" data-act="food-pick" data-v="0">thumbDown Не очень</button></div></div>`;
+    return `<div class="food">${open ? sum : ''}<div class="food-q">Как обед? <span class="small">оценка одна, поменять нельзя</span></div><div class="row"><button class="btn grow food-up" data-act="food-pick" data-v="1">thumbUp Понравилось</button><button class="btn ghost grow" data-act="food-pick" data-v="0">thumbDown Не очень</button></div></div>`;
   }
   const tags = d.up ? f.tagsUp : f.tagsDown;
   return `<div class="food">${sum}<div class="food-q">${d.up ? 'thumbUp Что понравилось?' : 'thumbDown Что не так?'} <span class="small">до 3</span></div>
     <div class="chips">${tags.map((t) => `<button class="chip ${d.tags.includes(t) ? 'on' : ''}" data-act="food-tag" data-v="${esc(t)}">${esc(t)}</button>`).join('')}</div>
     <label class="field" style="gap:4px"><span class="small">Пару слов для столовой — увидит только модератор, без имени</span><input id="food-comment" maxlength="140" value="${esc(d.comment || '')}" placeholder="${d.up ? 'Например: отличный борщ' : 'Например: суп был холодный'}"></label>
-    <div class="row"><button class="btn grow" data-act="food-send">Отправить${f.mine ? '' : ' · +1'}</button><button class="btn ghost" data-act="food-cancel">Отмена</button></div></div>`;
+    <div class="row"><button class="btn grow" data-act="food-send">Отправить · +1</button><button class="btn ghost" data-act="food-cancel">Отмена</button></div></div>`;
 }
 
 function renderSignalsMini() {
@@ -4083,8 +4073,8 @@ function renderGang() {
   for (const p of S.polls || []) if (!p.closed && !p.voted && !p.mine) life.push(['vote', esc(p.question), 'Опрос ждёт твой голос', '.polls']);
   if (cv && !cv.my && !cv.mine) life.push(['shield', 'Голосуем за новый герб', 'Твой голос решает', '.cv']);
   const reqN = (v.requests || []).length;
-  const tab = S.gangTab || 'chat';
-  const tabs = `<div class="g-tabs" role="tablist">${[['chat', 'Чат', 0], ['life', 'Жизнь', 0], ['crew', 'Состав', reqN]].map(([k, l, n]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" data-act="gang-tab" data-v="${k}">${l}${n ? `<i>${n}</i>` : ''}</button>`).join('')}</div>`;
+  const tab = S.gangTab || 'crew';
+  const tabs = `<div class="g-tabs" role="tablist">${[['crew', 'Свои', reqN], ['life', 'Жизнь', 0], ['chat', 'Чат', 0]].map(([k, l, n]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" data-act="gang-tab" data-v="${k}">${l}${n ? `<i>${n}</i>` : ''}</button>`).join('')}</div>`;
   const head = `<section class="card g-head" style="${g.gold ? 'border:3px solid #FFC93C' : ''}">
     ${gst(g).cardbg ? `<div class="g-banner ${gst(g).cardbg}" aria-hidden="true"></div>` : ''}
     <div class="row"><button class="g-who" data-act="gang-profile" data-id="${g.id}" aria-label="Профиль банды «${esc(g.name)}»"><span class="crest-btn ${auraCls(g)} ${g.glevel && g.glevel.ring ? 'ring-' + g.glevel.ring : ''}">${crestSvg(crestOf(g), { size: 78, full: true })}</span><span class="grow" style="min-width:0"><h2 style="margin:0">${gangName(g)} <span class="chev" aria-hidden="true">›</span></h2><span class="small">${g.area ? esc(g.area) + ' · ' : ''}${v.gang.count}${g.max ? '/' + g.max : ''} ${plural(v.gang.count, 'участник', 'участника', 'участников')}${g.glevel ? ` · уровень ${g.glevel.n}` : ''}</span></span></button>
@@ -4988,7 +4978,7 @@ function renderBlitzCard() {
   if (!b) return '';
   if (!b.set) return b.past ? `<section class="card blitz"><span class="card-title has-art">${art('stopwatch', 30)}Блиц</span><p class="sub" style="margin:6px 0 4px">Сейчас блица нет — следующий скоро.</p>${blitzPastLink(b)}</section>` : '';
   const st = b.set;
-  const head = `<div class="row" style="justify-content:space-between"><span class="card-title has-art">${art('stopwatch', 30)}Блиц: ${esc(st.title)}</span><span class="small">до ${ddmm(st.to)}</span></div>`;
+  const head = `<div class="row" style="justify-content:space-between"><span class="card-title has-art">${art('stopwatch', 30)}Блиц: ${esc(st.title)}</span><span class="small">до ${ddmm(st.to)}</span></div><p class="bl-all">spark Один на весь Этаж: все офисы и банды в одной таблице${b.board && b.board.players ? ` · уже ${b.board.players} ${plural(b.board.players, 'участник', 'участника', 'участников')}` : ''}</p>`;
   if (b.state === 'new') {
     return `<section class="card blitz">${head}
       <p class="sub" style="margin:6px 0 10px">${esc(st.desc)}</p>
@@ -6306,7 +6296,7 @@ const actions = {
       if (nested) sfx('close');
     }
     collapseAll();
-    S.dmList = false; S.tab = el.dataset.v; S.sheet = null; if (S.tab === 'chats') { ensureGang(); S.gangTab = S.gangTab || 'chat'; } render();
+    S.dmList = false; S.tab = el.dataset.v; S.sheet = null; if (S.tab === 'chats') { ensureGang(); S.gangTab = 'crew'; } render();
     if (again) window.scrollTo(0, 0);
     await run(() => refresh());
   },
@@ -7383,7 +7373,7 @@ const actions = {
   }),
   // Шаг из карточки «заполни профиль»: раскрываем нужный раздел, прокручиваем к нему и ставим курсор в поле
   'food-pick'(el) { S.foodDraft = { up: el.dataset.v === '1', tags: [], comment: '' }; render(); },
-  'food-edit'() { const m = S.fx.food.mine; S.foodDraft = { up: m.up, tags: [...m.tags], comment: '' }; render(); },
+  'canteen-toggle'() { S.canteenOpen = !S.canteenOpen; render(); },
   'food-cancel'() { S.foodDraft = null; render(); },
   'food-tag'(el) {
     const d = S.foodDraft, t = el.dataset.v; const c = $('#food-comment'); if (c) d.comment = c.value;
@@ -8049,7 +8039,7 @@ function drawHints() {
     }
   });
   // Основной экран: в начале длинной страницы — «вниз, до конца», со второй половины — «наверх».
-  // Одна кнопка в правом нижнем углу над панелью вкладок, чтобы не мешать
+  // Одна кнопка по центру над панелью вкладок
   if (!sheet && nav) {
     const y = window.scrollY, rest = document.documentElement.scrollHeight - window.innerHeight - y;
     const navTop = nav.getBoundingClientRect().top;
@@ -8058,11 +8048,11 @@ function drawHints() {
       const busy = (x, yy) => document.elementsFromPoint(x, yy).some((n) => !n.closest('#scroll-hints') && n.closest('button, a, input, select, textarea, label, [data-act]'));
       let top = null;
       for (let k = 0; k < 5 && top === null; k++) {
-        const t = navTop - 44 - k * 46, x0 = vw - 38;
+        const t = navTop - 44 - k * 46, x0 = Math.round(vw / 2 - 17);
         if (t < 80) break;
         if (![[x0 + 2, t + 2], [x0 + 32, t + 2], [x0 + 2, t + 32], [x0 + 32, t + 32], [x0 + 17, t + 17]].some(([x, yy]) => busy(x, yy))) top = t;
       }
-      const pos = top === null ? null : `left:${Math.round(vw - 38)}px;top:${Math.round(top)}px`;
+      const pos = top === null ? null : `left:${Math.round(vw / 2 - 17)}px;top:${Math.round(top)}px`;
       // Прошёл половину страницы (или полтора экрана) — ведём наверх, иначе — вниз
       const maxY = document.documentElement.scrollHeight - window.innerHeight;
       if (!pos) { /* места нет — без кнопки */ }

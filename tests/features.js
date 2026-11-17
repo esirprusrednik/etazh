@@ -230,10 +230,9 @@ const mskToday = () => new Date(Date.now() + SHIFT_H * 3600e3).toISOString().sli
     const r = (await a.post('/api/canteen/rate', { up: true, tags: ['Вкусно', 'Остыло', 'Горячее'], comment: 'Борщ огонь' })).json;
     assert.equal(r.beans, 1); assert.deepEqual(r.food.mine.tags, ['Вкусно', 'Горячее']);
     assert.ok((await a.get('/api/features')).json.quests.extra.find((x) => x.id === 'food').done, 'бонус «Оцени обед» засчитан');
-    const r2 = (await a.post('/api/canteen/rate', { up: false, tags: ['Остыло'] })).json;
-    assert.equal(r2.beans, 0); assert.equal(r2.food.n, 1, 'повторная оценка заменяет первую');
+    assert.equal((await a.post('/api/canteen/rate', { up: false, tags: ['Остыло'] })).status, 400, 'поменять оценку нельзя');
     const fb = (await b.get('/api/features')).json.food;
-    assert.equal(fb.n, 1); assert.equal(fb.upPct, 0); assert.ok(!('comment' in fb));
+    assert.equal(fb.n, 1); assert.equal(fb.upPct, 100); assert.ok(!('comment' in fb));
     assert.equal((await a.get('/api/admin/food')).status, 403);
     const adm = (await c.get('/api/admin/food')).json.offices[0];
     assert.equal(adm.n, 1);
