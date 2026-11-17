@@ -2741,3 +2741,6 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-event
 .chip.on { background: var(--chip-on-bg); }
 h1, .page-h, .card h2, .sheet-head h2 { text-wrap: balance; }
 p, .sub, .small { text-wrap: pretty; }
+/* Заголовок страницы с действием справа: поиск на «Рядом» */
+.page-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.page-head .ph-find { flex: none; width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: var(--card); color: var(--ink); box-shadow: inset 0 1px 0 var(--clay-hi), inset 0 -3px 0 var(--clay-lo), var(--clay-drop); }

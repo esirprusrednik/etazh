@@ -1576,6 +1576,8 @@ function showStreak(r) {
 // Блок мог уехать в другую вкладку банды («Чат», «Жизнь», «Банда») — ищем по очереди и переключаем
 // Вкладка «Банда» открывает банду сразу; личка — отдельный экран (конверт в шапке)
 const inGang = () => S.tab === 'chats' && !S.dm && !S.dmList;
+// Чат банды считается прочитанным, только когда открыта сама вкладка «Чат», а не «Свои» или «Жизнь»
+const inGangChat = () => inGang() && S.gangTab === 'chat';
 function ensureGang() {
   const gs = (S.me && S.me.gangs) || [];
   if (!gs.length) return;
@@ -1844,7 +1846,7 @@ async function refresh({ all = false } = {}) {
   if (t === 'chats' && S.dm) jobs.push(loadDm());
   await Promise.all(jobs);
   if (t === 'chats' && S.dm && S.crew) { const f = S.crew.list.find((x) => x.id === S.dm); if (f) f.unread = 0; recountCrewBadge(); }
-  if (inGang()) markSeen('chat');
+  if (inGangChat()) markSeen('chat');
 }
 function markSeen(kind) {
   const t = S.state ? S.state.now : Date.now();
@@ -2176,7 +2178,7 @@ function tabBtn(id, label, n) {
 // ----- Офис -----
 // ===== Вкладка «Рядом»: мой статус и все мои люди одним списком =====
 // Только название: что это за вкладка, уже сказано в нижней панели — поясняющая строка съедала место на каждом экране
-const pageHead = (title) => `<div class="page-head"><h1>${title}</h1></div>`;
+const pageHead = (title, right = '') => `<div class="page-head"><h1>${title}</h1>${right}</div>`;
 // ----- Выбор офиса: одна большая кнопка «мой офис» и список остальных в шторке -----
 // Офисов может быть сколько угодно: на экране всегда одна кнопка, остальные — в списке с поиском
 const officeColor = (o) => OFFICE_BG[o.id] || o.color || '#3A86FF';
@@ -2337,7 +2339,7 @@ function renderNear() {
   const prankStrip = pr ? `<div class="prank-strip">${avatar(S.me.look, 34)}<span class="grow"><b>${esc(pr.from)} тебя ${pr.f ? 'разыграла' : 'разыграл'}</b><span class="small">${{ coffee: 'Кофе на одежде', sticker: 'Стикер на лбу', phones: 'Наушники с рок-музыкой' }[pr.v] || 'Подлянка'} — до ${new Date(pr.until).toTimeString().slice(0, 5)}</span></span><button class="btn small" data-act="prank-off">Снять</button></div>` : '';
   // Порядок: сначала свои люди. Без банды всё остальное пусто, поэтому первым идёт «Позови своих»;
   // с бандой — отметка, зовы, люди, а личный список дел ниже и свёрнут
-  return `${pageHead('Рядом')}
+  return `${pageHead('Рядом', noGang ? '' : `<button class="icon-btn ph-find" data-act="find-open" aria-label="Найти человека или тему">${ico('search', 20)}</button>`)}
     ${prankStrip}
     ${noGang ? renderNoGang() : ''}
     ${renderWeatherStrip()}
@@ -2349,7 +2351,6 @@ function renderNear() {
     ${lunchNow ? canteen : ''}
     ${renderWeekNote()}
     ${renderFloorBoard()}
-    ${noGang ? '' : findBar()}
     ${noGang ? '' : renderPeople()}
     ${lunchNow ? '' : canteen}
     ${noGang ? '' : renderTodos()}
@@ -2753,10 +2754,10 @@ function renderChats() {
       <button class="btn small" data-act="invite-accept" data-id="${i.id}">Вступить</button><button class="btn small ghost" data-act="invite-decline" data-id="${i.id}" aria-label="Отказаться">Нет</button></div>`).join('')}</section>` : '';
   if (!S.dmList) {
     const has = S.me.gangs.length > 0;
-    return `${has ? '' : pageHead('Банда', 'Свои люди, общий чат, зовы и Лига')}${invCard}${has ? '' : renderMyGang([], {})}${has ? renderGang() : ''}`;
+    return `${has ? '' : pageHead('Банда')}${invCard}${has ? '' : renderMyGang([], {})}${has ? renderGang() : ''}`;
   }
   const c = S.chats;
-  if (!c) return pageHead('Личка', 'Голубиная почта') + '<div class="card"><p class="sub">Загружаем…</p></div>';
+  if (!c) return pageHead('Личка') + '<div class="card"><p class="sub">Загружаем…</p></div>';
   const seenG = store.get('seenGang', {});
   const reqs = c.requests.length ? `<section class="card"><h3>Хотят переписываться</h3>${c.requests.map((p) => `<div class="person2">${tap(p.id, avatar(p.look, 36))}<div class="grow ellipsis" style="font-weight:800;min-width:0">${nk(p)}</div>
       <button class="btn small" data-act="crew-accept" data-id="${p.id}">Принять</button><button class="btn small ghost" data-act="crew-decline" data-id="${p.id}" aria-label="Отклонить">✕</button></div>`).join('')}</section>` : '';
@@ -2788,7 +2789,7 @@ function renderChats() {
     ${favs.length ? `<div class="fav-strip">${favs.map((f) => { const [, col] = whereText(f); return `<button class="fav" data-act="dm-open" data-id="${f.id}"><span class="ava-ring" style="border-color:${col}">${avatar(f.look, 40)}</span><span class="ellipsis">${nk(f)}</span></button>`; }).join('')}</div>` : ''}`;
   const dmList = dms.length ? dms.map(row).join('')
     : `<div class="empty-art">${art('dove', 84)}</div>` + '<p class="sub chats-empty">Голуби скучают. Напиши кому-нибудь — лично можно любому, кто не закрыл личку: найди по нику или открой карточку человека.</p>';
-  return `<div class="dml-head">${pageHead('Личка', 'Найди человека, напиши ему, добавь в подельники')}<button class="dml-x" data-act="dmlist-close" aria-label="Закрыть личку">✕</button></div>
+  return `<div class="dml-head">${pageHead('Личка')}<button class="dml-x" data-act="dmlist-close" aria-label="Закрыть личку">✕</button></div>
     ${findBar()}
     ${reqs}
     ${store.get('inviteShared') ? `<button class="invite-mini" data-act="crew-share" aria-label="Позвать коллегу в Этаж, +15 зёрен за новичка"><span class="im-ico" aria-hidden="true">mail</span><span class="im-t">Позвать коллегу в Этаж</span><span class="im-pill">+15 ${BEAN}</span><span class="im-go" aria-hidden="true">›</span></button>` : `<button class="invite-app" data-act="crew-share"><span class="grow"><b>Позвать коллегу в Этаж</b><span class="small">Личная ссылка: придёт — сразу будете на связи. +15 зёрен за каждого новичка</span></span><span aria-hidden="true">mail</span></button>`}
@@ -3002,7 +3003,7 @@ function renderQuickCalls() {
   return `<section class="qcalls" aria-label="Быстрые зовы банде">
     ${items.map(([k, label, bg, shade]) => `<button class="qcall" style="--c:${bg}" data-act="call-open" data-kind="${k}" data-gang="${gang}">${art({ coffee: 'coffee', lunch: 'lunch', where: 'pin' }[k], 34)}${label}</button>`).join('')}
     <button class="qcall" style="--c:#7C3AED" data-act="board-new" data-v="other">${art('megaphone', 34)}Объявить</button>
-    <button class="qcall" style="--c:#6B7594" data-act="gang-open" data-id="${gang}">${ico('more', 22)}Ещё</button>
+    <button class="qcall" style="--c:#6B7594" data-act="open" data-v="calls-more">${ico('more', 22)}Ещё</button>
   </section>${renderQuickExtra(gang)}`;
 }
 
@@ -3010,6 +3011,13 @@ function renderQuickCalls() {
 function tplLabel(t) {
   const def = S.cat.calls[t.kind] || { label: t.kind };
   return [def.label, t.opt, t.text, t.to ? t.toNick : null].filter(Boolean).join(' · ');
+}
+function renderCallsMore() {
+  const gang = S.activeGang || (S.me.gangs[0] || {}).id;
+  const row = (act, icon, title, sub) => `<button class="st-strip" ${act}><span class="st-ico">${ico(icon, 18)}</span><span class="grow"><b>${title}</b><span class="small">${sub}</span></span><span class="chev" aria-hidden="true">›</span></button>`;
+  return row(`data-act="gang-open" data-id="${gang}"`, 'megaphone', 'Все зовы банде', 'Совещание, «домой», «перезвони», «жду» — в чате банды')
+    + row('data-act="open" data-v="focus"', 'focus', 'В фокус', 'Пуши на паузу на полчаса, час или до вечера')
+    + row('data-act="open" data-v="signal"', 'alert', 'Сигнал офиса', 'Холодно, сломалось, кончился кофе — сообщить всем');
 }
 function renderQuickExtra(gang) {
   const p = S.me.profile || {};
@@ -3020,6 +3028,7 @@ function renderQuickExtra(gang) {
     ? `<button class="qx-pill qx-focus on" data-act="focus-off" aria-label="Выйти из фокуса">${ico('focus', 16)}<span>${tpls.length ? '' : 'В фокусе '}до ${hhmm(f)}</span>${ico('x', 13)}</button>`
     : `<button class="qx-pill qx-focus" data-act="open" data-v="focus">${ico('focus', 16)}<span>В фокус</span>${tpls.length ? '' : '<span class="qx-sub">· пуши на паузу</span>'}</button>`;
   const chips = tpls.map((t, i) => `<button class="qx-pill qx-tpl${S.tplEdit ? ' edit' : ''}" data-act="${S.tplEdit ? 'tpl-del' : 'tpl-send'}" data-i="${i}" aria-label="${S.tplEdit ? 'Удалить шаблон' : 'Отправить'}: ${esc(tplLabel(t))}">${ico(S.tplEdit ? 'x' : 'star', 14)}<span>${esc(tplLabel(t))}</span></button>`).join('');
+  if (!tpls.length && !f) return '';
   return `<div class="qx${tpls.length ? '' : ' solo'}">
     ${tpls.length ? `<div class="qx-tpls">${chips}</div><button class="qx-pill qx-edit${S.tplEdit ? ' on' : ''}" data-act="tpl-edit" aria-label="${S.tplEdit ? 'Готово' : 'Изменить шаблоны'}">${ico(S.tplEdit ? 'check' : 'pencil', 15)}</button>` : ''}
     ${focusBtn}
@@ -3913,7 +3922,7 @@ function renderGangProfile() {
       <div class="row"><button class="btn ghost grow" data-act="crest-open" data-ctx="vote">${own.isOwner ? 'Изменить герб' : 'Предложить новый герб'}</button>${own.isOwner ? '<button class="btn ghost grow" data-act="gang-settings">Настройки банды</button>' : ''}</div>
       <button class="tr-strip" data-act="treasury-open">bank Казна: <b>${own.glory || 0}</b> славы <span class="small">— оформление банды за общие победы</span></button>
       ${own.depositPending ? '<div class="note warn">Залог 50 зёрен вернётся, когда в банде будет 3 человека.</div>' : ''}
-      ${renderWars()}
+      <button class="st-strip" data-act="wars-open"><span class="st-ico">${art('shield', 26)}</span><span class="grow"><b>Битвы банд</b><span class="small">${S.wars && S.wars.record ? (S.wars.record.w + S.wars.record.l + S.wars.record.d ? `побед ${S.wars.record.w} · поражений ${S.wars.record.l}` : 'ещё не воевали — брось вызов') : 'вызовы, герои и ставки'}</span></span><span class="chev" aria-hidden="true">›</span></button>
       <div class="row g-foot" style="justify-content:space-between">
         <button class="linkbtn" data-act="report" data-type="gang" data-id="${own.id}">Пожаловаться на банду</button>
         <button class="linkbtn" data-act="gang-leave">Выйти из банды</button>
@@ -4080,7 +4089,7 @@ function renderGang() {
   if (cv && !cv.my && !cv.mine) life.push(['shield', 'Голосуем за новый герб', 'Твой голос решает', '.cv']);
   const reqN = (v.requests || []).length;
   const tab = S.gangTab || 'crew';
-  const tabs = `<div class="g-tabs" role="tablist">${[['crew', 'Свои', reqN], ['life', 'Жизнь', 0], ['chat', 'Чат', 0]].map(([k, l, n]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" data-act="gang-tab" data-v="${k}">${l}${n ? `<i>${n}</i>` : ''}</button>`).join('')}</div>`;
+  const tabs = `<div class="g-tabs" role="tablist">${[['crew', 'Свои', reqN], ['life', 'Жизнь', 0], ['chat', 'Чат', tab === 'chat' ? 0 : (S.state && S.state.badges && S.state.badges.chat) || 0]].map(([k, l, n]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" data-act="gang-tab" data-v="${k}">${l}${n ? `<i>${n}</i>` : ''}</button>`).join('')}</div>`;
   const head = `<section class="card g-head" style="${g.gold ? 'border:3px solid #FFC93C' : ''}">
     ${gst(g).cardbg ? `<div class="g-banner ${gst(g).cardbg}" aria-hidden="true"></div>` : ''}
     <div class="row"><button class="g-who" data-act="gang-profile" data-id="${g.id}" aria-label="Профиль банды «${esc(g.name)}»"><span class="crest-btn ${auraCls(g)} ${g.glevel && g.glevel.ring ? 'ring-' + g.glevel.ring : ''}">${crestSvg(crestOf(g), { size: 78, full: true })}</span><span class="grow" style="min-width:0"><h2 style="margin:0">${gangName(g)} <span class="chev" aria-hidden="true">›</span></h2><span class="small">${g.area ? esc(g.area) + ' · ' : ''}${v.gang.count}${g.max ? '/' + g.max : ''} ${plural(v.gang.count, 'участник', 'участника', 'участников')}${g.glevel ? ` · уровень ${g.glevel.n}` : ''}</span></span></button>
@@ -4701,7 +4710,7 @@ function renderCrewWeek(v, g) {
   return `<section class="card crew-week">
     <div class="row cw-top"><span class="card-title grow">hand Банда на неделе · ${v.members.length}</span>${head}</div>
     ${sum ? `<div class="cw-sum">${ico('where', 15)}<span>${sum}</span></div>` : ''}
-    ${w && w.locked ? planLockMsg(w.locked, true) : ''}
+    ${w && w.locked ? `<button class="linkbtn" style="align-self:flex-start" data-act="open-sec" data-v="work">lock Заполни свой план — откроется график банды</button>` : ''}
     ${reqN ? `<div class="g-req"><b>Хотят в банду · ${reqN}</b>${v.requests.map((r) => `<div class="person2">${tap(r.id, avatar(r.look, 30))}<span class="grow ellipsis" style="font-weight:800">${nk(r)}</span><button class="btn small" data-act="greq" data-id="${r.id}" data-v="accept">Принять</button><button class="btn small ghost" data-act="greq" data-id="${r.id}" data-v="decline" aria-label="Отклонить">✕</button></div>`).join('')}</div>` : ''}
     <div class="cw-list">${list.map(row).join('')}</div>
     ${cut || S.membersAll ? `<button class="linkbtn" data-act="members-all" aria-expanded="${!cut}">${!cut ? 'Свернуть' : strict ? `Ещё ${rest} — без графика на всю неделю` : `Показать всех · ${all.length}`}</button>` : ''}
@@ -4850,6 +4859,8 @@ function renderSheet() {
     case 'coffee': return sheetWrap('Случайный кофе', `<div class="coffee-sheet">${renderCoffee()}</div><p class="small">Раз в неделю, в понедельник в 10:00, знакомим с коллегой из твоего офиса, который не в твоих бандах. Договориться о времени можно прямо здесь — кнопками.</p>${S.fx && S.fx.coffee && S.fx.coffee.optIn ? '<button class="linkbtn" data-act="coffee-off">Больше не участвовать</button>' : ''}`);
     case 'install': return sheetWrap('Установи на телефон', renderInstall());
     case 'compose': return sheetWrap(S.cat.calls[S.compose.kind].label, renderCompose());
+    case 'calls-more': return sheetWrap('Ещё', renderCallsMore());
+    case 'wars': return sheetWrap('Битвы банд', renderWars() || '<p class="sub">Загружаем…</p>');
     case 'focus': return sheetWrap('В фокусе', `
       <p class="sub">Пуши — зовы, личка, чат банды — не придут, пока ты в фокусе. Сообщения никуда не денутся, увидишь их после. Банда видит наушники и до скольки ты занят${meG('', 'а')}.</p>
       <div class="focus-grid">
@@ -4987,10 +4998,10 @@ function renderBlitzCard() {
   const head = `<div class="row" style="justify-content:space-between"><span class="card-title has-art">${art('stopwatch', 30)}Блиц: ${esc(st.title)}</span><span class="small">до ${ddmm(st.to)}</span></div><p class="bl-all">spark Один на весь Этаж: все офисы и банды в одной таблице${b.board && b.board.players ? ` · уже ${b.board.players} ${plural(b.board.players, 'участник', 'участника', 'участников')}` : ''}</p>`;
   if (b.state === 'new') {
     return `<section class="card blitz">${head}
-      <p class="sub" style="margin:6px 0 10px">${esc(st.desc)}</p>
-      <div class="bl-facts"><span>wait ${Math.round(st.secs / 60)} мин</span><span>help ${st.count} вопросов</span><span>${BEAN} до +${st.maxBeans}</span></div>
-      <p class="bl-warn">Одна попытка. Закроешь окно — время всё равно идёт.</p>
+      <div class="bl-facts" style="margin-top:10px"><span>wait ${Math.round(st.secs / 60)} мин</span><span>help ${st.count} вопросов</span><span>${BEAN} до +${st.maxBeans}</span></div>
       <button class="btn wide" data-act="blitz-start">Начать — таймер пойдёт сразу</button>
+      <p class="small" style="margin:8px 0 0;text-align:center">Попытка одна. Закроешь окно — время всё равно идёт.</p>
+      <details class="lg-rules" style="margin-top:6px"><summary>О чём этот блиц</summary><p class="sub" style="margin:6px 0 0">${esc(st.desc)}</p></details>
       ${b.board && b.board.top.length ? `<div class="eyebrow">Лидеры</div>${blitzBoard(b.board, 3)}` : ''}
       ${blitzPastLink(b)}
     </section>`;
@@ -6005,7 +6016,6 @@ function renderProfile() {
       <div><b>${me.level || 1}</b><span>уровень</span><i>растёт вместе с заработанными зёрнами</i></div>
       <div><b>${FLAME}${me.streak || 0}</b><span>${plural(me.streak || 0, 'день', 'дня', 'дней')} подряд</span><i>рабочих дней с отметкой — в офисе или из дома</i></div>
     </div>
-    ${renderCompletion(true)}
     <div class="p-group">Обо мне</div>
     ${section('look', 'Внешность', `${OUTFIT_NAMES[look.outfit] || 'Худи'} · ${(HAIR_NAMES[look.hairStyle] || '').toLowerCase()}${look.prop && look.prop !== 'none' ? ' · ' + (PROP_NAMES[look.prop] || '').toLowerCase() : ''}`, lookBody)}
     ${section('name', 'Ник, имя и фамилия', name ? `${esc(name)}` : 'Имя не указано', nameBody)}
@@ -6013,6 +6023,7 @@ function renderProfile() {
     ${section('work', 'Работа', `${office || 'офис не указан'} · ${plan}`, workBody)}
     ${section('vac', 'Отпуска', p.vacations.length ? p.vacations.map((v) => `${ddmm(v.from)}–${ddmm(v.to)}`).join(', ') : 'не запланированы', vacBody)}
     ${section('about', 'О себе', [p.about && esc(p.about), p.bday && 'ДР ' + esc(p.bday)].filter(Boolean).join(' · ') || 'интересы, пара слов, день рождения', aboutBody)}
+    ${renderCompletion(true)}
     <div class="p-group">Для себя</div>
     <button class="fb-entry" data-act="open" data-v="events"><span class="st-ico">spark</span><span class="grow"><b>Мои события</b><span class="small">Респекты, ответы на зовы, ачивки, подарки — только про тебя</span></span>${b0.feed ? `<span class="badge">${b0.feed > 9 ? '9+' : b0.feed}</span>` : ''}<span class="chev" aria-hidden="true">›</span></button>
     <button class="fb-entry battery-entry" data-act="open" data-v="battery"><span class="st-ico bt-ico">bolt</span><span class="grow"><b>Батарейка недели</b><span class="small">Пять вопросов по пятницам: сколько сил осталось. Видишь только ты</span></span><span class="chev" aria-hidden="true">›</span></button>
@@ -6495,7 +6506,8 @@ const actions = {
   }),
   'blitz-past': () => run(async () => { S.blitzPast = null; S.sheet = 'blitz-past'; render(); S.blitzPast = (await get('/api/blitz/past')).sets; }),
   'gang-crew-open'() { S.sheet = null; S.tab = 'chats'; S.dm = null; S.dmList = false; S.gangTab = 'crew'; S.membersAll = true; render(); window.scrollTo(0, 0); },
-  'gang-profile-mine': () => { const g = (S.me.gangs || [])[0]; if (g) actions['gang-profile']({ dataset: { id: g.id } }); },
+  'gang-profile-mine': () => actions['wars-open'](),
+  'wars-open': () => run(async () => { S.sheet = 'wars'; render(); if (typeof loadGangExtra === 'function') await loadGangExtra(); }),
   'league-open': () => run(async () => { S.sheet = 'league'; render(); await loadLeague(); }),
   'league-tab': (el) => run(async () => { S.leagueType = el.dataset.v; render(); await loadLeague(el.dataset.v); }),
   'gang-switch-go': () => run(async () => { const a = S.switchAsk; S.switchAsk = null; S.sheet = null; if (a) await a.go(); }),
@@ -6575,7 +6587,7 @@ const actions = {
     const r = await post(`/api/gangs/${c.gang}/messages`, { type: 'call', kind: c.kind, to: c.to, opt: c.opt, text: c.text });
     S.sheet = null;
     toast(r.near === 0 ? 'Зов в чате, но из своих в этом офисе сейчас никого. Позови кого-то лично' : r.near ? `Зов ушёл своим в этом офисе: ${r.near}` : r.away ? `Зов отправлен. ${r.away === 1 && c.to ? 'Человек в отпуске' : 'Кто-то в отпуске'} — пуш не придёт, увидит в чате` : r.focus ? `Зов отправлен. ${r.focus === 1 && c.to ? 'Человек' : 'Кто-то'} в фокусе — увидит позже` : r.quiet ? 'Отправлено. Сейчас тихие часы — у кого они включены, пуш не придёт' : 'Зов отправлен');
-    await loadGang(); if (inGang()) markSeen('chat');
+    await loadGang(); if (inGangChat()) markSeen('chat');
   }),
   reply: (el) => run(async () => { const r = await post(`/api/messages/${el.dataset.id}/reply`, { label: el.dataset.v }); if (r.beans) toast(`+${r.beans} зерно`); await loadGang(); }),
   'rec-start': (el) => run(async () => {
@@ -7453,7 +7465,7 @@ const actions = {
     const nick = S.nickConfirm; S.nickConfirm = null;
     const r = await post('/api/me/nick', { nick }); await loadMe(); toast(`Теперь ты ${r.nick}`);
   }),
-  'gang-tab'(el) { S.gangTab = el.dataset.v; render(); window.scrollTo(0, 0); },
+  'gang-tab'(el) { S.gangTab = el.dataset.v; if (S.gangTab === 'chat') markSeen('chat'); render(); window.scrollTo(0, 0); },
   'gang-go'(el) { S.gangTab = el.dataset.v; render(); setTimeout(() => { const c = findInGangTabs(el.dataset.to); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 60); },
   'friday-open'() { const f = S.friday; if (f) { const m = store.get('frSeen', {}) || {}; m[frSeenKey(f)] = f.othersCount; store.set('frSeen', m); } S.fridayOpen = true; render(); },
   'friday-close'() { S.fridayOpen = false; S.fridayEdit = null; render(); },
