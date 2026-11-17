@@ -6345,14 +6345,30 @@ const actions = {
   async tab(el) {
     const again = S.tab === el.dataset.v;
     if (!again) tabSound(el.dataset.v);
-    // Повторное нажатие на открытую вкладку — к её главному экрану: из банды, лички и партии — в список чатов, и наверх
+    // Повторное нажатие на открытую вкладку. Из лички и партии — назад на главный экран вкладки. Прокручено — наверх.
+    // Уже наверху: в банде переключаются «Свои → Жизнь → Чат», в играх — прыжок к следующему разделу
     if (again) {
       const nested = S.dmList || S.dm || S.battle;
+      const atTop = window.scrollY < 12;
+      if (!nested && !S.sheet && S.tab === 'chats' && S.me.gangs.length && atTop) {
+        const order = ['crew', 'life', 'chat'];
+        return actions['gang-tab']({ dataset: { v: order[(order.indexOf(S.gangTab || 'crew') + 1) % order.length] } }), sfx('tab');
+      }
+      if (!nested && !S.sheet && S.tab === 'games' && !S.practice) {
+        // Разделы игр: блиц, «Один на один», «Про своих», соревнования. Следующий ниже текущего положения; дошли до конца — наверх
+        const top = (document.querySelector('.top') || { offsetHeight: 76 }).offsetHeight + 8;
+        const marks = [...document.querySelectorAll('main > .g-group, main > .comp-strip, main > .comp-head')].map((n) => Math.round(n.getBoundingClientRect().top + window.scrollY - top));
+        const maxY = document.documentElement.scrollHeight - window.innerHeight;
+        const next = marks.find((y) => y > window.scrollY + 8 && window.scrollY < maxY - 4);
+        sfx('tab');
+        return window.scrollTo({ top: next == null ? 0 : Math.min(next, maxY), behavior: 'smooth' });
+      }
       S.chatGang = false; S.dm = null; S.dmView = null; S.battle = null; S.bv = null;
       if (nested) sfx('close');
     }
     collapseAll();
-    S.dmList = false; S.tab = el.dataset.v; S.sheet = null; if (S.tab === 'chats') { ensureGang(); S.gangTab = 'crew'; } render();
+    const keepGangTab = again && S.tab === 'chats' ? S.gangTab : null;
+    S.dmList = false; S.tab = el.dataset.v; S.sheet = null; if (S.tab === 'chats') { ensureGang(); S.gangTab = keepGangTab || 'crew'; } render();
     window.scrollTo(0, 0);   // любая вкладка открывается с самого верха
     await run(() => refresh());
   },
