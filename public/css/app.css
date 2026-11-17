@@ -2748,3 +2748,17 @@ p, .sub, .small { text-wrap: pretty; }
 .page-head .ph-find { margin-top: 6px; }
 /* «Дело на сегодня» — во всю ширину, как карточки вокруг */
 .find-bar.todo-bar { width: 100%; margin: 0; }
+/* Карточка блица: значок слева, название и срок — ровной колонкой; места в таблице — номером в кружке */
+.bl-head { display: flex; align-items: center; gap: 12px; }
+.bl-head .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bl-head .card-title { display: block; text-wrap: balance; }
+.bl-all { margin: 10px 0 0; }
+.bl-board { margin-top: 10px; }
+.bl-row { padding: 9px 8px; border-bottom-color: var(--line); }
+.bl-row:last-child { border-bottom: 0; }
+.bl-row.me { border-radius: 12px; border-bottom-color: transparent; }
+.bl-place { width: 28px; flex: none; display: grid; place-items: center; }
+.bl-place .mdl { width: 26px; height: 26px; font-size: 13px; box-shadow: inset 0 -2px 0 rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.6); }
+.bl-row b { font-variant-numeric: tabular-nums; }
+.bl-row .small { min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; }
+.bl-past + .bl-past { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }

@@ -285,6 +285,16 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     const past = (await a.get('/api/blitz/past')).json.sets;
     assert.ok(Array.isArray(past) && past.every((x) => x.id !== v.set.id && x.board && x.title), 'прошлые блицы: без текущего набора');
     assert.equal((await a.get('/api/blitz')).json.past, past.length);
+    // Блиц из архива: без рейтинга, доступен и тому, кто ещё не проходил текущий; текущую тренировку не трогает
+    const arch = (await b.post('/api/blitz/start', { practice: true, set: 'excel1' })).json;
+    if (arch.set && arch.set.id === 'excel1') {
+      assert.ok(arch.practice && arch.archive && arch.state === 'play' && arch.question.n === 1);
+      const ar = (await b.post('/api/blitz/answer', { n: 1, pick: 0, practice: true, set: 'excel1' })).json;
+      assert.equal(ar.set.id, 'excel1'); assert.equal(ar.question.n, 2);
+      assert.equal((await b.get('/api/blitz?practice=1&set=excel1')).json.question.n, 2);
+      assert.equal((await b.get('/api/blitz')).json.state, 'new', 'зачётная попытка текущего блица не тронута');
+      assert.ok(!(await a.get('/api/blitz/past')).json.sets.some((x) => x.id === 'excel1' && x.board.players), 'в таблицу архивного блица тренировка не попадает');
+    }
     const w = (await b.post('/api/blitz/start')).json;
     const r1 = (await b.post('/api/blitz/answer', { n: w.question.n, pick: 0 })).json;
     assert.equal(typeof r1.result.correct, 'boolean');
