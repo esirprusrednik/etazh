@@ -2230,9 +2230,9 @@ function renderTomorrow() {
   const list = t.office.length
     ? `<div class="tmr-list">${t.office.map((p) => `<button class="tmr-p" data-act="person" data-id="${p.id}">${avatar(p.look, 40)}<span class="ellipsis">${nk(p)}</span>${offices.size > 1 && p.office ? `<small class="ellipsis">${esc(p.office)}</small>` : ''}</button>`).join('')}</div>`
     : `<p class="sub" style="margin:0">По планам ${esc(t.label)} из банды в офисе никого.${t.unknown ? ' Но не все заполнили план.' : ''}</p>`;
-  return `<section class="card tmr"><div class="row" style="justify-content:space-between;gap:8px"><h3>office ${esc(cap)} в офисе${t.office.length ? ` · ${t.office.length}` : ''}</h3>${plan}</div>
+  return `<section class="card tmr"><div class="row" style="justify-content:space-between;gap:8px"><h3>office ${esc(cap)} в офисе${t.office.length || t.mine === 'office' ? ` · ${t.office.length + (t.mine === 'office' ? 1 : 0)}` : ''}</h3>${plan}</div>
     ${list}
-    <p class="small" style="margin:0">${esc(mine)}${t.unknown && t.office.length ? ` · ещё ${t.unknown} без плана на этот день` : ''}</p></section>`;
+    <p class="small" style="margin:0">${t.mine === 'office' && t.office.length ? `${t.office.length} ${plural(t.office.length, 'свой', 'своих', 'своих')} и ты` : esc(mine)}${t.unknown && t.office.length ? ` · ещё ${t.unknown} без плана на этот день` : ''}</p></section>`;
 }
 function renderStatusBlock() {
   const st = S.state;
@@ -2321,7 +2321,7 @@ function renderPeople() {
   }).join('');
   const nl = S.state && S.state.nameLock;
   const nameStrip = nl ? `<button class="week-lock-strip" data-act="open-sec" data-v="name">${ico('lock', 16)}<span>Имена коллег скрыты: ${nl.named} из ${nl.total} ${plural(nl.total, 'бандита', 'бандитов', 'бандитов')} указали имя, и ты видишь только ники. <b>Указать своё →</b></span></button>` : '';
-  const hint = S.fx && S.fx.weekLock ? planLockMsg(S.fx.weekLock, true) : S.fx && S.fx.weekHint ? `<div class="week-hint">${ico('where', 16)}<span>${S.fx.weekHint.today ? 'Сегодня' : esc(S.fx.weekHint.label)} в офисе по планам <b>${S.fx.weekHint.office} ${plural(S.fx.weekHint.office, 'человек', 'человека', 'человек')}</b> из банды</span></div>` : '';
+  const hint = S.fx && S.fx.weekLock ? planLockMsg(S.fx.weekLock, true) : S.fx && S.fx.weekHint && !(S.state && S.state.night && S.state.tomorrow && !S.state.tomorrow.noGang) ? `<div class="week-hint">${ico('where', 16)}<span>${S.fx.weekHint.today ? 'Сегодня' : 'Самый людный день недели — ' + esc(S.fx.weekHint.label) + ':'} в офисе по планам <b>${S.fx.weekHint.office} ${plural(S.fx.weekHint.office, 'человек', 'человека', 'человек')}</b> из банды</span></div>` : '';
   return `<section class="card people">${html}${hint}${nameStrip}
     <div class="row">${S.me.gangs.length ? `<button class="linkbtn" data-act="gang-invite" data-id="${S.activeGang || S.me.gangs[0].id}">+ Позвать в банду</button>` : '<button class="linkbtn" data-act="open" data-v="gang-new">Сколотить банду</button>'}</div></section>`;
 }
