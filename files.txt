@@ -217,3 +217,7 @@ public/art/tasks.webp
 public/art/trophy.webp
 public/art/ttt.webp
 public/art/win.webp
+public/art/land/games.webp
+public/art/land/gang.webp
+public/art/land/near.webp
+public/art/land/qr-moietazh.svg

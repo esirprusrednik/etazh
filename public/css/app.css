@@ -2529,3 +2529,47 @@ main { padding-bottom: 122px; }
 
 /* Блиц: строка диагностики сети — видна только администратору */
 .bl-diag { margin: 0 0 12px; padding: 8px 10px; border-radius: 10px; background: rgba(127,127,127,.14); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 10.5px; line-height: 1.35; word-break: break-word; user-select: text; -webkit-user-select: text; }
+
+/* ===== Разбор интерфейса 17.11: меньше шума на первом экране ===== */
+main { padding-bottom: 104px; }
+.top { gap: 10px; }
+.top .who { flex: 1 1 auto; }
+.top .mailbtn { margin-left: auto; }
+.about-link { display: block; margin: -4px 6px 0; text-align: left; font-size: 13px; }
+.office-other { display: block; margin: 10px 2px 0; text-align: left; font-size: 13px; }
+.away-btn { margin-top: 10px; text-align: left; }
+.st-info { margin-top: 10px; }
+.st-info summary { font-size: 13px; font-weight: 700; color: var(--muted); cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px; }
+.st-info summary::-webkit-details-marker { display: none; }
+.st-info summary::before { content: 'i'; width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid currentColor; display: inline-grid; place-items: center; font-size: 11px; font-weight: 900; font-style: normal; }
+.st-info p { margin: 6px 0 0; }
+.nogang { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.nogang h2 { margin: 0; }
+.nogang .sub { margin: 0; }
+.nogang .find-bar { width: 100%; margin: 2px 0 0; box-shadow: none; border: 1px solid var(--card-bd, var(--line)); }
+.todo-bar b { font-size: 18px; line-height: 1; color: var(--ink); }
+.bl-warn { margin: 10px 0 10px; font-size: 14px; font-weight: 800; color: var(--ink); }
+.comp-strip { width: 100%; margin: 0; text-align: left; font: inherit; cursor: pointer; }
+.comp-strip .small { display: block; }
+.comp-strip .chev { font-size: 22px; color: var(--muted); padding-right: 6px; }
+.comp-head { background: none; border: 0; cursor: pointer; font: inherit; text-align: left; width: 100%; }
+main > .top-strip { margin: 6px 0 0; width: 100%; opacity: .8; }
+
+/* Страница-знакомство на широком экране */
+.onb.land { max-width: 1080px; display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(320px, 1fr); gap: 40px; align-items: start; padding-top: 48px; }
+.land-l, .land-r { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.land-r { position: sticky; top: 24px; }
+.land-h { margin: 6px 0 0; font-family: var(--font-display, inherit); font-size: clamp(30px, 3.4vw, 44px); line-height: 1.1; letter-spacing: -.02em; color: var(--fg, var(--ink)); text-wrap: balance; }
+.land-p { margin: 0; font-size: 18px; line-height: 1.5; color: var(--fg-muted, var(--muted)); max-width: 34em; }
+.land-shots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.land-shots figure { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.land-shots img { width: 100%; height: auto; border-radius: 22px; border: 1px solid var(--card-bd, rgba(0,0,0,.1)); box-shadow: var(--card-sh, 0 6px 20px rgba(20,24,60,.12)); }
+.land-shots figcaption { font-size: 13px; font-weight: 700; color: var(--fg-muted, var(--muted)); text-align: center; }
+.onb .card.land-qr { display: flex; flex-direction: row; align-items: center; gap: 16px; }
+.land-qr img { flex: 0 0 auto; border-radius: 10px; background: #fff; }
+.land-qr div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.land-qr b { font-size: 18px; }
+.land-qr span { font-size: 14px; color: var(--muted); line-height: 1.4; }
+.land-qr .land-host { font-weight: 800; color: var(--ink); }
+.land-note { margin: 0; text-align: center; }
+@media (max-width: 860px) { .onb.land { grid-template-columns: minmax(0, 1fr); gap: 24px; padding-top: 28px; } .land-r { position: static; order: -1; } }
