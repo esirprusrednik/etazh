@@ -2638,3 +2638,6 @@ main > .top-strip { margin: 6px 0 0; width: 100%; opacity: .8; }
 .cant-main b { font-size: 16px; font-weight: 900; }
 .bl-all { margin: 6px 0 0; font-size: 12.5px; font-weight: 800; color: var(--violet); }
 :root[data-theme="dark"] .bl-all { color: #C9B8FF; }
+/* Строка группы не прыгает по высоте, когда стопка аватаров пропадает при раскрытии; плюс и минус — у правого края */
+.pg-fold, .pg-more { min-height: 50px; box-sizing: border-box; }
+.pg-fold .pm, .pg-more .pm { margin-left: auto; }
