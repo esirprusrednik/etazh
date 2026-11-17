@@ -2528,4 +2528,4 @@ main { padding-bottom: 122px; }
 .ava-tile > span:not(.ava) { font-size: 12.5px; line-height: 1.2; overflow-wrap: normal; word-break: normal; hyphens: none; -webkit-hyphens: none; }
 
 /* Блиц: строка диагностики сети — видна только администратору */
-.bl-diag { margin: 10px 0 0; padding: 8px 10px; border-radius: 10px; background: rgba(127,127,127,.14); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 10.5px; line-height: 1.35; word-break: break-word; user-select: text; -webkit-user-select: text; }
+.bl-diag { margin: 0 0 12px; padding: 8px 10px; border-radius: 10px; background: rgba(127,127,127,.14); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 10.5px; line-height: 1.35; word-break: break-word; user-select: text; -webkit-user-select: text; }

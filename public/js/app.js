@@ -4883,8 +4883,8 @@ function renderBlitzPlay() {
     <span class="bl-time ${b.leftMs < 15000 ? 'hot' : ''}" id="bl-time">${mmss(b.leftMs)}</span><span class="small grow" style="text-align:right">вопрос ${qn.n} из ${qn.total} · верных <b>${b.score}</b>${st >= 3 ? `<span class="bl-streak">${T('flame')}${st} подряд</span>` : ''}</span></div>
     <div class="bl-bar"><i id="bl-bar" style="width:${pct}%"></i></div>
     ${b.practice ? '<p class="small" style="margin:-8px 0 8px">Тренировка — без рейтинга и зёрен</p>' : ''}
+    ${S.me.isAdmin ? `<p class="small bl-diag">${S.blitzDiag ? esc(S.blitzDiag) : 'Диагностика включена (её видит только администратор). Медленных ответов пока не было. Если ответ завис — не закрывай окно, подожди 15 секунд: здесь появится, где потеряно время.'}</p>` : ''}
     <p class="bl-q">${esc(qn.text)}</p>
-    ${S.blitzDiag && S.me.isAdmin ? `<p class="small bl-diag">${esc(S.blitzDiag)}</p>` : ''}
     ${S.blitzStuck && !S.blitzOver ? '<button class="btn ghost wide bl-reload" data-act="blitz-reload">Кнопки не отвечают? Перезапустить блиц</button><p class="small" style="margin:6px 0 10px;text-align:center">Ответы сохранены, вернёшься на тот же вопрос</p>' : ''}
     ${S.blitzOver ? '<div class="note warn bl-over">Время вышло — считаем итог…</div>' : `<div class="bl-opts">${qn.options.map((o, i) => `<button class="gopt bl-opt ${fb && fb.n === qn.n ? (i === fb.right ? 'ok' : i === fb.pick ? 'bad' : 'dim') : S.blitzPend && S.blitzPend.n === qn.n ? (i === S.blitzPend.pick ? 'pend' : 'dim') : ''}" data-act="blitz-pick" data-n="${qn.n}" data-v="${i}" ${fb && fb.n === qn.n ? 'disabled' : ''}>${esc(o)}</button>`).join('')}</div>`}`;
 }
@@ -6934,7 +6934,7 @@ const actions = {
     const t0 = performance.now(); let tries = 1;
     const diag = (how) => {
       const ms = Math.round(performance.now() - t0);
-      if (ms < 2500 && how === 'ok') { S.blitzDiag = ''; return; }
+      if (ms < 2500 && how === 'ok') return; // прошлую медленную запись не стираем — её надо успеть прочитать
       S.blitzDiag = `вопрос ${n}: ${how}, ${(ms / 1000).toFixed(1)} с, попыток ${tries} · ответ: ${netDiag('/answer')} · пульс: ${netDiag('/api/ping')} · ${netState()}`;
       reportError('blitz медленно: ' + S.blitzDiag.slice(0, 280), S.blitzDiag.slice(280, 480), true);
     };
