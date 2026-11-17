@@ -41,7 +41,7 @@ const VOTE_FROM = 100;
 const VOTE_MS = 48 * 3600e3;
 // Сколько славы за что
 const GLORY = { warWin: 10, warDraw: 3, weekly: [15, 10, 5], monthly: [40, 25, 15], tourWin: 50, tourFinal: 20, together: 1 };
-const REASON_NAMES = { war_win: 'Победа в битве', war_draw: 'Ничья в битве', league_w: 'Лига недели', league_m: 'Лига месяца', tour_win: 'Кубок месяца', tour_final: 'Финал Кубка', together: 'Банда в сборе', buy: 'Покупка', refund: 'Возврат' };
+const REASON_NAMES = { war_win: 'Победа в битве', war_draw: 'Ничья в битве', league_w: 'Лига недели', league_m: 'Лига месяца', level: 'Новый уровень банды', tour_win: 'Кубок месяца', tour_final: 'Финал Кубка', together: 'Банда в сборе', buy: 'Покупка', refund: 'Возврат' };
 
 function register(ctx) {
   const { db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError } = ctx;

@@ -2,6 +2,8 @@
 // Объявление живёт до даты, которую выбрал автор (не дольше двух недель), и само исчезает.
 // «Я тоже» — отметка интереса: автору приходит пуш (один раз на человека), дальше общение в личке.
 // Кому: весь Этаж, только свой офис или только своя банда — объявление банды видят только её участники.
+// Обед — не объявление на весь офис: сбор видят только свои (банда и подельники), кто сегодня в том же офисе.
+// Позвать человека из другого офиса можно лично — зовом в личке.
 
 // «Обед» и «На кухне» — короткие: обед висит до часа после назначенного времени и снимается сам, когда автор
 // отметил в столовой «Поел» или ушёл из офиса; угощение на кухне — ровно час, за это время его обычно разбирают.
@@ -23,7 +25,7 @@ const HOUR = 60 * 60e3;
 const LUNCH_FROM = 11 * 60, LUNCH_TO = 16 * 60;
 
 function register(ctx) {
-  const { db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, officeById, publicLook, fullName, isMember, gangMembers, onEvent, myEvent } = ctx;
+  const { db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, officeById, publicLook, fullName, isMember, gangMembers, onEvent, myEvent, activeCheckin, readProfile, canTalk } = ctx;
 
   db.exec(`
   CREATE TABLE IF NOT EXISTS board_posts (
@@ -41,7 +43,17 @@ function register(ctx) {
   `);
   for (const col of ['gang_id INTEGER', 'expires_at INTEGER', 'lunch_time TEXT', 'place TEXT']) { try { db.exec(`ALTER TABLE board_posts ADD COLUMN ${col}`); } catch {} }
   const kitchenPinged = new Map(); // кому и когда последний раз приходил пуш про кухню
-  const canSee = (p, uid) => !p.gang_id || (isMember && isMember(p.gang_id, uid));
+  // Где человек сегодня: отметка в офисе, а до неё — его основной офис из профиля
+  const officeOf = (uid) => {
+    const ci = activeCheckin ? activeCheckin(uid) : null;
+    if (ci) return ci.office_id;
+    const r = q('SELECT profile FROM users WHERE id = ?').get(uid);
+    return (r && readProfile ? readProfile(r.profile).home : null) || null;
+  };
+  const canSee = (p, uid) => {
+    if (p.kind === 'lunch') return p.user_id === uid || (!!canTalk && canTalk(p.user_id, uid) && !!p.office_id && officeOf(uid) === p.office_id);
+    return !p.gang_id || (isMember && isMember(p.gang_id, uid));
+  };
 
   const today = () => U.msk().day;
   const nowMin = () => { const m = U.msk(); return m.hour * 60 + m.minute; };
@@ -103,9 +115,13 @@ function register(ctx) {
       // Один сбор на обед в день: новый заменяет прежний, а кто шёл на прежний — узнает
       for (const old of q("SELECT * FROM board_posts WHERE user_id = ? AND kind = 'lunch' AND until = ?").all(u.id, t)) cancelLunch(old, 'Сбор перенесён — посмотри новый на Доске');
     }
-    const gang = body.gang ? Number(body.gang) : null;
+    let gang = body.gang ? Number(body.gang) : null;
     if (gang && !(isMember && isMember(gang, u.id))) throw bad('Повесить объявление можно только в своей банде.');
-    const office = !gang && body.office && officeById(String(body.office)) ? String(body.office) : null;
+    let office = !gang && body.office && officeById(String(body.office)) ? String(body.office) : null;
+    if (kind === 'lunch') {
+      gang = null; office = officeOf(u.id);
+      if (!office) throw bad('Отметься в офисе — так свои поймут, где ты обедаешь.');
+    }
     const id = Number(q('INSERT INTO board_posts (user_id, kind, text, office_id, until, at, gang_id, expires_at, lunch_time, place) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
       .run(u.id, kind, text, office, until, U.now(), gang, expires, time, place).lastInsertRowid);
     if ((kind === 'company' || kind === 'lunch') && onEvent) onEvent('board_company', u.id);
@@ -116,9 +132,9 @@ function register(ctx) {
       for (const x of here) kitchenPinged.set(x, U.now());
       if (here.length) fireAndForget(notify(here, { title: 'На кухне', body: `${u.nick}: ${text.slice(0, 80)}`, url: '/#kitchen', tag: `board-${id}` }));
     }
-    // Обед для банды — своим сразу пуш: их немного, и это то, ради чего банда
-    if (kind === 'lunch' && gang && gangMembers) {
-      const to = gangMembers(gang).map((m) => m.id).filter((x) => x !== u.id);
+    // Обед — пуш своим, кто сейчас отмечен в этом же офисе: банда и подельники
+    if (kind === 'lunch' && canTalk) {
+      const to = q('SELECT DISTINCT user_id FROM checkins WHERE office_id = ? AND day = ? AND left_at IS NULL').all(office, t).map((r) => r.user_id).filter((x) => x !== u.id && canTalk(u.id, x));
       if (to.length) fireAndForget(notify(to, { title: 'Кто на обед?', body: `${u.nick} зовёт на обед в ${time}${place ? ' · ' + place : ''}`, url: '/#lunch', tag: `board-${id}` }));
     }
     return { item: view(q('SELECT * FROM board_posts WHERE id = ?').get(id), u.id) };

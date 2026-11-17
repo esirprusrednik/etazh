@@ -2613,7 +2613,7 @@ function renderBoardNew() {
   const times = ((S.board && S.board.lunchTimes) || []).slice(0, 10); // ближайшие два с половиной часа
   const lunch = d.kind === 'lunch', kitchen = d.kind === 'kitchen';
   const ph = lunch ? 'Например: новая пиццерия на Арбате, берём столик на шестерых' : kitchen ? 'Яблоки, груши и мармелад на кухне 3-го этажа' : 'Отдам два билета в театр на субботу';
-  const audience = d.gang ? 'Объявление увидит только твоя банда' + (lunch ? ', и каждому придёт пуш.' : '.') : d.office ? `Объявление увидят в «${esc(offName)}» и все, кто смотрит весь Этаж.` : 'Объявление видят все.';
+  const audience = lunch ? 'Сбор увидят свои — банда и подельники, кто сегодня в твоём офисе; кто уже отметился, получит пуш. Остальных зови лично.' : d.gang ? 'Объявление увидит только твоя банда.' : d.office ? `Объявление увидят в «${esc(offName)}» и все, кто смотрит весь Этаж.` : 'Объявление видят все.';
   const life = lunch ? 'Кто нажмёт «Я с вами» — придёт пуш. Сбор снимется сам через час после обеда или когда ты отметишь в столовой «Поел».'
     : kitchen ? (d.office && !d.gang ? 'Кто сейчас отмечен в этом офисе, получит пуш. ' : '') + 'Провисит час — обычно за это время всё разбирают.' : '«Я тоже» придёт тебе пушем, дальше — в личке. Не дольше двух недель, потом исчезнет само.';
   return `${lunch ? '' : `<div class="field">О чём<div class="chips">${kinds.filter((k) => k.id !== 'lunch').map((k) => `<button class="chip ${d.kind === k.id ? 'on' : ''}" data-act="board-kind" data-v="${k.id}">${ico(k.icon, 14)} ${esc(k.name)}</button>`).join('')}</div></div>`}
@@ -2621,7 +2621,7 @@ function renderBoardNew() {
       <label class="field">Где встречаемся<input id="bd-place" maxlength="40" placeholder="У лифтов на 3 этаже" value="${esc(d.place || '')}"></label>` : ''}
     <label class="field">${lunch ? 'Пара слов (необязательно)' : 'Текст'}<textarea id="bd-text" maxlength="200" rows="${lunch ? 2 : 3}" placeholder="${ph}">${esc(d.text)}</textarea></label>
     ${lunch || kitchen ? '' : `<div class="row" style="gap:10px"><label class="field grow">Висит до<input id="bd-until" type="date" min="${min}" max="${max}" value="${esc(d.until)}"></label></div>`}
-    ${who.length > 1 ? `<div class="field">Кому<div class="chips">${who.map(([v, t]) => `<button class="chip ${cur === v ? 'on' : ''}" data-act="board-office" data-v="${v}">${t}</button>`).join('')}</div></div>` : ''}
+    ${who.length > 1 && !lunch ? `<div class="field">Кому<div class="chips">${who.map(([v, t]) => `<button class="chip ${cur === v ? 'on' : ''}" data-act="board-office" data-v="${v}">${t}</button>`).join('')}</div></div>` : ''}
     <p class="small" style="margin:0">${audience} ${life}</p>
     <button class="btn" data-act="board-save" ${lunch && !times.length ? 'disabled' : ''}>${lunch ? 'Позвать на обед' : 'Повесить'}</button>`;
 }
@@ -2681,7 +2681,7 @@ function renderMyGang(gangs, seenG) {
     const lg = x.league;
     const facts = [
       `room ${x.members} ${plural(x.members, 'человек', 'человека', 'человек')}${x.inOffice ? ` · office ${x.inOffice} в офисе` : ''}`,
-      lg ? `trophy ${lg.place ? `${lg.place} место в Лиге недели` : lg.eligible ? 'в Лиге — пока без очков' : 'в Лигу — от 3 человек'}` : '',
+      lg && lg.place ? `trophy ${lg.place} место в Лиге недели` : '',
       x.next ? `cal ${esc(x.next.title)} — ${x.next.day === new Date(Date.now() + 3 * 3600e3).toISOString().slice(0, 10) ? 'сегодня' : `${x.next.day.slice(8)}.${x.next.day.slice(5, 7)}`}${x.next.time ? ' ' + x.next.time : ''}` : ''
     ].filter(Boolean);
     const flags = [
@@ -3930,9 +3930,10 @@ function renderGangProfile() {
       </div></div>`;
   const [accT, accD] = ACCESS_NAMES[c.access] || ACCESS_NAMES.invite;
   const days = Math.max(1, Math.round((Date.now() - c.since) / 864e5));
-  return `<div class="g-hero" style="--gc:${esc(c.color)}"><span class="g-crest ${auraCls(c)}">${crestSvg(crestOf(c), { size: 92, full: true, motto: c.motto || c.name })}</span><div><div class="g-title">${gangName(c)}${c.gold ? ' crown' : ''}</div>
-      <div class="small">${c.area ? esc(c.area) : 'просто банда'}</div></div></div>
+  return `<div class="g-hero" style="--gc:${esc(c.color)}"><span class="g-crest ${auraCls(c)} ${c.glevel && c.glevel.ring ? 'ring-' + c.glevel.ring : ''}">${crestSvg(crestOf(c), { size: 92, full: true, motto: c.motto || c.name })}</span><div><div class="g-title">${gangName(c)}${c.gold ? ' crown' : ''}</div>
+      <div class="small">${c.area ? esc(c.area) : 'просто банда'}${c.glevel ? ` · уровень ${c.glevel.n}` : ''}</div></div></div>
     ${c.legend ? `<div class="g-legend">crown ${esc(c.legend)}</div>` : ''}
+    ${renderGangLevel(c.glevel, own ? own.xpToday : null)}
     ${trophyLine(c.trophies) ? `<p class="small" style="margin:0">Трофеи Лиги: ${trophyLine(c.trophies)}</p>` : ''}
     ${c.motto ? `<p class="sub" style="font-style:italic;margin:0">«${esc(c.motto)}»</p>` : ''}
     ${c.about ? `<p class="sub" style="margin:0">${esc(c.about)}</p>` : ''}
@@ -3946,7 +3947,7 @@ function renderGangProfile() {
 function renderGangSwitch() {
   const a = S.switchAsk || {};
   return `<p class="sub" style="margin:0">Банда может быть только одна. ${a.request ? `Когда владелец примет заявку, ты выйдешь из «${esc(a.from)}».` : `Ты выйдешь из «${esc(a.from)}».`}</p>
-    <ul class="ol" style="margin:0"><li>Чат и зовы старой банды пропадут.</li><li>Очки Лиги, которые ты уже принёс, останутся старой банде.</li><li>Если ты владелец — банда перейдёт самому давнему участнику.</li></ul>
+    <ul class="ol" style="margin:0"><li>Чат и зовы старой банды пропадут.</li><li>Опыт, который ты уже ${meG('принёс', 'принесла')}, останется старой банде.</li><li>Если ты владелец — банда перейдёт самому давнему участнику.</li></ul>
     <button class="btn" data-act="gang-switch-go">${a.request ? 'Подать заявку' : 'Перейти'}</button>
     <button class="btn ghost" data-act="close">Остаться</button>`;
 }
@@ -3965,22 +3966,20 @@ function trophyLine(t) {
 }
 function leagueRow(r) {
   return `<div class="lg-row ${r.me ? 'me' : ''}"><span class="lg-place">${r.place ? (MEDAL[r.place - 1] || r.place) : '—'}</span>${gangBadge(r, 32)}
-    <span class="grow" style="min-width:0"><span class="g-name ellipsis">${esc(r.name)}</span><span class="small">${r.members} ${plural(r.members, 'человек', 'человека', 'человек')}${r.together ? ` · в сборе ${r.together} ${plural(r.together, 'день', 'дня', 'дней')}` : ''}</span></span>
+    <span class="grow" style="min-width:0"><span class="g-name ellipsis">${esc(r.name)}</span><span class="small">${r.battles} ${plural(r.battles, 'битва', 'битвы', 'битв')} · побед ${r.wins}${r.draws ? ` · ничьих ${r.draws}` : ''}</span></span>
     <b class="lg-score">${r.score}</b></div>`;
 }
-// Методика Лиги — одна на таблицу, профиль и шапку банды. Числа совпадают с server/league.js
-const LEAGUE_RULES = { dayCap: 40, minRoster: 3, together: 70, togetherBonus: 10,
+// Методика Лиги и уровня — одна на таблицу и профиль банды. Числа совпадают с server/league.js
+const LEAGUE_RULES = { win: 3, draw: 1, dayCap: 40, minRoster: 3, together: 70, togetherBonus: 10,
   prizes: { W: [[30, 'Кубок Лиги в руку аватара'], [20, ''], [10, '']], M: [[100, 'лавровый венок, рамка чемпиона и титул «Легенда месяца» для банды'], [70, 'лавровый венок'], [50, 'лавровый венок']] } };
 function leagueRules(type = null) {
   const R = LEAGUE_RULES;
-  const pr = (t) => R.prizes[t].map(([b, extra], i) => `<li><b>${MEDAL[i]}</b> +${b} зёрен каждому, кто принёс очки${extra ? ` + ${extra}` : ''}</li>`).join('');
+  const pr = (t) => R.prizes[t].map(([b, extra], i) => `<li><b>${MEDAL[i]}</b> +${b} зёрен каждому, кто на этой неделе был в деле${extra ? ` + ${extra}` : ''}</li>`).join('');
   return `<details class="lg-rules"><summary>help Как устроена Лига банд</summary>
     <ul class="ol">
-      <li><b>Очки.</b> Каждое зерно за дело — очко твоей банде: отметка в офисе или из дома, столовая, ответ на зов, задания дня, квизы, блиц, морской бой, спасибо, ачивки. Зёрна за призы, приглашения и возврат залога не считаются.</li>
-      <li><b>Лимит.</b> Один человек приносит не больше ${R.dayCap} очков в день — одиночка банду не вытянет, нужна вся банда.</li>
-      <li><b>Счёт банды</b> — средний вклад на участника: сумма очков делится на число людей, которые были в банде за период (не меньше ${R.minRoster}). Маленькая дружная банда спорит на равных с большой. Ушедшие и исключённые тоже в знаменателе — выгнать молчунов ради среднего не выйдет.</li>
-      <li><b>«Банда в сборе».</b> Если за день отметились ${R.together}% банды (не меньше трёх человек) — +${R.togetherBonus} к счёту.</li>
-      <li><b>Кто участвует.</b> Банды от ${R.minRoster} человек. Человек может быть только в одной банде; при переходе его очки остаются старой банде.</li>
+      <li><b>Лига — это встречи с другими бандами.</b> Очки дают только битвы банд и матчи Кубка: победа — ${R.win}, ничья — ${R.draw}, поражение — 0.</li>
+      <li><b>Не воевали — места нет.</b> Банда попадает в таблицу после первой битвы за период. Отметки и квизы в Лигу не идут — они растят уровень банды.</li>
+      <li><b>При равных очках</b> выше тот, у кого больше побед, затем — у кого меньше битв.</li>
       <li><b>Периоды.</b> Неделя — с понедельника по воскресенье, месяц — календарный. Итоги и призы — сами: за неделю в понедельник, за месяц 1-го числа.</li>
     </ul>
     ${!type || type === 'W' ? `<h3 style="margin:6px 0">Призы недели</h3><ul class="ol">${pr('W')}</ul>` : ''}
@@ -3988,20 +3987,37 @@ function leagueRules(type = null) {
     <p class="small" style="margin:0">Трофеи не продаются в Лавке — только за места в Лиге.</p>
   </details>`;
 }
+// Уровень банды: полоска опыта и что он даёт. Живёт в профиле банды
+function renderGangLevel(L, mineToday) {
+  if (!L) return '';
+  const R = LEAGUE_RULES;
+  const span = L.next ? L.next - L.from : 1, pct = L.next ? Math.max(4, Math.min(100, Math.round(((L.xp - L.from) / span) * 100))) : 100;
+  return `<div class="g-level"><div class="row" style="justify-content:space-between"><b>Уровень ${L.n}</b><span class="small">${L.next ? `${L.xp} из ${L.next} опыта` : `${L.xp} опыта · выше некуда`}</span></div>
+    <div class="g-xp"><i style="width:${pct}%"></i></div>
+    <p class="small" style="margin:0">За эту неделю +${L.week}${mineToday ? ` · ты сегодня ${meG('принёс', 'принесла')} ${mineToday.pts} из ${mineToday.cap}` : ''}</p>
+    <details class="lg-rules"><summary>help Что даёт уровень и как расти</summary>
+      <ul class="ol">
+        <li><b>Каждый новый уровень</b> — слава в казну: 10 × уровень.</li>
+        ${L.perks.map((x) => `<li class="${x.open ? '' : 'muted'}"><b>Уровень ${x.at}</b> — ${esc(x.text)}${x.open ? ' ✓' : ''}</li>`).join('')}
+        <li><b>Опыт</b> — это дела участников: отметка в офисе или из дома, столовая, ответ на зов, задания дня, квизы, блиц, спасибо. Один человек приносит не больше ${R.dayCap} в день.</li>
+        <li><b>За неделю</b> в опыт идёт средний вклад на участника (делим не меньше чем на ${R.minRoster}) — маленькая дружная банда растёт не хуже большой.</li>
+        <li><b>«Банда в сборе»:</b> за день отметились ${R.together}% банды (не меньше трёх) — ещё +${R.togetherBonus}.</li>
+      </ul></details></div>`;
+}
 function renderLeague() {
   const type = S.leagueType || 'W';
   const L = S.league && S.league[type];
   const tabs = `<div class="chips"><button class="chip ${type === 'W' ? 'on' : ''}" data-act="league-tab" data-v="W">Неделя</button><button class="chip ${type === 'M' ? 'on' : ''}" data-act="league-tab" data-v="M">Месяц</button></div>`;
   if (!L) return tabs + '<p class="sub">Загружаем…</p>';
   const m = L.mine;
-  const mine = !m ? `<div class="note">Ты пока не в банде — очки идут только банде. <button class="linkbtn" data-act="gang-find">Найти банду</button></div>`
-    : `<div class="lg-mine"><div class="row" style="gap:10px">${gangBadge(m)}<div class="grow"><b>${esc(m.name)}</b><div class="small">${m.place ? `${m.place} место из ${L.count}` : m.eligible ? 'пока без очков' : `в Лиге с ${L.rules.minRoster} человек — зови своих`}</div></div><b class="lg-score big">${m.score}</b></div>
-      <div class="g-stats" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div><b>${m.myPoints}</b><span>твой вклад</span></div><div><b>${m.todayPts}/${m.dayCap}</b><span>очков сегодня</span></div><div><b>${m.together}</b><span>${plural(m.together, 'день', 'дня', 'дней')} в сборе</span></div></div></div>`;
+  const mine = !m ? `<div class="note">Ты пока не в банде — в Лиге играют банды. <button class="linkbtn" data-act="gang-find">Найти банду</button></div>`
+    : `<div class="lg-mine"><div class="row" style="gap:10px">${gangBadge(m)}<div class="grow"><b>${esc(m.name)}</b><div class="small">${m.place ? `${m.place} место из ${L.count} · побед ${m.wins}, ничьих ${m.draws}, поражений ${m.losses}` : 'ещё не воевали — места нет'}</div></div>${m.place ? `<b class="lg-score big">${m.score}</b>` : ''}</div>
+      ${m.place ? '' : '<button class="btn small" data-act="gang-profile-mine">swords Бросить вызов</button>'}</div>`;
   const outside = m && m.place && m.place > 10 ? leagueRow(m) : '';
   const last = L.last.winners.length ? `<h3 style="margin:6px 0 0">Итоги: ${esc(L.last.label)}</h3>${L.last.winners.slice(0, 5).map((w) => `<div class="lg-row"><span class="lg-place">${MEDAL[w.place - 1] || w.place}</span>${gangBadge(w)}<span class="grow g-name ellipsis">${esc(w.name)}</span><b class="lg-score">${w.score}</b></div>`).join('')}` : '';
   return `${tabs}<p class="small" style="margin:0">${esc(L.period.label)} · ${L.period.daysLeft > 1 ? `до финиша ${L.period.daysLeft} ${plural(L.period.daysLeft, 'день', 'дня', 'дней')}` : 'финиш сегодня в полночь'}</p>
     ${mine}
-    <div class="lg-list">${L.top.length ? L.top.map(leagueRow).join('') + outside : '<p class="sub">Пока никто не набрал очков. Отметься — и твоя банда первая.</p>'}</div>
+    <div class="lg-list">${L.top.length ? L.top.map(leagueRow).join('') + outside : '<p class="sub">На этой неделе ещё никто ни с кем не сразился. Первая битва — и таблица появится.</p>'}</div>
     ${leagueRules(type)}
     ${last}`;
 }
@@ -4012,9 +4028,14 @@ async function loadLeague(type = S.leagueType || 'W') {
 function renderLeagueCard() {
   const L = S.league && S.league.W;
   const m = L && L.mine;
-  return `<section class="card lg-card"><div class="row" style="justify-content:space-between"><span class="card-title has-art">${art('trophy', 30)}Лига банд</span><span class="small">${L ? (L.period.daysLeft > 1 ? `ещё ${L.period.daysLeft} ${plural(L.period.daysLeft, 'день', 'дня', 'дней')}` : 'финиш сегодня') : ''}</span></div>
-    ${!L ? '<p class="small" style="margin:0">Загружаем…</p>' : m ? `<div class="row" style="gap:10px">${gangBadge(m)}<div class="grow"><b>${m.place ? `${MEDAL[m.place - 1] || ''} ${m.place} место` : m.eligible ? 'Пока без очков' : `Нужно ${L.rules.minRoster} человека`}</b><div class="small">счёт ${m.score} · твой вклад ${m.myPoints} · сегодня ${m.todayPts}/${m.dayCap}</div></div></div>`
-      : '<p class="small" style="margin:0">Банды соревнуются за неделю и месяц: зёрна за дела — очки банде. Вступи в банду, чтобы играть.</p>'}
+  const left = L ? (L.period.daysLeft > 1 ? `ещё ${L.period.daysLeft} ${plural(L.period.daysLeft, 'день', 'дня', 'дней')}` : 'финиш сегодня') : '';
+  // Пока никто не воевал, таблицы нет — вместо неё приглашение к первой битве
+  if (L && !L.top.length) return `<section class="card lg-card"><span class="card-title has-art">${art('trophy', 30)}Лига банд</span>
+    <p class="small" style="margin:0">Лига — это битвы с другими бандами. На этой неделе ещё никто не сразился: первая битва откроет таблицу.</p>
+    <div class="row">${m ? '<button class="btn small grow" data-act="gang-profile-mine">swords Бросить вызов</button>' : ''}<button class="btn small ghost grow" data-act="league-open">Правила и призы</button></div></section>`;
+  return `<section class="card lg-card"><div class="row" style="justify-content:space-between"><span class="card-title has-art">${art('trophy', 30)}Лига банд</span><span class="small">${left}</span></div>
+    ${!L ? '<p class="small" style="margin:0">Загружаем…</p>' : m ? `<div class="row" style="gap:10px">${gangBadge(m)}<div class="grow"><b>${m.place ? `${MEDAL[m.place - 1] || ''} ${m.place} место` : 'Ещё не воевали'}</b><div class="small">${m.place ? `очков ${m.score} · побед ${m.wins}` : 'место дают только битвы с другими бандами'}</div></div></div>`
+      : '<p class="small" style="margin:0">Банды сражаются друг с другом: победа — 3 очка, ничья — 1. Вступи в банду, чтобы играть.</p>'}
     ${L && L.top.length ? `<div class="lg-mini">${L.top.slice(0, 3).map((r) => `<span class="${r.me ? 'me' : ''}">${MEDAL[r.place - 1]} ${esc(r.name)} · ${r.score}</span>`).join('')}</div>` : ''}
     <button class="btn small ghost" data-act="league-open">Таблица и призы</button></section>`;
 }
@@ -4066,7 +4087,7 @@ function renderGang() {
   const tabs = `<div class="g-tabs" role="tablist">${[['chat', 'Чат', 0], ['life', 'Жизнь', 0], ['crew', 'Состав', reqN]].map(([k, l, n]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" data-act="gang-tab" data-v="${k}">${l}${n ? `<i>${n}</i>` : ''}</button>`).join('')}</div>`;
   const head = `<section class="card g-head" style="${g.gold ? 'border:3px solid #FFC93C' : ''}">
     ${gst(g).cardbg ? `<div class="g-banner ${gst(g).cardbg}" aria-hidden="true"></div>` : ''}
-    <div class="row"><button class="g-who" data-act="gang-profile" data-id="${g.id}" aria-label="Профиль банды «${esc(g.name)}»"><span class="crest-btn ${auraCls(g)}">${crestSvg(crestOf(g), { size: 78, full: true })}</span><span class="grow" style="min-width:0"><h2 style="margin:0">${gangName(g)} <span class="chev" aria-hidden="true">›</span></h2><span class="small">${g.area ? esc(g.area) + ' · ' : ''}${v.gang.count}${g.max ? '/' + g.max : ''} ${plural(v.gang.count, 'участник', 'участника', 'участников')}</span></span></button>
+    <div class="row"><button class="g-who" data-act="gang-profile" data-id="${g.id}" aria-label="Профиль банды «${esc(g.name)}»"><span class="crest-btn ${auraCls(g)} ${g.glevel && g.glevel.ring ? 'ring-' + g.glevel.ring : ''}">${crestSvg(crestOf(g), { size: 78, full: true })}</span><span class="grow" style="min-width:0"><h2 style="margin:0">${gangName(g)} <span class="chev" aria-hidden="true">›</span></h2><span class="small">${g.area ? esc(g.area) + ' · ' : ''}${v.gang.count}${g.max ? '/' + g.max : ''} ${plural(v.gang.count, 'участник', 'участника', 'участников')}${g.glevel ? ` · уровень ${g.glevel.n}` : ''}</span></span></button>
       ${g.isOwner ? '<button class="icon-btn" data-act="gang-settings" aria-label="Настройки банды">gear</button>' : ''}</div>
     ${tabs}
   </section>`;
@@ -4860,6 +4881,8 @@ function renderSheet() {
   }
 }
 
+// Лимит зовов растёт с уровнем банды (server/league.js)
+const callsPerHour = () => { const n = (S.gang && S.gang.gang.glevel && S.gang.gang.glevel.n) || 1; return n >= 6 ? 5 : n >= 3 ? 4 : 3; };
 function renderCompose() {
   const c = S.compose;
   const def = S.cat.calls[c.kind];
@@ -4884,7 +4907,8 @@ function renderCompose() {
     ${def.textLabel ? `<label class="field">${esc(def.textLabel)}<input id="c-text" maxlength="40" placeholder="${esc(def.textHint)}" value="${esc(c.text || '')}"></label>` : ''}
     <button class="btn wide" data-act="call-send">Позвать</button>
     ${c.kind === 'lunch' && S.board && (S.board.lunchTimes || []).length ? '<button class="linkbtn" style="display:block;margin:10px auto 0" data-act="board-new" data-v="lunch">Или собрать компанию ко времени — с местом и откликами</button>' : ''}
-    <div class="row" style="justify-content:space-between;gap:8px"><p class="small" style="margin:0">Не больше 3 зовов в час.</p><button class="linkbtn small" data-act="tpl-save">${ico('star', 14)}Сохранить шаблоном</button></div>`;
+    ${!c.to && ['coffee', 'lunch', 'home', 'wait'].includes(c.kind) ? `<p class="small" style="margin:0">«Всей банде» — это свои, кто сейчас отмечен в твоём офисе. Человека из другого офиса позови лично: выбери его выше.</p>` : ''}
+    <div class="row" style="justify-content:space-between;gap:8px"><p class="small" style="margin:0">Не больше ${callsPerHour()} зовов в час.</p><button class="linkbtn small" data-act="tpl-save">${ico('star', 14)}Сохранить шаблоном</button></div>`;
 }
 
 function renderSignal() {
@@ -6474,6 +6498,7 @@ const actions = {
     S.crestEd = null;
   }),
   'blitz-past': () => run(async () => { S.blitzPast = null; S.sheet = 'blitz-past'; render(); S.blitzPast = (await get('/api/blitz/past')).sets; }),
+  'gang-profile-mine': () => { const g = (S.me.gangs || [])[0]; if (g) actions['gang-profile']({ dataset: { id: g.id } }); },
   'league-open': () => run(async () => { S.sheet = 'league'; render(); await loadLeague(); }),
   'league-tab': (el) => run(async () => { S.leagueType = el.dataset.v; render(); await loadLeague(el.dataset.v); }),
   'gang-switch-go': () => run(async () => { const a = S.switchAsk; S.switchAsk = null; S.sheet = null; if (a) await a.go(); }),
@@ -6552,7 +6577,7 @@ const actions = {
     }
     const r = await post(`/api/gangs/${c.gang}/messages`, { type: 'call', kind: c.kind, to: c.to, opt: c.opt, text: c.text });
     S.sheet = null;
-    toast(r.away ? `Зов отправлен. ${r.away === 1 && c.to ? 'Человек в отпуске' : 'Кто-то в отпуске'} — пуш не придёт, увидит в чате` : r.focus ? `Зов отправлен. ${r.focus === 1 && c.to ? 'Человек' : 'Кто-то'} в фокусе — увидит позже` : r.quiet ? 'Отправлено. Сейчас тихие часы — у кого они включены, пуш не придёт' : 'Зов отправлен');
+    toast(r.near === 0 ? 'Зов в чате, но из своих в этом офисе сейчас никого. Позови кого-то лично' : r.near ? `Зов ушёл своим в этом офисе: ${r.near}` : r.away ? `Зов отправлен. ${r.away === 1 && c.to ? 'Человек в отпуске' : 'Кто-то в отпуске'} — пуш не придёт, увидит в чате` : r.focus ? `Зов отправлен. ${r.focus === 1 && c.to ? 'Человек' : 'Кто-то'} в фокусе — увидит позже` : r.quiet ? 'Отправлено. Сейчас тихие часы — у кого они включены, пуш не придёт' : 'Зов отправлен');
     await loadGang(); if (inGang()) markSeen('chat');
   }),
   reply: (el) => run(async () => { const r = await post(`/api/messages/${el.dataset.id}/reply`, { label: el.dataset.v }); if (r.beans) toast(`+${r.beans} зерно`); await loadGang(); }),

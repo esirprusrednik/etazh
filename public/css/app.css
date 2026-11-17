@@ -2620,3 +2620,11 @@ main > .top-strip { margin: 6px 0 0; width: 100%; opacity: .8; }
 .g-who .chev { color: var(--muted); font-weight: 400; }
 .g-own { display: flex; flex-direction: column; gap: 12px; margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--line); }
 .sheet .g-own > .card { box-shadow: none; }
+
+/* Уровень банды: полоска опыта в профиле и кайма герба с 5-го и 8-го уровня */
+.g-level { background: var(--s1); border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.g-xp { height: 10px; border-radius: 999px; background: var(--s2); overflow: hidden; }
+.g-xp i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--violet), #B79CFF); }
+.g-level li.muted { color: var(--muted); }
+.ring-silver svg { filter: drop-shadow(0 0 3px #B8C2D6) drop-shadow(0 0 1px #8D99B3); }
+.ring-gold svg { filter: drop-shadow(0 0 3px #FFC53D) drop-shadow(0 0 1px #D99400); }

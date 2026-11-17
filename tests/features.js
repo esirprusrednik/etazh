@@ -370,29 +370,30 @@ const mskToday = () => new Date(Date.now() + SHIFT_H * 3600e3).toISOString().sli
     assert.equal((await p2.get(`/api/gangs/${g2.id}`)).json.gang.max, 30);
   });
 
-  await step('лига банд: очки за отметку, средний вклад, «в сборе», призы за прошлую неделю', async () => {
+  await step('лига — только за битвы; уровень банды — за активность; призы за прошлую неделю', async () => {
     const L = [];
     for (const [e, n] of [['l1@mts.ru', 'лига_один'], ['l2@mts.ru', 'лига_два'], ['l3@mts.ru', 'лига_три']]) L.push(await new Client().login(e, n));
     const lg = (await L[0].post('/api/gangs', { name: 'Лигачи', access: 'open' })).json;
     await L[1].post(`/api/gangs/${lg.id}/apply`); await L[2].post(`/api/gangs/${lg.id}/apply`);
-    // Прошлая неделя: подкладываем очки и проверяем, что призы раздались один раз
+    const rival = await new Client().login('l4@mts.ru', 'лига_соперник');
+    const rg = (await rival.post('/api/gangs', { name: 'Соперники', access: 'open' })).json;
+    // Прошлая неделя: активность (опыт банды) и одна выигранная битва (очки Лиги)
     const { DatabaseSync } = require('node:sqlite');
     const sdb = new DatabaseSync(path.join(dir, 'db.sqlite'));
     const { period } = require('../server/league');
     const prev = period('W', new Date(Date.parse(mskToday() + 'T00:00:00Z') - 7 * 864e5).toISOString().slice(0, 10));
     for (const x of L) {
-      sdb.prepare('INSERT INTO league_points (day, gang_id, user_id, points) VALUES (?, ?, ?, ?)').run(prev.from, lg.id, x.id, 30);
+      sdb.prepare('INSERT INTO league_points (day, gang_id, user_id, points) VALUES (?, ?, ?, ?)').run(prev.from, lg.id, x.id, 70);
       sdb.prepare('INSERT OR IGNORE INTO league_roster (period, gang_id, user_id) VALUES (?, ?, ?)').run(prev.key, lg.id, x.id);
     }
-    sdb.close();
+    const war = (at) => sdb.prepare("INSERT INTO gang_wars (from_gang, to_gang, kind, status, created_at, winner_gang, decided_at) VALUES (?, ?, 'sea', 'done', ?, ?, ?)").run(lg.id, rg.id, at, lg.id, at);
+    war(Date.parse(prev.from + 'T09:00:00Z'));
     for (const x of L) await x.post('/api/checkin', { office: 'smol' });
     const before = (await L[1].get('/api/me')).json.user.beans;
     const w = (await L[0].get('/api/league')).json;
-    assert.ok(w.mine && w.mine.id === lg.id, 'моя банда в лиге');
-    assert.ok(w.mine.myPoints >= 5, 'отметка принесла очки');
-    assert.ok(w.mine.together >= 1, 'все трое отметились — банда в сборе');
-    assert.equal(w.mine.score, Math.round(w.mine.total / Math.max(3, w.mine.roster)) + w.mine.together * 10);
-    assert.ok(w.top.some((r) => r.id === lg.id && r.place));
+    assert.ok(w.mine && w.mine.id === lg.id, 'моя банда известна лиге');
+    assert.equal(w.mine.place, null, 'на этой неделе не воевали — места нет');
+    assert.ok(!w.top.some((r) => r.id === lg.id), 'и в таблице нас нет, сколько ни отмечайся');
     const w2 = (await L[1].get('/api/league')).json;
     assert.equal(w2.last.winners[0].name, 'Лигачи');
     const after = (await L[1].get('/api/me')).json.user.beans;
@@ -402,6 +403,17 @@ const mskToday = () => new Date(Date.now() + SHIFT_H * 3600e3).toISOString().sli
     assert.equal((await L[1].get('/api/me')).json.user.beans, after, 'второй раз не платим');
     const prof = (await L[2].get(`/api/gangs/${lg.id}/profile`)).json;
     assert.equal(prof.trophies.w[0], 1);
+    // Уровень: 70 очков на человека за прошлую неделю + отметки этой — второй уровень и слава в казну
+    assert.equal(prof.glevel.n, 2);
+    assert.ok(prof.glevel.xp >= 70 && prof.glevel.week >= 1 && prof.glevel.next === 150);
+    assert.ok(prof.glevel.perks.every((x) => !x.open), 'ништяки с третьего уровня');
+    assert.ok((await L[0].get(`/api/gangs/${lg.id}/treasury`)).json.balance >= 20, 'слава за второй уровень');
+    assert.equal((await rival.get(`/api/gangs/${rg.id}/profile`)).json.glevel.n, 1);
+    // Битва на этой неделе — и банда в таблице
+    war(Date.now()); sdb.close();
+    const w3 = (await L[0].get('/api/league')).json;
+    assert.equal(w3.mine.place, 1); assert.equal(w3.mine.score, 3); assert.equal(w3.mine.wins, 1);
+    assert.equal(w3.top.find((r) => r.id === rg.id).losses, 1);
     assert.equal((await L[1].post('/api/shop/buy', { item: 'p_laurel' })).status, 400, 'венок не купить');
   });
 

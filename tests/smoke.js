@@ -151,6 +151,10 @@ async function waitUp() {
   await step('зов, ответ +1, лимит зовов', async () => {
     const r = await a.post(`/api/gangs/${a.gang}/messages`, { type: 'call', kind: 'coffee', opt: 'Сейчас' });
     assert.equal(r.status, 200, JSON.stringify(r.json));
+    // Зов на кофе всей банде видят только те, кто в том же офисе; из другого офиса позвать можно лично
+    assert.equal(r.json.near, 0, 'в офисе пока никого из своих');
+    assert.ok(!(await b.get(`/api/gangs/${a.gang}`)).json.messages.some((m) => m.type === 'call'), 'не в офисе — зова не видно');
+    await b.post('/api/checkin', { office: 'smol' });
     const view = (await b.get(`/api/gangs/${a.gang}`)).json;
     const call = view.messages.find((m) => m.type === 'call');
     assert.ok(call.canReply);

@@ -336,15 +336,25 @@ function startServer(day, extra = {}) {
       await X.post(`/api/board/${k.json.item.id}/remove`);
       if (!times.length) return; // после 16:00 по Москве звать на обед уже некуда
       assert.equal((await X.post('/api/board', { kind: 'lunch', time: '03:00' })).status, 400, 'время — только из списка');
-      const l = await X.post('/api/board', { kind: 'lunch', time: times[0], place: 'У лифтов' });
+      // Обед — не на весь офис: сбор видят свои (банда и подельники), кто в том же офисе. Остальных зовут лично
+      await B.post('/api/checkin', { office: 'smol' });
+      const l = await B.post('/api/board', { kind: 'lunch', time: times[0], place: 'У лифтов', office: '', gang: null });
       assert.equal(l.status, 200); assert.equal(l.json.item.time, times[0]); assert.equal(l.json.item.place, 'У лифтов');
+      assert.equal(l.json.item.office.id, 'smol', 'обед привязан к офису автора');
       const id = l.json.item.id;
-      await B.post(`/api/board/${id}/metoo`);
-      const seen = (await D.get('/api/board')).json.items.find((x) => x.id === id);
-      assert.equal(seen.fans[0].nick, 'другой_отдел', 'кто идёт на обед — видят все');
-      await X.post('/api/checkin', { office: 'smol' });
-      await X.post('/api/canteen/in'); await X.post('/api/canteen/out');
-      assert.ok(!(await B.get('/api/board')).json.items.some((x) => x.id === id), '«Поел» — сбор снят');
+      const sees = async (u) => (await u.get('/api/board')).json.items.some((x) => x.id === id);
+      await D.post('/api/checkin', { office: 'mark' });
+      assert.ok(!(await sees(D)), 'свой, но в другом офисе — не видит');
+      assert.equal((await D.post(`/api/board/${id}/metoo`)).status, 404);
+      await D.post('/api/checkin', { office: 'smol' });
+      assert.ok(await sees(D), 'свой в том же офисе — видит');
+      await A.post('/api/checkin', { office: 'smol' });
+      assert.ok(!(await sees(A)), 'чужой в том же офисе — не видит: на весь офис обед не кидаем');
+      await D.post(`/api/board/${id}/metoo`);
+      const seen = (await B.get('/api/board')).json.items.find((x) => x.id === id);
+      assert.equal(seen.fans[0].nick, 'гость', 'кто идёт на обед — видно');
+      await B.post('/api/canteen/in'); await B.post('/api/canteen/out');
+      assert.ok(!(await sees(D)), '«Поел» — сбор снят');
     });
 
     await step('доска банды: видят только свои, чужой не повесит и не откликнется', async () => {

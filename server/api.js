@@ -228,6 +228,8 @@ function createApi(db) {
   let tourney = null;
   let treasury = null;
   const MAX_MEMBERS = 30;      // больше 30 — уже не банда, а отдел
+  try { db.exec('ALTER TABLE messages ADD COLUMN office_id TEXT'); } catch {}
+  const IN_PERSON = new Set(['coffee', 'lunch', 'home', 'wait']);   // зовы, ради которых надо быть в одном офисе
   const gangLimit = (g) => Math.min(g.max_members || MAX_MEMBERS, MAX_MEMBERS);
   let crew = null;
   let voice = null;
@@ -1019,7 +1021,7 @@ function createApi(db) {
     return {
       id: g.id, name: g.name, color: g.color, emoji: g.emoji || null, about: g.about || '', area: g.area || null, interests: JSON.parse(g.interests || '[]'),
       access: g.access || 'invite', count, max: gangLimit(g), full: count >= gangLimit(g), owner,
-      ...U.crestPub(g), glory: treasury ? treasury.balance(g.id) : 0, wars: gangwar ? gangwar.record(g.id) : null, cups: tourney ? tourney.cups(g.id) : 0, trophies: league ? league.trophies(g.id) : null, legend: g.legend_month && league ? legendLabel(g.legend_month) : null, motto: g.motto || '', gold: !!g.gold,
+      ...U.crestPub(g), glory: treasury ? treasury.balance(g.id) : 0, wars: gangwar ? gangwar.record(g.id) : null, cups: tourney ? tourney.cups(g.id) : 0, trophies: league ? league.trophies(g.id) : null, glevel: league ? league.level(g.id) : null, legend: g.legend_month && league ? legendLabel(g.legend_month) : null, motto: g.motto || '', gold: !!g.gold,
       officeName: g.office_id ? (officeById(g.office_id) || {}).name || null : null,
       inOffice: gangOffice(g.id), msgsWeek: q('SELECT COUNT(*) AS n FROM messages WHERE gang_id = ? AND at > ?').get(g.id, U.now() - 7 * 864e5).n,
       since: g.created_at, faces, member: uid ? isMember(g.id, uid) : false, requested: !!(req && req.status === 'pending')
@@ -1329,7 +1331,7 @@ function createApi(db) {
     const statuses = members.map((m) => ({ ...memberStatus(m), me: m.id === u.id }));
     const msgs = q(`SELECT m.*, a.nick AS author, t.nick AS to_nick FROM messages m
                     LEFT JOIN users a ON a.id = m.user_id LEFT JOIN users t ON t.id = m.to_user_id
-                    WHERE m.gang_id = ? AND m.hidden = 0 AND m.at > ? ORDER BY m.at ASC LIMIT 300`).all(g.id, U.now() - 24 * 3600e3);
+                    WHERE m.gang_id = ? AND m.hidden = 0 AND m.at > ? AND (m.office_id IS NULL OR m.user_id = ? OR m.office_id = ?) ORDER BY m.at ASC LIMIT 300`).all(g.id, U.now() - 24 * 3600e3, u.id, (activeCheckin(u.id) || {}).office_id || '');
     const replies = msgs.length
       ? q(`SELECT r.*, u.nick FROM replies r JOIN users u ON u.id = r.user_id WHERE r.message_id IN (${msgs.map(() => '?').join(',')}) ORDER BY r.at`).all(...msgs.map((m) => m.id))
       : [];
@@ -1340,7 +1342,7 @@ function createApi(db) {
         code: (g.who_invites || 'all') === 'all' || g.owner_id === u.id ? g.code : null, link: (g.who_invites || 'all') === 'all' || g.owner_id === u.id ? `${config.baseUrl}/g/${g.code}` : null, isOwner: g.owner_id === u.id,
         depositPending: !!g.deposit && members.length < 3, count: members.length,
         about: g.about || '', ...U.crestPub(g), emoji: g.emoji || null, access: g.access || 'invite',
-        max: gangLimit(g), maxSet: g.max_members || 0, glory: treasury ? treasury.balance(g.id) : 0, league: league ? league.weekPlace(g.id) : null, trophies: league ? league.trophies(g.id) : null, legend: g.legend_month && league ? legendLabel(g.legend_month) : null, whoInvites: g.who_invites || 'all', office: g.office_id || null, canInvite: (g.who_invites || 'all') === 'all' || g.owner_id === u.id
+        max: gangLimit(g), maxSet: g.max_members || 0, glory: treasury ? treasury.balance(g.id) : 0, league: league ? league.weekPlace(g.id) : null, glevel: league ? league.level(g.id) : null, xpToday: league ? league.myToday(u.id) : null, trophies: league ? league.trophies(g.id) : null, legend: g.legend_month && league ? legendLabel(g.legend_month) : null, whoInvites: g.who_invites || 'all', office: g.office_id || null, canInvite: (g.who_invites || 'all') === 'all' || g.owner_id === u.id
       },
       requests: g.owner_id === u.id ? q(`SELECT r.user_id AS id, r.at, x.nick, x.look, x.profile, x.share_office FROM gang_requests r JOIN users x ON x.id = r.user_id WHERE r.gang_id = ? AND r.status = 'pending' ORDER BY r.at`).all(g.id).map((r) => ({ id: r.id, nick: r.nick, look: publicLook(r) })) : [],
       members: statuses.map((s) => ({ ...s, officeName: s.office ? officeName[s.office] : null })),
@@ -1393,7 +1395,8 @@ function createApi(db) {
     const def = CALLS[body.kind];
     if (body.type !== 'call' || !def) throw bad('Неизвестный тип сообщения.');
     const hourAgo = U.now() - 3600e3;
-    if (q("SELECT COUNT(*) AS n FROM messages WHERE user_id = ? AND type = 'call' AND at > ?").get(u.id, hourAgo).n >= 3) throw bad('Не больше 3 зовов в час — береги нервы банды.');
+    const perHour = league ? league.callsPerHour(g.id) : 3;
+    if (q("SELECT COUNT(*) AS n FROM messages WHERE user_id = ? AND type = 'call' AND at > ?").get(u.id, hourAgo).n >= perHour) throw bad(`Не больше ${perHour} зовов в час — береги нервы банды.`);
     let toId = null;
     if (body.to) {
       const t = q('SELECT id FROM users WHERE id = ?').get(Number(body.to));
@@ -1408,18 +1411,26 @@ function createApi(db) {
       const prob = text && U.moderationProblem(text);
       if (prob) throw bad(prob);
     }
-    q('INSERT INTO messages (gang_id, user_id, type, kind, to_user_id, opt, text, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(g.id, u.id, 'call', body.kind, toId, opt, U.seal(text), U.now());
+    // Зовы, ради которых надо быть рядом (кофе, обед, домой, «жду»): всей банде — только тем, кто сейчас в том же офисе.
+    // Позвать человека из другого офиса можно, но лично.
+    let officeId = null;
+    if (!toId && IN_PERSON.has(body.kind)) {
+      const ci = activeCheckin(u.id);
+      if (!ci) throw bad('Отметься в офисе — зов увидят свои, кто рядом. Или позови кого-то лично: нажми на человека.');
+      officeId = ci.office_id;
+    }
+    q('INSERT INTO messages (gang_id, user_id, type, kind, to_user_id, opt, text, at, office_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(g.id, u.id, 'call', body.kind, toId, opt, U.seal(text), U.now(), officeId);
     if (features) features.onEvent('call', u.id);
     // Текст пуша нейтральный: без названий офисов и подробностей
-    const recipients = toId ? [toId] : gangMembers(g.id).map((m) => m.id).filter((id) => id !== u.id);
+    const recipients = toId ? [toId] : gangMembers(g.id).map((m) => m.id).filter((id) => id !== u.id && (!officeId || (activeCheckin(id) || {}).office_id === officeId));
     fireAndForget(notify(recipients, { title: g.name, body: `${u.nick} ${def.verb}${opt ? ' · ' + opt.toLowerCase() : ''}`, url: `/#gang/${g.id}`, tag: `gang-${g.id}` }));
     const away = recipients.filter((id) => {
       const r = q('SELECT profile FROM users WHERE id = ?').get(id);
       return r && ['vacation', 'sick'].includes(presenceOf(readProfile(r.profile), activeCheckin(id)).where);
     }).length;
     const focus = recipients.filter((id) => { const r = q('SELECT profile FROM users WHERE id = ?').get(id); return r && focusUntil(readProfile(r.profile)); }).length;
-    return { ok: true, quiet: U.isQuietHour(), away, focus };
+    return { ok: true, quiet: U.isQuietHour(), away, focus, near: officeId ? recipients.length : null };
   });
 
   route('POST', '/api/messages/:id/reply', async (req, body, query, params) => {
@@ -1813,10 +1824,10 @@ function createApi(db) {
   require('./botgames').register({ db, q, route, requireUser, bad, U, HttpError, rateLimit, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   duels = require('./duels').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, addBeans, spendBeans, publicLook, canDm: (u, t) => (crew ? crew.canDm(u, t) : false), onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   gangwar = require('./gangwar').register({ db, q, route, requireUser, requireAdmin, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, spendBeans, battle, publicLook });
-  league = require('./league').register({ db, q, route, requireUser, U, addBeans, notify, fireAndForget, myEvent });
+  league = require('./league').register({ db, q, route, requireUser, U, addBeans, notify, fireAndForget, myEvent, treasury });
   tourney = require('./tourney').register({ db, q, route, requireUser, requireAdmin, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, gangwar, league });
   // ---------- Доска объявлений на весь «Этаж» ----------
-  board = require('./board').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, officeById, publicLook, fullName, isMember, gangMembers, myEvent, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
+  board = require('./board').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, officeById, publicLook, fullName, isMember, gangMembers, myEvent, activeCheckin, readProfile, canTalk: (a, b) => (crew ? crew.canTalk(a, b) : false), onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   // ---------- Секретный чат один на один (сквозное шифрование) ----------
   secret = require('./secret').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, rateLimit, canDm: (u, t) => (crew ? crew.canDm(u, t) : true) });
   // ---------- Пятничная пятиминутка банды ----------
