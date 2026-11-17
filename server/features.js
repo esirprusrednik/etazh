@@ -988,7 +988,8 @@ function register(ctx) {
         extra: bonusFor(u.id).map((id) => BONUS_QUESTS.find((x) => x.id === id)).map((x) => ({ id: x.id, name: x.name, go: x.go, done: done.has(x.id) })) },
       achievements: (() => {
         const c = countersOf(u.id, userRow(u.id));
-        return ACH.filter((a) => COFFEE_ON || a.series !== 'coffee').map((a) => {
+        // Дела дня выключены: их ачивки видит только тот, кто уже получил
+        return ACH.filter((a) => (COFFEE_ON || a.series !== 'coffee') && (a.series !== 'todo' || owned[a.id])).map((a) => {
           const got = !!owned[a.id];
           const hide = a.secret && !got;
           return { id: a.id, cat: a.cat, series: a.series || null, tier: a.tier, secret: !!a.secret, reward: ACH_REWARD[a.tier], got, at: owned[a.id] || null,
