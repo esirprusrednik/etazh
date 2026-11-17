@@ -2307,7 +2307,7 @@ function renderPeople() {
     // Кто написал и ждёт ответа — виден всегда, даже в свёрнутой группе
     const urgent = g.filter((p) => p.unread);
     const open = !!openG[key];
-    const stack = `<span class="pg-avas" aria-hidden="true">${g.slice(0, 6).map((p) => avatar(p.look, 26)).join('')}</span>`;
+    const stack = `<span class="pg-avas" aria-hidden="true">${g.slice(0, 4).map((p) => avatar(p.look, 26)).join('')}</span>`;
     if (!lim) {
       return `<div class="pgroup ${open ? 'open' : 'fold'}"><button class="pg-fold" data-act="pg-toggle" data-v="${key}" aria-expanded="${open}"><span class="eyebrow">${title} · ${g.length}</span>${open ? '' : stack}<span class="pm" aria-hidden="true">${open ? '−' : '+'}</span></button>
         ${(open ? g : urgent).map(personRow).join('')}</div>`;
@@ -2315,7 +2315,7 @@ function renderPeople() {
     const first = open ? g : [...urgent, ...g.filter((p) => !p.unread)].slice(0, Math.max(lim, urgent.length));
     const rest = g.length - first.length;
     return `<div class="pgroup"><div class="eyebrow">${title} · ${g.length}</div>${first.map(personRow).join('')}
-      ${rest > 0 ? `<button class="pg-more" data-act="pg-toggle" data-v="${key}"><span class="pg-avas" aria-hidden="true">${g.filter((p) => !first.includes(p)).slice(0, 6).map((p) => avatar(p.look, 26)).join('')}</span><span>Ещё ${rest}</span><span class="pm" aria-hidden="true">+</span></button>` : open && g.length > lim ? `<button class="pg-more" data-act="pg-toggle" data-v="${key}"><span>Свернуть</span><span class="pm" aria-hidden="true">−</span></button>` : ''}</div>`;
+      ${rest > 0 ? `<button class="pg-more" data-act="pg-toggle" data-v="${key}"><span class="pg-avas" aria-hidden="true">${g.filter((p) => !first.includes(p)).slice(0, 4).map((p) => avatar(p.look, 26)).join('')}</span><span>Ещё ${rest}</span><span class="pm" aria-hidden="true">+</span></button>` : open && g.length > lim ? `<button class="pg-more" data-act="pg-toggle" data-v="${key}"><span>Свернуть</span><span class="pm" aria-hidden="true">−</span></button>` : ''}</div>`;
   }).join('');
   const nl = S.state && S.state.nameLock;
   const nameStrip = nl ? `<button class="week-lock-strip" data-act="open-sec" data-v="name">${ico('lock', 16)}<span>Имена коллег скрыты: ${nl.named} из ${nl.total} ${plural(nl.total, 'бандита', 'бандитов', 'бандитов')} указали имя, и ты видишь только ники. <b>Указать своё →</b></span></button>` : '';
@@ -6297,7 +6297,7 @@ const actions = {
     }
     collapseAll();
     S.dmList = false; S.tab = el.dataset.v; S.sheet = null; if (S.tab === 'chats') { ensureGang(); S.gangTab = 'crew'; } render();
-    if (again) window.scrollTo(0, 0);
+    window.scrollTo(0, 0);   // любая вкладка открывается с самого верха
     await run(() => refresh());
   },
   'near-more': () => { S.nearMore = !S.nearMore; render(); },
@@ -7446,7 +7446,7 @@ const actions = {
     const nick = S.nickConfirm; S.nickConfirm = null;
     const r = await post('/api/me/nick', { nick }); await loadMe(); toast(`Теперь ты ${r.nick}`);
   }),
-  'gang-tab'(el) { S.gangTab = el.dataset.v; render(); const h = document.querySelector('.g-head'); if (h) h.scrollIntoView({ block: 'start' }); },
+  'gang-tab'(el) { S.gangTab = el.dataset.v; render(); window.scrollTo(0, 0); },
   'gang-go'(el) { S.gangTab = el.dataset.v; render(); setTimeout(() => { const c = findInGangTabs(el.dataset.to); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 60); },
   'friday-open'() { const f = S.friday; if (f) { const m = store.get('frSeen', {}) || {}; m[frSeenKey(f)] = f.othersCount; store.set('frSeen', m); } S.fridayOpen = true; render(); },
   'friday-close'() { S.fridayOpen = false; S.fridayEdit = null; render(); },
