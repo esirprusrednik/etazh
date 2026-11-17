@@ -2762,3 +2762,7 @@ p, .sub, .small { text-wrap: pretty; }
 .bl-row b { font-variant-numeric: tabular-nums; }
 .bl-row .small { min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; }
 .bl-past + .bl-past { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+/* «Перейти в другую банду» — действие с последствиями: по центру и красным */
+.g-switch > summary { list-style: none; text-align: center; font-weight: 900; cursor: pointer; min-height: 32px; display: flex; align-items: center; justify-content: center; color: var(--red); }
+.g-switch > summary::-webkit-details-marker { display: none; }
+.cw-head i { min-width: 0; }

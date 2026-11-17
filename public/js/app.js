@@ -4066,7 +4066,7 @@ function renderGang() {
   const gangs = S.me.gangs;
   let chips = gangs.length ? `<div class="chips dark">${gangs.map((g) => `<button class="chip ${g.id === S.activeGang ? 'on' : ''}" data-act="gang-select" data-v="${g.id}">${esc(g.name)}</button>`).join('')}</div>` : '';
   const create = gangs.length
-    ? `<section class="card"><details><summary style="font-weight:900;cursor:pointer;min-height:32px">Перейти в другую банду</summary><div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
+    ? `<section class="card"><details class="g-switch"><summary>Перейти в другую банду</summary><div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
       <p class="sub" style="margin:0">Банда может быть только одна. Вступишь в другую или сколотишь новую — выйдешь из этой. Очки Лиги, которые ты принёс, останутся здесь.</p>
       <div class="row"><button class="btn small grow" data-act="gang-find">search Найти банду</button><button class="btn small ghost grow" data-act="open" data-v="gang-new">＋ Сколотить</button></div></div></details></section>`
     : `<section class="card"><h3>Банды</h3><p class="sub">Банда — твои люди: команда, соседи по этажу, кофейный клуб. Общий чат, зовы, неделя офиса и Лига банд, где вы соревнуетесь с другими.</p>
@@ -4092,7 +4092,7 @@ function renderGang() {
   const tabs = `<div class="g-tabs" role="tablist">${[['crew', 'Свои', reqN], ['life', 'Жизнь', 0], ['chat', 'Чат', tab === 'chat' ? 0 : (S.state && S.state.badges && S.state.badges.chat) || 0]].map(([k, l, n]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" data-act="gang-tab" data-v="${k}">${l}${n ? `<i>${n}</i>` : ''}</button>`).join('')}</div>`;
   const head = `<section class="card g-head" style="${g.gold ? 'border:3px solid #FFC93C' : ''}">
     ${gst(g).cardbg ? `<div class="g-banner ${gst(g).cardbg}" aria-hidden="true"></div>` : ''}
-    <div class="row"><button class="g-who" data-act="gang-profile" data-id="${g.id}" aria-label="Профиль банды «${esc(g.name)}»"><span class="crest-btn ${auraCls(g)} ${g.glevel && g.glevel.ring ? 'ring-' + g.glevel.ring : ''}">${crestSvg(crestOf(g), { size: 78, full: true })}</span><span class="grow" style="min-width:0"><h2 style="margin:0">${gangName(g)} <span class="chev" aria-hidden="true">›</span></h2><span class="small">${g.area ? esc(g.area) + ' · ' : ''}${v.gang.count}${g.max ? '/' + g.max : ''} ${plural(v.gang.count, 'участник', 'участника', 'участников')}${g.glevel ? ` · уровень ${g.glevel.n}` : ''}</span></span></button>
+    <div class="row"><button class="g-who" data-act="gang-profile" data-id="${g.id}" aria-label="Профиль банды «${esc(g.name)}»"><span class="crest-btn ${auraCls(g)} ${g.glevel && g.glevel.ring ? 'ring-' + g.glevel.ring : ''}">${crestSvg(crestOf(g), { size: 78, full: true })}</span><span class="grow" style="min-width:0"><h2 style="margin:0">${gangName(g)} <span class="chev" aria-hidden="true">›</span></h2><span class="small">${v.gang.count}${g.max ? '/' + g.max : ''} ${plural(v.gang.count, 'участник', 'участника', 'участников')}${g.glevel ? ` · уровень ${g.glevel.n}` : ''}</span></span></button>
       ${g.isOwner ? '<button class="icon-btn" data-act="gang-settings" aria-label="Настройки банды">gear</button>' : ''}</div>
     ${tabs}
   </section>`;
@@ -4671,6 +4671,11 @@ function renderCrewWeek(v, g) {
   const days = w ? w.days : [];
   const rowOf = new Map(((w && w.rows) || []).map((r) => [r.id, r]));
   const fake = ['office', 'home', 'office', 'office', 'home'];
+  // После 19:00 рабочий день кончился: подсвечиваем и считаем уже следующий рабочий день
+  const todayCol = days.findIndex((d) => d.today);
+  const night = !!(S.state && S.state.night);
+  const nextCol = days.findIndex((d, i) => i > todayCol && !d.holiday);
+  const focusCol = night && nextCol >= 0 ? nextCol : todayCol;
   const rank = (m) => m.me ? 0 : m.where === 'office' ? 1 : 2;
   const all = [...v.members].sort((a, b) => rank(a) - rank(b));
   // В списке — только те, кто показал график целиком (и ты). Остальные — по кнопке: участники банды всё равно должны быть доступны
@@ -4686,7 +4691,7 @@ function renderCrewWeek(v, g) {
     if (!r && !w.locked) return `<span class="cw-dots cw-none" aria-label="не показывает план"></span>`;
     return `<span class="cw-dots ${!r ? 'cw-blur' : ''}" aria-hidden="${!r}">${days.map((d, i) => {
       const c = r ? r.cells[i] : (d.today ? 'unknown' : fake[(i + k) % 5]);
-      return `<i class="wk-c ${c} ${d.today ? 'cw-today' : ''}" title="${esc(d.label)}: ${c === 'off' ? esc(d.holiday || 'выходной') : CELL[c][1]}"></i>`;
+      return `<i class="wk-c ${c} ${i === focusCol ? 'cw-today' : ''}" title="${esc(d.label)}: ${c === 'off' ? esc(d.holiday || 'выходной') : CELL[c][1]}"></i>`;
     }).join('')}</span>`;
   };
   const row = (m, k) => {
@@ -4701,12 +4706,15 @@ function renderCrewWeek(v, g) {
     ${menu ? `<div class="cw-menu"><button class="btn small" data-act="call-open" data-kind="where" data-to="${m.id}" data-gang="${g.id}">Позвать</button><button class="btn small ghost" data-act="dm-open" data-id="${m.id}">${ico('chat', 15)} Написать</button>
       ${g.isOwner ? `<button class="btn small ghost" data-act="gm-owner" data-id="${m.id}">Сделать владельцем</button><button class="btn small danger" data-act="gm-kick" data-id="${m.id}">Убрать</button>` : ''}</div>` : ''}`;
   };
-  const todayCol = days.findIndex((d) => d.today);
   const officeToday = todayCol >= 0 ? v.members.filter((m) => m.where === 'office').length : null;
   const planToday = todayCol >= 0 && w && !w.locked ? Math.max(0, w.rows.filter((r) => r.cells[todayCol] === 'office').length - officeToday) : 0;
-  const sum = [officeToday != null ? `Сегодня в офисе <b>${officeToday} из ${v.members.length}</b>${planToday ? `, собираются ещё <b>${planToday}</b>` : ''}` : '',
+  const planNext = nextCol >= 0 && w && !w.locked ? w.rows.filter((r) => r.cells[nextCol] === 'office').length : null;
+  const nextName = nextCol === todayCol + 1 ? 'Завтра' : nextCol >= 0 ? 'В ' + days[nextCol].label.split(' ')[0].toLowerCase() : '';
+  const sum = night ? [planNext != null ? `${nextName} по планам в офисе <b>${planNext} из ${v.members.length}</b>` : (w && w.locked ? '' : 'Рабочий день закончился'),
+    w && w.best && !w.best.today && days[nextCol] && w.best.label !== days[nextCol].label ? `больше всего — ${esc(w.best.label.split(' ')[0].toLowerCase())}, <b>${w.best.office}</b>` : ''].filter(Boolean).join(' · ')
+    : [officeToday != null ? `Сегодня в офисе <b>${officeToday} из ${v.members.length}</b>${planToday ? `, собираются ещё <b>${planToday}</b>` : ''}` : '',
     w && w.best && !w.best.today ? `больше всего — ${esc(w.best.label.split(' ')[0].toLowerCase())}, <b>${w.best.office}</b>` : ''].filter(Boolean).join(' · ');
-  const head = days.length ? `<span class="cw-dots cw-head">${days.map((d) => `<i class="${d.today ? 'cw-today' : ''} ${d.holiday ? 'off' : ''}">${d.today ? 'сег' : esc(d.label.split(' ')[0])}</i>`).join('')}</span>` : '';
+  const head = days.length ? `<span class="cw-dots cw-head">${days.map((d, i) => `<i class="${i === focusCol ? 'cw-today' : ''} ${d.holiday ? 'off' : ''}">${d.today ? 'сег' : i === focusCol && i === todayCol + 1 ? 'зав' : esc(d.label.split(' ')[0])}</i>`).join('')}</span>` : '';
   return `<section class="card crew-week">
     <div class="row cw-top"><span class="card-title grow">hand Банда на неделе · ${v.members.length}</span>${head}</div>
     ${sum ? `<div class="cw-sum">${ico('where', 15)}<span>${sum}</span></div>` : ''}
