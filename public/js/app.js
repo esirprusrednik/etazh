@@ -1827,6 +1827,7 @@ async function loadChats() {
 // Вкладки: «Рядом» — кто где, «Чаты» — банды и личка, «Офис» — столовая и лента, «Игры» — всё игровое
 async function refresh({ all = false } = {}) {
   if (!S.me || !S.me.nick) return;
+  if (S.tab === 'office') S.tab = 'near';
   const t = S.tab;
   const jobs = [loadState(), loadInbox()];
   if (all || t === 'near') jobs.push(loadBoard(), loadPeople(), loadMatch(), loadTodos(), S.fx ? Promise.resolve() : loadFeatures().catch(() => {}));
@@ -1837,14 +1838,13 @@ async function refresh({ all = false } = {}) {
   if (inGang()) ensureGang();
   if (all || inGang() || t === 'games') jobs.push(loadGang(), loadGangExtra());
   if (all && !S.changes) jobs.push(loadChanges());
-  if (all || t === 'office') jobs.push(loadEvents(), loadBoard(), S.experts && S.experts.q ? null : loadExperts());
+  if (all || t === 'near') jobs.push(loadEvents(), S.experts && S.experts.q ? null : loadExperts());
   if (all || t === 'games') jobs.push(loadQuiz(), loadBlitz(), loadLeague('W').catch(() => {}), loadDuels(), loadTour());
   if (t === 'chats' && S.battle) jobs.push(loadBattle());
   if (t === 'chats' && S.dm) jobs.push(loadDm());
   await Promise.all(jobs);
   if (t === 'chats' && S.dm && S.crew) { const f = S.crew.list.find((x) => x.id === S.dm); if (f) f.unread = 0; recountCrewBadge(); }
   if (inGang()) markSeen('chat');
-  if (t === 'office') markSeen('feed');
 }
 function markSeen(kind) {
   const t = S.state ? S.state.now : Date.now();
@@ -1864,6 +1864,8 @@ function trackSeen(k) {
 }
 
 function render() {
+  // Вкладки «Офис» больше нет: её содержимое живёт на «Рядом». Старые ссылки, пуши и сводка ведут туда же
+  if (S.tab === 'office') S.tab = 'near';
   const keepScroll = window.scrollY;
   // Фоновое обновление не должно стирать то, что человек сейчас печатает
   const a = document.activeElement;
@@ -2131,10 +2133,10 @@ function renderApp() {
         <button class="btn small blue" data-act="open" data-v="install">Как?</button>
         <button class="x" style="background:none" data-act="install-hide" aria-label="Скрыть на сутки">×</button>
       </div>` : ''}
-      ${S.tab === 'near' ? renderNear() : S.tab === 'chats' ? renderChats() : S.tab === 'office' ? renderOfficeTab() : renderGames()}
+      ${S.tab === 'near' ? renderNear() : S.tab === 'chats' ? renderChats() : renderGames()}
     </main>
     <nav class="tabs"><div class="in">
-      ${tabBtn('near', 'Рядом', 0)}${tabBtn('chats', 'Банда', chatNews().reduce((a, x) => a + (x.dm ? 0 : x.n), 0))}${tabBtn('office', 'Офис', 0)}${tabBtn('games', 'Игры', (b.duels || 0) + (S.quiz || []).filter((z) => !z.answered).length + (S.battles || []).filter((x) => x.myTurn && x.status !== 'done').length)}
+      ${tabBtn('near', 'Рядом', 0)}${tabBtn('chats', 'Банда', chatNews().reduce((a, x) => a + (x.dm ? 0 : x.n), 0))}${tabBtn('games', 'Игры', (b.duels || 0) + (S.quiz || []).filter((z) => !z.answered).length + (S.battles || []).filter((x) => x.myTurn && x.status !== 'done').length)}
     </div></nav>
   </div>
   ${S.sheet ? renderSheet() : ''}`;
@@ -2309,6 +2311,10 @@ function renderNear() {
   // Новичку — маленькая ссылка под отметкой, а не самый яркий баннер экрана
   const aboutCard = S.me.newbie3 && !store.get('aboutSeen') ? `<button class="linkbtn about-link" data-act="open" data-v="about">Что такое Этаж? За 30 секунд →</button>` : '';
   const noGang = !S.me.gangs.length;
+  // Столовая видна тем, кто отметился в офисе: в обед (11:30–14:30) — сразу под зовами, в остальное время — под людьми
+  const hm = new Date().getHours() * 60 + new Date().getMinutes();
+  const lunchNow = hm >= 690 && hm <= 870;
+  const canteen = S.state.checkin && S.state.canteen ? renderCanteen() : '';
   const pr = S.me.look.prank && S.me.look.prank.until > Date.now() ? S.me.look.prank : null;
   const prankStrip = pr ? `<div class="prank-strip">${avatar(S.me.look, 34)}<span class="grow"><b>${esc(pr.from)} тебя ${pr.f ? 'разыграла' : 'разыграл'}</b><span class="small">${{ coffee: 'Кофе на одежде', sticker: 'Стикер на лбу', phones: 'Наушники с рок-музыкой' }[pr.v] || 'Подлянка'} — до ${new Date(pr.until).toTimeString().slice(0, 5)}</span></span><button class="btn small" data-act="prank-off">Снять</button></div>` : '';
   // Порядок: сначала свои люди. Без банды всё остальное пусто, поэтому первым идёт «Позови своих»;
@@ -2323,13 +2329,28 @@ function renderNear() {
     ${!noGang && S.people && !S.people.length ? findBar() : ''}
     ${renderQuickCalls()}
     ${renderLunchCard()}
+    ${lunchNow ? canteen : ''}
     ${renderWeekNote()}
     ${noGang ? '' : renderPeople()}
+    ${lunchNow ? '' : canteen}
+    ${boardLive() ? renderBoardCard() : ''}
     ${noGang ? '' : renderTodos()}
     ${renderBirthdays()}
     ${renderAdvent(true)}
     ${renderNearMore()}
+    ${renderFloorMore()}
     ${renderTopStrip()}`;
+}
+// То, что раньше жило на вкладке «Офис» и нужно не каждый день: открывается по нажатию
+const boardLive = () => !!(S.board && S.board.items.some((x) => x.kind !== 'lunch' && (!x.expiresAt || x.expiresAt > Date.now())));
+function renderFloorMore() {
+  const fb = (S.state && S.state.badges && S.state.badges.feed) || 0;
+  const row = (v, icon, title, sub, n) => `<button class="floor-row" data-act="open" data-v="${v}"><span class="st-ico">${ico(icon, 18)}</span><span class="grow"><b>${title}</b><span class="small">${sub}</span></span>${n ? `<span class="badge">${n > 9 ? '9+' : n}</span>` : ''}<span class="chev" aria-hidden="true">›</span></button>`;
+  return `<section class="card floor-more"><div class="eyebrow">Ещё на Этаже</div>
+    ${boardLive() ? '' : row('board', 'megaphone', 'Доска объявлений', 'Пока пусто: «отдам билеты», «на кухне яблоки»')}
+    ${row('experts', 'help', 'Кто знает?', 'Найти, кто за что отвечает')}
+    ${row('events', 'spark', 'События и сигналы офиса', 'Что случилось с тобой и что сломалось на этаже', fb)}
+  </section>`;
 }
 // Человек без банды: одно дело на экране — позвать своих или найти банду
 function renderNoGang() {
@@ -4710,6 +4731,9 @@ function renderSheet() {
     case 'gang-settings': return sheetWrap('Настройки банды', renderGangSettings());
     case 'crew': return sheetWrap('Подельники', renderCrew());
     case 'stats': return sheetWrap('Этаж сегодня', renderStats());
+    case 'board': return sheetWrap('Доска', renderBoardCard());
+    case 'experts': return sheetWrap('Кто знает?', renderExperts());
+    case 'events': return sheetWrap('События', renderFeed());
     case 'about': store.set('aboutSeen', true); return sheetWrap('Об Этаже', aboutHtml());
     case 'style': return sheetWrap('Мой стиль', renderStyle());
     case 'battery': return sheetWrap('Батарейка недели', renderBattery());
@@ -5050,10 +5074,9 @@ const COACH = [
   null,
   { cls: 'left', title: 'Это твой профиль', text: 'Нажми на аватар или ник: внешность, имя, план недели, ачивки. Зелёное кольцо — насколько профиль заполнен.' },
   { cls: 'right', title: 'Это твои зёрна', text: 'Их дают за отметки, ответы и квизы. Нажми — откроется Лавка со статусами и рамками.' },
-  { tab: 'near', i: 0, title: 'Рядом', text: 'Главный экран. Отметься, где работаешь сегодня, — и увидишь всех своих людей: кто в офисе, кто дома, кто в отпуске. Позвать на кофе — одна кнопка.' },
+  { tab: 'near', i: 0, title: 'Рядом', text: 'Главный экран. Отметься, где работаешь сегодня, — и увидишь всех своих людей: кто в офисе, кто дома, кто в отпуске. Позвать на кофе — одна кнопка. Столовая, доска и сигналы офиса — тут же, ниже.' },
   { tab: 'chats', i: 1, title: 'Банда', text: 'Твои люди: общий чат, зовы на кофе и обед, опросы и Лига. Личка и морской бой — под значком диалога наверху.' },
-  { tab: 'office', i: 2, title: 'Офис', text: 'Загрузка столовой и оценка обеда, Доска с кухней и объявлениями, сигналы с этажа и лента событий.' },
-  { tab: 'games', i: 3, title: 'Игры', text: 'Задания дня, квиз недели, морской бой и случайный кофе. За всё дают зёрна — их тратят в Лавке.' }
+  { tab: 'games', i: 2, title: 'Игры', text: 'Задания дня, квиз недели, морской бой и случайный кофе. За всё дают зёрна — их тратят в Лавке.' }
 ];
 function renderCoach() {
   if (!S.coach || S.sheet) return '';
@@ -5061,7 +5084,7 @@ function renderCoach() {
   const total = COACH.length - S.coachStart, n = S.coach - S.coachStart + 1;
   const last = S.coach === COACH.length - 1;
   const pos = tip.tab ? 'bottom' : tip.cls;
-  const style = tip.tab ? ` style="--ax:${12.5 + tip.i * 25}%"` : '';
+  const style = tip.tab ? ` style="--ax:${16.67 + tip.i * 33.33}%"` : '';
   return `<div class="coach-bg" data-act="coach-next"></div>
     <div class="coach-tip ${pos}"${style} role="dialog" aria-label="${esc(tip.title)}"><b>${esc(tip.title)}</b><p>${esc(tip.text)}</p>
       <div class="row" style="justify-content:space-between"><span class="small">${n} из ${total}</span>
@@ -5860,7 +5883,7 @@ function renderProfile() {
     <label class="field">Чем занимаюсь<input id="p-role" maxlength="80" value="${esc(p.role || '')}" placeholder="Аналитика тарифов B2B, отчётность для ДФК"></label>
     <label class="field">Спроси меня про… <span class="small" style="font-weight:600">— до пяти тем через запятую</span><input id="p-ask" maxlength="140" value="${esc((p.askMe || []).join(', '))}" placeholder="Jira, тарифы B2B, пропуска и парковка"></label>
     <button class="btn ghost small" data-act="work-save" style="justify-self:start">Сохранить</button>
-    <span class="small" style="font-weight:600">По этим темам коллеги найдут тебя в «Кто знает?» на вкладке «Офис», а вопросы с доски по твоей теме придут в сводку «Этажа».</span>
+    <span class="small" style="font-weight:600">По этим темам коллеги найдут тебя в «Кто знает?» на «Рядом», а вопросы с доски по твоей теме придут в сводку «Этажа».</span>
     <div class="field">Статус<div class="chips">${Object.entries(meG(S.cat.moods, S.cat.moodsF || S.cat.moods)).map(([k, l]) => `<button class="chip ${p.mood === k ? 'on' : ''}" data-act="prof" data-k="mood" data-v="${k}">${esc(l)}</button>`).join('')}</div></div>
     <label class="field">Мой офис — на главной кнопке отметки<select id="home-office">
       <option value="">Не выбран</option>${S.cat.offices.slice().sort((x, y) => x.name.localeCompare(y.name, 'ru')).map((o) => `<option value="${esc(o.id)}" ${p.home === o.id ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select></label>
@@ -6740,6 +6763,9 @@ const actions = {
     if (S.sheet === 'shop') { store.set('shopSeen', [...new Set([...store.get('shopSeen', []), ...((S.me && S.me.affordable) || [])])]); await run(async () => { S.shop = await get('/api/shop'); if (S.activeGang && !S.gang) await loadGang(); }); }
     if (S.sheet === 'profile' || S.sheet === 'lunch') await run(loadFeatures);
     if (S.sheet === 'feedback') await run(loadFeedback);
+    if (S.sheet === 'events') { await run(loadEvents); markSeen('feed'); render(); }
+    if (S.sheet === 'experts') await run(loadExperts);
+    if (S.sheet === 'board') await run(loadBoard);
     if (S.sheet === 'style') await run(async () => { S.style = await get('/api/me/style'); });
     if (S.sheet === 'battery') { S.bt = { step: 0, answers: [] }; await run(async () => { S.battery = await get('/api/battery'); }); }
     if (S.sheet === 'crew-new' && !S.crew) await run(loadCrew);
@@ -7679,15 +7705,14 @@ document.addEventListener('visibilitychange', async () => {
 // Ссылки из пушей: #gang/ID, #crew/ID, #battle/ID, #feed, #feedback
 function applyHash(hash) {
   if (hash.startsWith('#gang/')) { S.tab = 'chats'; S.chatGang = true; S.dmList = false; S.dm = null; S.activeGang = Number(hash.slice(6)) || S.activeGang; }
-  if (hash === '#feed') { S.dmList = false; S.tab = 'office'; S.chatGang = false; S.dm = null; setTimeout(() => { const c = document.querySelector('.myfeed'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 900); }
-  if (hash === '#kitchen') { S.dmList = false; S.tab = 'office'; S.chatGang = false; S.dm = null; S.boardCat = 'kitchen'; }
-  if (hash === '#lunch' || hash === '#office') { S.dmList = false; S.tab = hash === '#lunch' ? 'near' : 'office'; S.chatGang = false; S.dm = null; if (hash === '#lunch') setTimeout(() => { const c = document.querySelector('.lunch-card'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 800); }
+  if (hash === '#feed') { S.dmList = false; S.tab = 'near'; S.chatGang = false; S.dm = null; S.sheet = 'events'; loadEvents().then(() => { markSeen('feed'); render(); }).catch(() => {}); }
+  if (hash === '#kitchen') { S.dmList = false; S.tab = 'near'; S.chatGang = false; S.dm = null; S.boardCat = 'kitchen'; }
+  if (hash === '#lunch' || hash === '#office') { S.dmList = false; S.tab = 'near'; S.chatGang = false; S.dm = null; if (hash === '#lunch') setTimeout(() => { const c = document.querySelector('.lunch-card'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 800); }
   if (hash === '#near') { S.dmList = false; S.tab = 'near'; S.chatGang = false; S.dm = null; }
-  if (hash === '#rate') { S.tab = 'office'; S.chatGang = false; S.dm = null; setTimeout(() => { const c = document.querySelector('.food'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 800); }
+  if (hash === '#rate') { S.tab = 'near'; S.chatGang = false; S.dm = null; setTimeout(() => { const c = document.querySelector('.food'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 800); }
   if (hash === '#todos') { S.tab = 'near'; S.chatGang = false; S.dm = null; setTimeout(() => { const c = document.querySelector('.todos'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 600); }
   if (hash === '#battery') { S.sheet = 'battery'; S.bt = { step: 0, answers: [] }; get('/api/battery').then((b) => { S.battery = b; render(); }).catch(() => {}); }
   if (hash.startsWith('#wave/')) { S.tab = 'chats'; S.chatGang = true; S.dmList = false; S.dm = null; S.activeGang = Number(hash.slice(6)) || S.activeGang; S.waveScroll = true; }
-  if (hash === '#feed') S.tab = 'office';
   if (hash === '#crew' || hash === '#chats') { S.tab = 'chats'; S.dmList = hash === '#crew'; }
   if (hash.startsWith('#crew/')) { S.tab = 'chats'; S.dm = Number(hash.slice(6)) || null; S.dmSecret = false; }
   if (hash.startsWith('#secret/')) { S.tab = 'chats'; S.chatGang = false; S.battle = null; S.dm = Number(hash.slice(8)) || null; S.dmSecret = true; Promise.all([loadDm(), loadSecret()]).then(render).catch(() => {}); }
@@ -7705,6 +7730,7 @@ window.addEventListener('hashchange', async () => {
   if (hash === '#feedback') { S.sheet = 'feedback'; render(); await run(loadFeedback); return; }
   if (hash === '#league') { S.sheet = 'league'; render(); await run(() => loadLeague('W')); return; }
   if (hash === '#inbox') { render(); await run(loadInbox); markInboxSeen(); return; }
+  if (hash === '#feed') { render(); return; }
   S.sheet = null;
   try { await refresh(); } catch {}
   render();

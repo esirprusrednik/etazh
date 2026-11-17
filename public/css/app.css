@@ -270,7 +270,7 @@ body { font-weight: 500; }
 .adm-scroll { overflow-x: auto; }
 
 /* ---- Подельники: личные контакты ---- */
-.tabs .in { grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.tabs .in { grid-template-columns: repeat(3, 1fr); gap: 4px; }
 .tab { font-size: 12px; }
 .crew-row { width: 100%; background: none; text-align: left; color: var(--ink); padding: 0; font: inherit; cursor: pointer; }
 .crew-nick { display: block; font-weight: 800; font-size: 15px; }
@@ -2573,3 +2573,14 @@ main > .top-strip { margin: 6px 0 0; width: 100%; opacity: .8; }
 .land-qr .land-host { font-weight: 800; color: var(--ink); }
 .land-note { margin: 0; text-align: center; }
 @media (max-width: 860px) { .onb.land { grid-template-columns: minmax(0, 1fr); gap: 24px; padding-top: 28px; } .land-r { position: static; order: -1; } }
+
+/* «Ещё на Этаже»: то, что раньше жило на вкладке «Офис» */
+.floor-more { display: flex; flex-direction: column; gap: 2px; }
+.floor-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 2px; background: none; border: 0; border-top: 1px solid var(--line); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.floor-more .eyebrow + .floor-row { border-top: 0; }
+.floor-row b { display: block; font-size: 15px; }
+.floor-row .small { display: block; }
+.floor-row .chev { font-size: 22px; color: var(--muted); }
+.sheet > .card, .sheet > section.card { box-shadow: none; border: 0; padding: 0; background: none; }
+/* В окне заголовок уже есть — внутренний повтор не нужен */
+.sheet > .experts .chats-head h3, .sheet > .bboard .chats-head h3 { display: none; }
