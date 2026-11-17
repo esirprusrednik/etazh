@@ -3920,19 +3920,22 @@ function renderGangProfile() {
       </div></div>`;
   const [accT, accD] = ACCESS_NAMES[c.access] || ACCESS_NAMES.invite;
   const days = Math.max(1, Math.round((Date.now() - c.since) / 864e5));
-  return `<div class="g-hero" style="--gc:${esc(c.color)}"><span class="g-crest ${auraCls(c)} ${c.glevel && c.glevel.ring ? 'ring-' + c.glevel.ring : ''}">${crestSvg(crestOf(c), { size: 92, full: true, motto: c.motto || c.name })}</span><div><div class="g-title">${gangName(c)}${c.gold ? ' crown' : ''}</div>
-      <div class="small">${c.area ? esc(c.area) : 'просто банда'}${c.glevel ? ` · уровень ${c.glevel.n}` : ''}</div></div></div>
+  // Шапка: герб, название и уровень с полоской опыта — в цвете банды. Про что банда — ниже, первой меткой
+  const L = c.glevel;
+  const pct = !L ? 0 : L.next ? Math.max(5, Math.min(100, Math.round(((L.xp - L.from) / (L.next - L.from)) * 100))) : 100;
+  return `<div class="gprof" style="--gc:${esc(c.color)}"><div class="g-hero"><span class="g-crest ${auraCls(c)} ${L && L.ring ? 'ring-' + L.ring : ''}">${crestSvg(crestOf(c), { size: 104, full: true, motto: c.motto || c.name })}</span><div class="gh-body"><div class="g-title">${gangName(c)}${c.gold ? ' \uE000crown\uE001' : ''}</div>
+      ${L ? `<div class="gh-lvl"><span class="gh-badge">Уровень ${L.n}</span><span class="gh-num">${L.next ? `${L.xp} / ${L.next}` : `${L.xp} · максимум`}</span></div><div class="gh-xp"><i style="width:${pct}%"></i></div>` : ''}</div></div>
     ${c.legend ? `<div class="g-legend">crown ${esc(c.legend)}</div>` : ''}
     ${renderGangLevel(c.glevel, own ? own.xpToday : null)}
-    ${trophyLine(c.trophies) ? `<p class="small" style="margin:0">Трофеи Лиги: ${trophyLine(c.trophies)}</p>` : ''}
+    ${trophyLine(c.trophies) ? `<p class="g-troph">${art('trophy', 26)}<span>Трофеи Лиги: ${trophyLine(c.trophies)}</span></p>` : ''}
     ${c.motto ? `<p class="sub" style="font-style:italic;margin:0">«${esc(c.motto)}»</p>` : ''}
     ${c.about ? `<p class="sub" style="margin:0">${esc(c.about)}</p>` : ''}
-    ${c.interests.length ? `<div class="g-tags big">${c.interests.map((t) => `<i>${esc(t)}</i>`).join('')}</div>` : ''}
+    ${c.area || c.interests.length ? `<div class="g-tags big">${c.area ? `<i class="area">${esc(c.area)}</i>` : ''}${c.interests.map((t) => `<i>${esc(t)}</i>`).join('')}</div>` : ''}
     <div class="g-stats"><div><b>${c.count}${c.max ? '/' + c.max : ''}</b><span>${plural(c.count, 'участник', 'участника', 'участников')}</span></div><div><b>${c.inOffice}</b><span>в офисе сегодня</span></div><div><b>${c.msgsWeek}</b><span>сообщений за неделю</span></div><div><b>${days}</b><span>${plural(days, 'день', 'дня', 'дней')} банде</span></div></div>
     <div class="g-faces">${c.faces.map((m) => tap(m.id, avatar(m.look, 34))).join('')}${c.count > c.faces.length ? (own ? `<button class="linkbtn small" data-act="gang-crew-open">и ещё ${c.count - c.faces.length} — все свои</button>` : `<span class="small">и ещё ${c.count - c.faces.length}</span>`) : ''}</div>
     <p class="small" style="margin:0"><b>${accT}</b> — ${accD}${c.owner ? ` · владелец ${esc(c.owner)}` : ''}${c.officeName ? ` · офис ${esc(c.officeName)}` : ''}</p>
     ${own ? '' : gangCardHtml(c).replace(/^<div class="g-card"><button class="g-main"[\s\S]*?<\/button>/, '<div class="g-card solo">')}
-    ${mine}`;
+    ${mine}</div>`;
 }
 function renderGangSwitch() {
   const a = S.switchAsk || {};
@@ -3981,10 +3984,8 @@ function leagueRules(type = null) {
 function renderGangLevel(L, mineToday) {
   if (!L) return '';
   const R = LEAGUE_RULES;
-  const span = L.next ? L.next - L.from : 1, pct = L.next ? Math.max(4, Math.min(100, Math.round(((L.xp - L.from) / span) * 100))) : 100;
-  return `<div class="g-level"><div class="row" style="justify-content:space-between"><b>Уровень ${L.n}</b><span class="small">${L.next ? `${L.xp} из ${L.next} опыта` : `${L.xp} опыта · выше некуда`}</span></div>
-    <div class="g-xp"><i style="width:${pct}%"></i></div>
-    <p class="small" style="margin:0">За эту неделю +${L.week}${mineToday ? ` · ты сегодня ${meG('принёс', 'принесла')} ${mineToday.pts} из ${mineToday.cap}` : ''}</p>
+  return `<div class="g-level">
+    <p class="gl-week"><b>+${L.week}</b> опыта за эту неделю${mineToday ? ` · ты сегодня ${meG('принёс', 'принесла')} ${mineToday.pts} из ${mineToday.cap}` : ''}</p>
     <details class="lg-rules"><summary>help Что даёт уровень и как расти</summary>
       <ul class="ol">
         <li><b>Каждый новый уровень</b> — слава в казну: 10 × уровень.</li>
