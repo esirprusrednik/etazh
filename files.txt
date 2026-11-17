@@ -170,6 +170,7 @@ public/art/medal_legendary.webp
 public/art/medal_locked.webp
 public/art/medal_rare.webp
 public/art/medal_secret.webp
+public/art/bomb.webp
 public/art/megaphone.webp
 public/art/ny/balls.webp
 public/art/ny/cane.webp

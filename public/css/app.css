@@ -2822,10 +2822,10 @@ button.pm { border: 0; cursor: pointer; }
 
 /* ===== Бомбочка волны: фитиль искрит и дымит, по нажатию — вспышка ===== */
 .wave-banner { position: relative; flex: none; width: 58px; height: 58px; display: block; animation: wb-rock 2.4s ease-in-out infinite; transform-origin: 50% 92%; }
-.wave-banner svg { position: relative; z-index: 1; display: block; filter: drop-shadow(0 4px 5px rgba(0,10,40,.35)); }
-.wb-tip { position: absolute; z-index: 2; left: 45px; top: -8px; width: 14px; height: 14px; background: radial-gradient(circle at 42% 38%, #FFF3C4 0 22%, #FFD23F 48%, #F59E0B 100%); clip-path: polygon(50% 0, 62% 34%, 100% 38%, 70% 60%, 80% 100%, 50% 76%, 20% 100%, 30% 60%, 0 38%, 38% 34%); filter: drop-shadow(0 0 4px rgba(255,176,32,.75)); animation: wb-tip .34s ease-in-out infinite alternate; }
-.wb-sp { position: absolute; z-index: 2; left: 50px; top: -3px; width: 5px; height: 5px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff8, transparent 60%), var(--c); animation: wb-fly .8s ease-out infinite; animation-delay: calc(var(--d) * -1); }
-.wb-smoke { position: absolute; z-index: 0; left: 46px; top: -14px; width: 11px; height: 11px; border-radius: 50%; background: radial-gradient(circle at 38% 32%, #FFFFFF, #DCE4F2 70%); animation: wb-puff 2.1s ease-out infinite; animation-delay: calc(var(--d) * -1); }
+.wave-banner img { position: relative; z-index: 1; display: block; filter: drop-shadow(0 4px 5px rgba(0,10,40,.35)); }
+.wb-tip { position: absolute; z-index: 2; left: 47px; top: -3px; width: 14px; height: 14px; background: radial-gradient(circle at 42% 38%, #FFF3C4 0 22%, #FFD23F 48%, #F59E0B 100%); clip-path: polygon(50% 0, 62% 34%, 100% 38%, 70% 60%, 80% 100%, 50% 76%, 20% 100%, 30% 60%, 0 38%, 38% 34%); filter: drop-shadow(0 0 4px rgba(255,176,32,.75)); animation: wb-tip .34s ease-in-out infinite alternate; }
+.wb-sp { position: absolute; z-index: 2; left: 52px; top: 2px; width: 5px; height: 5px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff8, transparent 60%), var(--c); animation: wb-fly .8s ease-out infinite; animation-delay: calc(var(--d) * -1); }
+.wb-smoke { position: absolute; z-index: 0; left: 48px; top: -10px; width: 11px; height: 11px; border-radius: 50%; background: radial-gradient(circle at 38% 32%, #FFFFFF, #DCE4F2 70%); animation: wb-puff 2.1s ease-out infinite; animation-delay: calc(var(--d) * -1); }
 @keyframes wb-tip { from { transform: scale(.8) rotate(-12deg); } to { transform: scale(1.15) rotate(14deg); } }
 @keyframes wb-fly { 0% { transform: translate(0, 0) scale(1.3); opacity: 1; } 100% { transform: translate(var(--x), var(--y)) scale(.2); opacity: 0; } }
 @keyframes wb-puff { 0% { transform: translate(0, 0) scale(.4); opacity: 0; } 20% { opacity: .85; } 100% { transform: translate(var(--x), -28px) scale(1.7); opacity: 0; } }
