@@ -1524,17 +1524,22 @@ function waveBanner() {
   const puff = (d, x) => `<i class="wb-smoke" style="--d:${d}s;--x:${x}px"></i>`;
   return `<button class="wave-call" data-act="wave-banner"><span class="wave-banner" aria-hidden="true">
     <svg viewBox="0 0 64 64" width="58" height="58">
-      <defs><radialGradient id="wbBody" cx="36%" cy="32%" r="78%"><stop offset="0" stop-color="#6C7FA8"/><stop offset=".34" stop-color="#2B3654"/><stop offset=".78" stop-color="#121829"/><stop offset="1" stop-color="#070A14"/></radialGradient>
-        <linearGradient id="wbCap" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8E9BB8"/><stop offset="1" stop-color="#3A4563"/></linearGradient></defs>
-      <ellipse cx="29" cy="59" rx="17" ry="3.2" fill="rgba(0,10,40,.3)"/>
-      <path d="M41.5 17.5 C45 9 53 13 52 6.5" fill="none" stroke="#5B3A1C" stroke-width="3.6" stroke-linecap="round"/>
-      <path d="M41.5 17.5 C45 9 53 13 52 6.5" fill="none" stroke="#E8C48A" stroke-width="2" stroke-linecap="round" stroke-dasharray="2.4 2.2"/>
-      <g transform="rotate(32 39 20)"><rect x="33.5" y="14.5" width="11" height="8" rx="2.2" fill="url(#wbCap)" stroke="#0B1020" stroke-width="1"/></g>
-      <circle cx="28" cy="38" r="20.5" fill="url(#wbBody)" stroke="#060913" stroke-width="1.2"/>
-      <ellipse cx="20" cy="28.5" rx="7.2" ry="4.6" transform="rotate(-32 20 28.5)" fill="#fff" opacity=".42"/>
-      <circle cx="15.2" cy="35.5" r="1.7" fill="#fff" opacity=".35"/>
-      <path d="M12 46 a18 18 0 0 0 26 9" fill="none" stroke="#7CC8F5" stroke-width="1.4" stroke-linecap="round" opacity=".35"/>
-    </svg><b class="wb-tip"></b>${spark(9, -9, 0, '#FFE680')}${spark(-8, -10, .18, '#FFB020')}${spark(11, 3, .36, '#FF6A2B')}${spark(-3, -14, .5, '#FFF6C8')}${spark(13, -5, .64, '#FFB020')}${puff(0, -5)}${puff(.7, 4)}${puff(1.4, -1)}</span><span class="grow"><b>Подними банду волной</b><span class="small">Перекличка своих: один клич — и видно, кто на связи и встанет за банду</span></span><span class="chev" aria-hidden="true">›</span></button>`;
+      <defs>
+        <radialGradient id="wbBody" cx="37%" cy="30%" r="80%"><stop offset="0" stop-color="#8891B4"/><stop offset=".38" stop-color="#4F5878"/><stop offset=".8" stop-color="#30364E"/><stop offset="1" stop-color="#262B40"/></radialGradient>
+        <radialGradient id="wbHi" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff" stop-opacity=".34"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+        <linearGradient id="wbCap" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFDD6E"/><stop offset="1" stop-color="#F0A51E"/></linearGradient>
+        <filter id="wbClay" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="1.2" numOctaves="2" seed="7" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .07 0" result="g"/><feComposite in="g" in2="SourceAlpha" operator="in" result="gg"/><feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="gg"/></feMerge></filter>
+      </defs>
+      <ellipse cx="29" cy="59.5" rx="16" ry="3" fill="rgba(0,10,40,.28)"/>
+      <g filter="url(#wbClay)">
+        <path d="M42 18 C44 8 54 12 57 4" fill="none" stroke="#D6BF93" stroke-width="5" stroke-linecap="round"/>
+        <path d="M41.6 17.2 C43.6 7.4 53.6 11.4 56.6 3.6" fill="none" stroke="#F6E7C8" stroke-width="3.4" stroke-linecap="round"/>
+        <path d="M28 17 C40.5 17 49.5 26.5 49.5 38.5 C49.5 50.5 40 59 28 59 C15.5 59 6.5 50 6.5 38 C6.5 26 15.5 17 28 17 Z" fill="url(#wbBody)"/>
+        <g transform="rotate(34 40 20)"><rect x="33" y="13.5" width="14" height="10.5" rx="4.4" fill="url(#wbCap)"/><rect x="34.6" y="14.6" width="10.8" height="3.4" rx="1.7" fill="#fff" opacity=".35"/></g>
+      </g>
+      <ellipse cx="20.5" cy="29" rx="11" ry="8" transform="rotate(-30 20.5 29)" fill="url(#wbHi)"/>
+      <path d="M13 49 C19 56 31 58 40 51" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" opacity=".08"/>
+    </svg><b class="wb-tip"></b>${spark(10, -9, 0, '#FFD23F')}${spark(-9, -10, .18, '#F97316')}${spark(12, 3, .36, '#E5484D')}${spark(-3, -15, .5, '#FFF3C4')}${spark(14, -5, .64, '#FFD23F')}${puff(0, -5)}${puff(.7, 4)}${puff(1.4, -1)}</span><span class="grow"><b>Подними банду волной</b><span class="small">Перекличка своих: один клич — и видно, кто на связи и встанет за банду</span></span><span class="chev" aria-hidden="true">›</span></button>`;
 }
 const WAVE_PREVIEW = ['{nick} запустил волну. Встань, подними руки — у банды 10 минут', 'Это волна, а не спам. Ну почти. Зайди и нажми «Встать» — банда считает', 'Срочно: ничего срочного. Просто {nick} запустил волну', 'Даже кофемашина уже встала. Твоя очередь'];
 function renderWaveLaunch() {
