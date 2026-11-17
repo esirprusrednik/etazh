@@ -3927,7 +3927,7 @@ function renderGangProfile() {
   const cell = (n, a, b) => `<div><b>${n}</b><span>${a}<br>${b}</span></div>`;
   const tl = trophyLine(c.trophies);
   const rows = [['Вступление', `${accT.toLowerCase()} — ${accD}`], c.owner ? ['Владелец', esc(c.owner)] : null, c.officeName ? ['Офис', esc(c.officeName)] : null, tl ? ['Трофеи Лиги', tl] : null].filter(Boolean);
-  return `<div class="gprof" style="--gc:${esc(c.color)}"><div class="g-hero"><span class="g-crest ${auraCls(c)} ${L && L.ring ? 'ring-' + L.ring : ''}">${crestSvg(crestOf(c), { size: 96, full: true, motto: c.motto || c.name })}</span><div class="gh-body"><div class="g-title">${gangName(c)}${c.gold ? ' \uE000crown\uE001' : ''}</div>
+  return `<div class="gprof" style="--gc:${esc(c.color)}"><div class="g-hero"><span class="g-crest ${auraCls(c)} ${L && L.ring ? 'ring-' + L.ring : ''}">${crestSvg(crestOf(c), { size: 96, full: true })}</span><div class="gh-body"><div class="g-title">${gangName(c)}${c.gold ? ' \uE000crown\uE001' : ''}</div>
       ${L ? `<div class="gh-lvl"><span class="gh-badge">Уровень ${L.n}</span><span class="gh-num">${L.next ? `${L.xp} / ${L.next}` : `${L.xp} · максимум`}</span></div><div class="gh-xp"><i style="width:${pct}%"></i></div>` : ''}</div></div>
     ${c.legend ? `<div class="g-legend">\uE000crown\uE001 ${esc(c.legend)}</div>` : ''}
     ${c.motto ? `<p class="gp-motto">«${esc(c.motto)}»</p>` : ''}

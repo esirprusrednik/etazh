@@ -1,6 +1,6 @@
 // Тема оформления: «авто» (как в телефоне), светлая или тёмная. Грузится до отрисовки, чтобы не мигало.
 (function () {
-  var COLORS = { light: '#F2F4F8', dark: '#0E1020' };
+  var COLORS = { light: '#ECE6DA', dark: '#0D1416' };
   var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
   function pref() { try { return JSON.parse(localStorage.getItem('etazh:theme')) || 'auto'; } catch (e) { return 'auto'; } }
   function apply() {
