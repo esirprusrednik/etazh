@@ -2843,3 +2843,19 @@ button.pm { border: 0; cursor: pointer; }
 .wave-call b { font-size: 16px; font-weight: 900; }
 .wave-call .small { text-wrap: pretty; }
 :root[data-theme="dark"] .wave-call { box-shadow: inset 0 0 0 1px var(--card-bd), var(--clay-drop); }
+
+/* ===== Личка: заголовок с лупой, лента подельников, переписки, подсказка, приглашение ===== */
+.dml-head { align-items: center; gap: 8px; padding-right: 16px; }
+.dml-head .page-head h1 { display: flex; align-items: center; gap: 10px; }
+.dml-head .chats-n { font-family: var(--font); font-size: 13px; }
+.dml-head .ph-find, .dml-head .dml-x { flex: none; width: 42px; height: 42px; margin: 0 0 8px; border-radius: 50%; display: grid; place-items: center; background: var(--card); color: var(--ink); border: 0; box-shadow: inset 0 1px 0 var(--clay-hi), inset 0 -3px 0 var(--clay-lo), var(--clay-drop); }
+.chats-dm { gap: 0; padding-top: 10px; padding-bottom: 6px; }
+.fav-row { display: flex; align-items: center; gap: 6px; margin: 0 -4px 6px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.fav-row .fav-strip { flex: 1 1 auto; min-width: 0; gap: 4px; padding: 2px 2px 0; scrollbar-width: none; -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent); }
+.fav-row .fav-strip::-webkit-scrollbar { display: none; }
+.fav-row .fav { width: 60px; font-size: 11px; }
+.fav-row .fav > span.ellipsis { max-width: 58px; }
+.fav-all { flex: none; height: 34px; padding: 0 12px; border: 0; border-radius: 999px; background: var(--s1); color: var(--ink); font: 800 13px var(--font); cursor: pointer; }
+.chats-dm .dm-line + .dm-line { border-top: 1px solid var(--line); }
+.chats-dm .chat-row { padding-top: 10px; padding-bottom: 10px; }
+main > .chats-hint { margin: 0 6px; text-align: center; }

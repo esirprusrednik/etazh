@@ -2794,7 +2794,7 @@ function renderChats() {
       <span class="ava-wrap"><span class="ava-ring" style="border-color:${color}">${avatar(x.look, 32)}</span>${x.where ? `<span class="ava-dot" style="background:${color}"></span>` : ''}</span>
       <span class="grow" style="min-width:0"><span class="chat-title">${x.crew ? '<span class="fav-star" title="Подельник">★</span> ' : ''}${nk(x)}</span><span class="where ellipsis ${x.unread ? 'unread' : ''}">${x.closed ? 'lock ' : ''}${x.last ? `${x.last.mine ? 'Ты: ' : ''}${esc(x.last.text || '')}` : esc(w)}</span></span>
       <span class="crew-side">${turn ? '<span class="crew-turn" title="Твой ход в морском бою">anchor</span>' : ''}${x.lastTime ? `<span class="small">${x.lastTime}</span>` : ''}${x.unread ? `<span class="crew-badge">${x.unread > 9 ? '9+' : x.unread}</span>` : ''}</span></button>
-      <button class="dm-x" data-act="dm-close" data-id="${x.id}" aria-label="${x.closed ? 'Убрать из списка' : 'Закрыть личку с ' + esc(x.nick)}" title="${x.closed ? 'Убрать из списка' : 'Закрыть личку'}">×</button></div>`;
+      ${x.closed ? `<button class="dm-x" data-act="dm-close" data-id="${x.id}" aria-label="Убрать из списка" title="Убрать из списка">×</button>` : ''}</div>`;
   };
   const gangs = c.items.filter((x) => x.type === 'gang');
   const dms = c.items.filter((x) => x.type !== 'gang');
@@ -2803,15 +2803,18 @@ function renderChats() {
   const gangList = gangs.length ? gangs.map(row).join('')
     : '<p class="sub chats-empty">Ты пока ни в одной банде. Сколоти свою — у неё будет общий чат и зовы на кофе и обед.</p><button class="btn" data-act="open" data-v="gang-new">Сколотить банду</button>';
   const favs = c.favorites || [];
-  const favStrip = `<div class="fav-head"><span class="small"><b>★ Подельники</b> · им можно писать всегда</span><button class="linkbtn" data-act="open" data-v="crew">${favs.length ? 'все' : '＋ добавить'}</button></div>
-    ${favs.length ? `<div class="fav-strip">${favs.map((f) => { const [, col] = whereText(f); return `<button class="fav" data-act="dm-open" data-id="${f.id}"><span class="ava-ring" style="border-color:${col}">${avatar(f.look, 40)}</span><span class="ellipsis">${nk(f)}</span></button>`; }).join('')}</div>` : ''}`;
-  const dmList = dms.length ? dms.map(row).join('')
-    : `<div class="empty-art">${art('dove', 84)}</div>` + '<p class="sub chats-empty">Голуби скучают. Напиши кому-нибудь — лично можно любому, кто не закрыл личку: найди по нику или открой карточку человека.</p>';
-  return `<div class="dml-head">${pageHead('Личка')}<button class="dml-x" data-act="dmlist-close" aria-label="Закрыть личку">✕</button></div>
-    ${findBar()}
+  // Подельники — короткой лентой над перепиской: нажал на лицо — пишешь
+  const favStrip = favs.length ? `<div class="fav-row"><div class="fav-strip">${favs.map((f) => { const [, col] = whereText(f); return `<button class="fav" data-act="dm-open" data-id="${f.id}" aria-label="Написать ${esc(f.nick)}"><span class="ava-ring" style="border-color:${col}">${avatar(f.look, 38)}</span><span class="ellipsis">${nk(f)}</span></button>`; }).join('')}</div><button class="fav-all" data-act="open" data-v="crew" aria-label="Все подельники">все</button></div>` : '';
+  const unreadFirst = [...dms].sort((p, q) => (q.unread ? 1 : 0) - (p.unread ? 1 : 0));
+  const list = dms.length ? unreadFirst.map(row).join('')
+    : `<div class="empty-art">${art('dove', 84)}</div><p class="sub chats-empty">Голуби скучают. Нажми на лупу, найди человека по нику и напиши — лично можно любому, кто не закрыл личку.</p>`;
+  const invite = `<button class="invite-mini" data-act="crew-share" aria-label="Позвать коллегу в Этаж, +15 зёрен за новичка"><span class="im-ico" aria-hidden="true">\uE000mail\uE001</span><span class="im-t">Позвать коллегу в Этаж</span><span class="im-pill">+15 ${BEAN}</span><span class="im-go" aria-hidden="true">›</span></button>`;
+  // Порядок: кто ждёт ответа → кому написать быстро → все переписки → приглашение. Поиск и «написать» — одна лупа в заголовке
+  return `<div class="dml-head">${pageHead('Личка' + (dmUnread ? ` <span class="chats-n hot">${dmUnread}</span>` : ''))}<button class="icon-btn ph-find" data-act="find-open" aria-label="Найти человека и написать">${ico('search', 20)}</button><button class="dml-x" data-act="dmlist-close" aria-label="Закрыть личку">✕</button></div>
     ${reqs}
-    ${store.get('inviteShared') ? `<button class="invite-mini" data-act="crew-share" aria-label="Позвать коллегу в Этаж, +15 зёрен за новичка"><span class="im-ico" aria-hidden="true">mail</span><span class="im-t">Позвать коллегу в Этаж</span><span class="im-pill">+15 ${BEAN}</span><span class="im-go" aria-hidden="true">›</span></button>` : `<button class="invite-app" data-act="crew-share"><span class="grow"><b>Позвать коллегу в Этаж</b><span class="small">Личная ссылка: придёт — сразу будете на связи. +15 зёрен за каждого новичка</span></span><span aria-hidden="true">mail</span></button>`}
-    <section class="card chats chats-dm">${head('Переписки', dmUnread ? `${dmUnread} ${plural(dmUnread, 'новое', 'новых', 'новых')}` : '', 'dm-pick', 'Написать', true)}${favStrip}<p class="small chats-hint">Один на один · видите только вы двое · × закрывает переписку у обоих</p>${dmList}</section>`;
+    <section class="card chats chats-dm">${favStrip}${list}</section>
+    <p class="small chats-hint">Переписку видите только вы двое. Закрыть её можно внутри — она удалится у обоих.</p>
+    ${invite}`;
 }
 
 // ===== Вкладка «Офис»: столовая, Доска, сигналы и лента =====
