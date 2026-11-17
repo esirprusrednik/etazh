@@ -2288,18 +2288,34 @@ function renderPeople() {
       <div class="row">${g0 ? `<button class="btn grow" data-act="gang-invite" data-id="${S.activeGang || g0.id}">Позвать своих</button>` : '<button class="btn grow" data-act="open" data-v="gang-new">Сколотить банду</button>'}</div></section>`;
   }
   const st = S.state;
+  // Список не должен расти вместе с бандой. Кто рядом — видны сразу, но не больше нескольких строк на группу;
+  // кто отдыхает и кто не отметился — одной строкой с аватарами, раскрываются по нажатию.
+  // Последнее число — сколько строк видно сразу: 0 — группа свёрнута целиком
   const groups = [
-    ['Со мной в офисе', (p) => st.checkin && p.where === 'office' && p.office === st.checkin.office],
-    ['В офисе', (p) => p.where === 'office' || p.where === 'plan_office'],
-    ['Работают из дома', (p) => p.where === 'home' || p.where === 'slack'],
-    ['Отдыхают', (p) => p.where === 'vacation' || p.where === 'sick'],
-    ['Пока не отметились', () => true]
+    ['here', 'Со мной в офисе', (p) => st.checkin && p.where === 'office' && p.office === st.checkin.office, 6],
+    ['office', 'В офисе', (p) => p.where === 'office' || p.where === 'plan_office', 4],
+    ['home', 'Работают из дома', (p) => p.where === 'home' || p.where === 'slack', 3],
+    ['rest', 'Отдыхают', (p) => p.where === 'vacation' || p.where === 'sick', 0],
+    ['none', 'Пока не отметились', () => true, 0]
   ];
   const left = [...ps];
-  const html = groups.map(([title, test]) => {
+  const openG = S.pgOpen || {};
+  const html = groups.map(([key, title, test, lim]) => {
     const g = left.filter(test);
     for (const x of g) left.splice(left.indexOf(x), 1);
-    return g.length ? `<div class="pgroup"><div class="eyebrow">${title} · ${g.length}</div>${g.map(personRow).join('')}</div>` : '';
+    if (!g.length) return '';
+    // Кто написал и ждёт ответа — виден всегда, даже в свёрнутой группе
+    const urgent = g.filter((p) => p.unread);
+    const open = !!openG[key];
+    const stack = `<span class="pg-avas" aria-hidden="true">${g.slice(0, 6).map((p) => avatar(p.look, 26)).join('')}</span>`;
+    if (!lim) {
+      return `<div class="pgroup ${open ? 'open' : 'fold'}"><button class="pg-fold" data-act="pg-toggle" data-v="${key}" aria-expanded="${open}"><span class="eyebrow">${title} · ${g.length}</span>${open ? '' : stack}<span class="chev" aria-hidden="true">${open ? '⌃' : '⌄'}</span></button>
+        ${(open ? g : urgent).map(personRow).join('')}</div>`;
+    }
+    const first = open ? g : [...urgent, ...g.filter((p) => !p.unread)].slice(0, Math.max(lim, urgent.length));
+    const rest = g.length - first.length;
+    return `<div class="pgroup"><div class="eyebrow">${title} · ${g.length}</div>${first.map(personRow).join('')}
+      ${rest > 0 ? `<button class="pg-more" data-act="pg-toggle" data-v="${key}"><span class="pg-avas" aria-hidden="true">${g.filter((p) => !first.includes(p)).slice(0, 6).map((p) => avatar(p.look, 26)).join('')}</span><span>Ещё ${rest}</span><span class="chev" aria-hidden="true">⌄</span></button>` : open && g.length > lim ? `<button class="pg-more" data-act="pg-toggle" data-v="${key}"><span>Свернуть</span><span class="chev" aria-hidden="true">⌃</span></button>` : ''}</div>`;
   }).join('');
   const nl = S.state && S.state.nameLock;
   const nameStrip = nl ? `<button class="week-lock-strip" data-act="open-sec" data-v="name">${ico('lock', 16)}<span>Имена коллег скрыты: ${nl.named} из ${nl.total} ${plural(nl.total, 'бандита', 'бандитов', 'бандитов')} указали имя, и ты видишь только ники. <b>Указать своё →</b></span></button>` : '';
@@ -2893,7 +2909,7 @@ const compOpen = () => !!S.compOpen;
 function collapseAll() {
   S.awayOpen = false; S.compOpen = false; S.nearMore = false; S.todoOpen = false; S.todoDoneOpen = false; S.todoAdd = false;
   S.callsOpen = false; S.questOpen = null; S.fridayOpen = false; S.hintOpen = {}; S.guideOpen = null; S.shopOwnOpen = false;
-  S.boardAll = false; S.feedAll = false; S.membersAll = false; S.thxAll = false; S.lunchAll = false;
+  S.boardAll = false; S.feedAll = false; S.membersAll = false; S.thxAll = false; S.lunchAll = false; S.pgOpen = {};
   S.sec.clear();
 }
 function renderComp() {
@@ -7119,6 +7135,7 @@ const actions = {
   'blitz-reload'() { try { sessionStorage.setItem('etazh:blitzResume', S.blitzPrac ? 'p' : '1'); } catch {} location.reload(); },
   'splash-skip'() { if (S.splashDone) { sfx('stairs'); S.splashDone(); } },
   'away-toggle'() { S.awayOpen = !S.awayOpen; render(); },
+  'pg-toggle'(el) { S.pgOpen = { ...(S.pgOpen || {}), [el.dataset.v]: !(S.pgOpen || {})[el.dataset.v] }; render(); },
   'todo-open'() { S.todoOpen = true; render(); setTimeout(() => { const i = $('#todo-text'); if (i) i.focus(); }, 50); },
   'comp-toggle'() { S.compOpen = !compOpen(); render(); },
   close() { const wasBlitz = S.sheet === 'blitz'; collapseAll(); S.sheet = null; S.error = ''; if (wasBlitz) endPractice(); render(); },
