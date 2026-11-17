@@ -35,13 +35,29 @@ const S = {
 // ---------- API ----------
 // Когда последний раз ходили на сервер. Если давно — «пульс» ниже отправит крошечный запрос, чтобы соединение не уснуло
 let lastNet = Date.now();
+const pulse = { ok: 0, fail: 0, ms: 0, at: 0, open: 0 };
 setInterval(() => {
   if (document.hidden || !S.me || !S.me.nick) return;
   const gap = S.sheet === 'blitz' && S.blitz && S.blitz.state === 'play' ? 4000 : 9000; // в блице тишина дороже всего: время идёт
   if (Date.now() - lastNet < gap) return;
   lastNet = Date.now();
-  fetch('/api/ping', { credentials: 'same-origin', cache: 'no-store' }).catch(() => {});
+  const t = performance.now(); pulse.open++;
+  fetch('/api/ping', { credentials: 'same-origin', cache: 'no-store' }).then((r) => r.text().then(() => { pulse[r.ok ? 'ok' : 'fail']++; pulse.ms = Math.round(performance.now() - t); pulse.at = Date.now(); })).catch(() => { pulse.fail++; }).finally(() => { pulse.open--; });
+  try { if (performance.getEntriesByType('resource').length > 150) performance.clearResourceTimings(); } catch {}
 }, 1000);
+// Где запрос потерял время: запуск service worker, установка соединения, ожидание сервера. Берём из журнала самого браузера
+function netDiag(part) {
+  try {
+    const e = performance.getEntriesByType('resource').filter((x) => x.name.includes(part)).pop();
+    if (!e) return part + ': нет записи';
+    const r = (a, b) => (a && b ? Math.round(b - a) : '-');
+    return `${e.nextHopProtocol || '?'} всего ${Math.round(e.duration)} sw ${e.workerStart ? r(e.workerStart, e.fetchStart) : 'нет'} соед ${e.connectEnd > e.connectStart ? r(e.connectStart, e.connectEnd) + ' новое' : 'старое'} до-отправки ${r(e.fetchStart, e.requestStart)} сервер ${r(e.requestStart, e.responseStart)} тело ${r(e.responseStart, e.responseEnd)}`;
+  } catch (err) { return 'нет данных'; }
+}
+function netState() {
+  const c = navigator.connection || {};
+  return `пульс ok ${pulse.ok} сбой ${pulse.fail} висит ${pulse.open} посл ${pulse.ms} мс ${pulse.at ? Math.round((Date.now() - pulse.at) / 1000) + ' с назад' : 'не было'} · сеть ${navigator.onLine ? 'on' : 'OFF'} ${c.effectiveType || ''} rtt ${c.rtt != null ? c.rtt : '?'} · sw ${navigator.serviceWorker && navigator.serviceWorker.controller ? 'есть' : 'нет'}`;
+}
 async function api(method, url, body, waitMs) {
   lastNet = Date.now();
   // Мобильная сеть иногда «залипает»: без ответа за 20 секунд (45 — для больших отправок) обрываем, чтобы кнопки не висели
@@ -68,8 +84,8 @@ async function api(method, url, body, waitMs) {
 }
 // Ошибка в коде на чужом телефоне: шлём на сервер текст и место (без пользователя), не больше пяти за запуск
 let errSent = 0;
-function reportError(msg, place) {
-  if (errSent >= 5 || !S.me) return; errSent++;
+function reportError(msg, place, extraBudget) {
+  if (errSent >= (extraBudget ? 25 : 5) || !S.me) return; errSent++;
   try {
     fetch('/api/client-error', { method: 'POST', credentials: 'same-origin', keepalive: true, headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ msg: String(msg || '').slice(0, 300), place: String(place || '').slice(0, 200), build: S.build || '', screen: `${S.tab || ''}/${S.sheet || ''}` }) }).catch(() => {});
@@ -4868,6 +4884,7 @@ function renderBlitzPlay() {
     <div class="bl-bar"><i id="bl-bar" style="width:${pct}%"></i></div>
     ${b.practice ? '<p class="small" style="margin:-8px 0 8px">Тренировка — без рейтинга и зёрен</p>' : ''}
     <p class="bl-q">${esc(qn.text)}</p>
+    ${S.blitzDiag && S.me.isAdmin ? `<p class="small bl-diag">${esc(S.blitzDiag)}</p>` : ''}
     ${S.blitzStuck && !S.blitzOver ? '<button class="btn ghost wide bl-reload" data-act="blitz-reload">Кнопки не отвечают? Перезапустить блиц</button><p class="small" style="margin:6px 0 10px;text-align:center">Ответы сохранены, вернёшься на тот же вопрос</p>' : ''}
     ${S.blitzOver ? '<div class="note warn bl-over">Время вышло — считаем итог…</div>' : `<div class="bl-opts">${qn.options.map((o, i) => `<button class="gopt bl-opt ${fb && fb.n === qn.n ? (i === fb.right ? 'ok' : i === fb.pick ? 'bad' : 'dim') : S.blitzPend && S.blitzPend.n === qn.n ? (i === S.blitzPend.pick ? 'pend' : 'dim') : ''}" data-act="blitz-pick" data-n="${qn.n}" data-v="${i}" ${fb && fb.n === qn.n ? 'disabled' : ''}>${esc(o)}</button>`).join('')}</div>`}`;
 }
@@ -6914,13 +6931,20 @@ const actions = {
     const hard = (ms, what) => new Promise((_, no) => setTimeout(() => no(new Error('HANG:' + what)), ms));
     const send = (ms, what) => Promise.race([api('POST', url, S.blitzPrac ? { n, pick, practice: true } : { n, pick }, ms), hard(ms + 1000, what)]);
     const netFail = (e) => /^HANG:|Сервер долго|Нет связи/.test(e.message);
+    const t0 = performance.now(); let tries = 1;
+    const diag = (how) => {
+      const ms = Math.round(performance.now() - t0);
+      if (ms < 2500 && how === 'ok') { S.blitzDiag = ''; return; }
+      S.blitzDiag = `вопрос ${n}: ${how}, ${(ms / 1000).toFixed(1)} с, попыток ${tries} · ответ: ${netDiag('/answer')} · пульс: ${netDiag('/api/ping')} · ${netState()}`;
+      reportError('blitz медленно: ' + S.blitzDiag.slice(0, 280), S.blitzDiag.slice(280, 480), true);
+    };
     run(async () => {
       try {
         let r;
         try { r = await send(4000, 'answer1'); }
         catch (e) {
           if (!netFail(e)) throw e;
-          reportError('blitz: ' + e.message, 'попытка 1');
+          reportError('blitz: ' + e.message, 'попытка 1'); tries = 2;
           try { r = await send(4500, 'answer2'); }
           catch (e2) {
             if (!netFail(e2)) throw e2;
@@ -6935,12 +6959,13 @@ const actions = {
                 if (v.state === 'done') clearInterval(blitzTimer);
               }
             } catch (e3) { reportError('blitz: ' + e3.message, 'сверка'); }
-            if (moved) { reportError('blitz: ответ дошёл, подтверждение потерялось', 'сверка'); return; }
-            S.blitzStuck = true;
+            if (moved) { diag('ответ дошёл, подтверждение потерялось'); return; }
+            diag('не дошёл'); S.blitzStuck = true;
             throw new Error('Ответ не дошёл: связь с сервером пропала. Нажми вариант ещё раз.');
           }
         }
         if (!mine()) return;
+        diag('ok');
         S.blitzPend = null; S.blitzStuck = false;
         if (r.result) {
           S.blitzFb = { n, pick, right: r.result.right };

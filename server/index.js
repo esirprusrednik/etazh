@@ -120,6 +120,10 @@ setInterval(() => {
   try { api.cleanup(); } catch (e) { console.error('[cleanup]', e); }
 }, 10 * 60e3).unref();
 
+// Перед нами прокси (Caddy), который держит соединения с нами открытыми про запас. По умолчанию Node закрывает
+// простаивающее соединение через 5 секунд — прокси может успеть отправить в него запрос. Держим дольше, чем прокси
+server.keepAliveTimeout = 125e3;
+server.headersTimeout = 130e3;
 server.listen(config.port, () => {
   console.log(`Этаж слушает :${config.port} (${config.baseUrl}), почта: ${config.mailMode}, пуши: ${config.vapid.publicKey ? 'вкл' : 'выкл'}`);
 });

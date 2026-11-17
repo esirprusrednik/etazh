@@ -4,12 +4,19 @@
 		output stderr
 		level ERROR
 	}
+	# HTTP/3 выключен: он ходит по UDP 443, а наружу открыт только TCP (docker-compose, ufw). Caddy по умолчанию всё равно
+	# объявлял клиентам «у меня есть HTTP/3», и браузеры время от времени стучались в закрытый порт
+	servers {
+		protocols h1 h2
+	}
 }
 
 {$DOMAIN} {
 	encode zstd gzip
 	header {
 		Strict-Transport-Security "max-age=31536000"
+		# Браузеры запоминают объявление HTTP/3 на месяц — просим забыть
+		Alt-Svc "clear"
 		-Server
 	}
 	reverse_proxy app:3000 {

@@ -103,6 +103,9 @@ echo "IP сервера: ${MYIP:-?}  ·  $DOMAIN указывает на: ${DNSI
 
 say "7/7 Запуск и бэкапы"
 docker compose up -d --build
+# Caddyfile подключён в контейнер файлом: сам Caddy изменения не подхватывает. Перечитываем без остановки;
+# если в настройках ошибка, Caddy остаётся на прежних и сайт не падает
+docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile >/dev/null 2>&1 && echo "Caddy: настройки перечитаны." || echo "⚠️  Caddy не принял новые настройки и работает на прежних: docker compose logs caddy | tail"
 chmod +x scripts/backup.sh
 CRON="15 3 * * * $APP_DIR/scripts/backup.sh >> /var/log/etazh-backup.log 2>&1"
 ( crontab -l 2>/dev/null | grep -v 'etazh/scripts/backup.sh'; echo "$CRON" ) | crontab -
