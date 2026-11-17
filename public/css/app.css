@@ -2596,3 +2596,10 @@ main > .top-strip { margin: 6px 0 0; width: 100%; opacity: .8; }
 .about .about-strip { margin: 0 0 12px; width: 100%; text-align: left; }
 .about-strip .ts-nums { text-align: left; }
 .about-strip .chev { font-size: 18px; color: var(--muted); }
+
+/* Ряд зовов: пятая плитка «Объявить» */
+.qcalls { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.qcall { font-size: 11.5px; padding: 4px 2px; }
+.sig-strip { width: 100%; text-align: left; font: inherit; cursor: pointer; }
+.sig-strip .small { display: block; }
+.sig-strip .chev { font-size: 22px; color: var(--muted); padding-right: 6px; }

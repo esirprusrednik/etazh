@@ -1833,7 +1833,7 @@ async function refresh({ all = false } = {}) {
   if (all || t === 'near') jobs.push(loadBoard(), loadPeople(), loadMatch(), loadTodos(), S.fx ? Promise.resolve() : loadFeatures().catch(() => {}));
   if (all || t === 'near' || t === 'office' || t === 'games') jobs.push(loadFeatures());
   if (all || t === 'near' || t === 'games') jobs.push(loadAdvent());
-  if (all || t === 'chats') jobs.push(loadChats());
+  if (all || t === 'chats') jobs.push(loadChats(), loadBoard());
   if (all || t === 'chats' || t === 'games') jobs.push(loadCrew());
   if (inGang()) ensureGang();
   if (all || inGang() || t === 'games') jobs.push(loadGang(), loadGangExtra());
@@ -2116,7 +2116,7 @@ function renderApp() {
   <div class="app">
     <header class="top">
       <button class="who" data-act="open" data-v="profile" aria-label="Мой профиль">
-        <span class="me-ava ${S.coach === 1 ? 'coach-focus' : ''}">${b.feedback ? '<span class="bdot" aria-hidden="true"></span>' : ''}${me.completion && me.completion.pct < 100 ? `<span class="pring sm" style="--p:${me.completion.pct}" title="Профиль заполнен на ${me.completion.pct}%">${avatar(me.look, 40)}</span>` : avatar(me.look, 40)}</span>
+        <span class="me-ava ${S.coach === 1 ? 'coach-focus' : ''}">${b.feedback || b.feed ? '<span class="bdot" aria-hidden="true"></span>' : ''}${me.completion && me.completion.pct < 100 ? `<span class="pring sm" style="--p:${me.completion.pct}" title="Профиль заполнен на ${me.completion.pct}%">${avatar(me.look, 40)}</span>` : avatar(me.look, 40)}</span>
         <span style="min-width:0;display:flex;flex-direction:column;gap:3px">
           <span class="nick-row"><span class="nick">${nk(me)}</span><span class="chev" aria-hidden="true">›</span></span>
           <span class="row" style="gap:6px">
@@ -2316,7 +2316,7 @@ function renderNear() {
   // Столовая видна тем, кто отметился в офисе: в обед (11:30–14:30) — сразу под зовами, в остальное время — под людьми
   const hm = new Date().getHours() * 60 + new Date().getMinutes();
   const lunchNow = hm >= 690 && hm <= 870;
-  const canteen = S.state.checkin && S.state.canteen ? renderCanteen() : '';
+  const canteen = S.state.checkin ? (S.state.canteen ? renderCanteen() : '') + renderSignalsMini() : '';
   const pr = S.me.look.prank && S.me.look.prank.until > Date.now() ? S.me.look.prank : null;
   const prankStrip = pr ? `<div class="prank-strip">${avatar(S.me.look, 34)}<span class="grow"><b>${esc(pr.from)} тебя ${pr.f ? 'разыграла' : 'разыграл'}</b><span class="small">${{ coffee: 'Кофе на одежде', sticker: 'Стикер на лбу', phones: 'Наушники с рок-музыкой' }[pr.v] || 'Подлянка'} — до ${new Date(pr.until).toTimeString().slice(0, 5)}</span></span><button class="btn small" data-act="prank-off">Снять</button></div>` : '';
   // Порядок: сначала свои люди. Без банды всё остальное пусто, поэтому первым идёт «Позови своих»;
@@ -2328,29 +2328,35 @@ function renderNear() {
     ${renderStatusBlock()}
     ${aboutCard}
     ${renderPushNudge()}
-    ${!noGang && S.people && !S.people.length ? findBar() : ''}
     ${renderQuickCalls()}
     ${renderLunchCard()}
     ${lunchNow ? canteen : ''}
     ${renderWeekNote()}
+    ${renderFloorBoard()}
+    ${noGang ? '' : findBar()}
     ${noGang ? '' : renderPeople()}
     ${lunchNow ? '' : canteen}
-    ${boardLive() ? renderBoardCard() : ''}
     ${noGang ? '' : renderTodos()}
     ${renderBirthdays()}
     ${renderAdvent(true)}
-    ${renderNearMore()}
-    ${renderFloorMore()}`;
+    ${renderNearMore()}`;
 }
-// То, что раньше жило на вкладке «Офис» и нужно не каждый день: открывается по нажатию
-const boardLive = () => !!(S.board && S.board.items.some((x) => x.kind !== 'lunch' && (!x.expiresAt || x.expiresAt > Date.now())));
-function renderFloorMore() {
-  const fb = (S.state && S.state.badges && S.state.badges.feed) || 0;
-  const row = (v, icon, title, sub, n) => `<button class="floor-row" data-act="open" data-v="${v}"><span class="st-ico">${ico(icon, 18)}</span><span class="grow"><b>${title}</b><span class="small">${sub}</span></span>${n ? `<span class="badge">${n > 9 ? '9+' : n}</span>` : ''}<span class="chev" aria-hidden="true">›</span></button>`;
-  return `<section class="card floor-more"><div class="eyebrow">Ещё на Этаже</div>
-    ${boardLive() ? '' : row('board', 'megaphone', 'Доска объявлений', 'Пока пусто: «отдам билеты», «на кухне яблоки»')}
-    ${row('experts', 'help', 'Кто знает?', 'Найти, кто за что отвечает')}
-    ${row('events', 'spark', 'События и сигналы офиса', 'Что случилось с тобой и что сломалось на этаже', fb)}
+// Доска делится по тому, кому объявление: всем (офис, весь Этаж) — на «Рядом», пока оно живое; своим — в «Жизни» банды
+const boardItems = (gangId) => ((S.board && S.board.items) || [])
+  .filter((x) => x.kind !== 'lunch' && (!x.expiresAt || x.expiresAt > Date.now()) && (gangId ? x.gang && x.gang.id === gangId : !x.gang))
+  .sort((p, q) => (!!q.expiresAt - !!p.expiresAt) || q.at - p.at);
+function renderFloorBoard() {
+  const items = boardItems();
+  if (!items.length) return '';
+  return `<section class="card bboard"><div class="chats-head"><h3 class="has-art">${art('megaphone', 28)}Объявления</h3><button class="linkbtn" data-act="board-new" data-v="other">＋ Объявить</button></div>
+    ${items.slice(0, S.boardAll ? 100 : 3).map(boardRow).join('')}
+    ${items.length > 3 && !S.boardAll ? `<button class="linkbtn" data-act="board-all">Ещё ${items.length - 3}</button>` : ''}
+  </section>`;
+}
+function renderGangBoard(g) {
+  const items = boardItems(g.id);
+  return `<section class="card bboard"><div class="chats-head"><h3>Только для своих</h3><button class="linkbtn" data-act="board-new" data-v="other" data-scope="gang">＋ Объявление</button></div>
+    ${items.length ? items.map(boardRow).join('') : '<p class="small" style="margin:0">«Скинемся на торт», «Отдам монитор», «Кто завтра в офисе?» — увидит только банда.</p>'}
   </section>`;
 }
 // Человек без банды: одно дело на экране — позвать своих или найти банду
@@ -2603,7 +2609,14 @@ function renderBoardNew() {
     <p class="small" style="margin:0">${audience} ${life}</p>
     <button class="btn" data-act="board-save" ${lunch && !times.length ? 'disabled' : ''}>${lunch ? 'Позвать на обед' : 'Повесить'}</button>`;
 }
-const findBar = () => `<button class="find-bar" data-act="find-open">${ico('search', 18)}<span>Найти: ник, имя или почта</span></button>`;
+const findBar = () => `<button class="find-bar" data-act="find-open">${ico('search', 18)}<span>Найти: ник, имя или тема</span></button>`;
+const expertRow = (p) => `<div class="expert">
+      ${tap(p.id, avatar(p.look, 40))}
+      <div class="grow" style="min-width:0"><div class="ex-head"><b>${esc(p.name || p.nick)}</b>${p.name ? `<span class="small">${nk(p)}</span>` : ''}</div>
+        ${p.role ? `<div class="small ex-role">${esc(p.role)}</div>` : ''}
+        <div class="chips">${p.allTags.map((t) => `<span class="chip ask-chip ${p.tags.includes(t) ? 'on' : ''}">${esc(t)}</span>`).join('')}</div>
+        <div class="small">${p.office ? esc(p.office) : 'офис не указан'}${p.officeDay ? ` · в офисе ${esc(p.officeDay)}` : ''}</div></div>
+      <button class="btn small ghost" data-act="dm-open" data-id="${p.id}" aria-label="Написать ${esc(p.nick)}">chat</button></div>`;
 
 function renderFind() {
   const f = S.find || {};
@@ -2616,9 +2629,18 @@ function renderFind() {
     return `<div class="find-row"><div class="person2">${tap(x.id, avatar(x.look, 40))}<div class="grow" style="min-width:0"><div style="font-weight:900">${nk(x)}</div>
       <div class="where ellipsis">${[x.company ? `из ${x.company}` : '', x.name, x.status, x.shared.length ? 'в банде ' + x.shared.join(', ') : ''].filter(Boolean).map(esc).join(' · ') || 'пока не в твоих бандах'}</div></div>${act}</div>
       ${inv ? `<div class="chips">${inv}</div>` : ''}</div>`;
-  }).join('') : `<p class="sub">${esc(f.hint || 'Никого не нашли')}</p>`) : '<p class="small">Ник — по части, например «енот». Имя — только если человек открыл его всем. Почта — целиком, например ivanov@вашакомпания.ru. Коллег из другой компании ищем только по нику целиком или по почте. Мы сравниваем отпечаток и сами адреса не храним.</p>';
-  return `<div class="row"><label class="field grow" style="gap:0"><span class="hidden">Ник, имя или почта</span><input id="find-q" maxlength="80" autocapitalize="off" autocomplete="off" placeholder="Ник, имя или рабочая почта" value="${esc(f.q || '')}" aria-label="Ник, имя или рабочая почта"></label><button class="btn" data-act="find-go">Найти</button></div>
+  }).join('') : (f.topics && f.topics.length ? '' : `<p class="sub">${esc(f.hint || 'Никого не нашли')}</p>`)) : '<p class="small">Ник — по части, например «енот». Тема — «парковка», «Jira»: найдём, кто за это отвечает. Имя — только если человек открыл его всем. Почта — целиком. Коллег из другой компании ищем только по нику целиком или по почте.</p>';
+  // «Кто знает?» — тот же поиск: по темам из профилей («Спроси меня про») и по роли
+  const pop = (S.experts && S.experts.popular) || [];
+  const topics = f.topics && f.topics.length ? `<div class="g-group" style="margin-top:6px">Знают про «${esc(f.q)}»</div>${f.topics.map(expertRow).join('')}` : '';
+  const tags = !f.items && pop.length ? `<div class="chips">${pop.map((t) => `<button class="chip ask-chip" data-act="find-tag" data-v="${esc(t)}">${esc(t)}</button>`).join('')}</div>` : '';
+  const mp = (S.me && S.me.profile) || {};
+  const mineEmpty = !((mp.askMe && mp.askMe.length) || mp.role);
+  return `<div class="row"><label class="field grow" style="gap:0"><span class="hidden">Ник, имя, почта или тема</span><input id="find-q" maxlength="80" autocapitalize="off" autocomplete="off" placeholder="Ник, имя или тема: «парковка»" value="${esc(f.q || '')}" aria-label="Ник, имя, почта или тема"></label><button class="btn" data-act="find-go">Найти</button></div>
+    ${tags}
     ${res}
+    ${topics}
+    ${mineEmpty ? '<button class="week-lock-strip" data-act="open-sec" data-v="work">' + ico('help', 16) + '<span>Тебя тоже могут искать по теме: заполни «Чем занимаюсь» и «Спроси меня про». <b>Заполнить →</b></span></button>' : ''}
     <p class="small" style="margin:0">Позвать можно только в свою банду — человек сам решит, вступать ли. Не хочешь, чтобы тебя находили, — выключи в профиле: «Приватность, звук и уведомления».</p>`;
 }
 
@@ -2963,6 +2985,7 @@ function renderQuickCalls() {
   const items = [['coffee', 'На кофе', '#8B5A2B', '#5E3B1A'], ['lunch', 'На обед', '#1F7A3A', '#155C2B'], ['where', 'Ты где?', '#0E7490', '#0A5468']];
   return `<section class="qcalls" aria-label="Быстрые зовы банде">
     ${items.map(([k, label, bg, shade]) => `<button class="qcall" style="--c:${bg}" data-act="call-open" data-kind="${k}" data-gang="${gang}">${art({ coffee: 'coffee', lunch: 'lunch', where: 'pin' }[k], 34)}${label}</button>`).join('')}
+    <button class="qcall" style="--c:#7C3AED" data-act="board-new" data-v="other">${art('megaphone', 34)}Объявить</button>
     <button class="qcall" style="--c:#6B7594" data-act="gang-open" data-id="${gang}">${ico('more', 22)}Ещё</button>
   </section>${renderQuickExtra(gang)}`;
 }
@@ -3055,6 +3078,8 @@ function renderSignalsMini() {
   const ev = S.events;
   if (!ev || !ev.office) return '';
   const list = ev.signals.slice(0, 2);
+  // Тихо — одна строка, а не карточка с объяснением
+  if (!list.length) return `<button class="st-strip sig-strip" data-act="open" data-v="signal"><span class="st-ico">${ico('alert', 18)}</span><span class="grow"><b>В офисе всё спокойно</b><span class="small">Что-то сломалось или кончился кофе? Сообщи всем</span></span><span class="chev" aria-hidden="true">›</span></button>`;
   return `<section class="card">
     <div class="row" style="justify-content:space-between">
       <span class="card-title">Сигналы офиса</span>
@@ -4011,7 +4036,7 @@ function renderGang() {
   if (cv && !cv.my && !cv.mine) life.push(['shield', 'Голосуем за новый герб', 'Твой голос решает', '.cv']);
   const reqN = (v.requests || []).length;
   const tab = S.gangTab || 'chat';
-  const tabs = `<div class="g-tabs" role="tablist">${[['chat', 'Чат', 0], ['life', 'Жизнь', 0], ['crew', 'Банда', reqN]].map(([k, l, n]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" data-act="gang-tab" data-v="${k}">${l}${n ? `<i>${n}</i>` : ''}</button>`).join('')}</div>`;
+  const tabs = `<div class="g-tabs" role="tablist">${[['chat', 'Чат', 0], ['life', 'Жизнь', 0], ['crew', 'Состав', reqN]].map(([k, l, n]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" data-act="gang-tab" data-v="${k}">${l}${n ? `<i>${n}</i>` : ''}</button>`).join('')}</div>`;
   const head = `<section class="card g-head" style="${g.gold ? 'border:3px solid #FFC93C' : ''}">
     ${gst(g).cardbg ? `<div class="g-banner ${gst(g).cardbg}" aria-hidden="true"></div>` : ''}
     <div class="row"><button class="crest-btn ${auraCls(g)}" data-act="crest-open" data-ctx="vote" aria-label="Предложить новый герб банды">${crestSvg(crestOf(g), { size: 78, full: true })}<i aria-hidden="true">✎</i></button><div class="grow" style="min-width:0"><h2 style="margin:0">${gangName(g)}</h2><span class="small">${g.floor ? g.floor + ' этаж · ' : ''}${g.area ? esc(g.area) + ' · ' : ''}${v.gang.count}${g.max ? '/' + g.max : ''} ${plural(v.gang.count, 'участник', 'участника', 'участников')}${g.league && g.league.place ? ` · ${MEDAL[g.league.place - 1] || ''} ${g.league.place} место в Лиге` : ''}</span></div>
@@ -4042,7 +4067,7 @@ function renderGang() {
       ${micBtn('gang')}<button class="btn" data-act="chat-send" aria-label="Отправить">→</button></div>${recBar('gang')}
   </section>`;
   // ----- Жизнь: всё, что банда делает вместе
-  const lifeTab = `<div class="g-group">События</div>${w && w.active && w.active.mine ? renderWave() : ''}${renderGEvents()}${renderSanta()}${renderGangBirthdays()}${w && !w.active ? renderWave() : ''}<div class="g-group">Опросы</div>${renderPolls()}${renderCrestVote()}`;
+  const lifeTab = `<div class="g-group">События</div>${w && w.active && w.active.mine ? renderWave() : ''}${renderGEvents()}${renderSanta()}${renderGangBirthdays()}${w && !w.active ? renderWave() : ''}<div class="g-group">Объявления</div>${renderGangBoard(g)}<div class="g-group">Опросы</div>${renderPolls()}${renderCrestVote()}`;
   // ----- Банда: кто мы, люди, неделя, казна, лига, битвы
   // «Банда на неделе» — первой: кто когда в офисе важнее описания банды
   const crewTab = `${renderCrewWeek(v, g)}
@@ -4463,10 +4488,10 @@ function renderDmMsg(m, f) {
 }
 
 // ----- События -----
-function renderFeed() {
+function renderFeed(onlyMine = false) {
   const ev = S.events;
   if (!ev) return '<div class="card"><p class="sub">Загружаем…</p></div>';
-  const sig = ev.office
+  const sig = ev.office && !onlyMine
     ? `<section class="card">
         <div class="row"><h3 class="grow">alert Сигналы офиса</h3><button class="btn small" data-act="open" data-v="signal">Сообщить</button></div>
         ${ev.signals.length ? ev.signals.map((s) => `<div class="item"><div class="grow">
@@ -4736,9 +4761,7 @@ function renderSheet() {
     case 'gang-settings': return sheetWrap('Настройки банды', renderGangSettings());
     case 'crew': return sheetWrap('Подельники', renderCrew());
     case 'stats': return sheetWrap('Этаж сегодня', renderStats());
-    case 'board': return sheetWrap('Доска', renderBoardCard());
-    case 'experts': return sheetWrap('Кто знает?', renderExperts());
-    case 'events': return sheetWrap('События', renderFeed());
+    case 'events': return sheetWrap('Мои события', renderFeed(true));
     case 'about': store.set('aboutSeen', true); return sheetWrap('Об Этаже', aboutHtml());
     case 'style': return sheetWrap('Мой стиль', renderStyle());
     case 'battery': return sheetWrap('Батарейка недели', renderBattery());
@@ -5860,6 +5883,7 @@ function renderProfile() {
   const pushState = !('Notification' in window) ? 'unsupported' : Notification.permission;
   const name = [p.firstName, p.lastName].filter(Boolean).join(' ');
   const got = S.fx ? S.fx.achievements.filter((a) => a.got).length : null;
+  const b0 = (S.state && S.state.badges) || {};
   const planDays = (k) => S.cat.days.filter((d) => p.plan[d] === k);
   const plan = [planDays('office').length ? `${planDays('office').join(' ')} — офис` : '', planDays('home').length ? `${planDays('home').join(' ')} — дома` : ''].filter(Boolean).join(', ') || 'план не заполнен';
   const office = (S.cat.offices.find((o) => o.id === p.home) || {}).name;
@@ -5958,6 +5982,7 @@ function renderProfile() {
     ${section('vac', 'Отпуска', p.vacations.length ? p.vacations.map((v) => `${ddmm(v.from)}–${ddmm(v.to)}`).join(', ') : 'не запланированы', vacBody)}
     ${section('about', 'О себе', [p.about && esc(p.about), p.bday && 'ДР ' + esc(p.bday)].filter(Boolean).join(' · ') || 'интересы, пара слов, день рождения', aboutBody)}
     <div class="p-group">Для себя</div>
+    <button class="fb-entry" data-act="open" data-v="events"><span class="st-ico">spark</span><span class="grow"><b>Мои события</b><span class="small">Респекты, ответы на зовы, ачивки, подарки — только про тебя</span></span>${b0.feed ? `<span class="badge">${b0.feed > 9 ? '9+' : b0.feed}</span>` : ''}<span class="chev" aria-hidden="true">›</span></button>
     <button class="fb-entry battery-entry" data-act="open" data-v="battery"><span class="st-ico bt-ico">bolt</span><span class="grow"><b>Батарейка недели</b><span class="small">Пять вопросов по пятницам: сколько сил осталось. Видишь только ты</span></span><span class="chev" aria-hidden="true">›</span></button>
     <button class="fb-entry style-entry" data-act="open" data-v="style"><span class="st-ico">spark</span><span class="grow"><b>Мой стиль</b><span class="small">Какой ты в Этаже: ритм, привычки, бейджи, с кем на связи. Видишь только ты</span></span><span class="chev" aria-hidden="true">›</span></button>
     <div class="p-group">Настройки</div>
@@ -6679,12 +6704,14 @@ const actions = {
   'find-open'() { S.find = S.find || {}; S.sheet = 'find'; S.lastSheet = null; render(); setTimeout(() => { const i = $('#find-q'); if (i) i.focus(); }, 50); },
   'find-go': () => run(async () => {
     const qv = $('#find-q').value.trim();
-    S.find = { q: qv, ...(await get('/api/search?q=' + encodeURIComponent(qv))) };
+    const [people, ex] = await Promise.all([get('/api/search?q=' + encodeURIComponent(qv)), qv.length >= 2 && !qv.includes('@') ? get('/api/experts?q=' + encodeURIComponent(qv)).catch(() => null) : null]);
+    S.find = { q: qv, ...people, topics: (ex && ex.items) || [] };
   }),
+  'find-tag'(el) { const i = $('#find-q'); if (i) i.value = el.dataset.v; actions['find-go'](); },
   'find-invite': (el) => run(async () => {
     await post(`/api/gangs/${el.dataset.gang}/invite`, { to: Number(el.dataset.id) });
     toast('Позвали! Придёт пуш, ждём ответа');
-    S.find = { q: S.find.q, ...(await get('/api/search?q=' + encodeURIComponent(S.find.q))) };
+    S.find = { q: S.find.q, topics: S.find.topics, ...(await get('/api/search?q=' + encodeURIComponent(S.find.q))) };
   }),
   'invite-accept': (el) => run(async () => {
     let r;
@@ -6777,8 +6804,6 @@ const actions = {
     if (S.sheet === 'profile' || S.sheet === 'lunch') await run(loadFeatures);
     if (S.sheet === 'feedback') await run(loadFeedback);
     if (S.sheet === 'events') { await run(loadEvents); markSeen('feed'); render(); }
-    if (S.sheet === 'experts') await run(loadExperts);
-    if (S.sheet === 'board') await run(loadBoard);
     if (S.sheet === 'style') await run(async () => { S.style = await get('/api/me/style'); });
     if (S.sheet === 'battery') { S.bt = { step: 0, answers: [] }; await run(async () => { S.battery = await get('/api/battery'); }); }
     if (S.sheet === 'crew-new' && !S.crew) await run(loadCrew);
@@ -6932,11 +6957,12 @@ const actions = {
   'lunch-all'() { S.lunchAll = true; render(); },
   'board-new'(el) {
     const t = new Date(Date.now() + 3 * 3600e3 + 3 * 864e5).toISOString().slice(0, 10);
-    const home = S.me.profile && S.me.profile.home, gid = ((S.me.gangs || [])[0] || {}).id || null;
+    const home = S.me.profile && S.me.profile.home, gid = S.activeGang || ((S.me.gangs || [])[0] || {}).id || null;
+    const toGang = !!(el && el.dataset && el.dataset.scope === 'gang');
     const kind = (el && el.dataset && el.dataset.v) || 'other';
     const ci = S.state && S.state.checkin && S.state.checkin.office;
     // Угощение на кухне имеет смысл только в своём офисе — туда и ставим по умолчанию
-    S.boardDraft = { kind, text: '', until: t, place: '', time: '', gang: S.boardScope === 'gang' ? gid : null, office: S.boardScope === 'gang' ? '' : kind === 'kitchen' ? (ci || home || '') : S.boardScope === 'office' ? home || '' : '' };
+    S.boardDraft = { kind, text: '', until: t, place: '', time: '', gang: toGang ? gid : null, office: toGang ? '' : kind === 'kitchen' ? (ci || home || '') : '' };
     S.sheet = 'board-new'; S.error = ''; render(); loadBoard().then(() => { if (S.sheet === 'board-new') render(); });
   },
   'board-kind'(el) { boardSync(); S.boardDraft.kind = el.dataset.v; if (el.dataset.v === 'kitchen' && !S.boardDraft.office && !S.boardDraft.gang) S.boardDraft.office = (S.state && S.state.checkin && S.state.checkin.office) || (S.me.profile && S.me.profile.home) || ''; render(); },
