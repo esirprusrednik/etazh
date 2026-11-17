@@ -2221,7 +2221,8 @@ function renderTomorrow() {
   if (!t || t.noGang) return '';
   const cap = t.label.charAt(0).toUpperCase() + t.label.slice(1);
   const mine = { office: 'ты — в офисе', home: 'ты — дома', vacation: 'ты — в отпуске', sick: 'ты — на больничном', off: 'выходной' }[t.mine] || 'твой план не указан';
-  const plan = '<button class="linkbtn small" data-act="open-sec" data-v="work">План недели</button>';
+  // Ссылка на план нужна, пока он не заполнен на этот день; заполненный план правится в профиле
+  const plan = t.mine && !t.locked ? '' : '<button class="linkbtn small" data-act="open-sec" data-v="work">Заполнить план</button>';
   if (t.locked) {
     return `<section class="card tmr"><div class="row" style="justify-content:space-between;gap:8px"><h3>office ${esc(cap)} в офисе</h3>${plan}</div>
       <p class="sub" style="margin:0">Заполни свой план недели — и увидишь, кто из банды ${esc(t.label)} в офисе. Уже заполнили: ${t.filled} из ${t.total}.</p></section>`;
