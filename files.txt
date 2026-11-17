@@ -222,3 +222,7 @@ public/art/land/games.webp
 public/art/land/gang.webp
 public/art/land/near.webp
 public/art/land/qr-moietazh.svg
+public/art/wave/boom.webp
+public/art/wave/cap.webp
+public/art/wave/crest.webp
+public/sounds/wave_boom.mp3

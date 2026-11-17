@@ -1491,6 +1491,15 @@ function renderStyle() {
 
 // ----- «Волна» по банде: клич раз в неделю, у банды 10 минут, чтобы встать -----
 const WAVE_JOINED = () => [`${meG('Встал', 'Встала')} — значит, ${meG('свой', 'своя')}`, 'Банда видит', 'Красиво пошла!', 'Банда в сборе', 'Руки выше, банда в силе'];
+// Волна — это море: у каждого свой спасательный круг, по рядам бежит волна. Кто встал — качается высоко и машет руками,
+// кто ещё нет — серый, осел в воду. Бомбочка плавает слева только в окне запуска; cap — кому надеть капитанскую фуражку
+function waveSea(fans, { bomb = false, cap = null } = {}) {
+  const buoy = (f, i) => `<span class="ws-b ${f.up ? 'up' : ''} ${f.me ? 'me' : ''}" style="--i:${f.i ?? i}" title="${esc(f.nick || '')}">${f.up ? '<span class="fan-arms" aria-hidden="true"></span>' : ''}<span class="ws-face">${f.look ? avatar(f.look, 30) : `<i class="ws-head" style="--c:${f.c}"></i>`}</span><img class="ws-ring" src="/art/buoy.webp" alt="">${cap && f.nick === cap ? '<img class="ws-cap" src="/art/wave/cap.webp" alt="">' : ''}</span>`;
+  return `<div class="wsea sea-hero ${bomb ? 'has-bomb' : ''}" style="--sea:-${Date.now() % 12000}ms" role="img" aria-label="Встали ${fans.filter((f) => f.up).length} из ${fans.length}">
+    <i class="sh-sky"></i><i class="sh-w w1"></i><i class="sh-w w2"></i>
+    <div class="ws-row">${bomb ? '<span class="ws-b ws-bomb" style="--i:-1"><img src="/art/bomb.webp" alt=""><b class="wb-tip"></b></span>' : ''}${fans.map(buoy).join('')}</div>
+    <i class="sh-w w3"></i><img class="ws-crest" src="/art/wave/crest.webp" alt=""><img class="ws-boom" src="/art/wave/boom.webp" alt=""></div>`;
+}
 const fanHtml = (f, size = 36) => `<span class="fan ${f.up ? 'up' : ''} ${f.me ? 'me' : ''}" style="--i:${f.i ?? 0}" title="${esc(f.nick)}"><span class="fan-arms" aria-hidden="true"></span>${avatar(f.look, size)}</span>`;
 const waveLeft = (a) => Math.max(0, Math.round((a.endsAt - (Date.now() + (S.waveOff || 0))) / 1000));
 function renderWave() {
@@ -1503,7 +1512,7 @@ function renderWave() {
     return `<section class="card wave live">
       <div class="row" style="justify-content:space-between"><span class="card-title">hand Волна!</span><span class="wave-timer" id="wave-left">${mmss(waveLeft(a) * 1000)}</span></div>
       <p class="sub" style="margin:0">${a.by.auto ? 'Середина недели — Этаж сам запустил волну.' : `<b>${nk(a.by)}</b> ${a.by.fem ? 'запустила' : 'запустил'} волну.`} ${a.joined >= a.size ? 'Встала вся банда!' : a.joined >= need ? 'Банда в силе — дожимайте до всех!' : `Нужно, чтобы встали ${need} из ${a.size}.`}</p>
-      <div class="stands" role="img" aria-label="Встали ${a.joined} из ${a.size}">${a.fans.map((f) => fanHtml(f)).join('')}</div>
+      ${waveSea(a.fans, { cap: a.joined >= a.size && !a.by.auto ? a.by.nick : null })}
       <div class="wave-bar"><i style="width:${pct}%"></i><span>встали ${a.joined} из ${a.size}</span></div>
       ${a.mine ? `<p class="small" style="margin:0;text-align:center">Ты стоишь. Свистни тем, кто ещё сидит, — пуш им уже ушёл.</p>` : `<button class="btn wave-go" data-act="wave-join" data-id="${a.id}">Встать за своих!</button>`}
     </section>`;
@@ -1528,13 +1537,15 @@ function waveBanner() {
 const WAVE_PREVIEW = ['{nick} запустил волну. Встань, подними руки — у банды 10 минут', 'Это волна, а не спам. Ну почти. Зайди и нажми «Встать» — банда считает', 'Срочно: ничего срочного. Просто {nick} запустил волну', 'Даже кофемашина уже встала. Твоя очередь'];
 function renderWaveLaunch() {
   const g = S.gang && S.gang.gang;
-  const demo = Array.from({ length: 9 }, (_, i) => `<span class="fan up demo" style="--i:${i}"><span class="fan-arms" aria-hidden="true"></span><span class="demo-head" style="--c:${['#FFC93C', '#4F8BFF', '#2FA84F', '#E5484D', '#8B5CF6'][i % 5]}"></span></span>`).join('');
+  // В окне запуска — сама банда в кругах (до семи лиц) и бомбочка слева: поджёг — волна подняла всех
+  const mem = ((S.gang && S.gang.members) || []).slice(0, 7).map((m, i) => ({ nick: m.nick, look: m.look, up: true, me: m.me, i }));
+  const crowd = mem.length >= 3 ? mem : Array.from({ length: 6 }, (_, i) => ({ up: true, i, c: ['#FFC93C', '#4FA6EA', '#3ED6A0', '#FF6B6B', '#7CC8F5'][i % 5] }));
   const txt = WAVE_PREVIEW[Math.floor(Math.random() * WAVE_PREVIEW.length)].replace('{nick}', S.me.nick).replace('{gang}', g ? g.name : 'банда').replace('запустил', meG('запустил', 'запустила'));
   return `<div class="wave-launch">
-    <div class="stands demo-stands" aria-hidden="true">${demo}</div>
+    ${waveSea(crowd, { bomb: true })}
     <div class="push-preview"><span class="pp-ico">Э.</span><div class="grow"><b>Этаж</b><span>${esc(txt)}</span></div></div>
     <p class="sub" style="margin:0"><b>Зачем это.</b> Волна — перекличка банды: один клич, и сразу видно, кто на связи и готов встать за своих. Повод всем заглянуть в Этаж в одно время, а не поодиночке.</p>
-    <ol class="ol"><li>Своим придёт смешной клич — повод заглянуть в Этаж.</li><li>У всех ${S.wave ? S.wave.windowMin : 10} минут, чтобы нажать «Встать за своих».</li><li>Встанут больше половины — банда в силе. Встанут все — ты капитан.</li></ol>
+    <ol class="ol"><li>Своим придёт смешной клич — повод заглянуть в Этаж.</li><li>У всех ${S.wave ? S.wave.windowMin : 10} минут, чтобы нажать «Встать за своих».</li><li>Встанут больше половины — банда в силе. Встанут все — ты капитан <img class="ws-cap-in" src="/art/wave/cap.webp" alt="">.</li></ol>
     <p class="small" style="margin:0">Одна волна на банду в неделю: кто первый, тот и запускает. Если до среды никто не соберётся, Этаж поднимет банду сам в 12:00. Тем, кто в отпуске или в тихих часах, пуш не придёт.</p>
     <button class="btn wave-go" data-act="wave-launch">Запустить волну!</button>
   </div>`;
@@ -1544,11 +1555,12 @@ function waveSweep(meLook) {
   const el = document.createElement('div');
   el.className = 'wave-sweep';
   el.setAttribute('aria-hidden', 'true');
-  const n = 14, mid = Math.floor(n / 2);
-  el.innerHTML = `<div class="sw-title">ПОДЪЁМ!</div><div class="sw-row">${Array.from({ length: n }, (_, i) => i === mid && meLook
-    ? `<span class="sw-fan me" style="--i:${i}"><span class="fan-arms"></span>${avatar(meLook, 40)}</span>`
-    : `<span class="sw-fan" style="--i:${i};--c:${['#FFC93C', '#4F8BFF', '#2FA84F', '#E5484D', '#8B5CF6', '#F97316'][i % 6]}"><span class="fan-arms"></span><span class="demo-head"></span></span>`).join('')}</div>`;
+  const mem = ((S.gang && S.gang.members) || []).filter((m) => !m.me).slice(0, 6).map((m) => ({ nick: m.nick, look: m.look, up: true }));
+  const n = 7, mid = Math.floor(n / 2), row = [];
+  for (let i = 0; i < n; i++) row.push(i === mid && meLook ? { look: meLook, up: true, me: true, i } : { ...(mem[i > mid ? i - 1 : i] || { c: ['#FFC93C', '#4FA6EA', '#3ED6A0', '#FF6B6B', '#7CC8F5', '#F97316'][i % 6] }), up: true, i });
+  el.innerHTML = `<div class="sw-title">ПОДЪЁМ!</div>${waveSea(row)}`;
   document.body.appendChild(el);
+  requestAnimationFrame(() => { const sea = el.querySelector('.wsea'); if (sea) sea.classList.add('go'); });
   setTimeout(() => el.remove(), 2600);
 }
 setInterval(() => {
@@ -5229,7 +5241,7 @@ function actx() {
 // Грузятся один раз при первом звуке; пока не загрузились или без сети — играет синтезированная версия
 const SAMPLE_URLS = { bugle: '/sounds/battle.mp3', lose: '/sounds/lose.mp3', victory: '/sounds/win.mp3', fanfare: '/sounds/rally.mp3', gangHorn: '/sounds/horn.mp3',
   // Морской бой: настоящие записи пушки, взрывов и воды (CC0), по два варианта — чтобы выстрелы не звучали одинаково
-  splash: ['/sounds/miss1.mp3', '/sounds/miss2.mp3'], hit: ['/sounds/hit1.mp3', '/sounds/hit2.mp3'], sunk: '/sounds/sunk1.mp3', chicken: '/sounds/resign.mp3',
+  splash: ['/sounds/miss1.mp3', '/sounds/miss2.mp3'], hit: ['/sounds/hit1.mp3', '/sounds/hit2.mp3'], sunk: '/sounds/sunk1.mp3', chicken: '/sounds/resign.mp3', waveBoom: '/sounds/wave_boom.mp3',
   // Реакции в играх: короткие «мультяшные» реплики оркестра — у каждой своя, узнаётся без взгляда на экран
   ...Object.fromEntries([...EMO_KEYS].map((k) => [`emo_${k}`, `/sounds/emo_${k}.mp3`])) };
 // Громкость записей подогнана к остальным звукам: кульминации боя громче всего, но не оглушают
@@ -5438,6 +5450,11 @@ const SOUNDS = {
   // Батарейка: заряд набирается короткими «блипами» вверх; бодрый итог — с аккордом
   charge: (c) => { [392, 494, 587, 784].forEach((f, i) => tone(c, { f, type: 'sine', at: i * 0.11, dur: 0.12, vol: 0.035, atk: 0.008 })); tone(c, { f: 988, f2: 1175, type: 'triangle', at: 0.46, dur: 0.35, vol: 0.03, rv: 0.25 }); },
   chargeLow: (c) => { [392, 440, 494].forEach((f, i) => tone(c, { f, type: 'sine', at: i * 0.14, dur: 0.14, vol: 0.03, atk: 0.01 })); tone(c, { f: 523, type: 'sine', at: 0.44, dur: 0.4, vol: 0.025, rv: 0.3 }); },
+  // Бомбочка волны: сухой треск взрыва (запись) и низкий удар под ним; без сети — шум с падающим тоном
+  boom: (c) => {
+    const a = playSample(c, 'sunk', 0.5), b = playSample(c, 'waveBoom', 0.9);
+    if (!a && !b) { noise(c, { dur: 0.5, vol: 0.3, type: 'lowpass', f: 1800, f2: 120, q: 0.7, shape: 1, rv: 0.3 }); tick(c, { f: 180, body: 70, vol: 0.3, dur: 0.12 }); }
+  },
   waveHorn: (c) => { whistle(c); crowd(c, { at: 0.55, dur: 1.8, vol: 0.06 }); hey(c, { at: 1.2, vol: 0.04 }); },
   waveCrowd: (c) => { crowd(c, { dur: 1.7, vol: 0.1 }); hey(c, { at: 0.75 }); },
   waveFull: (c) => { crowd(c, { dur: 2.2, vol: 0.12 }); hey(c, { at: 0.6 }); hey(c, { at: 1.1, vol: 0.06 }); whistle(c, { at: 1.4 }); },
@@ -5620,7 +5637,7 @@ const SOUNDS = {
 // Выравнивание громкости: морской бой был на 20 дБ громче дуэлей, кости — почти не слышны
 const SOUND_GAIN = { hit: 0.2, sunk: 0.22, splash: 0.53, dice: 4.7, diceLand: 4 };
 // Вибрация под стать звуку: короткий «тик» на нажатия, узор — на события
-const BUZZ = { victory: [60, 60, 60, 60, 200], bugle: [50, 40, 50, 40, 50, 40, 260], tap: 8, tab: 10, on: 6, off: 6, pick: 5, open: 8, close: 6, expand: 5, collapse: 5, send: 14, confirm: [12, 40, 18], danger: [25, 50, 25], error: [35, 45, 35],
+const BUZZ = { boom: [30, 30, 120], victory: [60, 60, 60, 60, 200], bugle: [50, 40, 50, 40, 50, 40, 260], tap: 8, tab: 10, on: 6, off: 6, pick: 5, open: 8, close: 6, expand: 5, collapse: 5, send: 14, confirm: [12, 40, 18], danger: [25, 50, 25], error: [35, 45, 35],
   lift: [35, 525, 20, 815, 60], vote: 10, coin: [8, 30, 8], click: 8, tick: 4, splash: 15, hit: [30, 40, 60], sunk: [40, 30, 90], lose: [80, 60, 160], chicken: [30, 40, 30], fanfare: [60, 60, 60, 60, 200], waveHorn: [40, 60, 40, 60, 200], waveCrowd: [10, 30, 20, 30, 40, 30, 80], waveFull: [20, 30, 40, 30, 80, 60, 200] };
 let lastSfx = { name: '', at: 0 };
 function sfx(name, arg) {
@@ -7594,16 +7611,20 @@ const actions = {
   'wave-banner'(btn) {
     const el = btn.querySelector('.wave-banner') || btn;
     if (el.classList.contains('boom')) return;
-    el.classList.add('boom'); sfx('open');
+    el.classList.add('boom'); sfx('boom');
     const r = el.getBoundingClientRect(), box = document.createElement('div');
     box.className = 'wb-boom'; box.setAttribute('aria-hidden', 'true');
     box.style.left = r.left + r.width / 2 + 'px'; box.style.top = r.top + r.height / 2 + 'px';
-    box.innerHTML = Array.from({ length: 14 }, (_, i) => { const a = (i / 14) * 6.283, d = 46 + (i % 3) * 22; return `<i style="--x:${Math.round(Math.cos(a) * d)}px;--y:${Math.round(Math.sin(a) * d)}px;--c:${['#FFE680', '#FFB020', '#FF6A2B'][i % 3]}"></i>`; }).join('') + '<b></b>';
+    box.innerHTML = Array.from({ length: 14 }, (_, i) => { const a = (i / 14) * 6.283, d = 46 + (i % 3) * 22; return `<i style="--x:${Math.round(Math.cos(a) * d)}px;--y:${Math.round(Math.sin(a) * d)}px;--c:${['#FFE680', '#FFB020', '#FF6A2B'][i % 3]}"></i>`; }).join('') + '<img src="/art/wave/boom.webp" alt="">';
     document.body.appendChild(box);
     setTimeout(() => { box.remove(); S.sheet = 'wave-launch'; render(); }, 520);
   },
-  'wave-launch': () => run(async () => {
-    S.wave = await post(`/api/gangs/${S.activeGang}/wave`, {});
+  'wave-launch': (btn) => run(async () => {
+    const sea = document.querySelector('.sheet .wsea');
+    if (btn && btn.setAttribute) btn.setAttribute('disabled', '');
+    if (sea) { sea.classList.add('boom', 'go'); sfx('boom'); }
+    const [w] = await Promise.all([post(`/api/gangs/${S.activeGang}/wave`, {}), new Promise((ok) => setTimeout(ok, sea ? 1250 : 0))]);
+    S.wave = w;
     if (S.wave.active) S.waveOff = S.wave.active.now - Date.now();
     S.sheet = null; sfx('waveHorn'); waveSweep(S.me.look); render();
     setTimeout(() => { const c = document.querySelector('.wave'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 300);
