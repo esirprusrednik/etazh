@@ -1315,7 +1315,10 @@ function createApi(db) {
       about: prof.about, tags: prof.tags, bday: prof.showBday ? prof.bday : '',
       mood: st.mood, where: st.where, office: st.office, until: st.until, planned: st.planned,
       gangs: sharedGangs, crew: crewMate, home: (officeById(prof.home) || {}).name || null,
-      respects: features ? features.respects(t.id) : 0 // число видно всем; кто и за что — только самому человеку
+      respects: features ? features.respects(t.id) : 0, // число видно всем; кто и за что — только самому человеку
+      // Уровень и серия отметок — только в полной карточке (своим): в шапке без подписи их никто не понимал
+      level: 1 + Math.floor(Math.sqrt(q('SELECT COALESCE(SUM(amount), 0) AS s FROM ledger WHERE user_id = ? AND amount > 0').get(t.id).s / 15)),
+      streak: markStreak(t.id)
     };
   });
 

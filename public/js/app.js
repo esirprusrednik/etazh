@@ -26,7 +26,7 @@ const S = {
   sheet: null, compose: null, signal: null,
   onb: { step: 'email', email: '', error: '', devLink: null, devCode: null, nicks: [] },
   error: '', busy: false,
-  nearMore: store.get('nearMore', false), seenChat: store.get('seenChat', 0), seenFeed: store.get('seenFeed', 0),
+  nearMore: false, seenChat: store.get('seenChat', 0), seenFeed: store.get('seenFeed', 0),
   fx: null, gx: null, thanksTo: null, lunchTime: '13:00', sec: new Set(),
   crew: null, dm: null, dmView: null,
   battles: [], battle: null, bv: null, bFresh: new Set(), bFreshUntil: 0, bShout: null
@@ -1459,7 +1459,7 @@ function renderBadges(s) {
     : `<div class="bdg locked"><span class="bd-ico">${ico(b.icon, 20)}</span><span class="grow"><b>${esc(b.title)}</b><span class="small">${esc(b.desc)}</span>${b.of > 1 ? `<span class="bd-bar"><i style="width:${Math.round((b.n / b.of) * 100)}%"></i></span><span class="small">${b.hint ? esc(b.hint) : `${b.n} из ${b.of}`}</span>` : `<span class="small bd-hint">${esc(b.hint || 'Пока не твой ритм')}</span>`}</span></div>`;
   return `<section class="st-block"><div class="st-h"><b>Бейджи</b><span class="small">${got.length ? `в карточке ${shown} из ${s.showMax}` : 'заработай первый'}</span></div>
     ${got.length ? `<p class="small" style="margin:0">Нажми на бейдж — он появится в твоей карточке, его увидят коллеги. До ${s.showMax} штук.</p><div class="bdgs">${got.map(tile).join('')}</div>` : ''}
-    ${locked.length ? `<details class="bd-more" ${got.length ? '' : 'open'}><summary>Ещё ${locked.length} — как получить</summary><div class="bdgs">${locked.map(tile).join('')}</div></details>` : ''}
+    ${locked.length ? `<details class="bd-more"><summary>Ещё ${locked.length} — как получить</summary><div class="bdgs">${locked.map(tile).join('')}</div></details>` : ''}
   </section>`;
 }
 
@@ -2112,19 +2112,19 @@ function renderApp() {
   return `
   <div class="app">
     <header class="top">
-      <button class="who" data-act="open" data-v="profile" aria-label="Мой профиль, уровень ${me.level || 1}">
-        <span class="me-ava ${S.coach === 1 ? 'coach-focus' : ''}">${b.feedback ? '<span class="bdot" aria-hidden="true"></span>' : ''}${me.completion && me.completion.pct < 100 ? `<span class="pring sm" style="--p:${me.completion.pct}" title="Профиль заполнен на ${me.completion.pct}%">${avatar(me.look, 40)}</span>` : avatar(me.look, 40)}<span class="lvl" aria-hidden="true">${me.level || 1}</span></span>
+      <button class="who" data-act="open" data-v="profile" aria-label="Мой профиль">
+        <span class="me-ava ${S.coach === 1 ? 'coach-focus' : ''}">${b.feedback ? '<span class="bdot" aria-hidden="true"></span>' : ''}${me.completion && me.completion.pct < 100 ? `<span class="pring sm" style="--p:${me.completion.pct}" title="Профиль заполнен на ${me.completion.pct}%">${avatar(me.look, 40)}</span>` : avatar(me.look, 40)}</span>
         <span style="min-width:0;display:flex;flex-direction:column;gap:3px">
           <span class="nick-row"><span class="nick">${nk(me)}</span><span class="chev" aria-hidden="true">›</span></span>
           <span class="row" style="gap:6px">
             ${me.status ? `<span class="status-chip">${esc(me.status)}</span>` : ''}
-            ${me.streak ? `<span class="streak" title="Рабочих дней подряд с отметкой — в офисе или из дома">${FLAME}${me.streak} ${plural(me.streak, 'день', 'дня', 'дней')}</span>` : ''}
           </span>
         </span>
       </button>
       ${renderMailBtn(b)}
       <button class="beans3d ${S.beanFx ? 'gain' : ''} ${S.coach === 2 ? 'coach-focus' : ''}" data-act="open" data-v="shop" aria-label="Зёрна: ${me.beans}. Открыть лавку${shopDot() ? '. Есть что купить' : ''}">${BEAN}<span class="bnum">${S.beanFx ? S.beanFx.from : me.beans}</span><span class="bcart"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11h10.2L20 8H6.3"/><circle cx="9.5" cy="19.5" r="1.4"/><circle cx="16.5" cy="19.5" r="1.4"/></svg></span>${shopDot() ? '<span class="bdot" aria-hidden="true"></span>' : ''}${S.beanFx ? `<span class="bplus" aria-hidden="true">+${S.beanFx.to - S.beanFx.from}</span>` : ''}</button>
     </header>
+    ${S.tab === 'near' ? renderTopStrip() : ''}
     ${renderCoach()}
     ${S.newBuild ? '<button class="upd-bar" data-act="reload">spark Вышло обновление — нажми, чтобы обновить</button>' : ''}
     <main>
@@ -2338,8 +2338,7 @@ function renderNear() {
     ${renderBirthdays()}
     ${renderAdvent(true)}
     ${renderNearMore()}
-    ${renderFloorMore()}
-    ${renderTopStrip()}`;
+    ${renderFloorMore()}`;
 }
 // То, что раньше жило на вкладке «Офис» и нужно не каждый день: открывается по нажатию
 const boardLive = () => !!(S.board && S.board.items.some((x) => x.kind !== 'lunch' && (!x.expiresAt || x.expiresAt > Date.now())));
@@ -2864,10 +2863,14 @@ function renderGames() {
 }
 // Лига и кубок — соревнования банд. Пока в банде меньше трёх человек (в лигу не берут) — свёрнуты в одну строку:
 // три одинаковые синие кнопки на вкладке спорили с блицем, а лигу почти не открывали
-function compOpen() {
-  if (S.compOpen != null) return S.compOpen;
-  const m = S.league && S.league.W && S.league.W.mine;
-  return !!(m && m.eligible);
+const compOpen = () => !!S.compOpen;
+// Всё, что раскрывается, по умолчанию свёрнуто и сворачивается снова при переходе на другую вкладку, открытии
+// и закрытии окна и после перезапуска: человек каждый раз открывает нужное сам
+function collapseAll() {
+  S.awayOpen = false; S.compOpen = false; S.nearMore = false; S.todoOpen = false; S.todoDoneOpen = false; S.todoAdd = false;
+  S.callsOpen = false; S.questOpen = null; S.fridayOpen = false; S.hintOpen = {}; S.guideOpen = null; S.shopOwnOpen = false;
+  S.boardAll = false; S.feedAll = false; S.membersAll = false; S.thxAll = false; S.lunchAll = false;
+  S.sec.clear();
 }
 function renderComp() {
   const t = S.tour;
@@ -5940,6 +5943,10 @@ function renderProfile() {
       ${name ? `<div class="small" style="font-weight:700">${esc(name)}</div>` : ''}
       ${me.status ? `<div class="status" style="color:var(--tint-y-fg)">${esc(me.status)}</div>` : ''}
       <div class="small">${me.beans} ${plural(me.beans, 'зерно', 'зерна', 'зёрен')}</div></div></div>
+    <div class="prof-stats">
+      <div><b>${me.level || 1}</b><span>уровень</span><i>растёт вместе с заработанными зёрнами</i></div>
+      <div><b>${FLAME}${me.streak || 0}</b><span>${plural(me.streak || 0, 'день', 'дня', 'дней')} подряд</span><i>рабочих дней с отметкой — в офисе или из дома</i></div>
+    </div>
     ${renderCompletion(true)}
     <div class="p-group">Обо мне</div>
     ${section('look', 'Внешность', `${OUTFIT_NAMES[look.outfit] || 'Худи'} · ${(HAIR_NAMES[look.hairStyle] || '').toLowerCase()}${look.prop && look.prop !== 'none' ? ' · ' + (PROP_NAMES[look.prop] || '').toLowerCase() : ''}`, lookBody)}
@@ -5977,6 +5984,8 @@ function renderPerson() {
     if (x.bday) rows.push(['День рождения', esc(x.bday)]);
     if (x.gangs && x.gangs.length) rows.push([x.gangs.length > 1 ? 'Общие банды' : 'Общая банда', x.gangs.map(esc).join(', ')]);
     if (x.crew) rows.push(['Подельник', 'да']);
+    if (x.level) rows.push(['Уровень', `${x.level} <span class="small">· растёт с заработанными зёрнами</span>`]);
+    if (x.streak) rows.push(['Серия', `${x.streak} ${plural(x.streak, 'рабочий день', 'рабочих дня', 'рабочих дней')} подряд с отметкой`]);
     if (!x.me && !x.name && S.state && S.state.nameLock !== undefined && !(S.me.profile && S.me.profile.firstName)) rows.push(['Имя', '<button class="linkbtn" data-act="open-sec" data-v="name">скрыто — укажи своё, чтобы видеть имена</button>']);
   }
   return `<div class="person-card">
@@ -6233,11 +6242,12 @@ const actions = {
       S.chatGang = false; S.dm = null; S.dmView = null; S.battle = null; S.bv = null;
       if (nested) sfx('close');
     }
+    collapseAll();
     S.dmList = false; S.tab = el.dataset.v; S.sheet = null; if (S.tab === 'chats') { ensureGang(); S.gangTab = S.gangTab || 'chat'; } render();
     if (again) window.scrollTo(0, 0);
     await run(() => refresh());
   },
-  'near-more': () => { S.nearMore = !S.nearMore; try { store.set('nearMore', S.nearMore); } catch {} render(); },
+  'near-more': () => { S.nearMore = !S.nearMore; render(); },
   checkin: (el) => run(async () => {
     S.sheet = null;
     const r = await post('/api/checkin', { office: el.dataset.v });
@@ -6756,6 +6766,7 @@ const actions = {
   vote: (el) => run(async () => { await post(`/api/signals/${el.dataset.id}/vote`, { vote: Number(el.dataset.v) }); await loadEvents(); }),
 
   async open(el) {
+    collapseAll();
     S.sheet = el.dataset.v; S.error = '';
     if (S.sheet === 'signal') S.signal = {};
     render();
@@ -7082,7 +7093,7 @@ const actions = {
   'away-toggle'() { S.awayOpen = !S.awayOpen; render(); },
   'todo-open'() { S.todoOpen = true; render(); setTimeout(() => { const i = $('#todo-text'); if (i) i.focus(); }, 50); },
   'comp-toggle'() { S.compOpen = !compOpen(); render(); },
-  close() { const wasBlitz = S.sheet === 'blitz'; S.sheet = null; S.error = ''; if (wasBlitz) endPractice(); render(); },
+  close() { const wasBlitz = S.sheet === 'blitz'; collapseAll(); S.sheet = null; S.error = ''; if (wasBlitz) endPractice(); render(); },
   'close-bg'(el, e) { if (e.target === el) actions.close(); },
   'b-mine-big'() { S.bMineBig = !S.bMineBig; sfx('pick'); render(); if (S.bMineBig) setTimeout(() => { const m = document.querySelector('.b-sea.mine'); if (m) m.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 50); },
   'shop-gang'(el) { S.shopGang = Number(el.dataset.v); render(); },
@@ -7341,6 +7352,7 @@ const actions = {
   'open-sec'(el) {
     const v = el.dataset.v;
     const wasOpen = S.sheet === 'profile';
+    if (!wasOpen) collapseAll();
     S.sheet = 'profile'; S.sec.add(v); if (!wasOpen) S.lastSheet = null;
     render();
     const focusId = { about: 'p-about' }[v];
