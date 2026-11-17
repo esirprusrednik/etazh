@@ -2641,3 +2641,5 @@ main > .top-strip { margin: 6px 0 0; width: 100%; opacity: .8; }
 /* Строка группы не прыгает по высоте, когда стопка аватаров пропадает при раскрытии; плюс и минус — у правого края */
 .pg-fold, .pg-more { min-height: 50px; box-sizing: border-box; }
 .pg-fold .pm, .pg-more .pm { margin-left: auto; }
+/* Шапка профиля банды в тёмной теме: фон темнеет вместе с темой, иначе белое название на светлой плашке не читается */
+:root[data-theme="dark"] .g-hero { background: color-mix(in srgb, var(--gc) 26%, #1B2140); }
