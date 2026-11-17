@@ -3,6 +3,9 @@
 // Время необязательно: если указано — придёт пуш. Всё сделано — похвала, +2 зерна и серия «дней без хвостов».
 // Не сделано — вечером добродушный подкол. Тексты шифруются в базе, видит только автор, через 14 дней удаляются.
 
+// Дела дня выключены 17.11: у каждого и так есть напоминалки. Блока на экране нет, пуши, сводка и задание дня молчат.
+// Модуль и ответы сохранены — включается этим флагом и возвратом renderTodos() на «Рядом» в app.js
+const TODOS_ON = false;
 const MAX_PER_DAY = 5; // было 3 — оказалось тесно: «позвать», «вернуть», «поздравить» и пара рабочих мелочей
 const TEXT_MAX = 80;
 const KEEP_DAYS = 14;
@@ -147,11 +150,13 @@ function register(ctx) {
 
   // Для сводки «Этажа»: что осталось на сегодня
   function pending(uid) {
+    if (!TODOS_ON) return 0;
     return q('SELECT COUNT(*) AS n FROM todos WHERE user_id = ? AND due <= ? AND done_at IS NULL').get(uid, today()).n;
   }
 
   // Пуши: дело со временем — в это время; в 18:00 по будням — итог с подколом, если что-то не сделано
   function tick() {
+    if (!TODOS_ON) return;
     const m = U.msk(), t = m.day, hhmm = `${String(m.hour).padStart(2, '0')}:${String(m.minute).padStart(2, '0')}`;
     for (const r of q('SELECT * FROM todos WHERE due = ? AND time IS NOT NULL AND time <= ? AND done_at IS NULL AND pushed = 0').all(t, hhmm)) {
       q('UPDATE todos SET pushed = 1 WHERE id = ?').run(r.id);

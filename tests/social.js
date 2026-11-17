@@ -291,7 +291,7 @@ function startServer(day, extra = {}) {
       assert.equal(t.today.length, 3);
       assert.equal((await E2.post('/api/todos', { text: 'В офисе', when: 'office' })).status, 400, 'без плана недели офисного дня нет');
       assert.equal((await E2.post('/api/todos', { text: 'Завтрашнее', when: 'tomorrow' })).status, 200);
-      assert.ok((await E2.get('/api/inbox')).json.items.some((x) => x.kind === 'todo'), 'в сводке — дела дня');
+      assert.ok(!(await E2.get('/api/inbox')).json.items.some((x) => x.kind === 'todo'), 'дела дня выключены — в сводке их нет');
       const raw = fs.readdirSync(sv.dir).map((f) => fs.readFileSync(path.join(sv.dir, f)).toString('utf8')).join('');
       assert.ok(!raw.includes('секретный-зонт-42'), 'текст дела в базе зашифрован');
       assert.equal((await B.post(`/api/todos/${t.today[0].id}/done`, {})).status, 404, 'чужое дело не отметить');

@@ -2354,7 +2354,6 @@ function renderNear() {
     ${renderFloorBoard()}
     ${noGang ? '' : renderPeople()}
     ${lunchNow ? '' : canteen}
-    ${noGang ? '' : renderTodos()}
     ${renderBirthdays()}
     ${renderAdvent(true)}
     ${renderNearMore()}`;
@@ -2858,6 +2857,12 @@ function renderSanta() {
   if (!s || !s.visible) return '';
   if (s.status === 'cancelled') return s.joined ? '<section class="card santa"><span class="card-title">gift Тайный Санта</span><p class="sub">В этом году не состоялся: записалось меньше трёх человек.</p></section>' : '';
   const dd = dayHuman(s.drawDay);
+  if (!S.santaOpen) {
+    const line = s.status === 'drawn' ? (s.joined ? `Ты даришь: <b>${esc(s.target ? s.target.nick : '—')}</b>${s.myGifted ? ' · вручено' : ` · до ${s.budget || 500} ₽`}` : `Жеребьёвка прошла без тебя · участников ${s.count}`)
+      : s.joined ? `Ты участвуешь · жеребьёвка ${dd} · записалось ${s.count}` : s.regOpen ? `Запись до ${dd} · подарок до ${s.budget || 500} ₽ · записалось ${s.count}` : '';
+    if (!line) return '';
+    return `<button class="st-strip santa-strip" data-act="santa-toggle" aria-expanded="false"><span class="st-ico"><img class="art" src="/art/ny/gift.webp" width="28" height="30" alt=""></span><span class="grow"><b>Тайный Санта</b><span class="small">${line}</span></span><span class="pm" aria-hidden="true">+</span></button>`;
+  }
   const draw = s.canDraw ? `<button class="btn btn-santa-draw" data-act="santa-draw">${ico('dice', 18)} Провести жеребьёвку сейчас</button><span class="small" style="text-align:center">Ты владелец банды — можно не ждать ${dd}</span>` : '';
   let body;
   if (s.status === 'drawn') {
@@ -2877,12 +2882,11 @@ function renderSanta() {
       ${draw}
       <div class="row" style="justify-content:center"><button class="linkbtn santa-quiet" data-act="santa-leave">${ico('x', 14)} Не участвую</button></div>`;
   } else if (s.regOpen) {
-    body = `<p class="sub">Каждый тайно готовит подарок одному человеку из банды. Запишись и напиши, что любишь. ${dd} пройдёт жеребьёвка, и каждый узнает, кому дарит. Записалось: ${s.count}.</p>
-      <div class="santa-rule">Подарок — <b>до ${s.budget || 500} ₽</b>. Дороже не надо: смысл во внимании, а не в цене</div>
+    body = `<p class="sub">Каждый тайно дарит подарок одному из банды, до ${s.budget || 500} ₽. Жеребьёвка ${dd}. Записалось: ${s.count}.</p>
       <label class="field">Пожелание<textarea id="santa-wish" maxlength="200" rows="2" placeholder="Люблю чай и настолки, сладкое не дарите"></textarea></label>
       <button class="btn" data-act="santa-join">Участвую</button>${draw}`;
   } else return '';
-  return `<section class="card santa ny">${nyDeco()}<div class="row ny-head" style="justify-content:space-between"><span class="card-title has-art"><img class="art" src="/art/ny/gift.webp" width="34" height="37" alt="">Тайный Санта</span><span class="small">${s.status === 'drawn' ? 'жеребьёвка прошла' : `до ${dd}`}</span></div>${body}</section>`;
+  return `<section class="card santa ny">${nyDeco()}<div class="row ny-head" style="justify-content:space-between"><span class="card-title has-art"><img class="art" src="/art/ny/gift.webp" width="34" height="37" alt="">Тайный Санта</span><button class="pm" data-act="santa-toggle" aria-label="Свернуть">−</button></div>${body}</section>`;
 }
 
 function renderGames() {
@@ -2911,7 +2915,7 @@ const compOpen = () => !!S.compOpen;
 function collapseAll() {
   S.awayOpen = false; S.compOpen = false; S.nearMore = false; S.todoOpen = false; S.todoDoneOpen = false; S.todoAdd = false;
   S.callsOpen = false; S.questOpen = null; S.fridayOpen = false; S.hintOpen = {}; S.guideOpen = null; S.shopOwnOpen = false;
-  S.boardAll = false; S.feedAll = false; S.membersAll = false; S.thxAll = false; S.lunchAll = false; S.pgOpen = {}; S.canteenOpen = false;
+  S.boardAll = false; S.feedAll = false; S.membersAll = false; S.thxAll = false; S.lunchAll = false; S.pgOpen = {}; S.canteenOpen = false; S.santaOpen = false;
   S.sec.clear();
 }
 function renderComp() {
@@ -7403,6 +7407,7 @@ const actions = {
   }),
   // Шаг из карточки «заполни профиль»: раскрываем нужный раздел, прокручиваем к нему и ставим курсор в поле
   'food-pick'(el) { S.foodDraft = { up: el.dataset.v === '1', tags: [], comment: '' }; render(); },
+  'santa-toggle'() { S.santaOpen = !S.santaOpen; S.santaEdit = false; render(); },
   'canteen-toggle'() { S.canteenOpen = !S.canteenOpen; render(); },
   'food-cancel'() { S.foodDraft = null; render(); },
   'food-tag'(el) {
@@ -7936,7 +7941,7 @@ async function splash() {
   // Пока видео грузится, виден его первый кадр; идёт до нажатия кнопки или конца времени
   const el = document.createElement('div');
   // Ролики лежат в кэше браузера сутки: после замены файла поднимай номер, иначе люди увидят старый
-  const CLIMB_V = 3;
+  const CLIMB_V = 4;
   el.className = 'climb';
   const who = meG('boy', 'girl');
   el.innerHTML = `<video class="climb-vid" autoplay muted loop playsinline preload="auto" poster="/art/climb/${who}.jpg?v=${CLIMB_V}" src="/art/climb/${who}.mp4?v=${CLIMB_V}"></video>
