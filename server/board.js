@@ -8,15 +8,19 @@
 // «Обед» и «На кухне» — короткие: обед висит до часа после назначенного времени и снимается сам, когда автор
 // отметил в столовой «Поел» или ушёл из офиса; угощение на кухне — ровно час, за это время его обычно разбирают.
 const KINDS = {
-  lunch: { name: 'Обед', icon: 'lunch', short: true },
-  kitchen: { name: 'На кухне', icon: 'gift', short: true },
-  company: { name: 'Ищу компанию', icon: 'coffee' },
-  give: { name: 'Отдам / продам', icon: 'gift' },
-  trip: { name: 'Поездка, конференция', icon: 'flag' },
-  found: { name: 'Нашёл / потерял', icon: 'search' },
-  ask: { name: 'Вопрос коллегам', icon: 'help' },
-  other: { name: 'Другое', icon: 'megaphone' }
+  lunch: { name: 'Обед', icon: 'lunch', short: true, scope: 'office' },
+  kitchen: { name: 'На кухне', icon: 'gift', short: true, scope: 'office' },
+  company: { name: 'Ищу компанию', icon: 'coffee', scope: 'office' },
+  give: { name: 'Отдам / продам', icon: 'gift', scope: 'city' },
+  trip: { name: 'Поездка, конференция', icon: 'flag', scope: 'all' },
+  found: { name: 'Нашёл / потерял', icon: 'search', scope: 'office' },
+  ask: { name: 'Вопрос коллегам', icon: 'help', scope: 'all' },
+  other: { name: 'Другое', icon: 'megaphone', scope: 'all' }
 };
+// Кому видно объявление, решает его тема, а не автор:
+//   office — то, ради чего надо быть в одном здании (обед, кухня, компания на кофе, находки): только свой офис;
+//   city   — вещи из рук в руки (отдам, продам, обмен): свой город;
+//   all    — вопросы, поездки и поиск знающих людей: весь Этаж. Автор может сузить такое до своего офиса.
 const TEXT_MAX = 200;
 const MAX_DAYS = 14;
 const PER_DAY = 5;
@@ -41,7 +45,7 @@ function register(ctx) {
     at INTEGER NOT NULL, PRIMARY KEY (post_id, user_id)
   );
   `);
-  for (const col of ['gang_id INTEGER', 'expires_at INTEGER', 'lunch_time TEXT', 'place TEXT']) { try { db.exec(`ALTER TABLE board_posts ADD COLUMN ${col}`); } catch {} }
+  for (const col of ['gang_id INTEGER', 'expires_at INTEGER', 'lunch_time TEXT', 'place TEXT', 'scope TEXT']) { try { db.exec(`ALTER TABLE board_posts ADD COLUMN ${col}`); } catch {} }
   const kitchenPinged = new Map(); // кому и когда последний раз приходил пуш про кухню
   // Где человек сегодня: отметка в офисе, а до неё — его основной офис из профиля
   const officeOf = (uid) => {
@@ -50,9 +54,18 @@ function register(ctx) {
     const r = q('SELECT profile FROM users WHERE id = ?').get(uid);
     return (r && readProfile ? readProfile(r.profile).home : null) || null;
   };
+  const cityOf = (oid) => { const o = oid ? officeById(oid) : null; return o ? o.city || 'Москва' : null; };
+  // Старые объявления без поля scope: с офисом — офисные, без офиса — на весь Этаж
+  const scopeOf = (p) => p.scope || (p.office_id ? 'office' : 'all');
   const canSee = (p, uid) => {
-    if (p.kind === 'lunch') return p.user_id === uid || (!!canTalk && canTalk(p.user_id, uid) && !!p.office_id && officeOf(uid) === p.office_id);
-    return !p.gang_id || (isMember && isMember(p.gang_id, uid));
+    if (p.user_id === uid) return true;
+    if (p.kind === 'lunch') return !!canTalk && canTalk(p.user_id, uid) && !!p.office_id && officeOf(uid) === p.office_id;
+    if (p.gang_id) return !!(isMember && isMember(p.gang_id, uid));
+    const sc = scopeOf(p);
+    if (sc === 'all' || !p.office_id) return true;
+    const mine = officeOf(uid);
+    if (!mine) return false; // офис не выбран — офисное и городское не показываем
+    return sc === 'office' ? mine === p.office_id : cityOf(mine) === cityOf(p.office_id);
   };
 
   const today = () => U.msk().day;
@@ -75,7 +88,7 @@ function register(ctx) {
     const g = p.gang_id ? q('SELECT id, name FROM gangs WHERE id = ?').get(p.gang_id) : null;
     return {
       id: p.id, kind: p.kind, kindName: (KINDS[p.kind] || KINDS.other).name, icon: (KINDS[p.kind] || KINDS.other).icon,
-      text: p.text, until: p.until, office: o ? { id: o.id, name: o.name } : null, gang: g ? { id: g.id, name: g.name } : null,
+      text: p.text, until: p.until, scope: p.gang_id ? 'gang' : scopeOf(p), office: o ? { id: o.id, name: o.name, city: o.city || 'Москва' } : null, gang: g ? { id: g.id, name: g.name } : null,
       author: { id: p.user_id, nick: who.nick, name: fullName ? fullName(wp, 'all') : '', look: publicLook ? publicLook(who) : {} }, mine: p.user_id === uid,
       metoo: q('SELECT COUNT(*) AS n FROM board_metoo WHERE post_id = ?').get(p.id).n, iMetoo: !!me, fans, at: p.at,
       time: p.lunch_time || null, place: p.place || null, expiresAt: p.expires_at || null
@@ -88,7 +101,9 @@ function register(ctx) {
     const rows = q("SELECT p.* FROM board_posts p JOIN users x ON x.id = p.user_id WHERE p.hidden = 0 AND p.until >= ? AND (p.expires_at IS NULL OR p.expires_at > ?) AND x.company = ? ORDER BY p.at DESC LIMIT 100").all(today(), U.now(), u.company || 'mts');
     const office = query.office ? String(query.office) : '';
     const items = rows.filter((p) => canSee(p, u.id) && (!office || !p.office_id || p.office_id === office)).map((p) => view(p, u.id));
-    return { items, kinds: Object.entries(KINDS).map(([id, k]) => ({ id, ...k })), maxDays: MAX_DAYS, lunchTimes: lunchTimes() };
+    const mine = officeOf(u.id), mo = mine ? officeById(mine) : null;
+    return { items, kinds: Object.entries(KINDS).map(([id, k]) => ({ id, ...k })), maxDays: MAX_DAYS, lunchTimes: lunchTimes(),
+      myOffice: mo ? { id: mo.id, name: mo.name, city: mo.city || 'Москва' } : null };
   });
 
   route('POST', '/api/board', async (req, body) => {
@@ -117,13 +132,18 @@ function register(ctx) {
     }
     let gang = body.gang ? Number(body.gang) : null;
     if (gang && !(isMember && isMember(gang, u.id))) throw bad('Повесить объявление можно только в своей банде.');
-    let office = !gang && body.office && officeById(String(body.office)) ? String(body.office) : null;
+    let office = null, scope = KINDS[kind].scope;
     if (kind === 'lunch') {
       gang = null; office = officeOf(u.id);
       if (!office) throw bad('Отметься в офисе — так свои поймут, где ты обедаешь.');
+    } else if (!gang) {
+      // Офис объявления — всегда офис автора: отметка, а до неё «мой офис» из профиля. В чужой офис написать нельзя
+      office = officeOf(u.id);
+      if (scope === 'all') { if (body.office && office) scope = 'office'; else office = null; }
+      else if (!office) throw bad(scope === 'city' ? 'Выбери «мой офис» в профиле или отметься — объявление увидит твой город.' : 'Выбери «мой офис» в профиле или отметься — объявление увидит твой офис.');
     }
-    const id = Number(q('INSERT INTO board_posts (user_id, kind, text, office_id, until, at, gang_id, expires_at, lunch_time, place) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(u.id, kind, text, office, until, U.now(), gang, expires, time, place).lastInsertRowid);
+    const id = Number(q('INSERT INTO board_posts (user_id, kind, text, office_id, until, at, gang_id, expires_at, lunch_time, place, scope) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(u.id, kind, text, office, until, U.now(), gang, expires, time, place, gang ? null : scope).lastInsertRowid);
     if ((kind === 'company' || kind === 'lunch') && onEvent) onEvent('board_company', u.id);
     // Угощение на кухне — пуш только тем, кто сейчас отмечен в этом офисе, и не чаще раза в час на человека
     if (kind === 'kitchen' && office && !U.isAfterCheckinCutoff()) {

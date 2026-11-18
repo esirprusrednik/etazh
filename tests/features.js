@@ -264,6 +264,30 @@ const mskToday = () => new Date(Date.now() + SHIFT_H * 3600e3).toISOString().sli
     assert.equal((await a.get('/api/office-requests')).json.items[0].status, 'rejected');
   });
 
+  await step('доска по адресу: офисное — офису, «отдам» — городу, вопросы — всему Этажу', async () => {
+    const kz = (await a.get('/api/me')).json.catalog.offices.find((o) => o.city === 'Казань').id;
+    const mk = async (mail, nick, home) => { const u = await new Client().login(mail, nick); if (home) await u.post('/api/me/profile', { profile: { home } }); return u; };
+    const s1 = await mk('of1@mts.ru', 'смоленский', 'smol'), s2 = await mk('of2@mts.ru', 'сосед_смол', 'smol');
+    const m1 = await mk('of3@mts.ru', 'марксист', 'mark'), k1 = await mk('of4@mts.ru', 'казанец', kz), n1 = await mk('of5@mts.ru', 'бездомный');
+    const post = async (kind, text, extra = {}) => (await s1.post('/api/board', { kind, text, ...extra })).json.item;
+    const sees = async (u, id) => (await u.get('/api/board')).json.items.some((x) => x.id === id);
+    const kitchen = await post('kitchen', 'Пирог на кухне третьего'), give = await post('give', 'Отдам монитор, самовывоз'), ask = await post('ask', 'Кто разбирается в SAP?');
+    const narrow = await post('other', 'Сбор на подарок охраннику', { office: 'mark' });
+    assert.equal(kitchen.scope, 'office'); assert.equal(kitchen.office.id, 'smol');
+    assert.equal(give.scope, 'city'); assert.equal(ask.scope, 'all'); assert.equal(ask.office, null);
+    assert.equal(narrow.office.id, 'smol', 'сузить можно только до своего офиса, не до чужого');
+    assert.deepEqual([await sees(s2, kitchen.id), await sees(m1, kitchen.id), await sees(k1, kitchen.id), await sees(n1, kitchen.id)], [true, false, false, false], 'кухня — только свой офис');
+    assert.deepEqual([await sees(s2, give.id), await sees(m1, give.id), await sees(k1, give.id)], [true, true, false], '«отдам» — свой город');
+    assert.deepEqual([await sees(m1, ask.id), await sees(k1, ask.id), await sees(n1, ask.id)], [true, true, true], 'вопрос — весь Этаж');
+    assert.deepEqual([await sees(s2, narrow.id), await sees(m1, narrow.id)], [true, false]);
+    assert.equal((await m1.post(`/api/board/${kitchen.id}/metoo`)).status, 404, 'из другого офиса не откликнуться');
+    assert.equal((await n1.post('/api/board', { kind: 'kitchen', text: 'Конфеты у принтера' })).status, 400, 'без офиса офисное не повесить');
+    assert.equal((await n1.post('/api/board', { kind: 'ask', text: 'Где оформить пропуск?' })).status, 200);
+    // В гостях в другом офисе видишь его объявления
+    await m1.post('/api/checkin', { office: 'smol' });
+    assert.ok(await sees(m1, kitchen.id));
+  });
+
   await step('удаление аккаунта убирает его спасибо, ачивки и пары', async () => {
     assert.equal((await d.req('DELETE', '/api/me')).status, 200);
     const fp = (await a.get('/api/features')).json.coffee.pair;

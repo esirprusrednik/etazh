@@ -2592,14 +2592,14 @@ function renderBoardCard() {
   if (!b) return '';
   const home = S.me.profile && S.me.profile.home;
   const gang = (S.me.gangs || [])[0] || null;
-  const scope = S.boardScope === 'office' && !home ? 'all' : S.boardScope === 'gang' && !gang ? 'all' : S.boardScope || 'all';
+  const scope = S.boardScope === 'office' && !b.myOffice ? 'all' : S.boardScope === 'gang' && !gang ? 'all' : S.boardScope || 'all';
   const cat = S.boardCat === 'kitchen' || S.boardCat === 'other' ? S.boardCat : 'all';
   const live = b.items.filter((x) => x.kind !== 'lunch' && (!x.expiresAt || x.expiresAt > Date.now()));
-  const inScope = live.filter((x) => scope === 'all' || (scope === 'office' ? !x.gang && (!x.office || x.office.id === home) : x.gang && x.gang.id === gang.id));
+  const inScope = live.filter((x) => scope === 'all' || (scope === 'office' ? !x.gang && x.scope === 'office' : x.gang && x.gang.id === gang.id));
   const inCat = (x, c) => c === 'all' || (c === 'other' ? x.kind !== 'lunch' && x.kind !== 'kitchen' : x.kind === c);
   // Угощение — наверх: оно живёт час
   const items = inScope.filter((x) => inCat(x, cat)).sort((p, q) => (!!q.expiresAt - !!p.expiresAt) || q.at - p.at);
-  const chips = [['all', 'Весь Этаж'], home && ['office', 'Мой офис'], gang && ['gang', 'Банда']].filter(Boolean);
+  const chips = [['all', 'Всё'], b.myOffice && ['office', 'Мой офис'], gang && ['gang', 'Банда']].filter(Boolean);
   const cnt = (c) => inScope.filter((x) => inCat(x, c)).length;
   const empty = {
     kitchen: 'На кухне яблоки, мармелад или торт после дня рождения? Напиши — объявление провисит час: обычно за это время всё разбирают.',
@@ -2613,11 +2613,12 @@ function renderBoardCard() {
     <div class="chips bp-cats">${BOARD_CATS.map(([v, t]) => { const n = v === 'all' ? 0 : cnt(v); return `<button class="chip small ${cat === v ? 'on' : ''}" data-act="board-cat" data-v="${v}">${v === 'kitchen' ? ico('gift', 14) + ' ' : ''}${t}${n ? ` <b>${n}</b>` : ''}</button>`; }).join('')}</div>
     ${items.length ? items.slice(0, S.boardAll ? 100 : 5).map(boardRow).join('') : `<p class="small" style="margin:0">${emptyText}</p>`}
     ${items.length > 5 && !S.boardAll ? `<button class="linkbtn" data-act="board-all">Ещё ${items.length - 5}</button>` : ''}`}
+    ${b.myOffice ? '' : '<button class="linkbtn" data-act="open" data-v="office" style="text-align:left">Выбери свой офис — появятся объявления офиса и города: кухня, находки, «отдам»</button>'}
   </section>`;
 }
 // Одно объявление Доски: обед (время, кто идёт), угощение на кухне (таймер) или обычное
 function boardRow(x) {
-  const where = (x) => x.gang ? `только банда «${esc(x.gang.name)}»` : x.office ? esc(x.office.name) : 'весь Этаж';
+  const where = (x) => x.gang ? `только банда «${esc(x.gang.name)}»` : !x.office || x.scope === 'all' ? 'весь Этаж' : x.scope === 'city' ? `весь город · ${esc(x.office.city)}` : `офис «${esc(x.office.name)}»`;
   const people = (x) => x.fans && x.fans.length ? x.fans.map((f) => `<button class="linkbtn" data-act="dm-open" data-id="${f.id}">${nk(f)}</button>`).join(', ') : '';
   {
     const head = `<div class="row" style="gap:10px;align-items:flex-start">${tap(x.author.id, avatar(x.author.look, 36))}
@@ -2664,17 +2665,25 @@ function renderBoardNew() {
   const min = new Date(Date.now() + 3 * 3600e3).toISOString().slice(0, 10);
   const max = new Date(Date.now() + 3 * 3600e3 + 14 * 864e5).toISOString().slice(0, 10);
   const gang = (S.me.gangs || [])[0] || null;
-  const ci = S.state && S.state.checkin;
-  const here = ci && ci.office !== home ? [ci.office, `Только ${esc(ci.name)}`] : null;
-  const who = [['', 'Весь Этаж'], home && [home, `Только ${esc(homeName)}`], here, gang && ['gang', `Только банда «${esc(gang.name)}»`]].filter(Boolean);
-  const cur = d.gang ? 'gang' : d.office || '';
-  const offName = d.office === home ? homeName : here && d.office === here[0] ? ci.name : 'этот офис';
+  // Кому видно — решает тема: офисное (кухня, компания, находки) — своему офису, «отдам/продам» — городу,
+  // вопросы и поездки — всему Этажу. Автор выбирает только между этим и «только банда»
+  const mo = S.board && S.board.myOffice;
+  const sc = (kinds.find((k) => k.id === d.kind) || {}).scope || 'all';
+  const base = sc === 'office' ? ['', mo ? `Офис «${esc(mo.name)}»` : 'Мой офис'] : sc === 'city' ? ['', mo ? `Город · ${esc(mo.city)}` : 'Мой город'] : ['', 'Весь Этаж'];
+  const who = [base, sc === 'all' && mo && [mo.id, `Только «${esc(mo.name)}»`], gang && ['gang', `Только банда «${esc(gang.name)}»`]].filter(Boolean);
+  const cur = d.gang ? 'gang' : sc === 'all' ? d.office || '' : '';
+  const needOffice = !mo && !d.gang && sc !== 'all';
   const times = ((S.board && S.board.lunchTimes) || []).slice(0, 10); // ближайшие два с половиной часа
   const lunch = d.kind === 'lunch', kitchen = d.kind === 'kitchen';
   const ph = lunch ? 'Например: новая пиццерия на Арбате, берём столик на шестерых' : kitchen ? 'Яблоки, груши и мармелад на кухне 3-го этажа' : 'Отдам два билета в театр на субботу';
-  const audience = lunch ? 'Сбор увидят свои — банда и подельники, кто сегодня в твоём офисе; кто уже отметился, получит пуш. Остальных зови лично.' : d.gang ? 'Объявление увидит только твоя банда.' : d.office ? `Объявление увидят в «${esc(offName)}» и все, кто смотрит весь Этаж.` : 'Объявление видят все.';
+  const audience = lunch ? 'Сбор увидят свои — банда и подельники, кто сегодня в твоём офисе; кто уже отметился, получит пуш. Остальных зови лично.'
+    : d.gang ? 'Объявление увидит только твоя банда.'
+    : needOffice ? `Это объявление для ${sc === 'city' ? 'своего города' : 'своего офиса'}. Сначала выбери «мой офис» в профиле или отметься.`
+    : sc === 'office' ? `Увидит только офис «${esc(mo.name)}»: в других офисах это ни к чему.`
+    : sc === 'city' ? `Увидят все офисы твоего города (${esc(mo.city)}) — из другого города вещь всё равно не забрать.`
+    : d.office ? `Увидит только офис «${esc(mo ? mo.name : '')}».` : 'Увидит весь Этаж — все офисы и города.';
   const life = lunch ? 'Кто нажмёт «Я с вами» — придёт пуш. Сбор снимется сам через час после обеда или когда ты отметишь в столовой «Поел».'
-    : kitchen ? (d.office && !d.gang ? 'Кто сейчас отмечен в этом офисе, получит пуш. ' : '') + 'Провисит час — обычно за это время всё разбирают.' : '«Я тоже» придёт тебе пушем, дальше — в личке. Не дольше двух недель, потом исчезнет само.';
+    : kitchen ? (mo && !d.gang ? 'Кто сейчас отмечен в этом офисе, получит пуш. ' : '') + 'Провисит час — обычно за это время всё разбирают.' : '«Я тоже» придёт тебе пушем, дальше — в личке. Не дольше двух недель, потом исчезнет само.';
   return `${lunch ? '' : `<div class="field">О чём<div class="chips">${kinds.filter((k) => k.id !== 'lunch').map((k) => `<button class="chip ${d.kind === k.id ? 'on' : ''}" data-act="board-kind" data-v="${k.id}">${ico(k.icon, 14)} ${esc(k.name)}</button>`).join('')}</div></div>`}
     ${lunch ? `<div class="field">Во сколько${times.length ? `<div class="chips">${times.map((t) => `<button class="chip ${d.time === t ? 'on' : ''}" data-act="board-time" data-v="${t}">${t}</button>`).join('')}</div>` : '<p class="small" style="margin:0">На сегодня обеды уже закончились — позвать можно завтра с 11:00.</p>'}</div>
       <label class="field">Где встречаемся<input id="bd-place" maxlength="40" placeholder="У лифтов на 3 этаже" value="${esc(d.place || '')}"></label>` : ''}
@@ -2682,7 +2691,7 @@ function renderBoardNew() {
     ${lunch || kitchen ? '' : `<div class="row" style="gap:10px"><label class="field grow">Висит до<input id="bd-until" type="date" min="${min}" max="${max}" value="${esc(d.until)}"></label></div>`}
     ${who.length > 1 && !lunch ? `<div class="field">Кому<div class="chips">${who.map(([v, t]) => `<button class="chip ${cur === v ? 'on' : ''}" data-act="board-office" data-v="${v}">${t}</button>`).join('')}</div></div>` : ''}
     <p class="small" style="margin:0">${audience} ${life}</p>
-    <button class="btn" data-act="board-save" ${lunch && !times.length ? 'disabled' : ''}>${lunch ? 'Позвать на обед' : 'Повесить'}</button>`;
+    <button class="btn" data-act="board-save" ${(lunch && !times.length) || needOffice ? 'disabled' : ''}>${lunch ? 'Позвать на обед' : 'Повесить'}</button>`;
 }
 const findBar = () => `<button class="find-bar" data-act="find-open">${ico('search', 18)}<span>Найти: ник, имя или тема</span></button>`;
 const expertRow = (p) => `<div class="expert">
@@ -7118,10 +7127,10 @@ const actions = {
     const kind = (el && el.dataset && el.dataset.v) || 'other';
     const ci = S.state && S.state.checkin && S.state.checkin.office;
     // Угощение на кухне имеет смысл только в своём офисе — туда и ставим по умолчанию
-    S.boardDraft = { kind, text: '', until: t, place: '', time: '', gang: toGang ? gid : null, office: toGang ? '' : kind === 'kitchen' ? (ci || home || '') : '' };
+    S.boardDraft = { kind, text: '', until: t, place: '', time: '', gang: toGang ? gid : null, office: '' };
     S.sheet = 'board-new'; S.error = ''; render(); loadBoard().then(() => { if (S.sheet === 'board-new') render(); });
   },
-  'board-kind'(el) { boardSync(); S.boardDraft.kind = el.dataset.v; if (el.dataset.v === 'kitchen' && !S.boardDraft.office && !S.boardDraft.gang) S.boardDraft.office = (S.state && S.state.checkin && S.state.checkin.office) || (S.me.profile && S.me.profile.home) || ''; render(); },
+  'board-kind'(el) { boardSync(); S.boardDraft.kind = el.dataset.v; S.boardDraft.office = ''; render(); },
   'board-office'(el) { boardSync(); const g = el.dataset.v === 'gang'; S.boardDraft.gang = g ? ((S.me.gangs || [])[0] || {}).id || null : null; S.boardDraft.office = g ? '' : el.dataset.v; render(); },
   'board-save': () => run(async () => {
     boardSync();

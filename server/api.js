@@ -824,7 +824,7 @@ function createApi(db) {
     const seenFeed = Number(query.seenFeed || 0);
     const gangIds = gangs.map((g) => g.id);
     const newChat = gangIds.length
-      ? q(`SELECT COUNT(*) AS n FROM messages WHERE gang_id IN (${gangIds.map(() => '?').join(',')}) AND at > ? AND hidden = 0 AND (user_id IS NULL OR user_id != ?)`).get(...gangIds, seenChat, u.id).n
+      ? q(`SELECT COUNT(*) AS n FROM messages WHERE gang_id IN (${gangIds.map(() => '?').join(',')}) AND at > ? AND hidden = 0 AND (user_id IS NULL OR user_id != ?) AND (office_id IS NULL OR office_id = ?)`).get(...gangIds, seenChat, u.id, (activeCheckin(u.id) || {}).office_id || '').n
       : 0;
     const newFeed = q('SELECT COUNT(*) AS n FROM events WHERE to_id = ? AND at > ?').get(u.id, seenFeed).n
       + (ci ? q('SELECT COUNT(*) AS n FROM signals WHERE office_id = ? AND at > ? AND hidden = 0 AND expires_at > ?').get(ci.office_id, seenFeed, U.now()).n : 0);
