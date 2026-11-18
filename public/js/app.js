@@ -2117,10 +2117,12 @@ function renderStats() {
   const st = S.state && S.state.stats;
   if (!st) return '<p class="sub">Загружаем…</p>';
   const tile = (n, label) => `<div><b>${n}</b><span>${label}</span></div>`;
+  // Всего в Этаже — по всем компаниям; остальные цифры — по своей. Если компания одна, оговорка не нужна
+  const all = st.allUsers || st.users, mixed = all > st.users;
   return `<div class="note warn" style="margin:0"><b>Идёт бета-тест.</b> Что-то может сломаться, а что-то — поменяться. Нашёл баг или есть идея — напиши, за принятую идею +10 зёрен.</div>
-    <p class="small" style="margin:0">Сегодня ${todayLabel()}. Цифры общие на весь Этаж, без ников и названий — кто именно, не видно.</p>
+    <p class="small" style="margin:0">Сегодня ${todayLabel()}. ${mixed ? `Всего в Этаже ${all} ${plural(all, 'бандит', 'бандита', 'бандитов')} из разных компаний; цифры ниже — по твоей компании` : 'Цифры общие на весь Этаж'}, без ников и названий — кто именно, не видно.</p>
     <div class="g-stats" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-      ${tile(st.users, plural(st.users, 'бандит в Этаже', 'бандита в Этаже', 'бандитов в Этаже'))}
+      ${tile(st.users, mixed ? 'из твоей компании' : plural(st.users, 'бандит в Этаже', 'бандита в Этаже', 'бандитов в Этаже'))}
       ${tile(st.gangs, plural(st.gangs, 'банда', 'банды', 'банд'))}
       ${tile(st.inGangs, 'уже в банде')}
       ${tile(st.users - st.inGangs, 'пока одиночки')}
