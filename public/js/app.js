@@ -1983,7 +1983,8 @@ function renderLogin() {
         <h2>Твоей компании тут ещё нет</h2>
         <p class="sub">Этаж для почты <b>@${esc((o.email.split('@')[1] || ''))}</b> пока не открыт. Расскажи, что за компания и где ваш офис, — модератор заведёт их, и вам не придётся ждать уточнений.</p>
         <label class="field">Название компании<input id="co-name" maxlength="40" autocomplete="organization" placeholder="Как её называют сами сотрудники" value="${esc(o.companyName || '')}"></label>
-        <label class="field">Первый офис<input id="co-office" maxlength="40" placeholder="«Главный» или адрес" value="${esc(o.officeName || '')}"></label>
+        <label class="field">Город офиса<input id="co-city" maxlength="40" placeholder="Москва" autocomplete="address-level2" value="${esc(o.officeCity || '')}"></label>
+        <label class="field">Название офиса<input id="co-office" maxlength="40" placeholder="«Главный» или адрес" value="${esc(o.officeName || '')}"></label>
         <p class="small">Остальные офисы можно будет добавить позже. Дальше пришлём письмо — подтвердить, что почта твоя.</p>
         ${o.error ? `<div class="err">${esc(o.error)}</div>` : ''}
         <button class="btn wide" data-act="company-submit" ${S.busy ? 'disabled' : ''}>Отправить заявку</button>
@@ -2233,11 +2234,43 @@ function renderOfficeList() {
       <button class="ofl-pick" data-act="checkin" data-v="${esc(o.id)}"><span class="ofl-dot" style="background:${officeColor(o)}"></span><span class="grow">${esc(o.name)}</span>${o.id === cur ? '<span class="small">сейчас здесь</span>' : ''}</button>
       <button class="ofl-star ${o.id === home ? 'on' : ''}" data-act="prof" data-k="home" data-v="${esc(o.id)}" aria-label="${o.id === home ? 'Убрать из «мой офис»' : 'Сделать моим офисом'}" title="${o.id === home ? 'Мой офис' : 'Сделать моим офисом'}">${o.id === home ? '★' : '☆'}</button></div>`;
   const recent = recentOffices().map((id) => all.find((o) => o.id === id)).filter(Boolean).slice(0, 3);
-  const list = (qv ? all.filter((o) => o.name.toLocaleLowerCase('ru').includes(qv)) : all).slice().sort((x, y) => x.name.localeCompare(y.name, 'ru'));
-  return `${all.length > 6 ? `<label class="field" style="gap:0"><span class="hidden">Поиск офиса</span><input id="office-q" placeholder="Найти офис" value="${esc(S.officeQ || '')}" autocomplete="off"></label>` : ''}
-    ${!qv && recent.length && all.length > 4 ? `<div class="eyebrow" style="margin-top:6px">Недавние</div>${recent.map(row).join('')}<div class="eyebrow" style="margin-top:10px">Все офисы</div>` : ''}
-    ${list.length ? list.map(row).join('') : '<p class="sub">Ничего не нашли. Нет твоего офиса — напиши в «Идеи и ошибки», добавим.</p>'}
+  const list = (qv ? all.filter((o) => (o.name + ' ' + (o.city || '')).toLocaleLowerCase('ru').includes(qv)) : all).slice().sort((x, y) => x.name.localeCompare(y.name, 'ru'));
+  // Городов несколько — список делится по городам: свой город (по «моему офису») первым, дальше по алфавиту
+  const cities = officeCities(list);
+  const body = cities.length > 1
+    ? cities.map((c) => `<div class="eyebrow ofl-city">${esc(c)}</div>${list.filter((o) => (o.city || 'Москва') === c).map(row).join('')}`).join('')
+    : list.map(row).join('');
+  return `${all.length > 6 ? `<label class="field" style="gap:0"><span class="hidden">Поиск офиса</span><input id="office-q" placeholder="Найти офис или город" value="${esc(S.officeQ || '')}" autocomplete="off"></label>` : ''}
+    ${!qv && recent.length && all.length > 4 ? `<div class="eyebrow" style="margin-top:6px">Недавние</div>${recent.map(row).join('')}${cities.length > 1 ? '' : '<div class="eyebrow" style="margin-top:10px">Все офисы</div>'}` : ''}
+    ${list.length ? body : '<p class="sub">Ничего не нашли.</p>'}
+    <button class="ofl-ask" data-act="office-req-open">office<span class="grow"><b>Нет моего офиса</b><span class="small">Другой адрес в Москве или другой город — подай заявку, добавим</span></span></button>
     <p class="small" style="margin:8px 0 0">★ — «мой офис»: он будет на главной кнопке, отмечаться в одно касание.${cur ? ' Зёрна за отметку — один раз в день.' : ''}</p>`;
+}
+
+// Города офисов компании: город «моего офиса» первым, дальше — где офисов больше
+function officeCities(list) {
+  const home = (S.cat.offices.find((o) => o.id === (S.me.profile && S.me.profile.home)) || {}).city;
+  const n = {}; for (const o of list) n[o.city || 'Москва'] = (n[o.city || 'Москва'] || 0) + 1;
+  return Object.keys(n).sort((x, y) => (y === home) - (x === home) || n[y] - n[x] || x.localeCompare(y, 'ru'));
+}
+// В выпадающих списках город дописываем, только когда городов больше одного
+const officeLabel = (o) => (new Set(S.cat.offices.map((x) => x.city || 'Москва')).size > 1 ? `${o.city || 'Москва'} · ${o.name}` : o.name);
+const officeOpts = (sel) => S.cat.offices.slice().sort((x, y) => officeLabel(x).localeCompare(officeLabel(y), 'ru')).map((o) => `<option value="${esc(o.id)}" ${sel === o.id ? 'selected' : ''}>${esc(officeLabel(o))}</option>`).join('');
+
+// Заявка на офис, которого нет в списке: город и название
+function renderOfficeReq() {
+  const d = S.officeReq || (S.officeReq = { city: '', name: '' });
+  const items = S.officeReqs || [];
+  const st = { pending: 'ждёт модератора', done: 'добавлен', rejected: 'не добавили' };
+  const known = [...new Set(S.cat.offices.map((o) => o.city || 'Москва'))];
+  return `<p class="sub" style="margin-top:0">Работаешь по другому адресу в Москве или в другом городе? Напиши город и как офис называют свои — модератор добавит его в список.</p>
+    <label class="field">Город<input id="orq-city" maxlength="40" list="orq-cities" placeholder="Москва, Казань, Новосибирск…" value="${esc(d.city)}" autocomplete="address-level2"></label>
+    <datalist id="orq-cities">${known.map((c) => `<option value="${esc(c)}">`).join('')}</datalist>
+    <label class="field">Название офиса<input id="orq-name" maxlength="40" placeholder="Как говорят коллеги: «Башня», «Ленина, 5»" value="${esc(d.name)}" autocomplete="off"></label>
+    ${S.error ? `<div class="err">${esc(S.error)}</div>` : ''}
+    <button class="btn wide" data-act="office-req-send" ${S.busy ? 'disabled' : ''}>Отправить заявку</button>
+    <p class="small">Когда офис появится, придёт пуш. До тех пор отмечайся в ближайшем из списка.</p>
+    ${items.length ? `<div class="eyebrow" style="margin-top:8px">Мои заявки</div>${items.map((r) => `<div class="orq-row"><span class="grow"><b>${esc(r.name)}</b><span class="small">${esc(r.city)}</span></span><span class="orq-st ${r.status}">${st[r.status] || ''}</span></div>`).join('')}` : ''}`;
 }
 
 // Вечером: кто из банд в офисе в следующий рабочий день (по плану недели)
@@ -4094,7 +4127,7 @@ function renderGangSettings() {
     <div class="field">Кто может вступить${accessPicker(d.access)}</div>
     <div class="field">Кто зовёт новых<div class="chips"><button class="chip ${d.whoInvites !== 'owner' ? 'on' : ''}" data-act="gs-who" data-v="all">Все участники</button><button class="chip ${d.whoInvites === 'owner' ? 'on' : ''}" data-act="gs-who" data-v="owner">Только я</button></div></div>
     <div class="row" style="gap:10px"><label class="field" style="width:130px">Лимит людей<input id="gs-max" type="number" min="0" max="30" value="${d.maxMembers || 0}"></label>
-      <label class="field grow">Офис банды<select id="gs-office"><option value="">Любой</option>${S.cat.offices.map((o) => `<option value="${esc(o.id)}" ${d.office === o.id ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select></label></div>
+      <label class="field grow">Офис банды<select id="gs-office"><option value="">Любой</option>${officeOpts(d.office)}</select></label></div>
     <p class="small" style="margin:0">0 — до 30 человек, это максимум для любой банды.</p>
     <button class="btn" data-act="gs-save">Сохранить</button>`;
 }
@@ -4869,6 +4902,7 @@ function renderSheet() {
       <button class="btn ghost" data-act="dm-open" data-id="${S.pcallTo}">chat Написать сообщение</button>`);
     case 'find': return sheetWrap('Найти своих', renderFind());
     case 'feedback': return sheetWrap('Идеи и ошибки', renderFeedback());
+    case 'office-req': return sheetWrap('Заявка на офис', renderOfficeReq());
     case 'blitz': return sheetWrap(S.blitz && S.blitz.set ? S.blitz.set.title : 'Блиц', renderBlitzPlay());
     case 'poll-new': return sheetWrap('Новый опрос', renderPollNew());
     case 'gev-new': return sheetWrap(S.gevDraft && S.gevDraft.editId ? 'Изменить событие' : 'Новое событие', renderGEventNew());
@@ -6009,7 +6043,7 @@ function renderProfile() {
     <span class="small" style="font-weight:600">По этим темам коллеги найдут тебя в «Кто знает?» на «Рядом», а вопросы с доски по твоей теме придут в сводку «Этажа».</span>
     <div class="field">Статус<div class="chips">${Object.entries(meG(S.cat.moods, S.cat.moodsF || S.cat.moods)).map(([k, l]) => `<button class="chip ${p.mood === k ? 'on' : ''}" data-act="prof" data-k="mood" data-v="${k}">${esc(l)}</button>`).join('')}</div></div>
     <label class="field">Мой офис — на главной кнопке отметки<select id="home-office">
-      <option value="">Не выбран</option>${S.cat.offices.slice().sort((x, y) => x.name.localeCompare(y.name, 'ru')).map((o) => `<option value="${esc(o.id)}" ${p.home === o.id ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select></label>
+      <option value="">Не выбран</option>${officeOpts(p.home)}</select></label>
     <div class="field">План недели — нажимай, чтобы переключить: офис → дом → не знаю
       <div class="plan">${S.cat.days.map((d) => { const v = p.plan[d]; return `<button class="plan-day ${v || 'none'}" data-act="plan-day" data-v="${d}" aria-label="${d}: ${v === 'office' ? 'офис' : v === 'home' ? 'дом' : 'не задано'}"><b>${d}</b><span>${v === 'office' ? 'Офис' : v === 'home' ? 'Дом' : '—'}</span></button>`; }).join('')}</div>
       <span class="small" style="font-weight:600">Банда видит «по плану из дома» или «собирается в офис». Отметка в офисе всегда важнее плана.</span></div>`;
@@ -6320,12 +6354,12 @@ const actions = {
     S.busy = false; render();
   },
   async 'company-submit'() {
-    const companyName = $('#co-name').value.trim(), officeName = $('#co-office').value.trim();
-    S.onb = { ...S.onb, companyName, officeName };
+    const companyName = $('#co-name').value.trim(), officeName = $('#co-office').value.trim(), officeCity = ($('#co-city') || {}).value.trim() || 'Москва';
+    S.onb = { ...S.onb, companyName, officeName, officeCity };
     if (companyName.length < 2 || officeName.length < 2) { S.onb.error = 'Напиши название компании и офиса — хотя бы по два символа.'; return render(); }
     S.busy = true; S.onb.error = ''; render();
     try {
-      const r = await post('/api/auth/request', { email: S.onb.email, consent: true, companyName, officeName });
+      const r = await post('/api/auth/request', { email: S.onb.email, consent: true, companyName, officeName, officeCity });
       S.onb = { ...S.onb, step: r.access ? 'access' : 'sent', error: '', devLink: r.devLink || null, devCode: r.devCode || null };
     } catch (e) { S.onb.error = e.message; }
     S.busy = false; render();
@@ -6922,6 +6956,15 @@ const actions = {
     if (S.sheet === 'crew-new' && !S.crew) await run(loadCrew);
     if ((S.sheet === 'battle-pick' || S.sheet === 'dm-pick') && !S.people) await run(loadPeople);
   },
+  'office-req-open': () => { S.sheet = 'office-req'; S.error = ''; S.officeQ = ''; render(); run(async () => { S.officeReqs = (await get('/api/office-requests')).items; }); },
+  'office-req-send': () => run(async () => {
+    const city = ($('#orq-city') || {}).value || '', name = ($('#orq-name') || {}).value || '';
+    S.officeReq = { city, name };
+    if (city.trim().length < 2 || name.trim().length < 2) throw new Error('Напиши город и название офиса');
+    const r = await post('/api/office-requests', { city, name });
+    S.officeReq = { city: '', name: '' }; S.officeReqs = r.items;
+    toast(r.dup ? 'Такая заявка от тебя уже есть' : 'Заявка ушла модератору');
+  }),
   'fb-kind'(el) { const t = $('#fb-text'); S.fb = { kind: el.dataset.v, text: t ? t.value : '' }; render(); },
   'fb-send': () => run(async () => {
     const text = ($('#fb-text') || {}).value || '';

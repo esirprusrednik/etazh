@@ -2902,3 +2902,16 @@ main > .chats-hint { margin: 0 6px; text-align: center; }
 .wave-sweep .wsea .ws-crest { width: 190px; height: 190px; bottom: 6vh; }
 .wave-sweep .sw-title { top: 30%; text-shadow: 0 4px 0 #0B4A9E, 0 10px 30px rgba(0,0,0,.35); }
 @media (prefers-reduced-motion: reduce) { .wsea .ws-b, .wsea .ws-b .fan-arms, .wsea.go .ws-crest, .wsea.go .ws-b { animation: none; } }
+
+/* ---------- Офисы: города и заявка на новый ---------- */
+.ofl-city { margin: 14px 0 2px; }
+.ofl-city:first-of-type { margin-top: 6px; }
+.ofl-ask { display: flex; align-items: center; gap: 12px; width: 100%; margin-top: 12px; padding: 12px 14px; text-align: left; font: inherit; color: var(--ink);
+  background: none; border: 1.5px dashed var(--line); border-radius: 14px; cursor: pointer; }
+.ofl-ask > svg, .ofl-ask > .ei { flex: none; color: var(--accent); }
+.ofl-ask .grow { display: grid; gap: 2px; }
+.ofl-ask b { font-weight: 800; }
+.orq-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.orq-row .grow { display: grid; gap: 1px; min-width: 0; }
+.orq-st { flex: none; font-size: 12px; font-weight: 800; color: var(--muted); }
+.orq-st.done { color: var(--ok, #1F7A3A); }

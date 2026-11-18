@@ -238,6 +238,32 @@ const mskToday = () => new Date(Date.now() + SHIFT_H * 3600e3).toISOString().sli
     assert.equal(adm.n, 1);
   });
 
+  await step('офисы: у каждого город, заявка на новый офис — модератору, после одобрения офис в списке', async () => {
+    const cat = (await a.get('/api/me')).json;
+    const offs = (cat.catalog || cat.cat || cat).offices;
+    assert.ok(offs.length && offs.every((o) => o.city === 'Москва' && o.name), 'у прежних офисов город — Москва');
+    assert.equal((await a.post('/api/office-requests', { city: 'К', name: '' })).status, 400);
+    assert.equal((await a.post('/api/office-requests', { city: 'Москва', name: offs[0].name })).status, 400, 'такой офис уже есть');
+    const r1 = (await a.post('/api/office-requests', { city: 'Казань', name: 'Башня' })).json;
+    assert.equal(r1.items[0].status, 'pending');
+    assert.ok((await a.post('/api/office-requests', { city: 'казань', name: '«Башня»' })).json.dup, 'повтор не плодит заявки');
+    await b.post('/api/office-requests', { city: 'Казань', name: 'башня' });
+    assert.equal((await a.get('/api/admin/office-requests')).status, 403);
+    const list = (await c.get('/api/admin/office-requests')).json.items;
+    assert.equal(list.length, 1); assert.equal(list[0].people, 2);
+    const ok = (await c.post('/api/admin/office-requests/approve', { key: list[0].key, city: 'Казань', name: 'Башня' })).json;
+    assert.equal(ok.people, 2);
+    const me2 = (await a.get('/api/me')).json;
+    const o2 = (me2.catalog || me2.cat || me2).offices.find((o) => o.id === ok.office.id);
+    assert.ok(o2 && o2.city === 'Казань' && o2.name === 'Башня');
+    assert.equal((await a.get('/api/office-requests')).json.items[0].status, 'done');
+    assert.equal((await c.get('/api/admin/office-requests')).json.items.length, 0);
+    await a.post('/api/office-requests', { city: 'Тверь', name: 'Склад' });
+    const k2 = (await c.get('/api/admin/office-requests')).json.items[0].key;
+    await c.post('/api/admin/office-requests/reject', { key: k2 });
+    assert.equal((await a.get('/api/office-requests')).json.items[0].status, 'rejected');
+  });
+
   await step('удаление аккаунта убирает его спасибо, ачивки и пары', async () => {
     assert.equal((await d.req('DELETE', '/api/me')).status, 200);
     const fp = (await a.get('/api/features')).json.coffee.pair;

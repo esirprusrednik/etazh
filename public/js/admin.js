@@ -116,9 +116,19 @@ function accessCard(a) {
     <p class="small">Каждый подтвердил рабочую почту письмом. Название компании и офиса указал первый заявитель — проверь и при необходимости поправь. Открыть — заведём компанию с первым офисом и всем пришлём ссылку для входа. Отказать — адреса удалятся, новые заявки с этого домена не принимаются.</p>
     ${a.requests.length ? a.requests.map((r) => `<div class="item" style="flex-wrap:wrap;gap:8px"><div class="grow"><b>@${esc(r.domain)}</b><div class="small">человек: ${r.people} · первая заявка ${day(r.first_at)}, последняя ${day(r.last_at)}</div></div>
       <label class="field" style="width:150px">Компания<input id="ac-n-${esc(r.domain)}" maxlength="40" placeholder="Название" value="${esc(r.companyName || '')}"></label>
+      <label class="field" style="width:120px">Город<input id="ac-c-${esc(r.domain)}" maxlength="40" placeholder="Москва" value="${esc(r.officeCity || 'Москва')}"></label>
       <label class="field" style="width:150px">Первый офис<input id="ac-o-${esc(r.domain)}" maxlength="40" placeholder="Например, Главный" value="${esc(r.officeName || '')}"></label>
       <div class="row" style="gap:4px"><button class="btn small" data-a="access-open" data-d="${esc(r.domain)}">Открыть</button><button class="btn small ghost" data-a="access-reject" data-d="${esc(r.domain)}">Отказать</button></div></div>`).join('') : '<p class="sub">Новых заявок нет.</p>'}
     ${a.companies.length ? `<p class="small">Открыты по заявкам: ${a.companies.map((c) => `${esc(c.name)} (@${esc(c.domains)})`).join(', ')}</p>` : ''}</div>`;
+}
+
+function officeReqCard(r) {
+  if (!r) return '';
+  return `<div class="card"><h2>Заявки на офисы</h2><p class="small">Люди просят добавить свой офис. Город и название можно поправить перед добавлением — всем просившим придёт пуш.</p>
+    ${r.items.length ? r.items.map((x, i) => `<div class="item" style="flex-wrap:wrap"><div class="grow"><b>${esc(x.city)}, «${esc(x.name)}»</b><div class="small">${esc(x.company)} · просят: ${x.people} · с ${new Date(x.at).toLocaleDateString('ru-RU')}</div></div>
+      <label class="field" style="width:130px">Город<input id="or-c-${i}" maxlength="40" value="${esc(x.city)}"></label>
+      <label class="field" style="width:170px">Название<input id="or-n-${i}" maxlength="40" value="${esc(x.name)}"></label>
+      <div class="row" style="gap:4px"><button class="btn small" data-a="or-ok" data-i="${i}" data-k="${esc(x.key)}">Добавить</button><button class="btn small ghost" data-a="or-no" data-k="${esc(x.key)}">Отказать</button></div></div>`).join('') : '<p class="sub">Новых заявок нет.</p>'}</div>`;
 }
 
 async function load() {
@@ -126,9 +136,11 @@ async function load() {
     const [d, m, qz, food, fb] = await Promise.all([call('GET', '/api/admin/overview'), call('GET', '/api/admin/metrics').catch(() => null), call('GET', '/api/admin/quizzes').catch(() => ({ items: [] })), call('GET', '/api/admin/food').catch(() => ({ offices: [] })), call('GET', '/api/admin/feedback').catch(() => ({ items: [] }))]);
     const tp = await call('GET', '/api/admin/topics').catch(() => ({ items: [], inactive: [] }));
     const ac = await call('GET', '/api/admin/access').catch(() => null);
+    const orq = await call('GET', '/api/admin/office-requests').catch(() => null);
     root.innerHTML = `
     <div class="card"><h2>Сводка</h2><p class="sub">Пользователей: <b>${d.users}</b> · отмечались сегодня: <b>${d.activeToday}</b> · банд: <b>${d.gangs}</b></p></div>
     ${accessCard(ac)}
+    ${officeReqCard(orq)}
     ${feedbackCard(fb)}
     ${m ? metricsCard(m) : ''}
     ${quizCard(qz.items)}
@@ -140,8 +152,10 @@ async function load() {
       <div class="row" style="gap:4px"><button class="btn small danger" data-a="hide" data-t="${r.object_type}" data-id="${r.object_id}">Скрыть</button>
       <button class="btn small ghost" data-a="restore" data-t="${r.object_type}" data-id="${r.object_id}">Оставить</button></div></div>`).join('') : '<p class="sub">Открытых жалоб нет.</p>'}</div>
     <div class="card"><h2>Подтверждённые сигналы для АХО</h2>${d.facilities.length ? d.facilities.map((s) => `<div class="item"><div class="grow"><b>${esc(s.office)}</b> · ${esc(s.type)} ${esc(s.zone || '')} ${esc(s.comment || '')}</div></div>`).join('') : '<p class="sub">Сейчас нет.</p>'}</div>
-    <div class="card"><h2>Столовые</h2><p class="small">Места в зале и доля сотрудников с приложением (0.02–1). Время обеда считается само.</p>${d.offices.map((o) => `
-      <div class="item" style="flex-wrap:wrap"><b class="grow">${esc(o.name)}</b><span class="small">обед ≈ ${o.lunch_w} мин</span>
+    <div class="card"><h2>Офисы и столовые</h2><p class="small">У офиса — город и название. Места в зале и доля сотрудников с приложением (0.02–1). Время обеда считается само.</p>${d.offices.map((o) => `
+      <div class="item" style="flex-wrap:wrap"><span class="small grow">${esc(o.company || '')} · обед ≈ ${o.lunch_w} мин</span>
+      <label class="field" style="width:120px">Город<input id="c-${o.id}" maxlength="40" value="${esc(o.city || 'Москва')}"></label>
+      <label class="field" style="width:160px">Название<input id="n-${o.id}" maxlength="40" value="${esc(o.name)}"></label>
       <label class="field" style="width:100px">Мест<input id="s-${o.id}" type="number" value="${o.seats}"></label>
       <label class="field" style="width:100px">Доля<input id="p-${o.id}" type="number" step="0.01" value="${o.share_p}"></label>
       <button class="btn small" data-a="office" data-id="${o.id}">Сохранить</button></div>`).join('')}</div>`;
@@ -179,14 +193,21 @@ document.addEventListener('click', async (e) => {
       alert(`Составлено пар: ${r.pairs}`);
     } else if (b.dataset.a === 'access-open') {
       const d = b.dataset.d;
-      const r = await call('POST', '/api/admin/access/open', { domain: d, name: document.getElementById('ac-n-' + d).value, office: document.getElementById('ac-o-' + d).value });
+      const r = await call('POST', '/api/admin/access/open', { domain: d, name: document.getElementById('ac-n-' + d).value, office: document.getElementById('ac-o-' + d).value, city: document.getElementById('ac-c-' + d).value });
       alert(`Компания открыта. Писем со ссылкой отправлено: ${r.sent}`);
     } else if (b.dataset.a === 'access-reject') {
       if (!confirm(`Отказать @${b.dataset.d}? Адреса удалятся.`)) return;
       await call('POST', '/api/admin/access/reject', { domain: b.dataset.d });
     } else if (b.dataset.a === 'office') {
       const id = b.dataset.id;
-      await call('POST', '/api/admin/office', { id, seats: Number(document.getElementById('s-' + id).value), share_p: Number(document.getElementById('p-' + id).value) });
+      await call('POST', '/api/admin/office', { id, seats: Number(document.getElementById('s-' + id).value), share_p: Number(document.getElementById('p-' + id).value), city: document.getElementById('c-' + id).value, name: document.getElementById('n-' + id).value });
+    } else if (b.dataset.a === 'or-ok') {
+      const i = b.dataset.i;
+      const r = await call('POST', '/api/admin/office-requests/approve', { key: b.dataset.k, city: document.getElementById('or-c-' + i).value, name: document.getElementById('or-n-' + i).value });
+      alert(`Офис добавлен. Пуш ушёл просившим: ${r.people}`);
+    } else if (b.dataset.a === 'or-no') {
+      if (!confirm('Отказать в этой заявке?')) return;
+      await call('POST', '/api/admin/office-requests/reject', { key: b.dataset.k });
     } else {
       await call('POST', '/api/admin/report', { type: b.dataset.t, id: Number(b.dataset.id), action: b.dataset.a });
     }

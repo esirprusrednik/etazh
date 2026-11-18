@@ -614,7 +614,7 @@ function createApi(db) {
         signals: Object.fromEntries(Object.entries(SIGNALS).map(([k, v]) => [k, v.label])),
         tags: TAGS, days: DAYS, look: LOOK, nickPrice: NICK_PRICE, nickMax: NICK_MAX, gangNameMax: GANG_NAME_MAX, memes: MEMES.map((m) => ({ ...m, on: SEASON.seasonOn(m.season, U.msk().day) })), memeEmos: MEME_EMOS, seasons: SEASON.activeSeasons(U.msk().day),
         parts: SHOP.filter((it) => it.kind === 'part').map(({ id, slot, value, name, price, legend, award, season }) => ({ id, slot, value, name, price, legend: !!legend, award: !!award, season: season || null, on: SEASON.seasonOn(season, U.msk().day), until: season && SEASON.seasonOn(season, U.msk().day) ? SEASON.nextWindow(season, U.msk().day).to : null })), gangColors: GANG_COLORS, idleJokes: IDLE_JOKES,
-        offices: offices(companyOf(u)).map((o) => ({ id: o.id, name: o.name, color: o.color }))
+        offices: offices(companyOf(u)).map((o) => ({ id: o.id, name: o.name, city: o.city || 'Москва', color: o.color }))
       }
     };
   });
@@ -1780,13 +1780,17 @@ function createApi(db) {
     if (!o) throw bad('Нет такого офиса.');
     const seats = Math.max(10, Math.min(2000, Number(body.seats) || o.seats));
     const share = Math.max(0.02, Math.min(1, Number(body.share_p) || o.share_p));
-    q('UPDATE offices SET seats = ?, share_p = ? WHERE id = ?').run(seats, share, o.id);
+    const cl = (v) => String(v || '').replace(/[\u0000-\u001f\u007f<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 40);
+    const city = body.city != null && cl(body.city).length >= 2 ? cl(body.city) : o.city;
+    const name = body.name != null && cl(body.name).length >= 2 ? cl(body.name) : o.name;
+    q('UPDATE offices SET seats = ?, share_p = ?, city = ?, name = ? WHERE id = ?').run(seats, share, city, name, o.id);
     return { ok: true };
   });
 
   // ---------- Заявки новых компаний ----------
   const adminIds = () => q('SELECT id, email_hash FROM users').all().filter((r) => adminHashes.has(r.email_hash)).map((r) => r.id);
   access = require('./access').register({ db, q, route, U, config, bad, HttpError, rateLimit, notify, fireAndForget, requireAdmin, adminIds });
+  require('./offices').register({ db, q, route, U, bad, rateLimit, notify, fireAndForget, requireUser, requireAdmin, adminIds, companyOf });
 
   // ---------- Функции второго этапа ----------
   features = require('./features').register({

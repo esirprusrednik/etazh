@@ -25,6 +25,8 @@ function openDb(file) {
   try { db.exec('ALTER TABLE users ADD COLUMN nick_free_used INTEGER NOT NULL DEFAULT 0'); } catch {}
   // Компания: у всех, кто был до Роснефти, — МТС. Почту не храним, компанию определяем по домену при регистрации
   for (const t of ['users', 'gangs', 'offices', 'login_tokens']) { try { db.exec(`ALTER TABLE ${t} ADD COLUMN company TEXT NOT NULL DEFAULT 'mts'`); } catch {} }
+  // У офиса два поля: город и название. Всё, что было до появления городов, — Москва
+  try { db.exec("ALTER TABLE offices ADD COLUMN city TEXT NOT NULL DEFAULT 'Москва'"); } catch {}
   // Ники раньше хранились с «@» впереди — убираем знак (разово, повторный запуск ничего не меняет)
   db.exec("UPDATE users SET nick = substr(nick, 2) WHERE nick LIKE '@%'");
   // Банда — не оргструктура: старые «направления» по подразделениям снимаем («По интересам» → «Просто свои»)
