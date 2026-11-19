@@ -154,7 +154,10 @@ const ACH = [
   A('duels', 'duel_lost3', 'common', 'Не мой день', 'Проиграть 3 дуэли подряд', 'duel_lost3', 1, { secret: true }),
   A('duels', 'duel_snake', 'common', 'Змеиные глаза', 'Выбросить 1 и 1 в кости', 'duel_snake', 1, { secret: true })
 ];
-const ACH_CATS = [['first', 'Первые шаги'], ['grow', 'Ступени'], ['daily', 'Каждый день'], ['social', 'Душа компании'], ['stealth', 'Скрытность'], ['duels', 'Дуэли']];
+// Ачивки поводов недели (server/occasions.js): счётчик occ_<id> растёт от отметки в офисе в дни повода
+const OCC = require('./occasions');
+for (const o of OCC.OCCASIONS) { ACH.push(A('occ', OCC.achId(o), o.ach.tier, o.ach.name, o.ach.desc, OCC.achId(o), 1, { occ: true })); if (o.ach.fem) ACH_FEM[OCC.achId(o)] = [o.ach.fem]; }
+const ACH_CATS = [['first', 'Первые шаги'], ['grow', 'Ступени'], ['daily', 'Каждый день'], ['social', 'Душа компании'], ['stealth', 'Скрытность'], ['duels', 'Дуэли'], ['occ', 'Поводы']];
 const ACH_REWARD = { common: 5, rare: 15, legendary: 40 };
 
 // Задания дня. Будни: «Отметься» плюс три из пула — только те, что можно выполнить прямо сейчас за полминуты.
@@ -347,6 +350,7 @@ function register(ctx) {
     'st_hide', 'st_unfindable', 'st_incognito', 'st_night', 'st_ghost', 'st_slack', 'st_lone',
     'duels_started', 'duel_wins', 'duel_wins_rps', 'duel_wins_dice', 'duel_wins_ttt', 'duel_rivals', 'duel_streak_best', 'duel_pots', 'duel_comeback', 'duel_sixes', 'duel_snake',
     'duel_resign', 'duel_resign_lead', 'duel_declined', 'duel_lost3', 'duel_ttt_draw', 'bot_ttt_draw', 'bot_sea_wins', 'waves', 'wave_full', 'todo_clean'];
+  COUNTER_KEYS.push(...OCC.OCCASIONS.map(OCC.achId));
   function countersOf(uid, u) {
     const c = Object.fromEntries(COUNTER_KEYS.map((k) => [k, 0]));
     for (const r of q('SELECT key, n FROM counters WHERE user_id = ?').all(uid)) if (r.key in c) c[r.key] = r.n;
@@ -522,6 +526,7 @@ function register(ctx) {
       if (type === 'checkin') {
         if (U.msk().hour < 9) bump(uid, 'early');
         bump(uid, 'checkins'); stat('checkins'); completeQuest(uid, 'where');
+        { const o = OCC.active(today()); if (o) bump(uid, OCC.achId(o)); }
         q('INSERT OR IGNORE INTO user_offices (user_id, office_id) VALUES (?, ?)').run(uid, data.office);
       }
       if (type === 'canteen') { bump(uid, 'canteen'); stat('canteen'); }
@@ -1006,7 +1011,7 @@ function register(ctx) {
       achievements: (() => {
         const c = countersOf(u.id, userRow(u.id));
         // Дела дня выключены: их ачивки видит только тот, кто уже получил
-        return ACH.filter((a) => (COFFEE_ON || a.series !== 'coffee') && (a.series !== 'todo' || owned[a.id])).map((a) => {
+        return ACH.filter((a) => (COFFEE_ON || a.series !== 'coffee') && (a.series !== 'todo' || owned[a.id]) && (!a.occ || owned[a.id])).map((a) => {
           const got = !!owned[a.id];
           const hide = a.secret && !got;
           return { id: a.id, cat: a.cat, series: a.series || null, tier: a.tier, secret: !!a.secret, reward: ACH_REWARD[a.tier], got, at: owned[a.id] || null,
@@ -1014,7 +1019,7 @@ function register(ctx) {
             n: hide ? null : Math.min(c[a.m] || 0, a.goal), goal: hide ? null : a.goal };
         });
       })(),
-      achCats: ACH_CATS,
+      achCats: ACH_CATS.filter(([c]) => c !== 'occ' || ACH.some((x) => x.occ && owned[x.id])),
       ...(() => { const w = gangId ? gangWeek(gangId, u.id) : null; return { weekHint: w ? w.best : null, weekLock: w ? w.locked || null : null }; })(),
       coffee: { optIn: !!prof.coffee, hasHome: !!prof.home, pair: myPair(u.id) },
       lunches: lunchesFor(u.id),

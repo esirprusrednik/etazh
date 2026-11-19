@@ -462,6 +462,8 @@ function createApi(db) {
     return out;
   }
 
+  // Полка: что человек сейчас читает и смотрит. Видят только свои — банда и подельники
+  const shelfOf = (prof) => (prof.reading || prof.watching ? { read: prof.reading || '', watch: prof.watching || '' } : null);
   function memberStatus(member) {
     const prof = readProfile(member.profile);
     const pr = member.share_office ? presenceOf(prof, activeCheckin(member.id), member.id) : { where: 'hidden' };
@@ -469,7 +471,7 @@ function createApi(db) {
     return {
       id: member.id, nick: member.nick, name: fullName(prof, 'gang'), mood: (U.fem(look) && MOODS_F[prof.mood]) || MOODS[prof.mood] || '', where: pr.where, office: pr.office || null,
       until: pr.until || null, planned: !!pr.planned, joke: pr.joke ?? null, look, status: statusName(look.status),
-      charge: battery ? battery.asking(member.id) : false, focus: focusUntil(prof),
+      charge: battery ? battery.asking(member.id) : false, focus: focusUntil(prof), shelf: shelfOf(prof),
       vacSoon: member.share_office && pr.where !== 'vacation' ? ((prof.vacations || []).find((v) => v.from > U.msk().day && dayDiff(U.msk().day, v.from) <= 5) || {}).from || null : null
     };
   }
@@ -701,6 +703,13 @@ function createApi(db) {
         const prob = U.moderationProblem(about);
         if (prob) throw bad(prob);
         prof.about = about;
+      }
+      for (const k of ['reading', 'watching']) {
+        if (p[k] === undefined) continue;
+        const v = U.cleanText(p[k], 60);
+        const prob = U.moderationProblem(v);
+        if (prob) throw bad(prob);
+        prof[k] = v;
       }
       if (Array.isArray(p.tags)) prof.tags = TAGS.filter((t) => p.tags.includes(t)).slice(0, 5);
       if (p.bday !== undefined) {
@@ -1357,7 +1366,7 @@ function createApi(db) {
     return {
       ...card, look: st.look,
       name: me ? [prof.firstName, prof.lastName].filter(Boolean).join(' ') : fullName(prof, close ? 'gang' : 'all'),
-      about: prof.about, tags: prof.tags, bday: prof.showBday ? prof.bday : '',
+      about: prof.about, tags: prof.tags, bday: prof.showBday ? prof.bday : '', shelf: me || close ? shelfOf(prof) : null,
       mood: st.mood, where: st.where, office: st.office, until: st.until, planned: st.planned,
       gangs: sharedGangs, crew: crewMate, home: (officeById(prof.home) || {}).name || null,
       respects: features ? features.respects(t.id) : 0, // число видно всем; кто и за что — только самому человеку
@@ -1835,6 +1844,7 @@ function createApi(db) {
   const adminIds = () => q('SELECT id, email_hash FROM users').all().filter((r) => adminHashes.has(r.email_hash)).map((r) => r.id);
   access = require('./access').register({ db, q, route, U, config, bad, HttpError, rateLimit, notify, fireAndForget, requireAdmin, adminIds });
   require('./offices').register({ db, q, route, U, bad, rateLimit, notify, fireAndForget, requireUser, requireAdmin, adminIds, companyOf });
+  require('./occasions').register({ db, q, route, U, bad, requireUser, myGangs, gangMembers, canTalk: (a, b) => !!(crew && crew.canTalk && crew.canTalk(a, b)) });
 
   // ---------- Функции второго этапа ----------
   features = require('./features').register({

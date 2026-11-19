@@ -1318,6 +1318,7 @@ const inboxNew = () => { const seen = inboxSeen(); return (S.inbox || []).filter
 function markInboxSeen() { try { store.set('inboxSeen', (S.inbox || []).map((x) => x.id)); } catch {} }
 async function loadMatch() { try { S.match = await get('/api/match'); } catch { S.match = null; } }
 async function loadBoard() { try { S.board = await get('/api/board'); } catch { S.board = null; } }
+async function loadOccasion() { try { S.occ = (await get('/api/occasion')).occasion; } catch { S.occ = null; } }
 async function loadAdvent() { try { S.advent = await get('/api/advent'); } catch { S.advent = null; } }
 async function loadWave() {
   if (!S.activeGang) { S.wave = null; return; }
@@ -1862,6 +1863,7 @@ async function refresh({ all = false } = {}) {
   if (all || t === 'near') jobs.push(loadBoard(), loadPeople(), loadMatch(), loadTodos(), S.fx ? Promise.resolve() : loadFeatures().catch(() => {}));
   if (all || t === 'near' || t === 'office' || t === 'games') jobs.push(loadFeatures());
   if (all || t === 'near' || t === 'games') jobs.push(loadAdvent());
+  if (all || t === 'near') jobs.push(loadOccasion());
   if (all || t === 'chats') jobs.push(loadChats(), loadBoard());
   if (all || t === 'chats' || t === 'games') jobs.push(loadCrew());
   if (inGang()) ensureGang();
@@ -2428,6 +2430,7 @@ function renderNear() {
     ${noGang ? renderNoGang() : ''}
     ${renderWeatherStrip()}
     ${renderStatusBlock()}
+    ${renderOccasion()}
     ${aboutCard}
     ${renderPushNudge()}
     ${renderQuickCalls()}
@@ -2452,6 +2455,15 @@ function renderFloorBoard() {
     ${items.slice(0, S.boardAll ? 100 : 3).map(boardRow).join('')}
     ${items.length > 3 && !S.boardAll ? `<button class="linkbtn" data-act="board-all">Ещё ${items.length - 3}</button>` : ''}
   </section>`;
+}
+// Полка банды: кто что читает и смотрит. Не рейтинг, а повод для разговора
+function renderGangShelf() {
+  const rows = ((S.gang && S.gang.members) || []).filter((m) => m.shelf);
+  const mine = S.me.profile && (S.me.profile.reading || S.me.profile.watching);
+  const add = mine ? '' : '<button class="linkbtn" data-act="open-sec" data-v="about">＋ Моя полка</button>';
+  if (!rows.length) return `<section class="card shelf"><div class="chats-head"><h3>Полка банды</h3>${add}</div><p class="small" style="margin:0">Кто что читает и смотрит. Пока пусто — начни ты: одна строчка в профиле, видят только свои.</p></section>`;
+  return `<section class="card shelf"><div class="chats-head"><h3>Полка банды</h3>${add}</div>
+    ${rows.map((m) => `<div class="shelf-row">${tap(m.id, avatar(m.look, 32))}<div class="grow"><b>${nk(m)}</b>${m.shelf.read ? `<span class="small">читает: ${esc(m.shelf.read)}</span>` : ''}${m.shelf.watch ? `<span class="small">смотрит: ${esc(m.shelf.watch)}</span>` : ''}</div></div>`).join('')}</section>`;
 }
 function renderGangBoard(g) {
   const items = boardItems(g.id);
@@ -2641,6 +2653,19 @@ function renderBoardCard() {
     ${b.myOffice ? '' : '<button class="linkbtn" data-act="open" data-v="office" style="text-align:left">Выбери свой офис — появятся объявления офиса и города: кухня, находки, «отдам»</button>'}
   </section>`;
 }
+// Повод недели: один вопрос в один тап. Ответ — он же шуточный статус: свои видят, кто что выбрал
+function renderOccasion() {
+  const o = S.occ;
+  if (!o) return '';
+  const max = Math.max(1, ...o.options.map((x) => x.n || 0));
+  const body = o.mine
+    ? `<div class="occ-res">${o.options.map((x) => `<button class="occ-bar ${x.id === o.mine ? 'on' : ''}" data-act="occ-vote" data-v="${x.id}" aria-pressed="${x.id === o.mine}"><i style="width:${Math.round(((x.n || 0) / max) * 100)}%"></i><span class="grow">${esc(x.label)}</span><b>${x.n || 0}</b></button>`).join('')}</div>
+      ${o.picks.length ? `<p class="small occ-picks">Из твоих: ${o.picks.slice(0, 6).map((p) => `<button class="linkbtn" data-act="person" data-id="${p.id}">${esc(p.nick)}</button> — ${esc(p.text)}`).join(', ')}${o.picks.length > 6 ? ` и ещё ${o.picks.length - 6}` : ''}</p>` : '<p class="small occ-picks">Из твоих пока никто не признался. Позови — пусть отметятся.</p>'}`
+    : `<div class="chips">${o.options.map((x) => `<button class="chip" data-act="occ-vote" data-v="${x.id}">${esc(x.label)}</button>`).join('')}</div>`;
+  const ach = o.ach.got ? `<p class="small occ-ach got">medal Ачивка «${esc(o.ach.name)}» твоя</p>`
+    : `<p class="small occ-ach">medal ${o.last ? 'Только сегодня' : 'Сегодня и завтра'}: отметься в офисе — получишь ачивку «${esc(o.ach.name)}». Потом её не взять.</p>`;
+  return `<section class="card occ"><div class="eyebrow">Повод недели</div><h3>${esc(o.title)}</h3><p class="sub" style="margin:0">${esc(o.text)}</p>${body}${ach}</section>`;
+}
 // Одно объявление Доски: обед (время, кто идёт), угощение на кухне (таймер) или обычное
 function boardRow(x) {
   const where = (x) => x.gang ? `только банда «${esc(x.gang.name)}»` : !x.office || x.scope === 'all' ? 'весь Этаж' : x.scope === 'city' ? `весь город · ${esc(x.office.city)}` : `офис «${esc(x.office.name)}»`;
@@ -2700,7 +2725,7 @@ function renderBoardNew() {
   const needOffice = !mo && !d.gang && sc !== 'all';
   const times = ((S.board && S.board.lunchTimes) || []).slice(0, 10); // ближайшие два с половиной часа
   const lunch = d.kind === 'lunch', kitchen = d.kind === 'kitchen';
-  const ph = lunch ? 'Например: новая пиццерия на Арбате, берём столик на шестерых' : kitchen ? 'Яблоки, груши и мармелад на кухне 3-го этажа' : 'Отдам два билета в театр на субботу';
+  const ph = lunch ? 'Например: новая пиццерия на Арбате, берём столик на шестерых' : d.kind === 'go' ? 'В субботу иду на концерт в «Зарядье», есть лишний билет' : kitchen ? 'Яблоки, груши и мармелад на кухне 3-го этажа' : 'Отдам два билета в театр на субботу';
   const audience = lunch ? 'Сбор увидят свои — банда и подельники, кто сегодня в твоём офисе; кто уже отметился, получит пуш. Остальных зови лично.'
     : d.gang ? 'Объявление увидит только твоя банда.'
     : needOffice ? `Это объявление для ${sc === 'city' ? 'своего города' : 'своего офиса'}. Сначала выбери «мой офис» в профиле или отметься.`
@@ -4224,7 +4249,7 @@ function renderGang() {
       ${micBtn('gang')}<button class="btn" data-act="chat-send" aria-label="Отправить">→</button></div>${recBar('gang')}
   </section>`;
   // ----- Жизнь: всё, что банда делает вместе
-  const lifeTab = `<div class="g-group">События</div>${w && w.active && w.active.mine ? renderWave() : ''}${renderGEvents()}${renderSanta()}${renderGangBirthdays()}${w && !w.active ? renderWave() : ''}<div class="g-group">Объявления</div>${renderGangBoard(g)}<div class="g-group">Опросы</div>${renderPolls()}${renderCrestVote()}`;
+  const lifeTab = `<div class="g-group">События</div>${w && w.active && w.active.mine ? renderWave() : ''}${renderGEvents()}${renderSanta()}${renderGangBirthdays()}${w && !w.active ? renderWave() : ''}${renderGangShelf()}<div class="g-group">Объявления</div>${renderGangBoard(g)}<div class="g-group">Опросы</div>${renderPolls()}${renderCrestVote()}`;
   // ----- Банда: кто мы, люди, неделя, казна, лига, битвы
   // «Банда на неделе» — первой: кто когда в офисе важнее описания банды
   const crewTab = `${waveBanner()}${renderCrewWeek(v, g)}
@@ -6110,6 +6135,9 @@ function renderProfile() {
   const aboutBody = `
     <div class="field">Интересы (до 5)<div class="chips">${S.cat.tags.map((t) => `<button class="chip ${p.tags.includes(t) ? 'on' : ''}" data-act="prof-tag" data-v="${esc(t)}">${esc(t)}</button>`).join('')}</div></div>
     <label class="field">О себе (до 60 символов)<input id="p-about" maxlength="60" value="${esc(p.about)}" placeholder="Люблю кофе и настолки"></label>
+    <label class="field">Сейчас читаю<input id="p-reading" maxlength="60" value="${esc(p.reading || '')}" placeholder="Книга, которую не стыдно посоветовать"></label>
+    <label class="field">Сейчас смотрю<input id="p-watching" maxlength="60" value="${esc(p.watching || '')}" placeholder="Сериал, фильм, канал"></label>
+    <p class="small" style="margin:0">Полку видят только свои — банда и подельники. Повод заговорить у кофемашины.</p>
     <label class="field">День рождения (ДД.ММ, без года)<input id="p-bday" maxlength="5" inputmode="numeric" value="${esc(p.bday)}" placeholder="14.03"></label>
     <button class="btn ghost" data-act="prof-save">Сохранить</button>`;
 
@@ -6205,6 +6233,7 @@ function renderPerson() {
     ${x.badges && x.badges.length ? `<div class="card-badges">${x.badges.map((b) => `<span class="cbadge" title="${esc(b.desc)}">${ico(b.icon, 16)} ${esc(b.title)}</span>`).join('')}</div>` : ''}
     ${x.askMe && x.askMe.length ? `<div class="ask-box"><span class="small">Спроси меня про</span><div class="chips" style="justify-content:center">${x.askMe.map((t) => `<span class="chip ask-chip">${esc(t)}</span>`).join('')}</div></div>` : ''}
     ${x.about ? `<p class="person-about">«${esc(x.about)}»</p>` : ''}
+    ${x.shelf ? `<div class="person-shelf">${x.shelf.read ? `<span>читает: <b>${esc(x.shelf.read)}</b></span>` : ''}${x.shelf.watch ? `<span>смотрит: <b>${esc(x.shelf.watch)}</b></span>` : ''}</div>` : ''}
     ${x.tags && x.tags.length ? `<div class="chips" style="justify-content:center">${x.tags.map((t) => `<span class="chip on" style="cursor:default">${esc(t)}</span>`).join('')}</div>` : ''}
     ${rows.length ? `<div class="person-rows">${rows.map(([k, v]) => `<div><span class="small">${k}</span><b>${v}</b></div>`).join('')}</div>` : ''}
     ${x.respects ? `<p class="respects" title="Сколько раз коллеги выразили респект. Кто и за что — видит только сам человек">${ico('hand', 16)} Респектов: <b>${x.respects}</b></p>` : ''}
@@ -7169,6 +7198,7 @@ const actions = {
   'digest-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { digest: el.checked } }); await loadMe(); toast(el.checked ? 'Утренняя сводка включена' : 'Утреннюю сводку больше не пришлю'); }),
   'match-on': () => run(async () => { await post('/api/me/profile', { profile: { matchShow: true } }); await Promise.all([loadMe(), loadMatch()]); toast('Твои дни открыты коллегам'); }),
   'match-day'(el) { S.matchDay = Number(el.dataset.v); render(); },
+  'occ-vote': (el) => run(async () => { if (!S.occ) return; S.occ = (await post('/api/occasion/vote', { id: S.occ.id, opt: el.dataset.v })).occasion; }),
   'board-filter'(el) { S.boardScope = el.dataset.v; S.boardAll = false; render(); },
   'board-cat'(el) { S.boardCat = el.dataset.v; S.boardAll = false; render(); },
   'board-time'(el) { boardSync(); S.boardDraft.time = el.dataset.v; render(); },
@@ -7782,7 +7812,7 @@ const actions = {
   },
   'guide-tour'() { S.sheet = null; S.tab = 'near'; S.coach = 1; S.coachStart = 1; render(); window.scrollTo(0, 0); },
   'work-save': () => run(async () => { await post('/api/me/profile', { profile: { role: $('#p-role').value, askMe: $('#p-ask').value } }); await loadMe(); loadExperts((S.experts && S.experts.q) || '').then(render); toast('Сохранено — теперь тебя можно найти по темам'); }),
-  'prof-save': () => run(async () => { await post('/api/me/profile', { profile: { about: $('#p-about').value, bday: $('#p-bday').value } }); await loadMe(); toast('Сохранено'); }),
+  'prof-save': () => run(async () => { await post('/api/me/profile', { profile: { about: $('#p-about').value, bday: $('#p-bday').value, reading: $('#p-reading').value, watching: $('#p-watching').value } }); await loadMe(); toast('Сохранено'); }),
   toggle: (el) => run(async () => { await post('/api/me/profile', { [el.dataset.k]: el.checked }); await loadMe(); await loadState(); }),
   'push-enable': () => run(enablePush),
   'push-test': () => run(async () => { await post('/api/push/test'); toast('Отправили тестовое уведомление'); }, { rerender: false }),

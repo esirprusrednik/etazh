@@ -12,6 +12,7 @@ const KINDS = {
   kitchen: { name: 'На кухне', icon: 'gift', short: true, scope: 'office' },
   company: { name: 'Ищу компанию', icon: 'coffee', scope: 'office' },
   give: { name: 'Отдам / продам', icon: 'gift', scope: 'city' },
+  go: { name: 'Иду, кто со мной?', icon: 'spark', scope: 'city' },
   trip: { name: 'Поездка, конференция', icon: 'flag', scope: 'all' },
   found: { name: 'Нашёл / потерял', icon: 'search', scope: 'office' },
   ask: { name: 'Вопрос коллегам', icon: 'help', scope: 'all' },
@@ -19,7 +20,7 @@ const KINDS = {
 };
 // Кому видно объявление, решает его тема, а не автор:
 //   office — то, ради чего надо быть в одном здании (обед, кухня, компания на кофе, находки): только свой офис;
-//   city   — вещи из рук в руки (отдам, продам, обмен): свой город;
+//   city   — вещи из рук в руки (отдам, продам, обмен) и «иду на концерт, кто со мной»: свой город;
 //   all    — вопросы, поездки и поиск знающих людей: весь Этаж. Автор может сузить такое до своего офиса.
 const TEXT_MAX = 200;
 const MAX_DAYS = 14;

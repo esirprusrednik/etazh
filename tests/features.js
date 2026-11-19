@@ -266,6 +266,42 @@ const mskToday = () => new Date(Date.now() + SHIFT_H * 3600e3).toISOString().sli
     assert.equal((await a.get('/api/office-requests')).json.items[0].status, 'rejected');
   });
 
+  await step('повод недели: вне дат карточки нет; полка видна своим, чужим — нет; «иду, кто со мной» — на город', async () => {
+    // Тест идёт по настоящему календарю: в дни повода проверяем голосование, в обычные — что карточки нет
+    const occ = (await a.get('/api/occasion')).json.occasion;
+    const OCC = require('../server/occasions');
+    const live = OCC.active(new Date(Date.now() + 3 * 3600e3).toISOString().slice(0, 10));
+    if (!live) {
+      assert.equal(occ, null, 'в обычный день повода нет');
+      assert.equal((await a.post('/api/occasion/vote', { id: 'game6', opt: 'work' })).status, 400);
+      assert.ok(!(await a.get('/api/features')).json.achievements.some((x) => x.id.startsWith('occ_')), 'ачивку повода видит только получивший');
+    } else {
+      assert.equal(occ.id, live.id); assert.equal(occ.mine, null);
+      assert.ok(occ.options.every((x) => x.n === null), 'до своего ответа чужие числа не видны');
+      assert.equal((await a.post('/api/occasion/vote', { id: live.id, opt: 'нет-такого' })).status, 400);
+      const o1 = live.options[0][0], o2 = live.options[1][0];
+      await b.post('/api/occasion/vote', { id: live.id, opt: o2 });
+      const v = (await a.post('/api/occasion/vote', { id: live.id, opt: o1 })).json.occasion;
+      assert.equal(v.mine, o1); assert.equal(v.total, 2);
+      assert.deepEqual(v.picks.map((x) => [x.nick, x.opt]), [[(await b.get('/api/me')).json.user.nick, o2]], 'свои видны по никам');
+      const v2 = (await a.post('/api/occasion/vote', { id: live.id, opt: o2 })).json.occasion;
+      assert.equal(v2.total, 2, 'передумал — голос один'); assert.equal(v2.options.find((x) => x.id === o2).n, 2);
+      const far0 = await new Client().login('occ9@mts.ru', 'чужой_геймер');
+      await far0.post('/api/occasion/vote', { id: live.id, opt: o1 });
+      assert.deepEqual((await far0.get('/api/occasion')).json.occasion.picks, [], 'чужим ники не показываем');
+    }
+    await a.post('/api/me/profile', { profile: { reading: ' Мастер и Маргарита ', watching: '' } });
+    const g0 = g.id;
+    const row = (await b.get(`/api/gangs/${g0}`)).json.members.find((m) => m.id === a.id);
+    assert.deepEqual(row.shelf, { read: 'Мастер и Маргарита', watch: '' });
+    assert.deepEqual((await b.get(`/api/users/${a.id}`)).json.shelf, { read: 'Мастер и Маргарита', watch: '' }, 'банда видит полку');
+    const far = await new Client().login('shelf9@mts.ru', 'чужой_читатель');
+    assert.ok(!JSON.stringify((await far.get(`/api/users/${a.id}`)).json).includes('Маргарита'), 'чужим полку не показываем');
+    await a.post('/api/me/profile', { profile: { home: 'smol' } });
+    const go = (await a.post('/api/board', { kind: 'go', text: 'В субботу на концерт, есть лишний билет' })).json.item;
+    assert.equal(go.scope, 'city'); assert.equal(go.kindName, 'Иду, кто со мной?');
+  });
+
   await step('доска по адресу: офисное — офису, «отдам» — городу, вопросы — всему Этажу', async () => {
     const kz = (await a.get('/api/me')).json.catalog.offices.find((o) => o.city === 'Казань').id;
     const mk = async (mail, nick, home) => { const u = await new Client().login(mail, nick); if (home) await u.post('/api/me/profile', { profile: { home } }); return u; };
