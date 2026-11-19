@@ -301,10 +301,18 @@ const mskToday = () => new Date(Date.now() + SHIFT_H * 3600e3).toISOString().sli
     const row = (await b.get(`/api/gangs/${g0}`)).json.members.find((m) => m.id === a.id);
     assert.deepEqual(row.shelf.map((x) => x.t), ['Разделение', 'Мастер и Маргарита']);
     assert.equal((await b.get(`/api/users/${a.id}`)).json.shelf.length, 2, 'банда видит полку');
+    // «Хочу тоже»: запись копируется на мою полку, второй раз не добавить, чужому — нельзя
+    const w = (await b.post('/api/me/shelf', { want: { user: a.id, id: sh[1].id } })).json.shelf;
+    assert.deepEqual([w[0].t, w[0].s, w[0].from], ['Мастер и Маргарита', 'want', (await a.get('/api/me')).json.user.nick]);
+    assert.equal((await b.post('/api/me/shelf', { want: { user: a.id, id: sh[1].id } })).status, 400, 'дважды не добавить');
+    const far1 = await new Client().login('shelf8@mts.ru', 'чужой_хотун');
+    assert.equal((await far1.post('/api/me/shelf', { want: { user: a.id, id: sh[1].id } })).status, 400, 'чужой полку не видит и взять не может');
+    assert.equal((await b.post('/api/me/shelf', { start: w[0].id })).json.shelf[0].s, 'now');
+    await b.post('/api/me/shelf', { remove: w[0].id });
     assert.equal((await a.post('/api/me/shelf', { remove: sh[0].id })).json.shelf.length, 1);
     // Старые поля «читаю / смотрю» превращаются в записи «сейчас»
-    await b.post('/api/me/profile', { profile: { reading: 'Дюна' } });
-    assert.deepEqual((await a.get(`/api/gangs/${g0}`)).json.members.find((m) => m.id === b.id).shelf.map((x) => [x.k, x.t, x.s]), [['book', 'Дюна', 'now']]);
+    await c.post('/api/me/profile', { profile: { reading: 'Дюна' } });
+    assert.deepEqual((await a.get(`/api/gangs/${g0}`)).json.members.find((m) => m.id === c.id).shelf.map((x) => [x.k, x.t, x.s]), [['book', 'Дюна', 'now']]);
     const far = await new Client().login('shelf9@mts.ru', 'чужой_читатель');
     assert.ok(!JSON.stringify((await far.get(`/api/users/${a.id}`)).json).includes('Маргарита'), 'чужим полку не показываем');
     await a.post('/api/me/profile', { profile: { home: 'smol' } });

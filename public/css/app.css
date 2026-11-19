@@ -2994,3 +2994,5 @@ main > .chats-hint { margin: 0 6px; text-align: center; }
 .sh-note { font-size: 14px; color: var(--ink); }
 .sh-rest summary { cursor: pointer; min-height: 36px; display: flex; align-items: center; }
 .sh-form { display: grid; gap: 12px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.sh-want { color: var(--green); font-weight: 700; }
+.sh-wbtn { justify-self: start; margin-top: 4px; }

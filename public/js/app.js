@@ -2525,6 +2525,7 @@ function renderFloorBoard() {
 const myShelf = () => { const p = S.me.profile || {}; return Array.isArray(p.shelf) ? p.shelf : [p.reading && { id: 1, k: 'book', t: p.reading, s: 'now' }, p.watching && { id: 2, k: 'screen', t: p.watching, s: 'now' }].filter(Boolean); };
 function shelfPhrase(x, look) {
   const book = x.k !== 'screen';
+  if (x.s === 'want') return `хочет ${book ? 'прочитать' : 'посмотреть'}${x.from ? ` — ${gw(look, 'посоветовал', 'посоветовал')} ${esc(x.from)}` : ''}`;
   if (x.s === 'now') return (book ? 'читает' : 'смотрит') + (x.m === 'fire' ? ' — не оторваться' : x.m === 'no' ? ' — идёт тяжело' : '');
   const did = book ? gw(look, 'прочитал', 'прочитала') : gw(look, 'посмотрел', 'посмотрела');
   return x.m === 'fire' ? `${did} и рекомендует` : x.m === 'no' ? `${did}, не советует` : x.m === 'ok' ? `${did} — нормально` : did;
@@ -2536,15 +2537,26 @@ function renderGangShelf() {
   for (const m of (S.gang && S.gang.members) || []) for (const x of m.shelf || []) all.push({ ...x, who: m });
   const head = `<div class="chats-head"><h3>Полка банды</h3><button class="linkbtn" data-act="shelf-open">${myShelf().length ? 'Моя полка' : '＋ Моя полка'}</button></div>`;
   if (!all.length) return `<section class="card shelf">${head}<p class="small" style="margin:0">Что читаем и смотрим — и что из этого советуем. Пока пусто: начни ты, видят только свои.</p></section>`;
-  const row = (x) => `<div class="sh-row">${tap(x.who.id, avatar(x.who.look, 30))}<div class="grow">
+  const key = (x) => x.k + '|' + x.t.toLocaleLowerCase('ru');
+  const wants = {}; for (const x of all) if (x.s === 'want') (wants[key(x)] = wants[key(x)] || []).push(x.who);
+  const mineKeys = new Set(myShelf().map(key));
+  const row = (x) => {
+    const w = wants[key(x)] || [];
+    const canWant = !x.who.me && x.s !== 'want' && x.m !== 'no' && !mineKeys.has(key(x));
+    return `<div class="sh-row">${tap(x.who.id, avatar(x.who.look, 30))}<div class="grow">
       <div class="sh-t">${shelfTag(x)}<b>${esc(x.t)}</b></div>
       <span class="small"><span class="sh-who">${nk(x.who)}</span> ${shelfPhrase(x, x.who.look)}</span>
-      ${x.n ? `<span class="sh-note">«${esc(x.n)}»</span>` : ''}</div></div>`;
+      ${x.n ? `<span class="sh-note">«${esc(x.n)}»</span>` : ''}
+      ${w.length ? `<span class="small sh-want">хотят тоже: ${w.map((p) => nk(p)).join(', ')}</span>` : ''}
+      ${canWant ? `<button class="chip small sh-wbtn" data-act="shelf-want" data-user="${x.who.id}" data-id="${x.id}">＋ Хочу тоже</button>` : ''}</div></div>`;
+  };
   const rec = all.filter((x) => x.s === 'done' && x.m === 'fire'), now = all.filter((x) => x.s === 'now'), rest = all.filter((x) => x.s === 'done' && x.m !== 'fire');
+  // «Хочу», которое никто из банды не читает и не советует (посоветовал подельник со стороны), — отдельной строкой внизу
+  const shown = new Set([...rec, ...now, ...rest].map(key)), lonely = all.filter((x) => x.s === 'want' && !shown.has(key(x)));
   const block = (title, list, cls) => (list.length ? `<div class="sh-group ${cls || ''}">${title}</div>${list.map(row).join('')}` : '');
   return `<section class="card shelf">${head}
     ${block('Советуют', rec, 'rec')}${block('Сейчас читают и смотрят', now)}
-    ${rest.length ? `<details class="sh-rest"><summary class="small">Ещё ${rest.length}: прочитано и посмотрено без восторга</summary>${rest.map(row).join('')}</details>` : ''}</section>`;
+    ${rest.length || lonely.length ? `<details class="sh-rest"><summary class="small">Ещё ${rest.length + lonely.length}: без восторга и «в планах»</summary>${[...rest, ...lonely].map(row).join('')}</details>` : ''}</section>`;
 }
 // Моя полка: список и одна форма. Вопросы в форме идут в том порядке, в каком человек думает: что → сейчас или уже → как оно
 function renderShelfSheet() {
@@ -2553,7 +2565,8 @@ function renderShelfSheet() {
   const chip = (k, v, label) => `<button class="chip ${d[k] === v ? 'on' : ''}" data-act="shelf-set" data-k="${k}" data-v="${v}">${label}</button>`;
   const marks = now ? [['fire', 'Не оторваться'], ['ok', 'Нормально'], ['no', 'Идёт тяжело']] : [['fire', 'Рекомендую'], ['ok', 'Нормально'], ['no', 'Не советую']];
   const list = items.length ? items.map((x) => `<div class="sh-row mine"><div class="grow"><div class="sh-t">${shelfTag(x)}<b>${esc(x.t)}</b></div>
-      <span class="small">${shelfPhrase(x, S.me.look).replace(/^(читает|смотрит)/, (w) => (w === 'читает' ? 'читаю' : 'смотрю'))}</span>${x.n ? `<span class="sh-note">«${esc(x.n)}»</span>` : ''}
+      <span class="small">${shelfPhrase(x, S.me.look).replace(/^(читает|смотрит|хочет)/, (w) => ({ читает: 'читаю', смотрит: 'смотрю', хочет: 'хочу' }[w]))}</span>${x.n ? `<span class="sh-note">«${esc(x.n)}»</span>` : ''}
+ ${x.s === 'want' ? `<div class="chips" style="margin-top:4px"><button class="chip small" data-act="shelf-start" data-id="${x.id}">${x.k === 'screen' ? meG('Начал смотреть', 'Начала смотреть') : meG('Начал читать', 'Начала читать')}</button></div>` : ''}
       ${x.s === 'now' ? `<div class="chips" style="margin-top:4px"><button class="chip small" data-act="shelf-finish" data-id="${x.id}" data-v="fire">${x.k === 'screen' ? meG('Досмотрел', 'Досмотрела') : meG('Дочитал', 'Дочитала')} — рекомендую</button><button class="chip small" data-act="shelf-finish" data-id="${x.id}" data-v="ok">нормально</button><button class="chip small" data-act="shelf-finish" data-id="${x.id}" data-v="no">не советую</button></div>` : ''}</div>
       <button class="x" data-act="shelf-del" data-id="${x.id}" aria-label="Убрать «${esc(x.t)}» с полки">×</button></div>`).join('') : '<p class="small" style="margin:0">На полке пусто. Добавь первое — увидят только свои: банда и подельники.</p>';
   return `${list}
@@ -6927,6 +6940,8 @@ const actions = {
     const r = await post('/api/me/shelf', { add: d });
     S.me.profile.shelf = r.shelf; S.shelfDraft = null; toast('На полке'); await loadGang();
   }),
+  'shelf-want': (el) => run(async () => { const r = await post('/api/me/shelf', { want: { user: Number(el.dataset.user), id: Number(el.dataset.id) } }); S.me.profile.shelf = r.shelf; toast('На твоей полке. Автору рекомендации придёт весточка'); await loadGang(); }),
+  'shelf-start': (el) => run(async () => { shelfSync(); const r = await post('/api/me/shelf', { start: Number(el.dataset.id) }); S.me.profile.shelf = r.shelf; await loadGang(); }),
   'shelf-del': (el) => run(async () => { shelfSync(); const r = await post('/api/me/shelf', { remove: Number(el.dataset.id) }); S.me.profile.shelf = r.shelf; await loadGang(); }),
   'shelf-finish': (el) => run(async () => { shelfSync(); const r = await post('/api/me/shelf', { finish: Number(el.dataset.id), mark: el.dataset.v }); S.me.profile.shelf = r.shelf; toast(el.dataset.v === 'fire' ? 'Теперь это рекомендация для банды' : 'Отмечено'); await loadGang(); }),
   'inv-day'(el) {
