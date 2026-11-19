@@ -1898,6 +1898,7 @@ function render() {
   // Вкладки «Офис» больше нет: её содержимое живёт на «Рядом». Старые ссылки, пуши и сводка ведут туда же
   if (S.tab === 'office') S.tab = 'near';
   const keepScroll = window.scrollY;
+  S.justNow = S.just || null; S.just = null;
   // Фоновое обновление не должно стирать то, что человек сейчас печатает
   const a = document.activeElement;
   const focused = a && a.id && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA') ? { id: a.id, v: a.value, s: a.selectionStart } : null;
@@ -2540,8 +2541,8 @@ const shelfKey = (x) => x.k + '|' + x.t.toLocaleLowerCase('ru').replace(/ё/g, '
 function renderGangShelf() {
   const all = [];
   for (const m of (S.gang && S.gang.members) || []) for (const x of m.shelf || []) all.push({ ...x, who: m });
-  const head = `<div class="chats-head"><h3>Полка банды</h3><button class="linkbtn" data-act="shelf-open">${myShelf().length ? 'Моя полка' : '＋ Моя полка'}</button></div>`;
-  if (!all.length) return `<section class="card shelf">${head}<p class="small" style="margin:0">Что читаем и смотрим — и что из этого советуем. Пока пусто: начни ты, видят только свои.</p></section>`;
+  const head = `<div class="chats-head"><h3>Полка банды</h3>${myShelf().length ? '<button class="addpill plain" data-act="shelf-open">Моя полка ›</button>' : addPill('shelf-open', 'Моя полка')}</div>`;
+  if (!all.length) return starter('tasks', 'Полка банды', 'Что читаем, смотрим и советуем — видят только свои', 'shelf-open', 'data-open');
   const works = new Map();
   for (const x of all) { const k = shelfKey(x); if (!works.has(k)) works.set(k, { key: k, k: x.k, t: x.t, list: [], at: 0 }); const w = works.get(k); w.list.push(x); if (x.w && !w.w) w.w = x.w; w.at = Math.max(w.at, x.at || 0); }
   const n = (w, f) => w.list.filter(f).length;
@@ -2554,7 +2555,7 @@ function renderGangShelf() {
   const row = (w) => {
     const open = S.shelfOpen === w.key;
     const src = w.list.find((x) => !x.who.me && x.s !== 'want' && x.m !== 'no');
-    const body = open ? `<div class="shw-body">${w.list.map((x) => `<div class="shw-p">${tap(x.who.id, avatar(x.who.look, 26))}<span class="grow"><span class="small"><span class="sh-who">${nk(x.who)}</span> ${shelfPhrase(x, x.who.look)}</span>${x.n ? `<span class="sh-note">«${esc(x.n)}»</span>` : ''}</span></div>`).join('')}
+    const body = open ? `<div class="shw-body${unfold('shelf')}">${w.list.map((x) => `<div class="shw-p">${tap(x.who.id, avatar(x.who.look, 26))}<span class="grow"><span class="small"><span class="sh-who">${nk(x.who)}</span> ${shelfPhrase(x, x.who.look)}</span>${x.n ? `<span class="sh-note">«${esc(x.n)}»</span>` : ''}</span></div>`).join('')}
         <div class="shw-foot">${shelfLinks(w)}${src && !mineKeys.has(w.key) ? `<button class="chip small" data-act="shelf-want" data-user="${src.who.id}" data-id="${src.id}">＋ Хочу тоже</button>` : ''}</div></div>` : '';
     return `<div class="shw ${open ? 'open' : ''} ${w.rec ? 'rec' : ''}"><button class="shw-head" data-act="shelf-row" data-v="${esc(w.key)}" aria-expanded="${open}">
         <span class="grow"><span class="sh-t">${shelfTag(w)}<b>${esc(w.t)}</b></span><span class="small shw-sum">${w.list.length === 1 ? `${esc(w.list[0].who.nick)} ${shelfPhrase(w.list[0], w.list[0].who.look)}` : sum(w)}</span></span>
@@ -2591,8 +2592,9 @@ function renderShelfSheet() {
 }
 function renderGangBoard(g) {
   const items = boardItems(g.id);
-  return `<section class="card bboard"><div class="chats-head"><h3>Только для своих</h3><button class="linkbtn" data-act="board-new" data-v="other" data-scope="gang">＋ Объявление</button></div>
-    ${items.length ? items.map(boardRow).join('') : '<p class="small" style="margin:0">«Скинемся на торт», «Отдам монитор», «Кто завтра в офисе?» — увидит только банда.</p>'}
+  if (!items.length) return starter('megaphone', 'Объявления для своих', '«Скинемся на торт», «Отдам монитор» — увидит только банда', 'board-new', 'data-v="other" data-scope="gang"');
+  return `<section class="card bboard"><div class="chats-head"><h3>Только для своих</h3>${addPill('board-new', 'Объявление', 'data-v="other" data-scope="gang"')}</div>
+    ${items.map(boardRow).join('')}
   </section>`;
 }
 // Человек без банды: одно дело на экране — позвать своих или найти банду
@@ -2790,7 +2792,7 @@ function renderOccasion() {
   }
   // Ответил: шутка в ответ и свёрнутая карточка. Итоги — по нажатию, менять ответ нельзя
   const max = Math.max(1, ...o.options.map((x) => x.n || 0));
-  const res = S.occOpen ? `<div class="occ-res">${o.options.map((x) => `<div class="occ-bar ${x.id === o.mine ? 'on' : ''}"><i style="width:${Math.round(((x.n || 0) / max) * 100)}%"></i><span class="grow">${esc(x.label)}</span><b>${x.n || 0}</b></div>`).join('')}</div>
+  const res = S.occOpen ? `<div class="occ-res${unfold('occ')}">${o.options.map((x) => `<div class="occ-bar ${x.id === o.mine ? 'on' : ''}"><i style="width:${Math.round(((x.n || 0) / max) * 100)}%"></i><span class="grow">${esc(x.label)}</span><b>${x.n || 0}</b></div>`).join('')}</div>
       ${o.picks.length ? `<p class="small occ-picks">Из твоих: ${o.picks.slice(0, 6).map((p) => `<button class="linkbtn" data-act="person" data-id="${p.id}">${esc(p.nick)}</button> — ${esc(p.text)}`).join(', ')}${o.picks.length > 6 ? ` и ещё ${o.picks.length - 6}` : ''}</p>` : '<p class="small occ-picks">Из твоих пока никто не признался.</p>'}` : '';
   return `<section class="card occ done"><div class="occ-top"><div class="grow"><div class="eyebrow">${esc(o.title)}</div><b class="occ-mine">${esc(o.mineLabel || '')}</b></div>
       <button class="chip small" data-act="occ-toggle" aria-expanded="${!!S.occOpen}">${S.occOpen ? 'Свернуть' : `Как у всех · ${o.total}`}</button></div>
@@ -3571,12 +3573,28 @@ function renderGEvents() {
   const v = S.gev;
   if (!v) return '';
   const sug = v.suggestions.length ? `<div class="gev-sug"><span class="small"><b>Повод есть:</b></span>${v.suggestions.map((x, i) => `<button class="chip" data-act="gev-new" data-sug="${i}">${esc(x.hint)} ＋</button>`).join('')}</div>` : '';
+  if (!v.upcoming.length && !v.past.length) return `${starter('popper', 'События', 'Встреча, день рождения, поход в бар — соберём, кто идёт', 'gev-new')}${sug ? `<section class="card gevents" style="padding-top:12px;padding-bottom:12px">${sug}</section>` : ''}`;
   return `<section class="card gevents">
-    <div class="chats-head"><h3>cal События${v.upcoming.length ? ` <span class="chats-n">${v.upcoming.length}</span>` : ''}</h3><button class="linkbtn" data-act="gev-new">＋ Событие</button></div>
-    ${v.upcoming.length ? v.upcoming.map(renderGEvent).join('') : '<p class="small" style="margin:4px 0 0">Встречи, сабантуи к праздникам, дни рождения — всё, ради чего банда собирается вне созвонов. Создать может любой.</p>'}
+    <div class="chats-head"><h3>События${v.upcoming.length ? ` <span class="chats-n">${v.upcoming.length}</span>` : ''}</h3>${addPill('gev-new', 'Событие')}</div>
+    ${v.upcoming.map(renderGEvent).join('')}
     ${sug}
     ${v.past.length ? `<details><summary class="small" style="cursor:pointer;min-height:32px">Недавно прошли (${v.past.length})</summary>${v.past.map(renderGEvent).join('')}</details>` : ''}
   </section>`;
+}
+// Четыре жеста на всё приложение: строка с шевроном — откроется другой экран; круглый плюс — раскроется здесь же;
+// залитая кнопка — действие; чип — выбор. Ниже — общие кусочки для первых двух.
+// «＋ Что-то» в заголовке раздела: одна и та же пилюля везде
+const addPill = (act, label, attrs = '') => `<button class="addpill" data-act="${act}" ${attrs}>＋ ${label}</button>`;
+// Пустой раздел не занимает треть экрана: одна строка — картинка, название, зачем это, плюс. Нажал — создаёшь первое
+const starter = (pic, title, hint, act, attrs = '') => `<button class="starter" data-act="${act}" ${attrs}>${art(pic, 44)}<span class="grow"><b>${title}</b><span class="small">${hint}</span></span><span class="addpill" aria-hidden="true">${attrs.includes('data-open') ? 'Открыть' : '＋ Создать'}</span></button>`;
+// Только что раскрытый блок появляется плавно. Признак живёт один кадр: фоновые перерисовки анимацию не повторяют
+const unfold = (id) => (S.justNow === id ? ' unfold' : '');
+// Галочка-подтверждение по центру экрана: «записано». Для действий, после которых на экране мало что меняется
+function okFx() {
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const d = document.createElement('div'); d.className = 'okfx'; d.setAttribute('aria-hidden', 'true');
+  d.innerHTML = '<svg viewBox="0 0 48 48" width="56" height="56"><circle cx="24" cy="24" r="22"/><path d="M14 25l7 7 13-15"/></svg>';
+  document.body.appendChild(d); setTimeout(() => d.remove(), 900);
 }
 // Подсказка: сворачиваемый блок «?» с правилами. Открытость запоминаем, чтобы не мешала
 function hint(id, title, html) {
@@ -4074,9 +4092,10 @@ function renderGEventNew() {
 
 function renderPolls() {
   const items = S.polls || [];
+  if (!items.length) return starter('quiz', 'Опросы', 'Куда идём обедать, какую пиццу брать — спроси банду', 'poll-new');
   return `<section class="card polls">
-    <div class="chats-head"><h3>vote Опросы${items.filter((p) => !p.closed).length ? ` <span class="chats-n">${items.filter((p) => !p.closed).length}</span>` : ''}</h3><button class="linkbtn" data-act="poll-new">＋ Опрос</button></div>
-    ${items.length ? items.map(renderPoll).join('') : '<p class="small" style="margin:4px 0 0">Куда идём обедать, когда собираемся, какую пиццу брать — спроси банду. Можно разрешить всем дописывать свои варианты.</p>'}
+    <div class="chats-head"><h3>Опросы${items.filter((p) => !p.closed).length ? ` <span class="chats-n">${items.filter((p) => !p.closed).length}</span>` : ''}</h3>${addPill('poll-new', 'Опрос')}</div>
+    ${items.map(renderPoll).join('')}
   </section>`;
 }
 function renderPollNew() {
@@ -4398,7 +4417,8 @@ function renderGang() {
       ${micBtn('gang')}<button class="btn" data-act="chat-send" aria-label="Отправить">→</button></div>${recBar('gang')}
   </section>`;
   // ----- Жизнь: всё, что банда делает вместе
-  const lifeTab = `<div class="g-group">События</div>${w && w.active && w.active.mine ? renderWave() : ''}${renderGEvents()}${renderSanta()}${renderGangBirthdays()}${w && !w.active ? renderWave() : ''}${renderGangShelf()}<div class="g-group">Объявления</div>${renderGangBoard(g)}<div class="g-group">Опросы</div>${renderPolls()}${renderCrestVote()}`;
+  // Заголовков групп нет: у каждого блока своё название, а пустые разделы — строки-стартеры, идут подряд без воздуха
+  const lifeTab = `${w && w.active && w.active.mine ? renderWave() : ''}${renderGEvents()}${renderSanta()}${renderGangBirthdays()}${w && !w.active ? renderWave() : ''}${renderGangShelf()}${renderGangBoard(g)}${renderPolls()}${renderCrestVote()}`;
   // ----- Банда: кто мы, люди, неделя, казна, лига, битвы
   // «Банда на неделе» — первой: кто когда в офисе важнее описания банды
   const crewTab = `${waveBanner()}${renderCrewWeek(v, g)}
@@ -4594,10 +4614,11 @@ function renderBattleInvite(f) {
 
 const B_COLS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К'];
 // Реакции в бою: пластилиновые рожицы из одного атласа 4×2 (/art/emo.webp), порядок — как ключи
-const EMOTES = { lol: 'Ха-ха!', angry: 'Ну всё!', bored: 'Скукота', smart: 'Умный ход', oops: 'Ой-ой', clap: 'Браво', mercy: 'Пощади', easy: 'Изи',
+const EMOTES = { lol: 'Ха-ха!', angry: 'Ну всё!', bored: 'Скукота', smart: 'Умный ход', oops: 'Ой-ой', clap: 'Красиво, спасибо!', mercy: 'Обидно…', easy: 'Изи',
   sink: 'Буль-буль', miss: 'Мимо!', gull: 'Моё!', boom: 'Попал!', hmm: 'Хм…', bye: 'Пока-пока', rage: 'Псих', wait: 'Ходи уже' };
-// На панели — один ряд: ситуации. Рожицы первого набора остались в атласе, чтобы реакция от старой версии приложения показалась как надо
-const EMO_PANEL = ['sink', 'miss', 'gull', 'boom', 'hmm', 'bye', 'rage', 'wait'];
+// На панели четыре реакции, по одной на чувство: насмешка, слёзы, злость и благодарность сопернику.
+// Остальные рожицы остались в атласе, чтобы реакция от старой версии приложения показалась как надо
+const EMO_PANEL = ['lol', 'mercy', 'angry', 'clap'];
 const emoSfx = (k) => sfx(`emo_${k}`);
 const EMO_KEYS = Object.keys(EMOTES);
 const emoArt = (k) => { const n = EMO_KEYS.indexOf(k); return n < 0 ? '' : `<i class="emo-art" style="background-position:${(n % 4) * 100 / 3}% ${Math.floor(n / 4) * 100 / 3}%"></i>`; };
@@ -4724,7 +4745,7 @@ function renderEmoteLayer(v) {
 }
 
 function renderEmoteBar() {
-  return `<div class="b-emotes" role="group" aria-label="Реакции">${EMO_PANEL.map((k) => [k, EMOTES[k]]).map(([k, label]) => `<button class="emo" data-act="bemote" data-v="${k}" aria-label="${label}" title="${label}">${emoArt(k)}</button>`).join('')}</div>`;
+  return `<div class="b-emotes" role="group" aria-label="Реакции">${EMO_PANEL.map((k) => [k, EMOTES[k]]).map(([k, label]) => `<button class="emo" data-act="bemote" data-v="${k}" aria-label="${label}">${emoArt(k)}<span>${label}</span></button>`).join('')}</div>`;
 }
 
 function renderBattle() {
@@ -6199,9 +6220,9 @@ function section(id, title, summary, body, opts = {}) {
   return `<section class="psec ${open ? 'open' : ''}">
     <button class="psec-head" data-act="sec" data-v="${id}" aria-expanded="${open}">
       ${opts.lead || ''}<span class="grow"><span class="psec-title">${title}</span>${summary ? `<span class="psec-sum">${summary}</span>` : ''}</span>
-      <span class="psec-edit">${open ? 'Свернуть' : PENCIL}</span>
+      <span class="pm" aria-hidden="true">${open ? '−' : '+'}</span>
     </button>
-    ${open ? `<div class="psec-body">${body}</div>` : ''}
+    ${open ? `<div class="psec-body${unfold('sec:' + id)}">${body}</div>` : ''}
   </section>`;
 }
 
@@ -6905,7 +6926,7 @@ const actions = {
     if (v.name.trim().length < 2) { v.error = 'Напиши имя — хотя бы две буквы'; return render(); }
     if (!v.ok) { v.error = 'Отметь согласие — без него имя записать нельзя'; return render(); }
     S.busy = true; render();
-    try { v.data = await post(`/api/event-invite/${v.token}/go`, { name: v.name, key: guestKey(), consent: true }); sfx('confirm'); } catch (e) { v.error = e.message; }
+    try { v.data = await post(`/api/event-invite/${v.token}/go`, { name: v.name, key: guestKey(), consent: true }); sfx('confirm'); okFx(); } catch (e) { v.error = e.message; }
     S.busy = false; render();
   },
   'evi-login'() { S.guestLogin = true; render(); },
@@ -6930,7 +6951,7 @@ const actions = {
     try {
       const r = await post(`/api/santa-invite/${v.token}/join`, { name: v.name, wish: v.wish, consent: true });
       store.set('santaGuest', r.code); S.sgInv = null;
-      S.sg = { code: r.code, link: r.link, fresh: true, data: await get('/api/santa-guest/' + r.code) }; sfx('confirm');
+      S.sg = { code: r.code, link: r.link, fresh: true, data: await get('/api/santa-guest/' + r.code) }; sfx('confirm'); okFx();
     } catch (e) { v.error = e.message; }
     S.busy = false; render();
   },
@@ -6942,7 +6963,7 @@ const actions = {
     try { await post(`/api/santa-guest/${S.sg.code}/leave`, {}); store.set('santaGuest', null); S.sg = null; toast('Ты вышел из Санты'); } catch (e) { toast(e.message); }
     render();
   },
-  'shelf-row'(el) { S.shelfOpen = S.shelfOpen === el.dataset.v ? null : el.dataset.v; render(); },
+  'shelf-row'(el) { S.shelfOpen = S.shelfOpen === el.dataset.v ? null : el.dataset.v; S.just = 'shelf'; render(); },
   'shelf-f'(el) { S.shelfF = el.dataset.v; S.shelfAll = false; S.shelfOpen = null; render(); },
   'shelf-all'() { S.shelfAll = true; render(); },
   'shelf-pick'(el) { shelfSync(); const d = S.shelfDraft; d.title = el.dataset.t; d.kind = el.dataset.k; d.wiki = el.dataset.w; d.wikiT = el.dataset.t; render(); },
@@ -6953,9 +6974,9 @@ const actions = {
     if (d.title.trim().length < 2) throw new Error('Напиши название');
     // Ссылка на статью — только если название осталось тем, что выбрали из подсказки
     const r = await post('/api/me/shelf', { add: { ...d, wiki: d.wiki && d.title.trim() === d.wikiT ? d.wiki : undefined } });
-    S.me.profile.shelf = r.shelf; S.shelfDraft = null; toast('На полке'); await loadGang();
+    S.me.profile.shelf = r.shelf; S.shelfDraft = null; toast('На полке'); okFx(); await loadGang();
   }),
-  'shelf-want': (el) => run(async () => { const r = await post('/api/me/shelf', { want: { user: Number(el.dataset.user), id: Number(el.dataset.id) } }); S.me.profile.shelf = r.shelf; toast('На твоей полке. Автору рекомендации придёт весточка'); await loadGang(); }),
+  'shelf-want': (el) => run(async () => { const r = await post('/api/me/shelf', { want: { user: Number(el.dataset.user), id: Number(el.dataset.id) } }); S.me.profile.shelf = r.shelf; toast('На твоей полке. Автору рекомендации придёт весточка'); okFx(); await loadGang(); }),
   'shelf-start': (el) => run(async () => { shelfSync(); const r = await post('/api/me/shelf', { start: Number(el.dataset.id) }); S.me.profile.shelf = r.shelf; await loadGang(); }),
   'shelf-del': (el) => run(async () => { shelfSync(); const r = await post('/api/me/shelf', { remove: Number(el.dataset.id) }); S.me.profile.shelf = r.shelf; await loadGang(); }),
   'shelf-finish': (el) => run(async () => { shelfSync(); const r = await post('/api/me/shelf', { finish: Number(el.dataset.id), mark: el.dataset.v }); S.me.profile.shelf = r.shelf; toast(el.dataset.v === 'fire' ? 'Теперь это рекомендация для банды' : 'Отмечено'); await loadGang(); }),
@@ -7313,6 +7334,7 @@ const actions = {
   'gev-rsvp': (el) => run(async () => {
     const r = await post(`/api/gevents/${el.dataset.id}/rsvp`, { answer: el.dataset.v });
     S.gev.upcoming = S.gev.upcoming.map((e) => (e.id === r.event.id ? r.event : e));
+    if (el.dataset.v === 'yes') okFx();
   }),
   'gev-guests': (el) => run(async () => {
     const r = await post(`/api/gevents/${el.dataset.id}/guests`, { on: !!el.dataset.v });
@@ -7422,8 +7444,8 @@ const actions = {
   'digest-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { digest: el.checked } }); await loadMe(); toast(el.checked ? 'Утренняя сводка включена' : 'Утреннюю сводку больше не пришлю'); }),
   'match-on': () => run(async () => { await post('/api/me/profile', { profile: { matchShow: true } }); await Promise.all([loadMe(), loadMatch()]); toast('Твои дни открыты коллегам'); }),
   'match-day'(el) { S.matchDay = Number(el.dataset.v); render(); },
-  'occ-vote': (el) => run(async () => { if (!S.occ || S.occ.mine) return; S.occ = (await post('/api/occasion/vote', { id: S.occ.id, opt: el.dataset.v })).occasion; S.occOpen = false; sfx('confirm'); }),
-  'occ-toggle'() { S.occOpen = !S.occOpen; render(); },
+  'occ-vote': (el) => run(async () => { if (!S.occ || S.occ.mine) return; S.occ = (await post('/api/occasion/vote', { id: S.occ.id, opt: el.dataset.v })).occasion; S.occOpen = true; S.just = 'occ'; sfx('confirm'); okFx(); }),
+  'occ-toggle'() { S.occOpen = !S.occOpen; S.just = 'occ'; render(); },
   'board-filter'(el) { S.boardScope = el.dataset.v; S.boardAll = false; render(); },
   'board-cat'(el) { S.boardCat = el.dataset.v; S.boardAll = false; render(); },
   'board-time'(el) { boardSync(); S.boardDraft.time = el.dataset.v; render(); },
@@ -7871,7 +7893,7 @@ const actions = {
     const v = el.dataset.v;
     // Из плашки «что нового» раздел только открываем и прокручиваем к нему, а не сворачиваем
     const jump = el.classList.contains('pn-row');
-    if (S.sec.has(v) && !jump) S.sec.delete(v); else S.sec.add(v);
+    if (S.sec.has(v) && !jump) S.sec.delete(v); else { S.sec.add(v); S.just = 'sec:' + v; }
     if (v === 'ach' && S.sec.has(v)) achOpened();
     render();
     if (jump) { const h = document.querySelector(`.psec-head[data-v="${v}"]`); if (h) h.scrollIntoView({ block: 'start', behavior: 'smooth' }); }

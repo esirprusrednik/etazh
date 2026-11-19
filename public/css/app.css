@@ -382,7 +382,8 @@ body { font-weight: 500; }
 @keyframes emo-wiggle { 25% { transform: rotate(-12deg) scale(1.1); } 75% { transform: rotate(12deg) scale(1.1); } }
 .b-emotes { display: flex; gap: 4px; margin: 0 16px 12px; padding: 5px; border-radius: 18px; background: rgba(255,255,255,.1); overflow-x: auto; scrollbar-width: none; }
 .b-emotes::-webkit-scrollbar { display: none; }
-.emo { flex: 1 1 0; min-width: 34px; height: 44px; padding: 0; border-radius: 12px; background: rgba(255,255,255,.12); font-size: 24px; line-height: 1; transition: transform .1s; }
+.emo { flex: 1 1 0; min-width: 0; display: grid; justify-items: center; gap: 2px; padding: 6px 2px 5px; border-radius: 12px; background: rgba(255,255,255,.12); line-height: 1; transition: transform .1s; }
+.emo > span { font-size: 10.5px; font-weight: 700; color: rgba(255,255,255,.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .emo:active { transform: scale(.88); background: rgba(255,255,255,.25); }
 .b-quit { display: block; margin: 4px auto 12px; color: #C9D3EA; }
 
@@ -3015,3 +3016,25 @@ main > .chats-hint { margin: 0 6px; text-align: center; }
 .sh-sug { display: grid; gap: 4px; margin-top: -6px; }
 .sh-sug:empty { display: none; }
 .sh-sug-i { display: grid; gap: 1px; padding: 8px 12px; text-align: left; font: inherit; color: var(--ink); background: var(--s1); border: 0; border-radius: 10px; cursor: pointer; }
+
+/* ---------- Единые жесты: пилюля «добавить», строка-стартер, отклик на нажатие, раскрытие, галочка ---------- */
+.addpill { flex: none; min-height: 34px; padding: 0 12px; border: 0; border-radius: 999px; font: inherit; font-size: 13px; font-weight: 800; color: var(--sec-fg); background: var(--sec-bg); cursor: pointer; white-space: nowrap; }
+.addpill.plain { background: none; color: var(--muted); padding-right: 2px; }
+.starter { display: flex; align-items: center; gap: 12px; width: 100%; margin: 0 0 10px; padding: 10px 14px; text-align: left; font: inherit; color: var(--ink); background: var(--card); border: 1px solid var(--card-bd); border-radius: 24px; box-shadow: var(--card-sh); cursor: pointer; }
+.starter > img, .starter > .art { flex: none; }
+.starter .grow { display: grid; gap: 1px; min-width: 0; }
+.starter b { font-size: 16px; font-weight: 800; }
+.starter .small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+button { transition: transform .09s ease-out; }
+button:not(.bc):not(:disabled):active { transform: scale(.97); }
+@keyframes unfold { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+.unfold { animation: unfold .22s ease-out both; }
+@keyframes barGrow { from { transform: scaleX(0); } to { transform: none; } }
+.occ-res.unfold .occ-bar i { transform-origin: left center; animation: barGrow .55s cubic-bezier(.2,.8,.2,1) both; }
+.okfx { position: fixed; inset: 0; z-index: 400; display: grid; place-items: center; pointer-events: none; }
+.okfx svg { filter: drop-shadow(0 8px 20px rgba(0,0,0,.25)); animation: okPop .85s cubic-bezier(.2,1.4,.4,1) both; }
+.okfx circle { fill: #2FA84F; }
+.okfx path { fill: none; stroke: #fff; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 34; stroke-dashoffset: 34; animation: okDraw .3s .12s ease-out forwards; }
+@keyframes okPop { 0% { opacity: 0; transform: scale(.4); } 25% { opacity: 1; transform: scale(1.08); } 70% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.05); } }
+@keyframes okDraw { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { button { transition: none; } button:active { transform: none !important; } .unfold, .occ-res.unfold .occ-bar i { animation: none; } }
