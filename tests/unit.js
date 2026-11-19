@@ -74,6 +74,17 @@ const { b64url, fromB64url, moderationProblem, emailDomainAllowed } = require('.
   assert.ok(!emailDomainAllowed('a@sub.mts.ru'));
   console.log('  ✓ модерация и домены');
   {
+    // Вечерний пуш «Завтра в офисе»: молчит без плана и без людей, не перечисляет больше трёх ников
+    const { eveText } = require('../server/features');
+    const o = (n) => Array.from({ length: n }, (_, i) => ({ nick: 'ник' + (i + 1) }));
+    assert.equal(eveText({ noGang: true, office: [] }), null);
+    assert.equal(eveText({ locked: true, office: [] }), null);
+    assert.equal(eveText({ mine: 'office', office: [] }), null);
+    assert.equal(eveText({ mine: 'office', office: o(2) }), 'С тобой будут: ник1, ник2');
+    assert.equal(eveText({ mine: 'home', office: o(5) }), 'Будут: ник1, ник2, ник3 и ещё 2. Ты по плану дома');
+    assert.equal(eveText({ mine: 'unknown', office: o(1) }), 'Будут: ник1. А ты?');
+  }
+  {
     const H = require('../server/holidays');
     const dow = (d) => new Date(d + 'T00:00:00Z').getUTCDay();
     for (const d of Object.keys(H.OFF)) assert.ok(dow(d) >= 1 && dow(d) <= 5, 'в OFF только будни: ' + d);

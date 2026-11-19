@@ -742,6 +742,7 @@ function createApi(db) {
       if (p.matchShow !== undefined) prof.matchShow = !!p.matchShow;
       if (p.weather !== undefined) prof.weather = !!p.weather;
       if (p.monday !== undefined) prof.monday = !!p.monday;
+      if (p.eve !== undefined) prof.eve = !!p.eve;
       if (p.autoSign !== undefined) prof.autoSign = !!p.autoSign;
       if (p.focus !== undefined) {
         if (p.focus === null) prof.focus = null;

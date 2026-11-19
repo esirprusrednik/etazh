@@ -4934,6 +4934,7 @@ function renderSheet() {
       <button class="btn ghost" data-act="dm-open" data-id="${S.pcallTo}">chat Написать сообщение</button>`);
     case 'find': return sheetWrap('Найти своих', renderFind());
     case 'feedback': return sheetWrap('Идеи и ошибки', renderFeedback());
+    case 'joined': return sheetWrap('Ты в банде', renderJoined());
     case 'office-req': return sheetWrap('Заявка на офис', renderOfficeReq());
     case 'blitz': return sheetWrap(S.blitz && S.blitz.set ? S.blitz.set.title : 'Блиц', renderBlitzPlay());
     case 'poll-new': return sheetWrap('Новый опрос', renderPollNew());
@@ -6100,6 +6101,7 @@ function renderProfile() {
     ${MATCH_ON ? `<label class="check"><input type="checkbox" data-act="match-toggle" ${p.matchShow ? 'checked' : ''}> <span>«Совпадаем»: показывать коллегам, в какие дни я в офисе и дома (ник, имя, офис, общие интересы)</span></label>` : ''}
     <label class="check"><input type="checkbox" data-act="autosign-toggle" ${p.autoSign !== false ? 'checked' : ''}> <span>Таблички сами: пока включён «В фокус», аватар держит «Тихо, работаю», а после ответа «Скоро буду» или «Бегу» — «Скоро буду» на 20 минут. Свой предмет в руке потом вернётся</span></label>
     <label class="check"><input type="checkbox" data-act="monday-toggle" ${p.monday !== false ? 'checked' : ''}> <span>Неделя банды: в первый рабочий день недели около 9:30 — пуш, кто из банды в отпуске, болеет и у кого день рождения</span></label>
+    <label class="check"><input type="checkbox" data-act="eve-toggle" ${p.eve !== false ? 'checked' : ''}> <span>Завтра в офисе: вечером накануне рабочего дня, около 19:00 — пуш, кто из банды будет в офисе</span></label>
     <label class="check"><input type="checkbox" data-act="weather-toggle" ${p.weather !== false ? 'checked' : ''}> <span>Погода на завтра: вечером накануне офисного дня — пуш, если ждёт дождь, снег, мороз или жара</span></label>
     <label class="check"><input type="checkbox" data-act="digest-toggle" ${p.digest !== false ? 'checked' : ''}> <span>Утренняя сводка: один пуш в рабочий день около 11:30, если есть дела и ты ещё не заходил${meG('', 'а')}</span></label>
     <label class="check"><input type="checkbox" data-act="findable-toggle" ${p.findable !== false ? 'checked' : ''}> <span>Меня можно найти по нику и рабочей почте — и позвать в банду</span></label>
@@ -7107,6 +7109,8 @@ const actions = {
   'g-help'() { S.gHelp = !S.gHelp; render(); },
   'weeknote-hide'(el) { try { store.set('weekNoteHidden', el.dataset.v); } catch {} render(); },
   'autosign-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { autoSign: el.checked } }); await loadMe(); toast(el.checked ? 'Аватар сам покажет табличку, когда ты в фокусе или уже бежишь' : 'Таблички сами больше не появятся'); }, { rerender: true }),
+  'eve-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { eve: el.checked } }); await loadMe(); toast(el.checked ? 'Вечером пришлю, кто завтра в офисе' : 'Вечерняя сводка выключена'); }),
+  'joined-push': () => run(async () => { await enablePush(); S.sheet = null; }),
   'monday-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { monday: el.checked } }); await loadMe(); toast(el.checked ? 'В понедельник пришлю, что у банды на неделе' : 'Понедельничную сводку больше не пришлю'); }),
   'focus-set': (el) => run(async () => {
     await post('/api/me/profile', { profile: { focus: el.dataset.v === 'eod' ? 'eod' : Number(el.dataset.v) } });
@@ -7791,14 +7795,28 @@ function saveSignalText() { if (!S.signal) S.signal = {}; const z = $('#s-zone')
 
 async function joinByCode(code) {
   await switchable(async (sw) => afterJoin(await post('/api/gangs/join', { code, switch: sw })));
-  // Дни, отмеченные на приглашении до входа, становятся планом недели — если своего плана ещё нет
-  const plan = store.get('pendingPlan', null);
-  if (plan) {
-    store.set('pendingPlan', null);
-    if (!Object.keys((S.me.profile && S.me.profile.plan) || {}).length && Object.keys(plan).length) {
-      try { await post('/api/me/profile', { profile: { plan } }); await loadMe(); } catch { /* план отметит внутри */ }
-    }
-  }
+}
+// Можно ли прямо сейчас включить уведомления: on — уже включены, ask — браузер спросит, install — на iPhone
+// сначала нужна иконка на экране, no — запрещены или не поддерживаются
+function pushAsk() {
+  if (!S.vapidKey) return 'no';
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return isIOS() && !isStandalone() ? 'install' : 'no';
+  return Notification.permission === 'granted' ? 'on' : Notification.permission === 'default' ? 'ask' : 'no';
+}
+function renderJoined() {
+  const g = S.gang && S.gang.gang, h = S.fx && S.fx.weekHint, st = pushAsk();
+  const best = h ? `<p class="joined-best">${h.today ? 'Сегодня' : esc(h.label)} в офисе будут <b>${h.office} из ${h.total}</b> — больше всего на этой неделе.</p>` : '';
+  const why = 'Вечером накануне пришлём, кто из банды завтра в офисе. Зов на кофе или обед тоже придёт уведомлением — иначе узнаешь о нём, когда все уже поели.';
+  const act = st === 'ask' ? `<button class="btn wide" data-act="joined-push" ${S.busy ? 'disabled' : ''}>Включить уведомления</button>
+      ${isStandalone() ? '' : '<p class="small" style="margin:0">Иконку на экран можно добавить потом — с ней Этаж открывается одним касанием.</p>'}`
+    : st === 'install' ? `<p class="sub" style="margin:0"><b>На iPhone уведомления приходят только с иконки на экране.</b> Это полминуты, из магазина приложений ничего не скачивается. После этого открой Этаж с иконки и войди ещё раз по той же почте.</p>${renderInstall()}`
+    : '<p class="small" style="margin:0">Уведомления в этом браузере выключены или не поддерживаются. Включить их можно в профиле.</p>';
+  return `${g ? `<p class="sub" style="margin-top:0">«${esc(g.name)}» — теперь видно, кто из своих когда в офисе.</p>` : ''}
+    ${best}
+    <p class="sub" style="margin:0">${why}</p>
+    ${S.error ? `<div class="err">${esc(S.error)}</div>` : ''}
+    ${act}
+    <button class="linkbtn" data-act="close" style="align-self:center">Не сейчас</button>`;
 }
 // Личная ссылка-приглашение живёт неделю; держим её в памяти телефона шесть дней, чтобы не плодить новые
 const linkCache = (gid) => { const c = store.get('inviteLink:' + gid, null); return c && c.until > Date.now() ? c.link : null; };
@@ -7811,6 +7829,17 @@ async function afterJoin(r) {
   S.activeGang = r.id; store.set('activeGang', r.id); S.tab = 'chats'; S.chatGang = true; S.dmList = false; S.dm = null; S.sheet = null;
   await loadMe(); await loadGang();
   toast(r.already ? 'Ты уже в этой банде' : 'Ты в банде!');
+  // Только что вступил: это момент, когда уведомления нужны самому человеку. Просим их здесь, а не на входе
+  // Дни, отмеченные на приглашении до входа, становятся планом недели — если своего плана ещё нет
+  const plan = store.get('pendingPlan', null);
+  if (plan) {
+    store.set('pendingPlan', null);
+    if (!Object.keys((S.me.profile && S.me.profile.plan) || {}).length && Object.keys(plan).length) {
+      try { await post('/api/me/profile', { profile: { plan } }); await loadMe(); } catch { /* план отметит внутри */ }
+    }
+  }
+  const ask = pushAsk();
+  if (!r.already && (ask === 'ask' || ask === 'install')) { try { await loadFeatures(); } catch { /* подсказка про лучший день необязательна */ } S.sheet = 'joined'; }
 }
 
 // Банда может быть только одна: если сервер ответил «ты уже в банде», спрашиваем и повторяем с переходом
@@ -8197,7 +8226,9 @@ async function boot() {
     }
     await refresh({ all: true });
     const coachDone = Number(store.get('coachDone', 0));
-    if (coachDone < 2) { S.coach = coachDone === 1 ? 3 : 1; S.coachStart = S.coach; }
+    // Только что вступил по приглашению: сначала просьба об уведомлениях, экскурсия — при следующем запуске
+    if (S.sheet === 'joined') { /* экскурсию не начинаем */ }
+    else if (coachDone < 2) { S.coach = coachDone === 1 ? 3 : 1; S.coachStart = S.coach; }
     else if (!store.get('ia2', 0)) { S.sheet = 'whatsnew'; } // уже знакомы с приложением — коротко покажем, что поменялось
     syncPush().then(render).catch(() => {});
     if (openFeedback) { S.sheet = 'feedback'; loadFeedback().then(render).catch(() => {}); }

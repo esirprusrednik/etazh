@@ -2929,3 +2929,5 @@ main > .chats-hint { margin: 0 6px; text-align: center; }
 .inv-day.on { background: var(--chip-on-bg); border-color: var(--chip-on-bd); color: var(--chip-on-fg); }
 .inv-day.on span { color: inherit; opacity: .85; }
 .inv-day:focus-visible { outline: 3px solid var(--ic); outline-offset: 2px; }
+
+.joined-best { margin: 0; padding: 12px 14px; border-radius: 12px; background: var(--tint-b); color: var(--tint-b-fg); font-weight: 700; }

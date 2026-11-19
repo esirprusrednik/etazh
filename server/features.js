@@ -276,6 +276,13 @@ function migrate(db) {
 
 }
 
+// Текст вечернего пуша. Молчим, если человек не заполнил план (график ему закрыт) или из банды завтра никого
+function eveText(t) {
+  if (!t || t.noGang || t.locked || !t.office.length) return null;
+  const names = t.office.slice(0, 3).map((x) => x.nick).join(', ') + (t.office.length > 3 ? ` и ещё ${t.office.length - 3}` : '');
+  return t.mine === 'office' ? `С тобой будут: ${names}` : t.mine === 'home' ? `Будут: ${names}. Ты по плану дома` : `Будут: ${names}. А ты?`;
+}
+
 function register(ctx) {
   const { db, q, route, requireUser, requireAdmin, bad, U, config, addBeans, spendBeans, notify, fireAndForget,
     isMember, gangMembers, myGangs, activeCheckin, readProfile, presenceOf, fullName, weekdayName, addDays, pushEvent, myEvent, officeById, profilePct, publicLook } = ctx;
@@ -1181,6 +1188,16 @@ function register(ctx) {
           if (w) fireAndForget(notify([u.id], { title: 'Неделя банды', body: weekNoteText(w), url: '/#near', tag: 'monday' }));
         }
       }
+      // Вечером накануне рабочего дня, 19:00–20:30: кто из банды завтра в офисе. Ради этого пуша человек и ставит Этаж
+      if (hm >= 1140 && hm < 1230 && meta.get('eve_day') !== day && nextWorkday(day) === addDays(day, 1)) {
+        meta.set('eve_day', day);
+        for (const r of q('SELECT DISTINCT user_id AS id FROM push_subs').all()) {
+          const u = userRow(r.id);
+          if (!u || !u.nick || readProfile(u.profile).eve === false) continue;
+          const body = eveText(gangTomorrow(u.id));
+          if (body) fireAndForget(notify([u.id], { title: 'Завтра в офисе', body, url: '/#near', tag: 'eve' }));
+        }
+      }
       // Сводка недели: пятница с 16:00
       if (dow === 5 && now.hour >= 16 && now.hour < 19 && meta.get('digest_week') !== mondayOf(day)) {
         meta.set('digest_week', mondayOf(day));
@@ -1275,4 +1292,4 @@ function register(ctx) {
   return { streak: (uid) => counter(uid, 'day_streak'), setQuestProviders: (p) => Object.assign(prov, p), respects, onEvent, cleanup, tick, pairNow, questSummary, myPair, activeToday, cellFor, gangTomorrow, weekNote, weekNoteText, weekCounts };
 }
 
-module.exports = { register, ACH, QUESTS };
+module.exports = { register, ACH, QUESTS, eveText };
