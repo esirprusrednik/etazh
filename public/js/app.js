@@ -1291,7 +1291,7 @@ async function loadGang() {
   try { S.gang = await get(`/api/gangs/${S.activeGang}`); } catch { S.gang = null; S.activeGang = null; }
   await Promise.all([loadPolls(), loadGEvents(), loadCV(), loadWars(), loadSanta(), loadFriday(), loadWave()]);
   // Личную ссылку-приглашение готовим заранее: «Поделиться» на iPhone срабатывает только сразу по нажатию
-  if (S.gang && S.gang.gang.link && !linkCache(S.gang.gang.id)) inviteLink(S.gang.gang.id);
+  if (S.gang && S.gang.gang.canInvite && !linkCache(S.gang.gang.id)) inviteLink(S.gang.gang.id);
 }
 function boardSync() {
   const d = S.boardDraft; if (!d) return;
@@ -2042,6 +2042,7 @@ function renderLogin() {
       <h2>Вход по рабочей почте</h2>
       <p class="sub">Саму почту не храним — только зашифрованный отпечаток. Остальные видят твой ник.</p>
       ${expired ? '<div class="err">Ссылка устарела или уже использована. Запроси новую.</div>' : ''}
+      ${params.get('invite') === 'old' ? '<div class="note">Эта ссылка-приглашение больше не работает: приглашения теперь личные и живут неделю. Попроси у своих новую — или просто войди.</div>' : ''}
       ${acc === 'sent' ? '<div class="note">Заявка у модератора. Когда Этаж откроют для твоей компании, придёт письмо со ссылкой для входа.</div>' : acc === 'expired' ? '<div class="err">Ссылка для заявки устарела. Введи почту ещё раз.</div>' : ''}
       <label class="field">Рабочая почта<input id="email" type="email" inputmode="email" autocomplete="email" placeholder="имя@вашакомпания.ru" value="${esc(o.email)}"></label>
       <label class="check"><input id="consent" type="checkbox"> <span>Согласен с <a href="/privacy.html" target="_blank" rel="noopener">политикой обработки данных</a> и <a href="/rules.html" target="_blank" rel="noopener">правилами</a></span></label>
@@ -3983,7 +3984,7 @@ function renderGangNew() {
     <div class="field">Интересы — до 6, по ним банду найдут${interestChips(d.interests)}</div>
     <label class="field">Пара слов о банде (необязательно)<input id="gang-about" maxlength="160" placeholder="Кто мы и зачем собрались" value="${esc(d.about || '')}"></label>
     <button class="btn violet" data-act="gang-create">Сколотить банду · залог 50</button>
-    <label class="field">Или вставь ссылку-приглашение<input id="gang-code" placeholder="https://…/g/ABC123"></label>
+    <label class="field">Или вставь ссылку-приглашение<input id="gang-code" placeholder="https://…/i/…"></label>
     <button class="btn ghost" data-act="gang-join">Вступить по ссылке</button>`;
 }
 function saveGangForm(prefix) {
@@ -4172,7 +4173,7 @@ function renderGang() {
       <div class="row"><button class="btn small grow" data-act="gang-find">search Найти банду</button><button class="btn small ghost grow" data-act="open" data-v="gang-new">＋ Сколотить</button></div></div></details></section>`
     : `<section class="card"><h3>Банды</h3><p class="sub">Банда — твои люди: команда, соседи по этажу, кофейный клуб. Общий чат, зовы, неделя офиса и Лига банд, где вы соревнуетесь с другими.</p>
       <div class="row"><button class="btn grow" data-act="gang-find">search Найти банду</button><button class="btn violet grow" data-act="open" data-v="gang-new">＋ Сколотить</button></div>
-      <label class="field">Или вставь ссылку-приглашение<input id="gang-code" placeholder="https://…/g/ABC123"></label>
+      <label class="field">Или вставь ссылку-приглашение<input id="gang-code" placeholder="https://…/i/…"></label>
       <button class="btn ghost" data-act="gang-join">Вступить по ссылке</button></section>`;
   const multi = gangs.length > 1 ? `<div class="note warn">Теперь банда может быть только одна. Ты в ${gangs.length}: очки Лиги идут в «${esc(gangs[0].name)}» (в неё ты вступил раньше). Выйди из лишних, чтобы не путаться.</div>` : '';
   if (!gangs.length) return create;
@@ -4827,7 +4828,7 @@ function renderCrewWeek(v, g) {
     <p class="small cw-hint">Нажми — карточка. Удерживай — «Позвать» и «Написать».${w && !w.locked ? ' <button class="linkbtn" data-act="open-sec" data-v="work">Мой план</button>' : ''}</p>
     ${w && !w.locked ? renderWeekNotes(w) : ''}
     ${w && w.hidden ? `<p class="small" style="margin:0">${w.hidden} ${plural(w.hidden, 'человек не показывает', 'человека не показывают', 'человек не показывают')} план — у них нет точек.</p>` : ''}
-    ${g.link ? `<button class="btn blue" data-act="invite-share">Позвать в банду по ссылке</button>` : '<p class="small" style="margin:0">В этой банде новых зовёт только владелец.</p>'}
+    ${g.canInvite ? `<button class="btn blue" data-act="invite-share">Позвать в банду по ссылке</button>` : '<p class="small" style="margin:0">В этой банде новых зовёт только владелец.</p>'}
   </section>`;
 }
 
@@ -6694,9 +6695,10 @@ const actions = {
   }),
   'invite-share': async () => {
     const g = S.gang.gang;
-    if (!g.link) return toast('В этой банде зовёт только владелец');
-    // Личная ссылка на неделю: по ней до входа видно, в какие дни свои в офисе. Не вышло получить — годится общая
-    const link = (await inviteLink(g.id)) || g.link;
+    if (!g.canInvite) return toast('В этой банде зовёт только владелец');
+    // Личная ссылка на неделю: по ней до входа видно, в какие дни свои в офисе
+    const link = await inviteLink(g.id);
+    if (!link) return toast('Не получилось сделать ссылку. Попробуй ещё раз чуть позже');
     await shareLink(`Смотри, в какие дни наши в офисе — «${g.name}» в Этаже. Это сайт, ставить ничего не нужно`, link);
   },
   'inv-day'(el) {

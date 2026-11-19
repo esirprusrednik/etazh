@@ -6,6 +6,8 @@ const fs = require('node:fs');
 const assert = require('node:assert/strict');
 
 let passed = 0;
+// Вступить в банду можно только по личной ссылке участника
+const inviteOf = async (member, gid) => (await member.post(`/api/gangs/${gid}/link`)).json.link;
 async function step(name, fn) {
   try { await fn(); passed++; console.log('  ✓ ' + name); } catch (e) { console.log('  ✗ ' + name + '\n    ' + e.stack); throw e; }
 }
@@ -781,11 +783,11 @@ function startServer(day, extra = {}) {
       const O = await new si.Client().login('inv1@mts.ru', 'зовущий'), M = await new si.Client().login('inv2@mts.ru', 'планировщик');
       const g = (await O.post('/api/gangs', { name: 'Вторничные', access: 'invite' })).json;
       const gid = g.gang ? g.gang.id : g.id;
-      await M.post('/api/gangs/join', { code: (await O.get(`/api/gangs/${gid}`)).json.gang.code });
+      await M.post('/api/gangs/join', { code: await inviteOf(O, gid) });
       await O.post('/api/me/profile', { shareOffice: true, profile: { plan: { 'Вт': 'office', 'Чт': 'office' } } });
       await M.post('/api/me/profile', { shareOffice: true, profile: { plan: { 'Вт': 'office', 'Ср': 'home' } } });
       const H = await new si.Client().login('inv5@mts.ru', 'скрытный_инв');   // офис не показывает — в числа не попадает
-      await H.post('/api/gangs/join', { code: (await O.get(`/api/gangs/${gid}`)).json.gang.code });
+      await H.post('/api/gangs/join', { code: await inviteOf(O, gid) });
       await H.post('/api/me/profile', { profile: { plan: { 'Вт': 'office', 'Ср': 'office' } } });
       const link = (await O.post(`/api/gangs/${gid}/link`)).json.link;
       const tok = /\/i\/([A-Z0-9]{12})$/.exec(link)[1];

@@ -42,6 +42,8 @@ class Client {
   }
 }
 let passed = 0;
+// Вступить в банду можно только по личной ссылке участника
+const inviteOf = async (member, gid) => (await member.post(`/api/gangs/${gid}/link`)).json.link;
 async function step(name, fn) {
   try { await fn(); passed++; console.log('  ✓ ' + name); } catch (e) { console.log('  ✗ ' + name + '\n    ' + e.message); throw e; }
 }
@@ -57,14 +59,14 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
   const g = (await a.post('/api/gangs', { name: 'Знатоки' })).json;
 
   await step('угадай коллегу: в маленькой банде не работает', async () => {
-    await b.post('/api/gangs/join', { code: g.code });
+    await b.post('/api/gangs/join', { code: await inviteOf(a, g.id) });
     const r = (await a.get(`/api/gangs/${g.id}/guess`)).json;
     assert.equal(r.question, null); assert.ok(r.small);
     assert.equal((await d.get(`/api/gangs/${g.id}/guess`)).status, 404);
   });
 
   await step('угадай коллегу: вопрос, ответ, зерно, лимит 3 в день', async () => {
-    for (const x of [c, d]) await x.post('/api/gangs/join', { code: g.code });
+    for (const x of [c, d]) await x.post('/api/gangs/join', { code: await inviteOf(a, g.id) });
     await b.post('/api/me/profile', { profile: { about: 'Пеку лучшие сырники' } });
     let correctCount = 0;
     for (let i = 0; i < 3; i++) {
@@ -216,7 +218,7 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
 
   await step('опросы банды: создать, голос, свой вариант, один выбор, чужим не видно, автор завершает', async () => {
     const gg = (await a.post('/api/gangs', { name: 'Голосуем' })).json;
-    await b.post('/api/gangs/join', { code: gg.code });
+    await b.post('/api/gangs/join', { code: await inviteOf(a, gg.id) });
     assert.equal((await a.post(`/api/gangs/${gg.id}/polls`, { question: 'Куда?', options: ['Одно'], open: false })).status, 400, 'без своих вариантов нужно два');
     const r = await a.post(`/api/gangs/${gg.id}/polls`, { question: 'Куда идём обедать?', options: ['Столовая', 'Шаурма', 'столовая'], days: 3 });
     assert.equal(r.status, 200);

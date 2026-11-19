@@ -45,6 +45,8 @@ class Client {
   }
 }
 let passed = 0;
+// Вступить в банду можно только по личной ссылке участника
+const inviteOf = async (member, gid) => (await member.post(`/api/gangs/${gid}/link`)).json.link;
 async function step(name, fn) {
   try { await fn(); passed++; console.log('  ✓ ' + name); } catch (e) { console.log('  ✗ ' + name + '\n    ' + e.stack); throw e; }
 }
@@ -57,8 +59,8 @@ const mskToday = () => new Date(Date.now() + SHIFT_H * 3600e3).toISOString().sli
   const c = await new Client().login('boss@mts.ru', 'главный_бобр');
   const d = await new Client().login('dina@mts.ru', 'смелый_ёж');
   const g = (await a.post('/api/gangs', { name: 'Пятничный кофе' })).json;
-  await b.post('/api/gangs/join', { code: g.code });
-  await c.post('/api/gangs/join', { code: g.code });
+  await b.post('/api/gangs/join', { code: await inviteOf(a, g.id) });
+  await c.post('/api/gangs/join', { code: await inviteOf(a, g.id) });
   for (const x of [a, b, c, d]) await x.post('/api/me/profile', { shareOffice: true });
 
   await step('ачивки: отметка даёт «Первый шаг»; заданий дня больше нет', async () => {
@@ -298,7 +300,7 @@ const mskToday = () => new Date(Date.now() + SHIFT_H * 3600e3).toISOString().sli
     const x = await new Client().login('xena@mts.ru', 'тихая_рысь');
     const y = await new Client().login('yan@mts.ru', 'быстрый_ёрш');
     const gx = (await x.post('/api/gangs', { name: 'Тихий угол' })).json;
-    await y.post('/api/gangs/join', { code: gx.code });
+    await y.post('/api/gangs/join', { code: await inviteOf(x, gx.id) });
     await x.post(`/api/gangs/${gx.id}/messages`, { type: 'text', text: 'всем привет' });
     await x.post(`/api/crew/${y.id}/messages`, { type: 'text', text: 'привет лично' });
     await x.post('/api/me/profile', { shareOffice: false, profile: { findable: false } });
@@ -331,7 +333,7 @@ const mskToday = () => new Date(Date.now() + SHIFT_H * 3600e3).toISOString().sli
     await w.post('/api/me/profile', { look: { preset: 'f' }, shareOffice: true, profile: { mood: 'coffee' } });
     const gw = (await w.post('/api/gangs', { name: 'Девичник' })).json;
     const m = await new Client().login('misha@mts.ru', 'тихий_медведь');
-    await m.post('/api/gangs/join', { code: gw.code });
+    await m.post('/api/gangs/join', { code: await inviteOf(w, gw.id) });
     await w.post('/api/checkin', { office: 'smol' });
     await w.post('/api/thanks', { to: m.id });
     const ev = (await m.get('/api/events')).json.events.map((e) => e.text).join('\n');
@@ -380,7 +382,7 @@ const mskToday = () => new Date(Date.now() + SHIFT_H * 3600e3).toISOString().sli
     // Только владелец зовёт: у участника ссылки нет
     await o.post(`/api/gangs/${gg.id}/settings`, { whoInvites: 'owner', maxMembers: 3 });
     const xv = (await x.get(`/api/gangs/${gg.id}`)).json.gang;
-    assert.equal(xv.link, null); assert.equal(xv.canInvite, false);
+    assert.equal(xv.canInvite, false); assert.equal((await x.post(`/api/gangs/${gg.id}/link`)).status, 400, 'личную ссылку тоже даёт только владелец');
     assert.equal((await x.post(`/api/gangs/${gg.id}/settings`, { maxMembers: 1 })).status, 400);
     assert.equal((await o.post(`/api/gangs/${gg.id}/settings`, { maxMembers: 1 })).status, 400, 'лимит меньше состава нельзя');
     // Открытая: вступление сразу, лимит
@@ -408,7 +410,7 @@ const mskToday = () => new Date(Date.now() + SHIFT_H * 3600e3).toISOString().sli
     const g2 = (await p2.post('/api/gangs', { name: 'Вторая', access: 'open' })).json;
     const r = await p1.post(`/api/gangs/${g2.id}/apply`);
     assert.equal(r.status, 400); assert.ok(/уже в банде «Первая»/.test(r.json.error));
-    assert.equal((await p1.post('/api/gangs/join', { code: g2.code })).status, 400);
+    assert.equal((await p1.post('/api/gangs/join', { code: await inviteOf(p2, g2.id) })).status, 400);
     assert.equal((await p1.post('/api/gangs', { name: 'Третья' })).status, 400, 'и новую не сколотить');
     assert.ok((await p1.post(`/api/gangs/${g2.id}/apply`, { switch: true })).json.member);
     const mine = (await p1.get('/api/me')).json.user.gangs;

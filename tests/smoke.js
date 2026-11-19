@@ -53,6 +53,8 @@ class Client {
 }
 
 let passed = 0;
+// Вступить в банду можно только по личной ссылке участника
+const inviteOf = async (member, gid) => (await member.post(`/api/gangs/${gid}/link`)).json.link;
 async function step(name, fn) {
   try { await fn(); passed++; console.log('  ✓ ' + name); } catch (e) { console.log('  ✗ ' + name + '\n    ' + e.message); throw e; }
 }
@@ -140,12 +142,14 @@ async function waitUp() {
     assert.equal(g.status, 200, JSON.stringify(g.json));
     a.gang = g.json.id;
     const before = (await a.get('/api/me')).json.user.beans;
-    assert.equal((await b.post('/api/gangs/join', { code: `${BASE}/g/${g.json.code}` })).status, 200);
-    assert.equal((await c.post('/api/gangs/join', { code: g.json.code })).status, 200);
+    assert.equal(g.json.code, undefined, 'постоянный код банды наружу не отдаём');
+    assert.equal((await b.post('/api/gangs/join', { code: await inviteOf(a, a.gang) })).status, 200);
+    assert.equal((await c.post('/api/gangs/join', { code: (await inviteOf(b, a.gang)).split('/').pop() })).status, 200, 'зовёт любой участник, годится и сам код из ссылки');
+    assert.equal((await c.post('/api/gangs/join', { code: 'ABC234' })).status, 400, 'старые постоянные коды отключены');
     const after = (await a.get('/api/me')).json.user.beans;
     assert.equal(after - before, 50);
-    const r = await a.req('GET', '/g/' + g.json.code);
-    assert.equal(r.headers.get('location'), '/#join=' + g.json.code);
+    const r = await a.req('GET', '/g/ABC234');
+    assert.equal(r.headers.get('location'), '/?invite=old', 'старая ссылка ведёт на объяснение, а не в банду');
   });
 
   await step('зов, ответ +1, лимит зовов', async () => {
@@ -277,7 +281,7 @@ async function waitUp() {
     const msg = view.messages.find((m) => m.type === 'text');
     for (const cl of [a, c]) await cl.post('/api/report', { type: 'message', id: msg.id });
     const e = await new Client().login('f@mts.ru', 'хитрый_лис');
-    await e.post('/api/gangs/join', { code: (await a.get(`/api/gangs/${a.gang}`)).json.gang.code });
+    await e.post('/api/gangs/join', { code: await inviteOf(a, a.gang) });
     await e.post('/api/report', { type: 'message', id: msg.id });
     const after = (await b.get(`/api/gangs/${a.gang}`)).json;
     assert.ok(!after.messages.some((m) => m.id === msg.id));

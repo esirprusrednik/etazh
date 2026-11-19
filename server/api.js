@@ -933,7 +933,7 @@ function createApi(db) {
     q('INSERT INTO gang_members (gang_id, user_id, joined_at) VALUES (?, ?, ?)').run(r.lastInsertRowid, u.id, U.now());
     if (league) league.touch(Number(r.lastInsertRowid), [u.id]);
     if (features) features.onEvent('gang_join', u.id);
-    return { ok: true, id: Number(r.lastInsertRowid), code };
+    return { ok: true, id: Number(r.lastInsertRowid) };
   });
 
   // ---------- Личная ссылка-приглашение ----------
@@ -980,9 +980,9 @@ function createApi(db) {
       if (!l) throw bad('Приглашение устарело — попроси новую ссылку, она живёт неделю.');
       g = q('SELECT * FROM gangs WHERE id = ? AND hidden = 0').get(l.gang_id);
     } else {
-      const m = /([A-Z2-9]{6})\s*$/i.exec(raw);
-      if (!m) throw bad('Это не похоже на ссылку банды.');
-      g = q('SELECT * FROM gangs WHERE code = ? AND hidden = 0').get(m[1].toUpperCase());
+      // Постоянные ссылки банд (/g/ABC123) отключены: приглашения теперь личные и живут неделю
+      if (/([A-Z2-9]{6})\s*$/i.test(raw)) throw bad('Эта ссылка больше не работает: приглашения теперь личные и живут неделю. Попроси новую.');
+      throw bad('Это не похоже на ссылку-приглашение.');
     }
     if (!g) throw bad('Ссылка банды не найдена или банда закрыта.');
     if (isMember(g.id, u.id)) return { ok: true, id: g.id, already: true };
@@ -1382,7 +1382,7 @@ function createApi(db) {
     return {
       gang: {
         id: g.id, name: g.name, color: g.color, motto: g.motto, gold: !!g.gold, mottoOwned: !!g.motto_owned, flag: !!g.flag, horn: !!g.horn, pizza: pizzaOf(g.id, u.id),
-        code: (g.who_invites || 'all') === 'all' || g.owner_id === u.id ? g.code : null, link: (g.who_invites || 'all') === 'all' || g.owner_id === u.id ? `${config.baseUrl}/g/${g.code}` : null, isOwner: g.owner_id === u.id,
+        canInvite: (g.who_invites || 'all') === 'all' || g.owner_id === u.id, isOwner: g.owner_id === u.id,
         depositPending: !!g.deposit && members.length < 3, count: members.length,
         about: g.about || '', ...U.crestPub(g), emoji: g.emoji || null, access: g.access || 'invite',
         max: gangLimit(g), maxSet: g.max_members || 0, glory: treasury ? treasury.balance(g.id) : 0, league: league ? league.weekPlace(g.id) : null, glevel: league ? league.level(g.id) : null, xpToday: league ? league.myToday(u.id) : null, trophies: league ? league.trophies(g.id) : null, legend: g.legend_month && league ? legendLabel(g.legend_month) : null, whoInvites: g.who_invites || 'all', office: g.office_id || null, canInvite: (g.who_invites || 'all') === 'all' || g.owner_id === u.id

@@ -96,7 +96,7 @@ const server = http.createServer(async (req, res) => {
     if (pi) return send(res, 302, '', { Location: `/#inv=${pi[1].toUpperCase()}`, 'Cache-Control': 'no-store' });
     // Ссылка-приглашение в банду: etazh.example.ru/g/ABC123
     const g = /^\/g\/([A-Za-z0-9]{6})$/.exec(pathname);
-    if (g) return send(res, 302, '', { Location: `/#join=${g[1].toUpperCase()}` });
+    if (g) return send(res, 302, '', { Location: '/?invite=old' }); // постоянные ссылки отключены — объясняем на входе
     // Личная ссылка «стань моим подельником»: etazh.example.ru/p/ABC123
     const pc = /^\/p\/([A-Za-z0-9]{6})$/.exec(pathname);
     if (pc) return send(res, 302, '', { Location: `/#crew=${pc[1].toUpperCase()}` });
