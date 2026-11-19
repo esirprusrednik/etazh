@@ -106,7 +106,7 @@ function register(ctx) {
     return allTopics().filter((t) => t.from <= today()).map((t) => ({ id: t.id, title: t.title, emoji: t.emoji, desc: t.desc, count: t.questions.length, free: !ua.has(t.id) && !ub.has(t.id), usedByMe: ua.has(t.id), usedByThem: ub.has(t.id) }));
   }
   const gangPub = (g) => (g ? { id: g.id, name: g.name, color: g.color, ...U.crestPub(g) } : null);
-  function chat(gid, uid, text) { q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(gid, uid, 'text', text, U.now()); }
+  function chat(gid, uid, text) { q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(gid, uid, 'text', text, U.now()); require('./tg').announce(gid, text); }
   const runOf = (wid, uid) => (uid ? q('SELECT * FROM gang_war_runs WHERE war_id = ? AND user_id = ?').get(wid, uid) : null);
 
   // ---------- Герои ----------

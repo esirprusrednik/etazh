@@ -10,6 +10,8 @@ const KEEP_CLOSED_DAYS = 7;
 
 function register(ctx) {
   const { db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, rateLimit, onEvent } = ctx;
+  // Событие банды: строка в чат и, если подключено, в её группу в Телеграме
+  const gsay = (gid, uid, text, at) => { q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(gid, uid, 'text', text, at); require('./tg').announce(gid, text); };
 
   db.exec(`
   CREATE TABLE IF NOT EXISTS polls (
@@ -104,7 +106,7 @@ function register(ctx) {
     const ins = q('INSERT INTO poll_options (poll_id, text, user_id, at) VALUES (?, ?, ?, ?)');
     for (const o of options) ins.run(pid, o, u.id, t);
     // В чат — короткая отметка, чтобы опрос заметили
-    q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(gangId, u.id, 'text', `Опрос: «${question}» — голосуй выше`, t);
+    gsay(gangId, u.id, `Опрос: «${question}» — голосуй выше`, t);
     const g = q('SELECT name FROM gangs WHERE id = ?').get(gangId);
     const others = gangMembers(gangId).filter((m) => m.id !== u.id).map((m) => m.id);
     fireAndForget(notify(others, { title: g ? g.name : 'Опрос', body: `${u.nick}: ${question}`, url: `/#gang/${gangId}`, tag: `poll-${pid}` }));

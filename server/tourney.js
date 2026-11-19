@@ -16,6 +16,8 @@ const MONTHS = ['январь', 'февраль', 'март', 'апрель', '�
 
 function register(ctx) {
   const { db, q, route, requireUser, requireAdmin, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, gangwar, league } = ctx;
+  // Событие банды: строка в чат и, если подключено, в её группу в Телеграме
+  const gsay = (gid, uid, text, at) => { q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(gid, uid, 'text', text, at); require('./tg').announce(gid, text); };
   const { workdayName } = require('./holidays');
 
   db.exec(`
@@ -76,7 +78,7 @@ function register(ctx) {
       matches.push({ a, b, war, winner: null });
       for (const g of [a, b]) {
         const other = gang(g === a ? b : a);
-        q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(g, gang(g).owner_id, 'text', `${title(t.month)}, ${roundName(round, br.size)}: против «${other.name}». Владелец, назначь героя — блиц на 3 минуты, 2 рабочих дня`, U.now());
+        gsay(g, gang(g).owner_id, `${title(t.month)}, ${roundName(round, br.size)}: против «${other.name}». Владелец, назначь героя — блиц на 3 минуты, 2 рабочих дня`, U.now());
         const o = gang(g).owner_id;
         if (o) fireAndForget(notify([o], { title: `${title(t.month)}`, body: `${roundName(round, br.size)}: против «${other.name}». Назначь героя`, url: `/#gang/${g}`, tag: `tour-${t.id}-${round}` }));
       }
@@ -170,7 +172,7 @@ function register(ctx) {
     if (body.off) q('DELETE FROM tourney_teams WHERE tourney_id = ? AND gang_id = ?').run(t.id, g.id);
     else {
       q('INSERT OR IGNORE INTO tourney_teams (tourney_id, gang_id, at) VALUES (?, ?, ?)').run(t.id, g.id, U.now());
-      q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(g.id, u.id, 'text', `Банда записана на «${title(t.month)}». Старт — ${t.start_day.slice(8)}.${t.start_day.slice(5, 7)}. Готовим героев!`, U.now());
+      gsay(g.id, u.id, `Банда записана на «${title(t.month)}». Старт — ${t.start_day.slice(8)}.${t.start_day.slice(5, 7)}. Готовим героев!`, U.now());
     }
     return view(current(), u.id);
   });

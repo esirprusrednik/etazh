@@ -1791,6 +1791,7 @@ function createApi(db) {
   const adminIds = () => q('SELECT id, email_hash FROM users').all().filter((r) => adminHashes.has(r.email_hash)).map((r) => r.id);
   access = require('./access').register({ db, q, route, U, config, bad, HttpError, rateLimit, notify, fireAndForget, requireAdmin, adminIds });
   require('./offices').register({ db, q, route, U, bad, rateLimit, notify, fireAndForget, requireUser, requireAdmin, adminIds, companyOf });
+  require('./tg').register({ db, q, route, U, config, bad, HttpError, rateLimit, requireUser, isMember, fireAndForget });
 
   // ---------- Функции второго этапа ----------
   features = require('./features').register({
