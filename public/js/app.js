@@ -2531,10 +2531,9 @@ function shelfPhrase(x, look) {
   return x.m === 'fire' ? `${did} и рекомендует` : x.m === 'no' ? `${did}, не советует` : x.m === 'ok' ? `${did} — нормально` : did;
 }
 const shelfTag = (x) => `<span class="sh-kind ${x.k === 'screen' ? 'scr' : ''}">${x.k === 'screen' ? 'Кино' : 'Книга'}</span>`;
-// Где искать: кино — в KION, книги — в «Строках», и запасной вариант — обычный поиск. Прямых адресов поиска у этих
-// сервисов мы не знаем, поэтому идём через поиск по их сайту: первой строкой выходит нужная страница
-const shelfUrl = (x, site) => 'https://yandex.ru/search/?text=' + encodeURIComponent(x.t + (x.k === 'screen' ? ' смотреть' : ' книга') + (site ? ' site:' + site : ''));
-const shelfLinks = (x) => `<span class="sh-links">${x.k === 'screen' ? `<a href="${shelfUrl(x, 'kion.ru')}" target="_blank" rel="noopener noreferrer">KION</a>` : `<a href="${shelfUrl(x, 'stroki.mts.ru')}" target="_blank" rel="noopener noreferrer">Строки</a>`}<a href="${shelfUrl(x)}" target="_blank" rel="noopener noreferrer">Яндекс</a></span>`;
+// Ссылки под записью: статья в Википедии (точная, если название выбрано из подсказки, иначе поиск по Википедии)
+// и обычный поиск — «где посмотреть или купить». Каталоги онлайн-кинотеатров не используем: в них многого нет
+const shelfLinks = (x) => `<span class="sh-links"><a href="${x.w ? 'https://ru.wikipedia.org/wiki/' + encodeURIComponent(x.w.replace(/ /g, '_')) : 'https://ru.wikipedia.org/w/index.php?search=' + encodeURIComponent(x.t)}" target="_blank" rel="noopener noreferrer">Википедия</a><a href="https://yandex.ru/search/?text=${encodeURIComponent(x.t + (x.k === 'screen' ? ' смотреть' : ' книга'))}" target="_blank" rel="noopener noreferrer">Найти</a></span>`;
 const shelfKey = (x) => x.k + '|' + x.t.toLocaleLowerCase('ru').replace(/ё/g, 'е').replace(/[«»"'.,:;!?()—–-]/g, ' ').replace(/\s+/g, ' ').trim();
 // Полка банды — по произведениям, а не по людям: одна строка на книгу или фильм, в ней видно, кто советует, кто читает
 // и кто хочет. Свежее наверху. Нажал — раскрылись подробности и ссылки. Полка одного человека — в его досье
@@ -2544,7 +2543,7 @@ function renderGangShelf() {
   const head = `<div class="chats-head"><h3>Полка банды</h3><button class="linkbtn" data-act="shelf-open">${myShelf().length ? 'Моя полка' : '＋ Моя полка'}</button></div>`;
   if (!all.length) return `<section class="card shelf">${head}<p class="small" style="margin:0">Что читаем и смотрим — и что из этого советуем. Пока пусто: начни ты, видят только свои.</p></section>`;
   const works = new Map();
-  for (const x of all) { const k = shelfKey(x); if (!works.has(k)) works.set(k, { key: k, k: x.k, t: x.t, list: [], at: 0 }); const w = works.get(k); w.list.push(x); w.at = Math.max(w.at, x.at || 0); }
+  for (const x of all) { const k = shelfKey(x); if (!works.has(k)) works.set(k, { key: k, k: x.k, t: x.t, list: [], at: 0 }); const w = works.get(k); w.list.push(x); if (x.w && !w.w) w.w = x.w; w.at = Math.max(w.at, x.at || 0); }
   const n = (w, f) => w.list.filter(f).length;
   for (const w of works.values()) { w.rec = n(w, (x) => x.s === 'done' && x.m === 'fire'); w.now = n(w, (x) => x.s === 'now'); w.want = n(w, (x) => x.s === 'want'); w.no = n(w, (x) => x.s === 'done' && x.m === 'no'); w.ok = n(w, (x) => x.s === 'done' && x.m !== 'fire' && x.m !== 'no'); }
   const f = S.shelfF || 'all';
@@ -6946,13 +6945,14 @@ const actions = {
   'shelf-row'(el) { S.shelfOpen = S.shelfOpen === el.dataset.v ? null : el.dataset.v; render(); },
   'shelf-f'(el) { S.shelfF = el.dataset.v; S.shelfAll = false; S.shelfOpen = null; render(); },
   'shelf-all'() { S.shelfAll = true; render(); },
-  'shelf-pick'(el) { shelfSync(); S.shelfDraft.title = el.dataset.t; S.shelfDraft.kind = el.dataset.k; render(); },
+  'shelf-pick'(el) { shelfSync(); const d = S.shelfDraft; d.title = el.dataset.t; d.kind = el.dataset.k; d.wiki = el.dataset.w; d.wikiT = el.dataset.t; render(); },
   'shelf-open'() { S.sheet = 'shelf'; S.error = ''; S.shelfDraft = null; render(); },
   'shelf-set'(el) { shelfSync(); S.shelfDraft[el.dataset.k] = el.dataset.v; render(); },
   'shelf-add': () => run(async () => {
     shelfSync(); const d = S.shelfDraft;
     if (d.title.trim().length < 2) throw new Error('Напиши название');
-    const r = await post('/api/me/shelf', { add: d });
+    // Ссылка на статью — только если название осталось тем, что выбрали из подсказки
+    const r = await post('/api/me/shelf', { add: { ...d, wiki: d.wiki && d.title.trim() === d.wikiT ? d.wiki : undefined } });
     S.me.profile.shelf = r.shelf; S.shelfDraft = null; toast('На полке'); await loadGang();
   }),
   'shelf-want': (el) => run(async () => { const r = await post('/api/me/shelf', { want: { user: Number(el.dataset.user), id: Number(el.dataset.id) } }); S.me.profile.shelf = r.shelf; toast('На твоей полке. Автору рекомендации придёт весточка'); await loadGang(); }),
@@ -8207,7 +8207,7 @@ function shelfSuggest(qv) {
         .map((p) => ({ t: String(p.title).replace(/\s*\([^)]*\)\s*$/, ''), d: p.description || '', raw: String(p.title) }))
         .map((x) => ({ ...x, k: SCR.test(x.d) || SCR.test(x.raw) ? 'screen' : BOOK.test(x.d) || BOOK.test(x.raw) ? 'book' : null })).filter((x) => x.k).slice(0, 5);
       const b2 = $('#sh-sug'); if (!b2) return;
-      b2.innerHTML = items.map((x) => `<button class="sh-sug-i" data-act="shelf-pick" data-t="${esc(x.t.slice(0, 60))}" data-k="${x.k}"><b>${esc(x.t)}</b><span class="small">${esc(x.d || (x.k === 'screen' ? 'кино' : 'книга'))}</span></button>`).join('');
+      b2.innerHTML = items.map((x) => `<button class="sh-sug-i" data-act="shelf-pick" data-t="${esc(x.t.slice(0, 60))}" data-k="${x.k}" data-w="${esc(x.raw)}"><b>${esc(x.t)}</b><span class="small">${esc(x.d || (x.k === 'screen' ? 'кино' : 'книга'))}</span></button>`).join('');
     } catch { /* без подсказок — как раньше */ }
   }, 280);
 }

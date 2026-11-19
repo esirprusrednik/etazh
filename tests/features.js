@@ -292,7 +292,8 @@ const mskToday = () => new Date(Date.now() + SHIFT_H * 3600e3).toISOString().sli
       assert.deepEqual((await far0.get('/api/occasion')).json.occasion.picks, [], 'чужим ники не показываем');
     }
     assert.equal((await a.post('/api/me/shelf', { add: { kind: 'book', title: 'М' } })).status, 400);
-    await a.post('/api/me/shelf', { add: { kind: 'book', title: ' Мастер и Маргарита ', state: 'now', mark: 'fire', note: 'Перечитываю' } });
+    await a.post('/api/me/shelf', { add: { kind: 'book', title: ' Мастер и Маргарита ', state: 'now', mark: 'fire', note: 'Перечитываю', wiki: 'Мастер и Маргарита (роман)' } });
+    assert.equal((await a.get('/api/me')).json.user.profile.shelf[0].w, 'Мастер и Маргарита (роман)', 'название статьи для точной ссылки');
     const sh = (await a.post('/api/me/shelf', { add: { kind: 'screen', title: 'Разделение', state: 'done', mark: 'нет-такой' } })).json.shelf;
     assert.deepEqual(sh.map((x) => [x.k, x.t, x.s, x.m]), [['screen', 'Разделение', 'done', null], ['book', 'Мастер и Маргарита', 'now', 'fire']]);
     const fin = (await a.post('/api/me/shelf', { finish: sh[1].id, mark: 'fire' })).json.shelf;

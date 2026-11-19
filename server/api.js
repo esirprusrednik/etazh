@@ -678,7 +678,9 @@ function createApi(db) {
       const prob = U.moderationProblem(t);
       if (prob) throw bad(prob);
       if (items.length >= SHELF_MAX) throw bad(`На полке помещается ${SHELF_MAX} записей — убери старую.`);
-      items.unshift({ id: Math.max(0, ...items.map((x) => x.id)) + 1, k: a.kind === 'screen' ? 'screen' : 'book', t, s: a.state === 'done' ? 'done' : 'now', m: mark(a.mark), n: note(a.note), at: U.now() });
+      items.unshift({ id: Math.max(0, ...items.map((x) => x.id)) + 1, k: a.kind === 'screen' ? 'screen' : 'book', t, s: a.state === 'done' ? 'done' : 'now', m: mark(a.mark), n: note(a.note), at: U.now(),
+        // Название статьи в Википедии, если запись выбрана из подсказки: по нему строится точная ссылка
+        ...(a.wiki && U.cleanText(a.wiki, 90) ? { w: U.cleanText(a.wiki, 90) } : {}) });
     } else if (body.want) {
       // «Хочу тоже»: чужая запись копируется на мою полку как «хочу», автору — пуш. Только у своих: банда и подельники
       const t = q('SELECT * FROM users WHERE id = ? AND nick IS NOT NULL').get(Number(body.want.user));
@@ -688,7 +690,7 @@ function createApi(db) {
       const same = (x) => x.k === src.k && x.t.toLocaleLowerCase('ru') === src.t.toLocaleLowerCase('ru');
       if (items.some(same)) throw bad('Это уже есть на твоей полке.');
       if (items.length >= SHELF_MAX) throw bad(`На полке помещается ${SHELF_MAX} записей — убери старую.`);
-      items.unshift({ id: Math.max(0, ...items.map((x) => x.id)) + 1, k: src.k, t: src.t, s: 'want', m: null, n: '', from: t.nick, at: U.now() });
+      items.unshift({ id: Math.max(0, ...items.map((x) => x.id)) + 1, k: src.k, t: src.t, s: 'want', m: null, n: '', from: t.nick, at: U.now(), ...(src.w ? { w: src.w } : {}) });
       fireAndForget(notify([t.id], { title: 'Полка', body: `${u.nick} ${U.g(u.look, 'хочет', 'хочет')} ${src.k === 'screen' ? 'посмотреть' : 'прочитать'} «${src.t}» — по твоей рекомендации`, url: '/#gang', tag: `shelf-${u.id}` }));
     } else if (body.start) {
       const x = items.find((y) => y.id === Number(body.start));
