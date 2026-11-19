@@ -94,6 +94,9 @@ const server = http.createServer(async (req, res) => {
     // Личное приглашение на неделю: etazh.example.ru/i/ХХХХХХХХХХХХ — до входа показывает, кто когда в офисе
     const pi = /^\/i\/([A-Za-z0-9]{12})$/.exec(pathname);
     if (pi) return send(res, 302, '', { Location: `/#inv=${pi[1].toUpperCase()}`, 'Cache-Control': 'no-store' });
+    // Приглашение гостя на событие банды: etazh.example.ru/e/ХХХХХХХХХХХХ
+    const pe = /^\/e\/([A-Za-z0-9]{12})$/.exec(pathname);
+    if (pe) return send(res, 302, '', { Location: `/#ev=${pe[1].toUpperCase()}`, 'Cache-Control': 'no-store' });
     // Ссылка-приглашение в банду: etazh.example.ru/g/ABC123
     const g = /^\/g\/([A-Za-z0-9]{6})$/.exec(pathname);
     if (g) return send(res, 302, '', { Location: '/?invite=old' }); // постоянные ссылки отключены — объясняем на входе

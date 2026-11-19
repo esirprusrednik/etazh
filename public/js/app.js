@@ -1978,6 +1978,30 @@ function loginInstallHint() {
     <span>Этаж — это сайт, он открывается в браузере. Из магазина приложений ничего не скачивается.</span>
     <details class="login-inst-how"><summary>Хочу иконку на экране и уведомления</summary><p class="small" style="margin:8px 0">Необязательно. С иконкой Этаж открывается одним касанием и присылает зовы на кофе и обед.${isIOS() ? ' На iPhone удобнее добавить иконку до входа: иначе войти придётся дважды.' : ''}</p>${renderInstall()}</details></div>`;
 }
+// Гость события: человек без аккаунта открыл ссылку. Видит событие и число идущих, оставляет имя.
+// Вход — следующий шаг и только по желанию: там имена, чат и кто когда в офисе
+const guestKey = () => { let k = store.get('guestKey', null); if (!k) { k = Array.from(crypto.getRandomValues(new Uint8Array(18)), (b) => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join(''); store.set('guestKey', k); } return k; };
+function renderEventInvite() {
+  const v = S.evInv;
+  if (!v || !v.data) return '';
+  const d = v.data, e = d.event, w = evWhen(e);
+  const when = [w.rel, e.time, e.place].filter(Boolean).map(esc).join(' · ');
+  const head = `<div class="inv-head">${gangBadge(d.gang, 52)}<div><b>${esc(e.title)}</b><span class="small">${d.from ? `зовёт ${esc(d.from)} · ` : ''}«${esc(d.gang.name)}»</span></div></div>
+    <div class="evi-when"><span class="evi-date"><b>${w.dd}</b>${w.mon}</span><span class="grow">${when}</span></div>
+    <p class="small" style="margin:0">${d.going ? `Уже идут: <b>${d.going}</b>` : 'Пока никто не отметился — будь первым'}</p>`;
+  if (d.mine) {
+    return `<div class="card inv">${head}
+      <div class="note good" style="margin:0"><b>${esc(d.mine)}, ты в списке.</b> Организатор это видит.</div>
+      <p class="sub" style="margin:0">Хочешь видеть, кто ещё идёт, читать чат и знать, кто из них когда в офисе? Войди по рабочей почте ниже — запись сохранится.</p>
+      <button class="linkbtn" data-act="evi-leave" style="justify-self:start">Я передумал — убрать меня из списка</button></div>`;
+  }
+  return `<div class="card inv">${head}
+    <label class="field">Как тебя записать<input id="evi-name" maxlength="30" autocomplete="given-name" placeholder="Имя" value="${esc(v.name || '')}"></label>
+    <label class="check"><input id="evi-ok" type="checkbox" ${v.ok ? 'checked' : ''}> <span>Согласен, что организатор увидит моё имя. Оно сотрётся на следующий день после события — <a href="/privacy.html" target="_blank" rel="noopener">подробнее</a></span></label>
+    ${v.error ? `<div class="err">${esc(v.error)}</div>` : ''}
+    <button class="btn wide" data-act="evi-go" ${S.busy ? 'disabled' : ''}>Иду</button>
+    <p class="small" style="margin:0">Регистрация не нужна, ставить ничего не нужно.</p></div>`;
+}
 // Личное приглашение: человек ещё не вошёл, а уже видит, зачем это — в какие дни в офисе будут свои.
 // Сначала отмечает свои дни, потом видит числа: так же, как внутри, где график открывается заполнившим план
 function renderInvite() {
@@ -2069,19 +2093,19 @@ function renderLogin() {
       <div class="land-r">
         <div class="card land-qr">${qr ? '<img src="/art/land/qr-moietazh.svg" width="132" height="132" alt="QR-код: открыть Этаж на телефоне">' : ''}
           <div><b>Открой на телефоне</b><span>${qr ? 'Наведи камеру на код. ' : ''}Этаж сделан для телефона: туда приходят зовы на кофе и обед.</span><span class="land-host">${esc(location.host)}</span></div></div>
-        ${renderInvite()}
+        ${renderEventInvite() || renderInvite()}
         ${form}
         <p class="small land-note">С компьютера войти тоже можно, но уведомления сюда не придут.</p>
       </div>
     </div>`;
   }
-  const inv = renderInvite();
+  const inv = renderEventInvite() || renderInvite();
   return `<div class="onb">
     <div class="logo">Этаж<span>.</span><em class="logo-beta">β-тест</em></div>
     ${inv || '<p class="sub">Видно, кто из твоих сегодня в офисе. Позвать на кофе или обед — одна кнопка. Неофициальное приложение для своих.</p>'}
-    ${inv && S.invite.plan && Object.keys(S.invite.plan).length ? '<p class="sub" style="margin:0">Войди по рабочей почте — увидишь имена и сможешь позвать на обед.</p>' : ''}
-    ${form}
-    ${loginInstallHint()}
+    ${inv && S.invite && S.invite.plan && Object.keys(S.invite.plan).length ? '<p class="sub" style="margin:0">Войди по рабочей почте — увидишь имена и сможешь позвать на обед.</p>' : ''}
+    ${S.evInv && S.evInv.data && !S.evInv.data.mine && !S.evInv.login ? '<button class="linkbtn" data-act="evi-login" style="align-self:center">Уже есть аккаунт? Войти</button>' : `${form}
+    ${loginInstallHint()}`}
     ${about}
   </div>`;
 }
@@ -3421,8 +3445,18 @@ function renderGEvent(e) {
       ${e.note ? `<div class="small gev-note">${esc(e.note)}</div>` : ''}
       <div class="gev-who">${e.yes.slice(0, 8).map((p) => `<span title="${esc(p.nick)}">${avatar(p.look, 22)}</span>`).join('')}<span class="small">${e.yes.length ? `идут ${e.yes.length}` : 'пока никто не идёт'}${e.maybe.length ? ` · может ${e.maybe.length}` : ''}${e.no ? ` · не смогут ${e.no}` : ''}</span></div>
       ${e.past ? '' : `<div class="chips">${btn('yes', 'thumbUp Иду')}${btn('maybe', 'Может быть')}${btn('no', 'Не смогу')}</div>`}
+      ${e.past ? '' : gevGuests(e)}
       <div class="small">автор: ${esc(e.author)}${e.canEdit ? ` · <button class="linkbtn" data-act="gev-edit" data-id="${e.id}">изменить</button>` : ''}${e.canCancel && !e.past ? ` · <button class="linkbtn" data-act="gev-cancel" data-id="${e.id}">отменить</button>` : ''}</div>
     </div></div>`;
+}
+// Гости по ссылке: включает автор события или владелец банды. Гость оставляет только имя и видит число идущих
+function gevGuests(e) {
+  const link = S.gevLink && S.gevLink[e.id];
+  const list = e.visitors.length ? `<div class="small gev-vis">Гости: ${e.visitors.map((v) => `<span>${esc(v.name)}${e.canCancel ? `<button class="linkbtn" data-act="gev-vis-del" data-id="${e.id}" data-v="${v.id}" aria-label="Убрать гостя ${esc(v.name)}">✕</button>` : ''}</span>`).join(', ')}</div>` : '';
+  if (!e.openGuests) return `${list}${e.canCancel ? `<button class="linkbtn gev-g" data-act="gev-guests" data-id="${e.id}" data-v="1">＋ Позвать гостей по ссылке — даже тех, кого нет в Этаже</button>` : ''}`;
+  return `<div class="gev-gbox">${list}
+    ${link ? `<button class="btn small blue" data-act="gev-share" data-id="${e.id}">Отправить ссылку гостям</button>` : `<button class="btn small ghost" data-act="gev-link" data-id="${e.id}">Сделать ссылку для гостей</button>`}
+    <span class="small">Гость пишет только имя и попадает в список. Чат и участников он не видит. Ссылка живёт до конца дня события.${e.canCancel ? ` <button class="linkbtn" data-act="gev-guests" data-id="${e.id}" data-v="">Выключить</button>` : ''}</span></div>`;
 }
 function renderGEvents() {
   const v = S.gev;
@@ -6757,6 +6791,17 @@ const actions = {
     if (!link) return toast('Не получилось сделать ссылку. Попробуй ещё раз чуть позже');
     await shareLink(`Смотри, в какие дни наши в офисе — «${g.name}» в Этаже. Это сайт, ставить ничего не нужно`, link);
   },
+  'evi-go': async () => {
+    const v = S.evInv; if (!v) return;
+    v.name = ($('#evi-name') || {}).value || ''; v.ok = !!($('#evi-ok') || {}).checked; v.error = '';
+    if (v.name.trim().length < 2) { v.error = 'Напиши имя — хотя бы две буквы'; return render(); }
+    if (!v.ok) { v.error = 'Отметь согласие — без него имя записать нельзя'; return render(); }
+    S.busy = true; render();
+    try { v.data = await post(`/api/event-invite/${v.token}/go`, { name: v.name, key: guestKey(), consent: true }); sfx('confirm'); } catch (e) { v.error = e.message; }
+    S.busy = false; render();
+  },
+  'evi-login'() { S.evInv.login = true; render(); },
+  'evi-leave': async () => { const v = S.evInv; if (!v) return; try { v.data = await post(`/api/event-invite/${v.token}/leave`, { key: guestKey() }); } catch { /* ссылка могла устареть */ } render(); },
   'inv-day'(el) {
     const p = { ...(S.invite.plan || {}) };
     if (p[el.dataset.v]) delete p[el.dataset.v]; else p[el.dataset.v] = 'office';
@@ -7110,6 +7155,22 @@ const actions = {
   }),
   'gev-rsvp': (el) => run(async () => {
     const r = await post(`/api/gevents/${el.dataset.id}/rsvp`, { answer: el.dataset.v });
+    S.gev.upcoming = S.gev.upcoming.map((e) => (e.id === r.event.id ? r.event : e));
+  }),
+  'gev-guests': (el) => run(async () => {
+    const r = await post(`/api/gevents/${el.dataset.id}/guests`, { on: !!el.dataset.v });
+    S.gev.upcoming = S.gev.upcoming.map((e) => (e.id === r.event.id ? r.event : e));
+    if (!el.dataset.v && S.gevLink) delete S.gevLink[el.dataset.id];
+    toast(el.dataset.v ? 'Гостей можно звать. Сделай ссылку и отправь' : 'Гости по ссылке выключены, старые ссылки не работают');
+  }),
+  'gev-link': (el) => run(async () => { const r = await post(`/api/gevents/${el.dataset.id}/link`); S.gevLink = { ...(S.gevLink || {}), [el.dataset.id]: r.link }; }),
+  async 'gev-share'(el) {
+    const e = ((S.gev && S.gev.upcoming) || []).find((x) => String(x.id) === el.dataset.id), link = S.gevLink && S.gevLink[el.dataset.id];
+    if (e && link) await shareLink(`${e.title} — ${ddmm(e.day)}${e.time ? ' в ' + e.time : ''}. Отметься, если идёшь: нужно только имя`, link);
+  },
+  'gev-vis-del': (el) => run(async () => {
+    if (!confirmInline('gev-vis' + el.dataset.v, 'Нажми ещё раз — гость исчезнет из списка')) return;
+    const r = await post(`/api/gevents/${el.dataset.id}/visitors/${el.dataset.v}/remove`);
     S.gev.upcoming = S.gev.upcoming.map((e) => (e.id === r.event.id ? r.event : e));
   }),
   'gev-cancel': (el) => run(async () => {
@@ -8272,6 +8333,12 @@ async function boot() {
   const openFeedback = hash === '#feedback';
   const join = /^#(?:join|inv)=([A-Z0-9]{6}|[A-Z0-9]{12})$/i.exec(hash);
   if (join) store.set('pendingJoin', join[1]);
+  // Приглашение гостя на событие: без входа — страница события; вошедшему — привязываем запись и ведём к банде
+  const evTok = (/^#ev=([A-Z0-9]{12})$/i.exec(hash) || [])[1] || (!S.me && store.get('pendingEvent', null));
+  if (evTok && !S.me) {
+    try { S.evInv = { token: evTok, data: await get(`/api/event-invite/${evTok}?key=${guestKey()}`), name: '', ok: false }; store.set('pendingEvent', evTok); }
+    catch { store.set('pendingEvent', null); toast('Приглашение на событие больше не работает'); }
+  }
   // Личное приглашение: до входа показываем, что внутри
   const invTok = !S.me && (/^#inv=([A-Z0-9]{12})$/i.exec(hash) || [])[1];
   if (invTok) {
@@ -8282,6 +8349,15 @@ async function boot() {
   if (crewCode) store.set('pendingCrew', crewCode[1]);
   if (S.me && !S.me.nick && !S.onb.nicks.length) S.onb.nicks = (await get('/api/nick-suggestions')).nicks;
   if (S.me && S.me.nick) {
+    const pendEv = (/^#ev=([A-Z0-9]{12})$/i.exec(hash) || [])[1] || store.get('pendingEvent', null);
+    if (pendEv) {
+      store.set('pendingEvent', null);
+      try {
+        const r = await post(`/api/event-invite/${pendEv}/claim`, { key: guestKey() });
+        if (r.member) { S.activeGang = r.gang; store.set('activeGang', r.gang); S.tab = 'chats'; S.chatGang = true; S.gangTab = 'life'; }
+        else { S.afterBoot = () => { const b = document.createElement('button'); b.dataset.id = r.gang; actions['gang-profile'](b); }; toast('Ты в списке гостей. Вступи в банду — увидишь, кто ещё идёт'); }
+      } catch { /* ссылка устарела — просто входим */ }
+    }
     const pending = store.get('pendingJoin', null);
     if (pending) { store.set('pendingJoin', null); try { await joinByCode(pending); } catch (e) { toast(e.message); } }
     const pendingCrew = store.get('pendingCrew', null);
@@ -8301,6 +8377,7 @@ async function boot() {
   }
   if (hash) history.replaceState(null, '', location.pathname + (location.search.includes('login=') ? '' : location.search));
   render();
+  if (S.afterBoot) { const f = S.afterBoot; S.afterBoot = null; try { f(); } catch { /* профиль банды откроют сами */ } }
 }
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});

@@ -27,7 +27,7 @@ const AHEAD_DAYS = 366;
 const EXTRA_DATES = { '05-07': 'День радио — праздник связистов', '09-13': 'День программиста', '12-25': 'Католическое Рождество', '04-01': 'День смеха' };
 
 function register(ctx) {
-  const { db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, rateLimit, readProfile, onEvent } = ctx;
+  const { db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, rateLimit, readProfile, onEvent, config } = ctx;
 
   db.exec(`
   CREATE TABLE IF NOT EXISTS gang_events (
@@ -53,6 +53,20 @@ function register(ctx) {
   );
   `);
   try { db.exec('ALTER TABLE gang_events ADD COLUMN guest_gang_id INTEGER REFERENCES gangs(id) ON DELETE SET NULL'); } catch {}
+  // Гости по ссылке: организатор включает это для события сам. Гость — человек без аккаунта: оставляет только имя,
+  // видит, что за событие и сколько человек идёт (без имён), и попадает в список. В базе: имя и хеш случайного ключа
+  // из его браузера (чтобы он мог отказаться). Всё стирается через день после события
+  try { db.exec('ALTER TABLE gang_events ADD COLUMN open_guests INTEGER NOT NULL DEFAULT 0'); } catch {}
+  db.exec(`
+  CREATE TABLE IF NOT EXISTS gevent_links (token_hash TEXT PRIMARY KEY, event_id INTEGER NOT NULL REFERENCES gang_events(id) ON DELETE CASCADE, user_id INTEGER NOT NULL, expires_at INTEGER NOT NULL);
+  CREATE TABLE IF NOT EXISTS gevent_visitors (
+    id INTEGER PRIMARY KEY, event_id INTEGER NOT NULL REFERENCES gang_events(id) ON DELETE CASCADE,
+    key_hash TEXT NOT NULL, name TEXT NOT NULL, via_user INTEGER, user_id INTEGER, at INTEGER NOT NULL,
+    UNIQUE (event_id, key_hash)
+  );
+  `);
+  const MAX_VISITORS = 30;
+  const visitorsOf = (eid) => q('SELECT v.id, v.name, v.user_id, u.nick FROM gevent_visitors v LEFT JOIN users u ON u.id = v.user_id WHERE v.event_id = ? ORDER BY v.at').all(eid);
   const NOTE_TTL = 864e5;
   // Кто видит событие: члены банды-хозяйки и банды-гостьи. Для пушей и ссылок — «своя» банда человека
   const sees = (e, uid) => isMember(e.gang_id, uid) || (!!e.guest_gang_id && isMember(e.guest_gang_id, uid));
@@ -90,7 +104,8 @@ function register(ctx) {
       my: mine ? mine.answer : null,
       yes: rs.filter((r) => r.answer === 'yes').map((r) => ({ id: r.user_id, nick: r.nick, look: lookOf(r) })),
       maybe: rs.filter((r) => r.answer === 'maybe').map((r) => r.nick),
-      no: rs.filter((r) => r.answer === 'no').length
+      no: rs.filter((r) => r.answer === 'no').length,
+      openGuests: !!e.open_guests, visitors: visitorsOf(e.id).map((v) => ({ id: v.id, name: v.nick || v.name }))
     };
   }
 
@@ -302,7 +317,101 @@ function register(ctx) {
   }
   setInterval(() => { try { remind(); } catch (err) { console.error('gevents', err); } }, 5 * 60e3).unref();
 
+  // ---------- Гости по ссылке ----------
+  const canManage = (e, uid) => e.user_id === uid || (q('SELECT owner_id FROM gangs WHERE id = ?').get(e.gang_id) || {}).owner_id === uid;
+  const fresh = (e, uid) => view(q('SELECT * FROM gang_events WHERE id = ?').get(e.id), uid, (q('SELECT owner_id FROM gangs WHERE id = ?').get(e.gang_id) || {}).owner_id);
+  route('POST', '/api/gevents/:id/guests', async (req, body, query, params) => {
+    const u = requireUser(req);
+    const e = eventOr404(params.id, u.id);
+    if (!canManage(e, u.id)) throw bad('Включить гостей может автор события или владелец банды.');
+    q('UPDATE gang_events SET open_guests = ? WHERE id = ?').run(body.on ? 1 : 0, e.id);
+    // Выключили — старые ссылки перестают работать; уже записавшиеся гости остаются в списке
+    if (!body.on) q('DELETE FROM gevent_links WHERE event_id = ?').run(e.id);
+    return { event: fresh(e, u.id) };
+  });
+  // Личная ссылка на событие: работает до конца дня события
+  route('POST', '/api/gevents/:id/link', async (req, body, query, params) => {
+    const u = requireUser(req);
+    const e = eventOr404(params.id, u.id);
+    if (!e.open_guests) throw bad('Для этого события гости по ссылке выключены.');
+    if (e.day < today()) throw bad('Событие уже прошло.');
+    rateLimit('gev-link:' + u.id, 20, 864e5);
+    const ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const token = Array.from(require('node:crypto').randomBytes(12), (b) => ABC[b % ABC.length]).join('');
+    q('INSERT INTO gevent_links (token_hash, event_id, user_id, expires_at) VALUES (?, ?, ?, ?)').run(U.sha256(token), e.id, u.id, Date.parse(addDays(e.day, 1) + 'T00:00:00Z') + 21 * 3600e3);
+    return { link: `${config.baseUrl}/e/${token}` };
+  });
+  route('POST', '/api/gevents/:id/visitors/:vid/remove', async (req, body, query, params) => {
+    const u = requireUser(req);
+    const e = eventOr404(params.id, u.id);
+    if (!canManage(e, u.id)) throw bad('Убрать гостя может автор события или владелец банды.');
+    q('DELETE FROM gevent_visitors WHERE id = ? AND event_id = ?').run(Number(params.vid), e.id);
+    return { event: fresh(e, u.id) };
+  });
+  // Дальше — без входа. Отдаём минимум: что, когда, где, кто зовёт (ник) и сколько человек идёт
+  const byToken = (t) => {
+    const l = /^[A-Za-z0-9]{12}$/.test(String(t)) ? q('SELECT * FROM gevent_links WHERE token_hash = ? AND expires_at > ?').get(U.sha256(String(t).toUpperCase()), U.now()) : null;
+    const e = l ? q('SELECT * FROM gang_events WHERE id = ?').get(l.event_id) : null;
+    if (!e || !e.open_guests) throw new HttpError(404, 'Приглашение на событие больше не работает — попроси новую ссылку.');
+    return { l, e };
+  };
+  const keyHash = (k) => (/^[A-Za-z0-9_-]{16,64}$/.test(String(k || '')) ? U.sha256('gev:' + k) : null);
+  function publicView(l, e, kh) {
+    const g = q('SELECT * FROM gangs WHERE id = ?').get(e.gang_id) || {};
+    const from = q('SELECT nick FROM users WHERE id = ?').get(l.user_id);
+    const k = KINDS[e.kind] || KINDS.other;
+    const mine = kh ? q('SELECT name FROM gevent_visitors WHERE event_id = ? AND key_hash = ?').get(e.id, kh) : null;
+    return {
+      event: { kind: e.kind, emoji: k.emoji, kindName: k.name, title: e.title, day: e.day, time: e.time, place: e.place || '', inDays: daysTo(e.day) },
+      gang: { id: g.id, name: g.name || '', color: g.color, ...U.crestPub(g) }, from: from ? from.nick : null,
+      going: q("SELECT COUNT(*) AS n FROM gang_event_rsvp WHERE event_id = ? AND answer = 'yes'").get(e.id).n + q('SELECT COUNT(*) AS n FROM gevent_visitors WHERE event_id = ?').get(e.id).n,
+      mine: mine ? mine.name : null
+    };
+  }
+  route('GET', '/api/event-invite/:token', async (req, body, query, params) => {
+    rateLimit('gev-view:' + (req.ip || ''), 120, 3600e3);
+    const { l, e } = byToken(params.token);
+    return publicView(l, e, keyHash(query.key));
+  });
+  route('POST', '/api/event-invite/:token/go', async (req, body, query, params) => {
+    rateLimit('gev-go:' + (req.ip || ''), 12, 3600e3);
+    const { l, e } = byToken(params.token);
+    const kh = keyHash(body.key);
+    if (!kh) throw bad('Не получилось записать — обнови страницу и попробуй ещё раз.');
+    if (!body.consent) throw bad('Отметь согласие: без него имя записать нельзя.');
+    const name = clean(body.name, 30);
+    if (name.length < 2) throw bad('Как тебя записать? Имя — хотя бы две буквы.');
+    const prob = U.moderationProblem(name);
+    if (prob) throw bad(prob);
+    const had = q('SELECT id FROM gevent_visitors WHERE event_id = ? AND key_hash = ?').get(e.id, kh);
+    if (!had && q('SELECT COUNT(*) AS n FROM gevent_visitors WHERE event_id = ?').get(e.id).n >= MAX_VISITORS) throw bad('Гостей уже слишком много — напиши тому, кто позвал.');
+    if (had) q('UPDATE gevent_visitors SET name = ? WHERE id = ?').run(name, had.id);
+    else {
+      q('INSERT INTO gevent_visitors (event_id, key_hash, name, via_user, at) VALUES (?, ?, ?, ?, ?)').run(e.id, kh, name, l.user_id, U.now());
+      const to = [...new Set([e.user_id, l.user_id].filter(Boolean))];
+      fireAndForget(notify(to, { title: `Гость на «${e.title}»`, body: `${name} идёт — по ссылке-приглашению`, url: `/#gang/${e.gang_id}`, tag: `gev-guest-${e.id}` }));
+    }
+    return publicView(l, e, kh);
+  });
+  route('POST', '/api/event-invite/:token/leave', async (req, body, query, params) => {
+    const { l, e } = byToken(params.token);
+    const kh = keyHash(body.key);
+    if (kh) q('DELETE FROM gevent_visitors WHERE event_id = ? AND key_hash = ?').run(e.id, kh);
+    return publicView(l, e, kh);
+  });
+  // Гость вошёл по рабочей почте: его запись привязывается к аккаунту — в списке вместо имени будет ник
+  route('POST', '/api/event-invite/:token/claim', async (req, body, query, params) => {
+    const u = requireUser(req);
+    const { l, e } = byToken(params.token);
+    const kh = keyHash(body.key);
+    if (kh) q('UPDATE gevent_visitors SET user_id = ? WHERE event_id = ? AND key_hash = ?').run(u.id, e.id, kh);
+    return { ok: true, gang: e.gang_id, member: isMember(e.gang_id, u.id) };
+  });
+
   function cleanup() {
+    // Гости и ссылки прошедших событий — через день
+    q('DELETE FROM gevent_visitors WHERE event_id IN (SELECT id FROM gang_events WHERE day < ?)').run(addDays(today(), -1));
+    q('DELETE FROM gevent_links WHERE expires_at < ?').run(U.now());
     q('DELETE FROM gang_events WHERE day < ?').run(addDays(today(), -KEEP_DAYS));
     q('DELETE FROM gang_event_notes WHERE at < ?').run(U.now() - NOTE_TTL);
   }

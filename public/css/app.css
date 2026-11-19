@@ -2962,3 +2962,11 @@ main > .chats-hint { margin: 0 6px; text-align: center; }
 .occ-top .grow { display: grid; gap: 2px; min-width: 0; }
 .occ-mine { font-size: 17px; font-weight: 800; }
 .occ-joke { margin: 0; font-size: 15px; color: var(--ink); }
+
+/* ---------- Гости события ---------- */
+.gev-g { text-align: left; }
+.gev-gbox { display: grid; gap: 6px; justify-items: start; padding: 10px 12px; border-radius: 12px; background: var(--s1); }
+.gev-vis span { white-space: nowrap; }
+.evi-when { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; background: var(--s1); font-weight: 700; }
+.evi-date { display: grid; justify-items: center; min-width: 44px; font-size: 12px; color: var(--muted); line-height: 1.1; }
+.evi-date b { font-size: 22px; color: var(--ink); }

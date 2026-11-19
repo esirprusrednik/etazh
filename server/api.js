@@ -1876,7 +1876,7 @@ function createApi(db) {
   battle = require('./battle').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, publicLook, addBeans, spendBeans, canDm: (u, t) => (crew ? crew.canDm(u, t) : false), onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   blitz = require('./blitz').register({ db, q, route, requireUser, bad, U, addBeans, notify, fireAndForget, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   polls = require('./polls').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, rateLimit, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
-  gevents = require('./gevents').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, rateLimit, readProfile, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
+  gevents = require('./gevents').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, rateLimit, config, readProfile, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   treasury = require('./treasury').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError });
   crestvote = require('./crestvote').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, crestClean });
   require('./botgames').register({ db, q, route, requireUser, bad, U, HttpError, rateLimit, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });

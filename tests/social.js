@@ -810,5 +810,45 @@ function startServer(day, extra = {}) {
       await O.post(`/api/gangs/${gid}/settings`, { whoInvites: 'owner' }).catch(() => {});
     });
   } finally { si.stop(); }
+  const sg = startServer('2026-11-16');
+  try {
+    await sg.ready;
+    await step('гости события: включает организатор, гость оставляет имя без входа, видит только число, запись стирается', async () => {
+      const O = await new sg.Client().login('ge1@mts.ru', 'организатор'), M = await new sg.Client().login('ge2@mts.ru', 'участник_соб');
+      const gid = (await O.post('/api/gangs', { name: 'Настольщики', access: 'invite' })).json.id;
+      await M.post('/api/gangs/join', { code: await inviteOf(O, gid) });
+      const ev = (await M.post(`/api/gangs/${gid}/gevents`, { kind: 'other', title: 'Настолки в четверг', day: '2026-11-19', time: '19:00', place: 'Переговорка 5', note: 'Секретная заметка для своих' })).json.event;
+      assert.equal(ev.openGuests, false);
+      assert.equal((await O.post(`/api/gevents/${ev.id}/link`)).status, 400, 'пока гости выключены, ссылку не сделать');
+      const X = await new sg.Client().login('ge3@mts.ru', 'чужой_соб');
+      assert.equal((await X.post(`/api/gevents/${ev.id}/guests`, { on: true })).status, 404);
+      assert.equal((await O.post(`/api/gevents/${ev.id}/guests`, { on: true })).json.event.openGuests, true, 'владелец банды может включить');
+      const link = (await M.post(`/api/gevents/${ev.id}/link`)).json.link;
+      const tok = link.split('/').pop();
+      assert.equal((await fetch(link, { redirect: 'manual' })).headers.get('location'), `/#ev=${tok}`);
+      const J = { 'Content-Type': 'application/json' }, key = 'k'.repeat(20), key2 = 'z'.repeat(20);
+      const pub = async (path, body) => { const r = await fetch(`${sg.BASE}/api/event-invite/${tok}${path}`, body ? { method: 'POST', headers: J, body: JSON.stringify(body) } : {}); return { status: r.status, json: await r.json() }; };
+      const pv = (await pub(`?key=${key}`)).json;
+      assert.equal(pv.event.title, 'Настолки в четверг'); assert.equal(pv.going, 1); assert.equal(pv.from, 'участник_соб'); assert.equal(pv.mine, null);
+      assert.ok(!JSON.stringify(pv).includes('Секретная') && !JSON.stringify(pv).includes('организатор'), 'ни заметки, ни участников: ' + JSON.stringify(pv));
+      assert.equal((await pub('/go', { name: 'Маша', key })).status, 400, 'без согласия нельзя');
+      assert.equal((await pub('/go', { name: 'М', key, consent: true })).status, 400);
+      const go = (await pub('/go', { name: ' Маша ', key, consent: true })).json;
+      assert.equal(go.mine, 'Маша'); assert.equal(go.going, 2);
+      await pub('/go', { name: 'Маша К.', key, consent: true });
+      await pub('/go', { name: 'Олег', key: key2, consent: true });
+      const seen = (await O.get(`/api/gangs/${gid}/gevents`)).json.upcoming.find((x) => x.id === ev.id);
+      assert.deepEqual(seen.visitors.map((v) => v.name), ['Маша К.', 'Олег'], 'повторная отметка меняет имя, а не плодит гостей');
+      assert.equal((await M.post(`/api/gevents/${ev.id}/visitors/${seen.visitors[1].id}/remove`)).json.event.visitors.length, 1, 'автор события убирает гостя');
+      assert.equal((await pub('/leave', { key })).json.mine, null);
+      assert.equal((await O.get(`/api/gangs/${gid}/gevents`)).json.upcoming.find((x) => x.id === ev.id).visitors.length, 0);
+      await pub('/go', { name: 'Вера', key, consent: true });
+      const cl = (await X.post(`/api/event-invite/${tok}/claim`, { key })).json;
+      assert.equal(cl.member, false); assert.equal(cl.gang, gid);
+      assert.equal((await O.get(`/api/gangs/${gid}/gevents`)).json.upcoming.find((x) => x.id === ev.id).visitors[0].name, 'чужой_соб', 'после входа в списке ник');
+      await O.post(`/api/gevents/${ev.id}/guests`, { on: false });
+      assert.equal((await pub(`?key=${key}`)).status, 404, 'выключили — ссылка не работает');
+    });
+  } finally { sg.stop(); }
   console.log(`social: ${passed} ok`);
 })().catch((e) => { console.error(e); process.exit(1); });
