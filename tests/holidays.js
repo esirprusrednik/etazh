@@ -12,10 +12,10 @@ async function step(name, fn) {
 }
 
 // Сервер с подменённой датой: «сейчас» = day 12:00 по Москве
-function startServer(day) {
+function startServer(day, dir0) {
   const PORT = 4000 + Math.floor(Math.random() * 1000);
   const BASE = `http://localhost:${PORT}`;
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'etazh-h-'));
+  const dir = dir0 || fs.mkdtempSync(path.join(os.tmpdir(), 'etazh-h-'));
   const offset = Math.round((Date.parse(day + 'T12:00:00Z') - Date.now()) / 3600e3);
   const proc = spawn(process.execPath, ['--no-warnings', path.join(__dirname, '..', 'server', 'index.js')], {
     env: {
@@ -50,7 +50,7 @@ function startServer(day) {
     }
   }
   const ready = (async () => { for (let i = 0; i < 150; i++) { try { if ((await fetch(BASE + "/healthz")).ok) return; } catch {} await new Promise((r) => setTimeout(r, 100)); } throw new Error('server did not start\n' + log); })();
-  return { Client, ready, stop: () => proc.kill(), log: () => log };
+  return { Client, ready, stop: () => proc.kill(), log: () => log, dir };
 }
 
 (async () => {
@@ -68,6 +68,7 @@ function startServer(day) {
   });
 
   // 1 декабря 2026, вторник: задание адвента — отметиться; Новый год ещё не начался
+  let s1b = null;
   const s1 = startServer('2026-12-01');
   try {
     await s1.ready;
@@ -127,8 +128,8 @@ function startServer(day) {
       await A.post(`/api/gangs/${g.id}/santa/join`, { wish: 'Люблю чай' });
       await B.post(`/api/gangs/${g.id}/santa/join`, { wish: 'Книги' });
       v = (await A.get(`/api/gangs/${g.id}/santa`)).json;
-      assert.equal(v.canDraw, false, 'двоих мало');
-      assert.equal((await A.post(`/api/gangs/${g.id}/santa/draw`)).status, 400);
+      assert.equal(v.canDraw, undefined, 'досрочной жеребьёвки нет');
+      assert.equal((await A.post(`/api/gangs/${g.id}/santa/draw`)).status, 404, 'срок жёсткий: провести раньше нельзя даже владельцу');
       // Пожелание — одна попытка: без него не записаться, поменять нельзя, выход и повторная запись его не сбрасывают
       assert.equal((await C.post(`/api/gangs/${g.id}/santa/join`, { wish: '' })).status, 400, 'без пожелания не записаться');
       await C.post(`/api/gangs/${g.id}/santa/join`, { wish: 'Что-нибудь к чаю' });
@@ -138,12 +139,15 @@ function startServer(day) {
       assert.equal((await D.get(`/api/gangs/${g.id}/santa`)).json.keptWish, 'Носки');
       assert.equal((await D.post(`/api/gangs/${g.id}/santa/join`, { wish: 'Самокат' })).json.wish, 'Носки', 'вернулся — пожелание прежнее');
       await D.post(`/api/gangs/${g.id}/santa/leave`);
-      assert.equal((await B.post(`/api/gangs/${g.id}/santa/draw`)).status, 400, 'раньше срока — только владелец');
-      const r = await A.post(`/api/gangs/${g.id}/santa/draw`);
-      assert.equal(r.status, 200, JSON.stringify(r.json));
-      const wishes = { [A.id]: 'Люблю чай', [B.id]: 'Книги', [C.id]: 'Что-нибудь к чаю' };
+      assert.equal((await A.get(`/api/gangs/${g.id}/santa`)).json.status, 'open', 'до 4 декабря жеребьёвки нет');
+      // Наступило 4 декабря: тот же сервер с той же базой, жеребьёвку проводит таймер
+      s1.stop(); await new Promise((r) => setTimeout(r, 400));
+      s1b = startServer('2026-12-04', s1.dir); await s1b.ready;
+      const [A2, B2, C2, D2] = [A, B, C, D].map((x) => Object.assign(new s1b.Client(), { cookie: x.cookie, id: x.id }));
+      for (let i = 0; i < 40 && (await A2.get(`/api/gangs/${g.id}/santa`)).json.status !== 'drawn'; i++) await new Promise((r) => setTimeout(r, 250));
+      const wishes = { [A2.id]: 'Люблю чай', [B2.id]: 'Книги', [C2.id]: 'Что-нибудь к чаю' };
       const targets = [];
-      for (const x of [A, B, C]) {
+      for (const x of [A2, B2, C2]) {
         const w = (await x.get(`/api/gangs/${g.id}/santa`)).json;
         assert.equal(w.status, 'drawn');
         assert.ok(w.target && w.target.id !== x.id, 'никто не дарит себе');
@@ -151,19 +155,19 @@ function startServer(day) {
         targets.push(w.target.id);
       }
       assert.equal(new Set(targets).size, 3, 'у каждого ровно один Санта');
-      assert.equal((await A.get(`/api/gangs/${g.id}/santa`)).json.budget, 500);
-      const ib = (await B.get('/api/inbox')).json.items;
+      assert.equal((await A2.get(`/api/gangs/${g.id}/santa`)).json.budget, 500);
+      const ib = (await B2.get('/api/inbox')).json.items;
       assert.ok(ib.some((x) => x.kind === 'santa' && /Подарок для/.test(x.title)), 'после жеребьёвки — напоминание о подарке');
-      const d = (await D.get(`/api/gangs/${g.id}/santa`)).json;
+      const d = (await D2.get(`/api/gangs/${g.id}/santa`)).json;
       assert.equal(d.target, null); assert.equal(d.joined, false);
-      assert.equal((await D.post(`/api/gangs/${g.id}/santa/join`, { wish: 'х' })).status, 400, 'после жеребьёвки не записаться');
-      assert.equal((await A.post(`/api/gangs/${g.id}/santa/leave`)).status, 400);
-      await B.post(`/api/gangs/${g.id}/santa/gifted`);
-      assert.equal((await A.get(`/api/gangs/${g.id}/santa`)).json.gifted, 1);
-      const chat = (await A.get(`/api/gangs/${g.id}`)).json;
+      assert.equal((await D2.post(`/api/gangs/${g.id}/santa/join`, { wish: 'х' })).status, 400, 'после жеребьёвки не записаться');
+      assert.equal((await A2.post(`/api/gangs/${g.id}/santa/leave`)).status, 400);
+      await B2.post(`/api/gangs/${g.id}/santa/gifted`);
+      assert.equal((await A2.get(`/api/gangs/${g.id}/santa`)).json.gifted, 1);
+      const chat = (await A2.get(`/api/gangs/${g.id}`)).json;
       assert.ok(chat.messages.some((m) => /жеребьёвка прошла/.test(m.text || '')));
     });
-  } finally { s1.stop(); }
+  } finally { s1.stop(); if (s1b) s1b.stop(); }
 
   // 19 декабря 2026, суббота: Новый год идёт, задание выходного — просто открыть окошко
   const s2 = startServer('2026-12-19');

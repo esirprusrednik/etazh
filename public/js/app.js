@@ -2013,6 +2013,7 @@ function renderInvite() {
   const best = days.reduce((m, x) => (x.office > (m ? m.office : 0) ? x : m), null);
   return `<div class="card inv">
     <div class="inv-head">${gangBadge(d.gang, 52)}<div><b>${d.from ? `${esc(d.from)} зовёт тебя` : 'Тебя зовут'} в «${esc(d.gang.name)}»</b><span class="small">${d.gang.people} ${plural(d.gang.people, 'человек', 'человека', 'человек')} · видно, кто в какой день в офисе</span></div></div>
+    ${d.santa ? `<div class="inv-santa">${art('gift', 34)}<span><b>Идёт запись в Тайного Санту</b> — до ${ddmm(d.santa.drawDay)}, подарок до ${d.santa.budget} ₽${d.santa.count ? `, записалось уже ${d.santa.count}` : ''}. Войдёшь — запишешься.</span></div>` : ''}
     <p class="inv-q">В какие дни ты в офисе?</p>
     <div class="inv-days">${days.map((x) => `<button class="inv-day ${pick[x.wd] ? 'on' : ''}" data-act="inv-day" data-v="${esc(x.wd)}" aria-pressed="${!!pick[x.wd]}"><span>${esc(x.label)}</span>${picked ? `<b>${x.office + (pick[x.wd] ? 1 : 0)}</b>` : '<b>?</b>'}</button>`).join('')}</div>
     <p class="small" style="margin:0">${picked ? (best ? `Число — сколько своих будет в офисе в этот день; в твоих днях считаем и тебя. Больше всего — ${esc(best.label)}.` : 'Число — сколько своих будет в офисе в этот день; в твоих днях считаем и тебя. Пока никто не отметил дни: будешь первым.') : 'Отметь хотя бы один день — покажем, сколько человек из банды будет в офисе в каждый.'}</p>
@@ -3002,6 +3003,13 @@ function renderAdvent(compact = false) {
 }
 // Новогоднее оформление карточки: гирлянда сверху, хвойные ветки по углам, сугроб снизу. Текст — на чистом поле посередине
 const nyDeco = () => '<div class="ny-deco" aria-hidden="true"><img class="ny-fir l" src="/art/ny/fir.webp" alt=""><img class="ny-fir r" src="/art/ny/fir.webp" alt=""><div class="ny-garland" style="--ny:-' + (Date.now() % 12000) + 'ms"><img src="/art/ny/garland.webp" alt=""><i style="left:5.8%;top:56%"></i><i style="left:18.1%;top:69%"></i><i style="left:31.3%;top:73%"></i><i style="left:44.2%;top:63%"></i><i style="left:56.3%;top:63%"></i><i style="left:69%;top:73%"></i><i style="left:82.3%;top:69%"></i><i style="left:94.2%;top:54%"></i></div><img class="ny-snow" src="/art/ny/snow.webp" alt=""><img class="ny-balls" src="/art/ny/balls.webp" alt=""></div>';
+// Позвать в Санту: личная ссылка-приглашение в банду. Гостем без аккаунта в Санте быть нельзя —
+// Санта должен вернуться, узнать подопечного и отметить подарок, а без входа это держится на одном браузере
+function santaShare(s) {
+  const g = S.gang && S.gang.gang;
+  if (!s.regOpen || !g || !g.canInvite) return '';
+  return `<button class="btn ghost" data-act="santa-share">Позвать в Санту по ссылке</button><span class="small sx-c">Ссылку можно пересылать. Чтобы участвовать, человек входит по рабочей почте — так Санта узнает, кому дарит.</span>`;
+}
 function renderSanta() {
   const s = S.santa;
   if (!s || !s.visible) return '';
@@ -3021,7 +3029,6 @@ function renderSanta() {
   const warn = `<div class="sx-warn">lock<span><b>Одна попытка.</b> После отправки пожелание не изменить — выбирай тщательно: Санта будет искать именно это.</span></div>`;
   const wishForm = (btn, act) => `<label class="sx-field">Чего ты хочешь<textarea id="santa-wish" maxlength="200" rows="2" placeholder="Люблю чай и настолки, сладкое не дарите"></textarea></label>${warn}<button class="btn" data-act="${act}">${btn}</button>`;
   const locked = (w) => `<div class="sx-panel"><span class="sx-cap">Твоё пожелание lock</span><p>«${esc(w)}»</p><span class="small">Отправлено Санте — изменить нельзя</span></div>`;
-  const draw = s.canDraw ? `<button class="btn ghost" data-act="santa-draw">dice Провести жеребьёвку сейчас</button><span class="small sx-c">Ты владелец банды — можно не ждать ${dd}</span>` : '';
   let body;
   if (s.status === 'drawn') {
     body = !s.joined ? `<p class="sx-lead">Жеребьёвка прошла без тебя. Участников ${s.count}, подарков вручено ${s.gifted}.</p>`
@@ -3032,11 +3039,11 @@ function renderSanta() {
   } else if (s.joined) {
     body = `${s.wish ? locked(s.wish) : `<p class="sx-lead">Ты в игре, но без пожелания — Санте придётся угадывать.</p>${wishForm('Отправить пожелание', 'santa-wish')}`}
       <p class="sx-lead">Записалось ${s.count}${s.count < s.min ? ` — для жеребьёвки нужно хотя бы ${s.min}` : ''}. ${dd} каждый узнает, кому дарит.</p>
-      ${draw}
+      ${santaShare(s)}
       <button class="linkbtn sx-quiet" data-act="santa-leave">Не участвую</button>`;
   } else {
     body = `<p class="sx-lead">Каждый тайно дарит подарок одному из банды, до ${money} ₽. Кому — решит жеребьёвка ${dd}. Записалось: ${s.count}.</p>
-      ${s.keptWish ? `${locked(s.keptWish)}<button class="btn" data-act="santa-join">Вернуться в игру</button>` : wishForm('Записаться с этим пожеланием', 'santa-join')}${draw}`;
+      ${s.keptWish ? `${locked(s.keptWish)}<button class="btn" data-act="santa-join">Вернуться в игру</button>` : wishForm('Записаться с этим пожеланием', 'santa-join')}${santaShare(s)}`;
   }
   return `<section class="card sx"><div class="sx-sky" aria-hidden="true"></div>${gift(96)}
     <div class="sx-head"><div class="grow"><h3>Тайный Санта</h3><span class="sx-when">${s.status === 'drawn' ? 'жеребьёвка прошла' : `жеребьёвка ${dd}`}</span></div><button class="pm" data-act="santa-toggle" aria-label="Свернуть">−</button></div>
@@ -6802,6 +6809,12 @@ const actions = {
   },
   'evi-login'() { S.evInv.login = true; render(); },
   'evi-leave': async () => { const v = S.evInv; if (!v) return; try { v.data = await post(`/api/event-invite/${v.token}/leave`, { key: guestKey() }); } catch { /* ссылка могла устареть */ } render(); },
+  'santa-share': async () => {
+    const g = S.gang && S.gang.gang; if (!g) return;
+    const link = await inviteLink(g.id);
+    if (!link) return toast('Не получилось сделать ссылку. Попробуй ещё раз чуть позже');
+    await shareLink(`Тайный Санта в «${g.name}»: запись до ${ddmm(S.santa.drawDay)}, подарок до ${S.santa.budget} ₽. Записывайся — это сайт, ставить ничего не нужно`, link);
+  },
   'inv-day'(el) {
     const p = { ...(S.invite.plan || {}) };
     if (p[el.dataset.v]) delete p[el.dataset.v]; else p[el.dataset.v] = 'office';
@@ -7514,10 +7527,6 @@ const actions = {
   'santa-leave': (el) => run(async () => {
     if (!confirmInline('santa-leave', 'Нажми ещё раз, чтобы выйти. Пожелание сохранится — вернёшься с ним же')) return;
     S.santa = await post(`/api/gangs/${S.activeGang}/santa/leave`); toast('Ты вышел|вышла из Тайного Санты');
-  }),
-  'santa-draw': () => run(async () => {
-    if (!confirmInline('santa-draw', `Нажми ещё раз: жеребьёвка на ${S.santa.count} человек, потом записаться будет нельзя`)) return;
-    S.santa = await post(`/api/gangs/${S.activeGang}/santa/draw`); toast('Жеребьёвка прошла'); await loadGang();
   }),
   'santa-gifted': () => run(async () => { S.santa = await post(`/api/gangs/${S.activeGang}/santa/gifted`); toast('Отмечено. Хорошего праздника!'); }),
   'advent-open': () => run(async () => {

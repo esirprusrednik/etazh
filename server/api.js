@@ -975,7 +975,9 @@ function createApi(db) {
     return {
       gang: { name: g.name, color: g.color, ...U.crestPub(g), people: members.length },
       from: from && isMember(g.id, l.user_id) ? from.nick : null, expiresAt: l.expires_at,
-      week: features ? features.weekCounts(g.id) : []
+      week: features ? features.weekCounts(g.id) : [],
+      // Идёт запись в Тайного Санту — говорим об этом на приглашении: это готовый повод зайти
+      santa: (() => { const s = santa ? santa.view({ id: 0 }, g) : null; return s && s.regOpen ? { drawDay: s.drawDay, count: s.count, budget: s.budget } : null; })()
     };
   });
 

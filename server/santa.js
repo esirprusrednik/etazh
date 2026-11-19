@@ -98,8 +98,7 @@ function register(ctx) {
     return {
       visible: s.visible, year: s.year, status: r.status, drawDay: drawDay(s.year),
       regOpen: s.visible && r.status === 'open' && today < drawDay(s.year),
-      count, gifted, min: MIN_PEOPLE, budget: BUDGET, joined: !!me, wish: me ? me.wish : '', keptWish: me ? '' : keptWish(g.id, s.year, u.id), wishLocked: !!(me && me.wish), target, myGifted: !!(me && me.gifted_at),
-      canDraw: g.owner_id === u.id && r.status === 'open' && count >= MIN_PEOPLE
+      count, gifted, min: MIN_PEOPLE, budget: BUDGET, joined: !!me, wish: me ? me.wish : '', keptWish: me ? '' : keptWish(g.id, s.year, u.id), wishLocked: !!(me && me.wish), target, myGifted: !!(me && me.gifted_at)
     };
   }
 
@@ -144,15 +143,7 @@ function register(ctx) {
     return view(u, g);
   });
 
-  route('POST', '/api/gangs/:id/santa/draw', async (req, body, query, params) => {
-    const { u, g } = gangOr404(req, params);
-    if (g.owner_id !== u.id) throw bad('Провести жеребьёвку раньше может только владелец банды.');
-    const s = season();
-    const r = ensure(g.id, s.year);
-    if (r.status !== 'open') throw bad('Жеребьёвка уже прошла.');
-    if (!draw(g.id, s.year)) throw bad(`Нужно хотя бы ${MIN_PEOPLE} участника.`);
-    return view(u, g);
-  });
+  // Досрочной жеребьёвки нет: срок один для всех банд, 4 декабря. Проводит её только таймер ниже
 
   route('POST', '/api/gangs/:id/santa/gifted', async (req, body, query, params) => {
     const { u, g } = gangOr404(req, params);
@@ -192,6 +183,8 @@ function register(ctx) {
     }
   }
   setInterval(() => { try { tick(); } catch (e) { console.error('santa', e); } }, 10 * 60e3).unref();
+  // И сразу после запуска: если сервер перезапустили в день жеребьёвки, не ждём десять минут
+  setTimeout(() => { try { tick(); } catch (e) { console.error('santa', e); } }, 1500).unref();
 
   return { tick, season, view, remindDay };
 }
