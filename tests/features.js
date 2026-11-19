@@ -291,11 +291,20 @@ const mskToday = () => new Date(Date.now() + SHIFT_H * 3600e3).toISOString().sli
       await far0.post('/api/occasion/vote', { id: live.id, opt: o1 });
       assert.deepEqual((await far0.get('/api/occasion')).json.occasion.picks, [], 'чужим ники не показываем');
     }
-    await a.post('/api/me/profile', { profile: { reading: ' Мастер и Маргарита ', watching: '' } });
+    assert.equal((await a.post('/api/me/shelf', { add: { kind: 'book', title: 'М' } })).status, 400);
+    await a.post('/api/me/shelf', { add: { kind: 'book', title: ' Мастер и Маргарита ', state: 'now', mark: 'fire', note: 'Перечитываю' } });
+    const sh = (await a.post('/api/me/shelf', { add: { kind: 'screen', title: 'Разделение', state: 'done', mark: 'нет-такой' } })).json.shelf;
+    assert.deepEqual(sh.map((x) => [x.k, x.t, x.s, x.m]), [['screen', 'Разделение', 'done', null], ['book', 'Мастер и Маргарита', 'now', 'fire']]);
+    const fin = (await a.post('/api/me/shelf', { finish: sh[1].id, mark: 'fire' })).json.shelf;
+    assert.equal(fin[1].s, 'done'); assert.equal(fin[1].n, 'Перечитываю', 'заметка остаётся');
     const g0 = g.id;
     const row = (await b.get(`/api/gangs/${g0}`)).json.members.find((m) => m.id === a.id);
-    assert.deepEqual(row.shelf, { read: 'Мастер и Маргарита', watch: '' });
-    assert.deepEqual((await b.get(`/api/users/${a.id}`)).json.shelf, { read: 'Мастер и Маргарита', watch: '' }, 'банда видит полку');
+    assert.deepEqual(row.shelf.map((x) => x.t), ['Разделение', 'Мастер и Маргарита']);
+    assert.equal((await b.get(`/api/users/${a.id}`)).json.shelf.length, 2, 'банда видит полку');
+    assert.equal((await a.post('/api/me/shelf', { remove: sh[0].id })).json.shelf.length, 1);
+    // Старые поля «читаю / смотрю» превращаются в записи «сейчас»
+    await b.post('/api/me/profile', { profile: { reading: 'Дюна' } });
+    assert.deepEqual((await a.get(`/api/gangs/${g0}`)).json.members.find((m) => m.id === b.id).shelf.map((x) => [x.k, x.t, x.s]), [['book', 'Дюна', 'now']]);
     const far = await new Client().login('shelf9@mts.ru', 'чужой_читатель');
     assert.ok(!JSON.stringify((await far.get(`/api/users/${a.id}`)).json).includes('Маргарита'), 'чужим полку не показываем');
     await a.post('/api/me/profile', { profile: { home: 'smol' } });

@@ -463,7 +463,16 @@ function createApi(db) {
   }
 
   // Полка: что человек сейчас читает и смотрит. Видят только свои — банда и подельники
-  const shelfOf = (prof) => (prof.reading || prof.watching ? { read: prof.reading || '', watch: prof.watching || '' } : null);
+  // Запись полки: k — книга или экран (фильм, сериал), s — сейчас или закончил, m — оценка (fire: не оторваться / рекомендую,
+  // ok: нормально, no: не советую), n — пара слов «почему». Старые поля «читаю/смотрю» превращаются в записи «сейчас»
+  const SHELF_MAX = 8;
+  function shelfOf(prof) {
+    const items = Array.isArray(prof.shelf) ? prof.shelf : [
+      prof.reading && { id: 1, k: 'book', t: prof.reading, s: 'now', m: null, n: '' },
+      prof.watching && { id: 2, k: 'screen', t: prof.watching, s: 'now', m: null, n: '' }
+    ].filter(Boolean);
+    return items.length ? items : null;
+  }
   function memberStatus(member) {
     const prof = readProfile(member.profile);
     const pr = member.share_office ? presenceOf(prof, activeCheckin(member.id), member.id) : { where: 'hidden' };
@@ -653,6 +662,33 @@ function createApi(db) {
       q('UPDATE users SET welcomed = 1 WHERE id = ?').run(u.id);
     }
     return { ok: true, nick, free };
+  });
+
+  // Полка: добавить запись, убрать, перевести «сейчас» → «закончил» с оценкой
+  route('POST', '/api/me/shelf', async (req, body) => {
+    const u = requireUser(req);
+    const prof = { ...u.profile };
+    let items = (shelfOf(prof) || []).map((x) => ({ ...x }));
+    const mark = (v) => (['fire', 'ok', 'no'].includes(v) ? v : null);
+    const note = (v) => { const t = U.cleanText(v, 80) || ''; const p = t && U.moderationProblem(t); if (p) throw bad(p); return t; };
+    if (body.add) {
+      const a = body.add;
+      const t = U.cleanText(a.title, 60) || '';
+      if (t.length < 2) throw bad('Напиши название.');
+      const prob = U.moderationProblem(t);
+      if (prob) throw bad(prob);
+      if (items.length >= SHELF_MAX) throw bad(`На полке помещается ${SHELF_MAX} записей — убери старую.`);
+      items.unshift({ id: Math.max(0, ...items.map((x) => x.id)) + 1, k: a.kind === 'screen' ? 'screen' : 'book', t, s: a.state === 'done' ? 'done' : 'now', m: mark(a.mark), n: note(a.note), at: U.now() });
+    } else if (body.remove) {
+      items = items.filter((x) => x.id !== Number(body.remove));
+    } else if (body.finish) {
+      const x = items.find((y) => y.id === Number(body.finish));
+      if (!x) throw bad('Такой записи нет.');
+      x.s = 'done'; x.m = mark(body.mark); if (body.note !== undefined) x.n = note(body.note); x.at = U.now();
+    } else throw bad('Что сделать с полкой?');
+    prof.shelf = items; delete prof.reading; delete prof.watching;
+    q('UPDATE users SET profile = ? WHERE id = ?').run(JSON.stringify(prof), u.id);
+    return { shelf: items };
   });
 
   route('POST', '/api/me/profile', async (req, body) => {

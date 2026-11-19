@@ -2520,14 +2520,51 @@ function renderFloorBoard() {
     ${items.length > 3 && !S.boardAll ? `<button class="linkbtn" data-act="board-all">Ещё ${items.length - 3}</button>` : ''}
   </section>`;
 }
-// Полка банды: кто что читает и смотрит. Не рейтинг, а повод для разговора
+// Полка: у записи тип (книга или экран), состояние (сейчас или закончил) и оценка. Из этого складывается фраза:
+// «читает — не оторваться», «прочитал и рекомендует», «посмотрела, не советует»
+const myShelf = () => { const p = S.me.profile || {}; return Array.isArray(p.shelf) ? p.shelf : [p.reading && { id: 1, k: 'book', t: p.reading, s: 'now' }, p.watching && { id: 2, k: 'screen', t: p.watching, s: 'now' }].filter(Boolean); };
+function shelfPhrase(x, look) {
+  const book = x.k !== 'screen';
+  if (x.s === 'now') return (book ? 'читает' : 'смотрит') + (x.m === 'fire' ? ' — не оторваться' : x.m === 'no' ? ' — идёт тяжело' : '');
+  const did = book ? gw(look, 'прочитал', 'прочитала') : gw(look, 'посмотрел', 'посмотрела');
+  return x.m === 'fire' ? `${did} и рекомендует` : x.m === 'no' ? `${did}, не советует` : x.m === 'ok' ? `${did} — нормально` : did;
+}
+const shelfTag = (x) => `<span class="sh-kind ${x.k === 'screen' ? 'scr' : ''}">${x.k === 'screen' ? 'Кино' : 'Книга'}</span>`;
+// Полка банды. Сначала то, чем можно воспользоваться, — что советуют; потом что читают и смотрят сейчас; остальное мелко
 function renderGangShelf() {
-  const rows = ((S.gang && S.gang.members) || []).filter((m) => m.shelf);
-  const mine = S.me.profile && (S.me.profile.reading || S.me.profile.watching);
-  const add = mine ? '' : '<button class="linkbtn" data-act="open-sec" data-v="about">＋ Моя полка</button>';
-  if (!rows.length) return `<section class="card shelf"><div class="chats-head"><h3>Полка банды</h3>${add}</div><p class="small" style="margin:0">Кто что читает и смотрит. Пока пусто — начни ты: одна строчка в профиле, видят только свои.</p></section>`;
-  return `<section class="card shelf"><div class="chats-head"><h3>Полка банды</h3>${add}</div>
-    ${rows.map((m) => `<div class="shelf-row">${tap(m.id, avatar(m.look, 32))}<div class="grow"><b>${nk(m)}</b>${m.shelf.read ? `<span class="small">читает: ${esc(m.shelf.read)}</span>` : ''}${m.shelf.watch ? `<span class="small">смотрит: ${esc(m.shelf.watch)}</span>` : ''}</div></div>`).join('')}</section>`;
+  const all = [];
+  for (const m of (S.gang && S.gang.members) || []) for (const x of m.shelf || []) all.push({ ...x, who: m });
+  const head = `<div class="chats-head"><h3>Полка банды</h3><button class="linkbtn" data-act="shelf-open">${myShelf().length ? 'Моя полка' : '＋ Моя полка'}</button></div>`;
+  if (!all.length) return `<section class="card shelf">${head}<p class="small" style="margin:0">Что читаем и смотрим — и что из этого советуем. Пока пусто: начни ты, видят только свои.</p></section>`;
+  const row = (x) => `<div class="sh-row">${tap(x.who.id, avatar(x.who.look, 30))}<div class="grow">
+      <div class="sh-t">${shelfTag(x)}<b>${esc(x.t)}</b></div>
+      <span class="small"><span class="sh-who">${nk(x.who)}</span> ${shelfPhrase(x, x.who.look)}</span>
+      ${x.n ? `<span class="sh-note">«${esc(x.n)}»</span>` : ''}</div></div>`;
+  const rec = all.filter((x) => x.s === 'done' && x.m === 'fire'), now = all.filter((x) => x.s === 'now'), rest = all.filter((x) => x.s === 'done' && x.m !== 'fire');
+  const block = (title, list, cls) => (list.length ? `<div class="sh-group ${cls || ''}">${title}</div>${list.map(row).join('')}` : '');
+  return `<section class="card shelf">${head}
+    ${block('Советуют', rec, 'rec')}${block('Сейчас читают и смотрят', now)}
+    ${rest.length ? `<details class="sh-rest"><summary class="small">Ещё ${rest.length}: прочитано и посмотрено без восторга</summary>${rest.map(row).join('')}</details>` : ''}</section>`;
+}
+// Моя полка: список и одна форма. Вопросы в форме идут в том порядке, в каком человек думает: что → сейчас или уже → как оно
+function renderShelfSheet() {
+  const items = myShelf(), d = S.shelfDraft || (S.shelfDraft = { kind: 'book', state: 'now', mark: 'fire', title: '', note: '' });
+  const book = d.kind !== 'screen', now = d.state === 'now';
+  const chip = (k, v, label) => `<button class="chip ${d[k] === v ? 'on' : ''}" data-act="shelf-set" data-k="${k}" data-v="${v}">${label}</button>`;
+  const marks = now ? [['fire', 'Не оторваться'], ['ok', 'Нормально'], ['no', 'Идёт тяжело']] : [['fire', 'Рекомендую'], ['ok', 'Нормально'], ['no', 'Не советую']];
+  const list = items.length ? items.map((x) => `<div class="sh-row mine"><div class="grow"><div class="sh-t">${shelfTag(x)}<b>${esc(x.t)}</b></div>
+      <span class="small">${shelfPhrase(x, S.me.look).replace(/^(читает|смотрит)/, (w) => (w === 'читает' ? 'читаю' : 'смотрю'))}</span>${x.n ? `<span class="sh-note">«${esc(x.n)}»</span>` : ''}
+      ${x.s === 'now' ? `<div class="chips" style="margin-top:4px"><button class="chip small" data-act="shelf-finish" data-id="${x.id}" data-v="fire">${x.k === 'screen' ? meG('Досмотрел', 'Досмотрела') : meG('Дочитал', 'Дочитала')} — рекомендую</button><button class="chip small" data-act="shelf-finish" data-id="${x.id}" data-v="ok">нормально</button><button class="chip small" data-act="shelf-finish" data-id="${x.id}" data-v="no">не советую</button></div>` : ''}</div>
+      <button class="x" data-act="shelf-del" data-id="${x.id}" aria-label="Убрать «${esc(x.t)}» с полки">×</button></div>`).join('') : '<p class="small" style="margin:0">На полке пусто. Добавь первое — увидят только свои: банда и подельники.</p>';
+  return `${list}
+    <div class="sh-form"><div class="eyebrow">Добавить</div>
+      <div class="chips">${chip('kind', 'book', 'Книга')}${chip('kind', 'screen', 'Фильм или сериал')}</div>
+      <label class="field">Название<input id="sh-title" maxlength="60" value="${esc(d.title)}" placeholder="${book ? 'Автор и название' : 'Название, можно с сезоном'}"></label>
+      <div class="chips">${chip('state', 'now', book ? 'Читаю сейчас' : 'Смотрю сейчас')}${chip('state', 'done', book ? meG('Прочитал', 'Прочитала') : meG('Посмотрел', 'Посмотрела'))}</div>
+      <div class="field">Как оно<div class="chips">${marks.map(([v, l]) => chip('mark', v, l)).join('')}</div></div>
+      <label class="field">Пара слов — почему (необязательно)<input id="sh-note" maxlength="80" value="${esc(d.note)}" placeholder="${book ? 'Третью ночь не сплю' : 'Первая серия раскачивается, дальше огонь'}"></label>
+      ${S.error ? `<div class="err">${esc(S.error)}</div>` : ''}
+      <button class="btn wide" data-act="shelf-add" ${S.busy ? 'disabled' : ''}>Поставить на полку</button></div>`;
 }
 function renderGangBoard(g) {
   const items = boardItems(g.id);
@@ -5051,6 +5088,7 @@ function renderSheet() {
       <button class="btn ghost" data-act="dm-open" data-id="${S.pcallTo}">chat Написать сообщение</button>`);
     case 'find': return sheetWrap('Найти своих', renderFind());
     case 'feedback': return sheetWrap('Идеи и ошибки', renderFeedback());
+    case 'shelf': return sheetWrap('Моя полка', renderShelfSheet());
     case 'joined': return sheetWrap('Ты в банде', renderJoined());
     case 'office-req': return sheetWrap('Заявка на офис', renderOfficeReq());
     case 'blitz': return sheetWrap(S.blitz && S.blitz.set ? S.blitz.set.title : 'Блиц', renderBlitzPlay());
@@ -6224,9 +6262,7 @@ function renderProfile() {
   const aboutBody = `
     <div class="field">Интересы (до 5)<div class="chips">${S.cat.tags.map((t) => `<button class="chip ${p.tags.includes(t) ? 'on' : ''}" data-act="prof-tag" data-v="${esc(t)}">${esc(t)}</button>`).join('')}</div></div>
     <label class="field">О себе (до 60 символов)<input id="p-about" maxlength="60" value="${esc(p.about)}" placeholder="Люблю кофе и настолки"></label>
-    <label class="field">Сейчас читаю<input id="p-reading" maxlength="60" value="${esc(p.reading || '')}" placeholder="Книга, которую не стыдно посоветовать"></label>
-    <label class="field">Сейчас смотрю<input id="p-watching" maxlength="60" value="${esc(p.watching || '')}" placeholder="Сериал, фильм, канал"></label>
-    <p class="small" style="margin:0">Полку видят только свои — банда и подельники. Повод заговорить у кофемашины.</p>
+    <button class="fb-entry" data-act="shelf-open"><span class="grow"><b>Моя полка</b><span class="small">${myShelf().length ? `Записей: ${myShelf().length}. Что читаю, смотрю и советую — видят только свои` : 'Что читаю, смотрю и советую — видят только свои'}</span></span><span class="chev" aria-hidden="true">›</span></button>
     <label class="field">День рождения (ДД.ММ, без года)<input id="p-bday" maxlength="5" inputmode="numeric" value="${esc(p.bday)}" placeholder="14.03"></label>
     <button class="btn ghost" data-act="prof-save">Сохранить</button>`;
 
@@ -6322,7 +6358,7 @@ function renderPerson() {
     ${x.badges && x.badges.length ? `<div class="card-badges">${x.badges.map((b) => `<span class="cbadge" title="${esc(b.desc)}">${ico(b.icon, 16)} ${esc(b.title)}</span>`).join('')}</div>` : ''}
     ${x.askMe && x.askMe.length ? `<div class="ask-box"><span class="small">Спроси меня про</span><div class="chips" style="justify-content:center">${x.askMe.map((t) => `<span class="chip ask-chip">${esc(t)}</span>`).join('')}</div></div>` : ''}
     ${x.about ? `<p class="person-about">«${esc(x.about)}»</p>` : ''}
-    ${x.shelf ? `<div class="person-shelf">${x.shelf.read ? `<span>читает: <b>${esc(x.shelf.read)}</b></span>` : ''}${x.shelf.watch ? `<span>смотрит: <b>${esc(x.shelf.watch)}</b></span>` : ''}</div>` : ''}
+    ${x.shelf && x.shelf.length ? `<div class="person-shelf">${x.shelf.slice(0, 4).map((it) => `<span>${shelfPhrase(it, x.look)}: <b>${esc(it.t)}</b></span>`).join('')}</div>` : ''}
     ${x.tags && x.tags.length ? `<div class="chips" style="justify-content:center">${x.tags.map((t) => `<span class="chip on" style="cursor:default">${esc(t)}</span>`).join('')}</div>` : ''}
     ${rows.length ? `<div class="person-rows">${rows.map(([k, v]) => `<div><span class="small">${k}</span><b>${v}</b></div>`).join('')}</div>` : ''}
     ${x.respects ? `<p class="respects" title="Сколько раз коллеги выразили респект. Кто и за что — видит только сам человек">${ico('hand', 16)} Респектов: <b>${x.respects}</b></p>` : ''}
@@ -6883,6 +6919,16 @@ const actions = {
     try { await post(`/api/santa-guest/${S.sg.code}/leave`, {}); store.set('santaGuest', null); S.sg = null; toast('Ты вышел из Санты'); } catch (e) { toast(e.message); }
     render();
   },
+  'shelf-open'() { S.sheet = 'shelf'; S.error = ''; S.shelfDraft = null; render(); },
+  'shelf-set'(el) { shelfSync(); S.shelfDraft[el.dataset.k] = el.dataset.v; render(); },
+  'shelf-add': () => run(async () => {
+    shelfSync(); const d = S.shelfDraft;
+    if (d.title.trim().length < 2) throw new Error('Напиши название');
+    const r = await post('/api/me/shelf', { add: d });
+    S.me.profile.shelf = r.shelf; S.shelfDraft = null; toast('На полке'); await loadGang();
+  }),
+  'shelf-del': (el) => run(async () => { shelfSync(); const r = await post('/api/me/shelf', { remove: Number(el.dataset.id) }); S.me.profile.shelf = r.shelf; await loadGang(); }),
+  'shelf-finish': (el) => run(async () => { shelfSync(); const r = await post('/api/me/shelf', { finish: Number(el.dataset.id), mark: el.dataset.v }); S.me.profile.shelf = r.shelf; toast(el.dataset.v === 'fire' ? 'Теперь это рекомендация для банды' : 'Отмечено'); await loadGang(); }),
   'inv-day'(el) {
     const p = { ...(S.invite.plan || {}) };
     if (p[el.dataset.v]) delete p[el.dataset.v]; else p[el.dataset.v] = 'office';
@@ -7957,7 +8003,7 @@ const actions = {
   },
   'guide-tour'() { S.sheet = null; S.tab = 'near'; S.coach = 1; S.coachStart = 1; render(); window.scrollTo(0, 0); },
   'work-save': () => run(async () => { await post('/api/me/profile', { profile: { role: $('#p-role').value, askMe: $('#p-ask').value } }); await loadMe(); loadExperts((S.experts && S.experts.q) || '').then(render); toast('Сохранено — теперь тебя можно найти по темам'); }),
-  'prof-save': () => run(async () => { await post('/api/me/profile', { profile: { about: $('#p-about').value, bday: $('#p-bday').value, reading: $('#p-reading').value, watching: $('#p-watching').value } }); await loadMe(); toast('Сохранено'); }),
+  'prof-save': () => run(async () => { await post('/api/me/profile', { profile: { about: $('#p-about').value, bday: $('#p-bday').value } }); await loadMe(); toast('Сохранено'); }),
   toggle: (el) => run(async () => { await post('/api/me/profile', { [el.dataset.k]: el.checked }); await loadMe(); await loadState(); }),
   'push-enable': () => run(enablePush),
   'push-test': () => run(async () => { await post('/api/push/test'); toast('Отправили тестовое уведомление'); }, { rerender: false }),
@@ -8021,6 +8067,7 @@ function renderJoined() {
     ${act}
     <button class="linkbtn" data-act="close" style="align-self:center">Не сейчас</button>`;
 }
+function shelfSync() { const d = S.shelfDraft; if (!d) return; const t = $('#sh-title'), n = $('#sh-note'); if (t) d.title = t.value; if (n) d.note = n.value; }
 // Личная ссылка-приглашение живёт неделю; держим её в памяти телефона шесть дней, чтобы не плодить новые
 const linkCache = (gid) => { const c = store.get('inviteLink:' + gid, null); return c && c.until > Date.now() ? c.link : null; };
 async function inviteLink(gid) {
