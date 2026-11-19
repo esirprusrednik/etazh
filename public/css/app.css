@@ -2996,3 +2996,22 @@ main > .chats-hint { margin: 0 6px; text-align: center; }
 .sh-form { display: grid; gap: 12px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
 .sh-want { color: var(--green); font-weight: 700; }
 .sh-wbtn { justify-self: start; margin-top: 4px; }
+
+/* ---------- Полка по произведениям ---------- */
+.shw-filter { margin: 4px 0 2px; }
+.shw { border-top: 1px solid var(--line); }
+.shw-head { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 0; font: inherit; color: var(--ink); text-align: left; background: none; border: 0; cursor: pointer; }
+.shw-head .grow { display: grid; gap: 2px; min-width: 0; }
+.shw.rec .shw-sum { color: var(--green); font-weight: 700; }
+.shw-avas { display: flex; flex: none; }
+.shw-avas > * { margin-left: -8px; }
+.shw-avas > :first-child { margin-left: 0; }
+.shw-body { display: grid; gap: 8px; padding: 0 0 12px; }
+.shw-p { display: flex; align-items: flex-start; gap: 8px; }
+.shw-p .grow { display: grid; gap: 1px; min-width: 0; }
+.shw-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sh-links { display: inline-flex; gap: 6px; }
+.sh-links a { padding: 5px 10px; border-radius: 999px; font-size: 13px; font-weight: 800; text-decoration: none; color: var(--sec-fg); background: var(--sec-bg); }
+.sh-sug { display: grid; gap: 4px; margin-top: -6px; }
+.sh-sug:empty { display: none; }
+.sh-sug-i { display: grid; gap: 1px; padding: 8px 12px; text-align: left; font: inherit; color: var(--ink); background: var(--s1); border: 0; border-radius: 10px; cursor: pointer; }

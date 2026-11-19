@@ -2531,32 +2531,42 @@ function shelfPhrase(x, look) {
   return x.m === 'fire' ? `${did} и рекомендует` : x.m === 'no' ? `${did}, не советует` : x.m === 'ok' ? `${did} — нормально` : did;
 }
 const shelfTag = (x) => `<span class="sh-kind ${x.k === 'screen' ? 'scr' : ''}">${x.k === 'screen' ? 'Кино' : 'Книга'}</span>`;
-// Полка банды. Сначала то, чем можно воспользоваться, — что советуют; потом что читают и смотрят сейчас; остальное мелко
+// Где искать: кино — в KION, книги — в «Строках», и запасной вариант — обычный поиск. Прямых адресов поиска у этих
+// сервисов мы не знаем, поэтому идём через поиск по их сайту: первой строкой выходит нужная страница
+const shelfUrl = (x, site) => 'https://yandex.ru/search/?text=' + encodeURIComponent(x.t + (x.k === 'screen' ? ' смотреть' : ' книга') + (site ? ' site:' + site : ''));
+const shelfLinks = (x) => `<span class="sh-links">${x.k === 'screen' ? `<a href="${shelfUrl(x, 'kion.ru')}" target="_blank" rel="noopener noreferrer">KION</a>` : `<a href="${shelfUrl(x, 'stroki.mts.ru')}" target="_blank" rel="noopener noreferrer">Строки</a>`}<a href="${shelfUrl(x)}" target="_blank" rel="noopener noreferrer">Яндекс</a></span>`;
+const shelfKey = (x) => x.k + '|' + x.t.toLocaleLowerCase('ru').replace(/ё/g, 'е').replace(/[«»"'.,:;!?()—–-]/g, ' ').replace(/\s+/g, ' ').trim();
+// Полка банды — по произведениям, а не по людям: одна строка на книгу или фильм, в ней видно, кто советует, кто читает
+// и кто хочет. Свежее наверху. Нажал — раскрылись подробности и ссылки. Полка одного человека — в его досье
 function renderGangShelf() {
   const all = [];
   for (const m of (S.gang && S.gang.members) || []) for (const x of m.shelf || []) all.push({ ...x, who: m });
   const head = `<div class="chats-head"><h3>Полка банды</h3><button class="linkbtn" data-act="shelf-open">${myShelf().length ? 'Моя полка' : '＋ Моя полка'}</button></div>`;
   if (!all.length) return `<section class="card shelf">${head}<p class="small" style="margin:0">Что читаем и смотрим — и что из этого советуем. Пока пусто: начни ты, видят только свои.</p></section>`;
-  const key = (x) => x.k + '|' + x.t.toLocaleLowerCase('ru');
-  const wants = {}; for (const x of all) if (x.s === 'want') (wants[key(x)] = wants[key(x)] || []).push(x.who);
-  const mineKeys = new Set(myShelf().map(key));
-  const row = (x) => {
-    const w = wants[key(x)] || [];
-    const canWant = !x.who.me && x.s !== 'want' && x.m !== 'no' && !mineKeys.has(key(x));
-    return `<div class="sh-row">${tap(x.who.id, avatar(x.who.look, 30))}<div class="grow">
-      <div class="sh-t">${shelfTag(x)}<b>${esc(x.t)}</b></div>
-      <span class="small"><span class="sh-who">${nk(x.who)}</span> ${shelfPhrase(x, x.who.look)}</span>
-      ${x.n ? `<span class="sh-note">«${esc(x.n)}»</span>` : ''}
-      ${w.length ? `<span class="small sh-want">хотят тоже: ${w.map((p) => nk(p)).join(', ')}</span>` : ''}
-      ${canWant ? `<button class="chip small sh-wbtn" data-act="shelf-want" data-user="${x.who.id}" data-id="${x.id}">＋ Хочу тоже</button>` : ''}</div></div>`;
+  const works = new Map();
+  for (const x of all) { const k = shelfKey(x); if (!works.has(k)) works.set(k, { key: k, k: x.k, t: x.t, list: [], at: 0 }); const w = works.get(k); w.list.push(x); w.at = Math.max(w.at, x.at || 0); }
+  const n = (w, f) => w.list.filter(f).length;
+  for (const w of works.values()) { w.rec = n(w, (x) => x.s === 'done' && x.m === 'fire'); w.now = n(w, (x) => x.s === 'now'); w.want = n(w, (x) => x.s === 'want'); w.no = n(w, (x) => x.s === 'done' && x.m === 'no'); w.ok = n(w, (x) => x.s === 'done' && x.m !== 'fire' && x.m !== 'no'); }
+  const f = S.shelfF || 'all';
+  const list = [...works.values()].filter((w) => f === 'all' || (f === 'rec' ? w.rec > 0 : w.k === f)).sort((a, b) => b.at - a.at);
+  const mineKeys = new Set(myShelf().map(shelfKey));
+  const sum = (w) => [w.rec && `${plural(w.rec, 'советует', 'советуют', 'советуют')} ${w.rec}`, w.now && `${w.k === 'screen' ? plural(w.now, 'смотрит', 'смотрят', 'смотрят') : plural(w.now, 'читает', 'читают', 'читают')} ${w.now}`,
+    w.want && `${plural(w.want, 'хочет', 'хотят', 'хотят')} ${w.want}`, w.ok && `нормально ${w.ok}`, w.no && `не зашло ${w.no}`].filter(Boolean).join(' · ');
+  const row = (w) => {
+    const open = S.shelfOpen === w.key;
+    const src = w.list.find((x) => !x.who.me && x.s !== 'want' && x.m !== 'no');
+    const body = open ? `<div class="shw-body">${w.list.map((x) => `<div class="shw-p">${tap(x.who.id, avatar(x.who.look, 26))}<span class="grow"><span class="small"><span class="sh-who">${nk(x.who)}</span> ${shelfPhrase(x, x.who.look)}</span>${x.n ? `<span class="sh-note">«${esc(x.n)}»</span>` : ''}</span></div>`).join('')}
+        <div class="shw-foot">${shelfLinks(w)}${src && !mineKeys.has(w.key) ? `<button class="chip small" data-act="shelf-want" data-user="${src.who.id}" data-id="${src.id}">＋ Хочу тоже</button>` : ''}</div></div>` : '';
+    return `<div class="shw ${open ? 'open' : ''} ${w.rec ? 'rec' : ''}"><button class="shw-head" data-act="shelf-row" data-v="${esc(w.key)}" aria-expanded="${open}">
+        <span class="grow"><span class="sh-t">${shelfTag(w)}<b>${esc(w.t)}</b></span><span class="small shw-sum">${w.list.length === 1 ? `${esc(w.list[0].who.nick)} ${shelfPhrase(w.list[0], w.list[0].who.look)}` : sum(w)}</span></span>
+        <span class="shw-avas">${w.list.slice(0, 3).map((x) => avatar(x.who.look, 24)).join('')}</span></button>${body}</div>`;
   };
-  const rec = all.filter((x) => x.s === 'done' && x.m === 'fire'), now = all.filter((x) => x.s === 'now'), rest = all.filter((x) => x.s === 'done' && x.m !== 'fire');
-  // «Хочу», которое никто из банды не читает и не советует (посоветовал подельник со стороны), — отдельной строкой внизу
-  const shown = new Set([...rec, ...now, ...rest].map(key)), lonely = all.filter((x) => x.s === 'want' && !shown.has(key(x)));
-  const block = (title, list, cls) => (list.length ? `<div class="sh-group ${cls || ''}">${title}</div>${list.map(row).join('')}` : '');
+  const lim = S.shelfAll ? 100 : 6;
+  const chip = (v, t) => `<button class="chip small ${f === v ? 'on' : ''}" data-act="shelf-f" data-v="${v}">${t}</button>`;
   return `<section class="card shelf">${head}
-    ${block('Советуют', rec, 'rec')}${block('Сейчас читают и смотрят', now)}
-    ${rest.length || lonely.length ? `<details class="sh-rest"><summary class="small">Ещё ${rest.length + lonely.length}: без восторга и «в планах»</summary>${[...rest, ...lonely].map(row).join('')}</details>` : ''}</section>`;
+    ${works.size > 3 ? `<div class="chips shw-filter">${chip('all', 'Все')}${chip('rec', 'Советуют')}${chip('book', 'Книги')}${chip('screen', 'Кино')}</div>` : ''}
+    ${list.length ? list.slice(0, lim).map(row).join('') : '<p class="small" style="margin:8px 0 0">Здесь пока пусто.</p>'}
+    ${list.length > lim ? `<button class="linkbtn" data-act="shelf-all">Ещё ${list.length - lim}</button>` : ''}</section>`;
 }
 // Моя полка: список и одна форма. Вопросы в форме идут в том порядке, в каком человек думает: что → сейчас или уже → как оно
 function renderShelfSheet() {
@@ -2572,7 +2582,8 @@ function renderShelfSheet() {
   return `${list}
     <div class="sh-form"><div class="eyebrow">Добавить</div>
       <div class="chips">${chip('kind', 'book', 'Книга')}${chip('kind', 'screen', 'Фильм или сериал')}</div>
-      <label class="field">Название<input id="sh-title" maxlength="60" value="${esc(d.title)}" placeholder="${book ? 'Автор и название' : 'Название, можно с сезоном'}"></label>
+      <label class="field">Название<input id="sh-title" maxlength="60" value="${esc(d.title)}" autocomplete="off" placeholder="${book ? 'Начни писать — подскажем' : 'Начни писать — подскажем'}"></label>
+      <div id="sh-sug" class="sh-sug" aria-live="polite"></div>
       <div class="chips">${chip('state', 'now', book ? 'Читаю сейчас' : 'Смотрю сейчас')}${chip('state', 'done', book ? meG('Прочитал', 'Прочитала') : meG('Посмотрел', 'Посмотрела'))}</div>
       <div class="field">Как оно<div class="chips">${marks.map(([v, l]) => chip('mark', v, l)).join('')}</div></div>
       <label class="field">Пара слов — почему (необязательно)<input id="sh-note" maxlength="80" value="${esc(d.note)}" placeholder="${book ? 'Третью ночь не сплю' : 'Первая серия раскачивается, дальше огонь'}"></label>
@@ -6932,6 +6943,10 @@ const actions = {
     try { await post(`/api/santa-guest/${S.sg.code}/leave`, {}); store.set('santaGuest', null); S.sg = null; toast('Ты вышел из Санты'); } catch (e) { toast(e.message); }
     render();
   },
+  'shelf-row'(el) { S.shelfOpen = S.shelfOpen === el.dataset.v ? null : el.dataset.v; render(); },
+  'shelf-f'(el) { S.shelfF = el.dataset.v; S.shelfAll = false; S.shelfOpen = null; render(); },
+  'shelf-all'() { S.shelfAll = true; render(); },
+  'shelf-pick'(el) { shelfSync(); S.shelfDraft.title = el.dataset.t; S.shelfDraft.kind = el.dataset.k; render(); },
   'shelf-open'() { S.sheet = 'shelf'; S.error = ''; S.shelfDraft = null; render(); },
   'shelf-set'(el) { shelfSync(); S.shelfDraft[el.dataset.k] = el.dataset.v; render(); },
   'shelf-add': () => run(async () => {
@@ -8174,7 +8189,30 @@ document.addEventListener('pointercancel', holdCancel);
 document.addEventListener('pointermove', (e) => { if (holdT && holdXY && Math.hypot(e.clientX - holdXY[0], e.clientY - holdXY[1]) > 10) holdCancel(); });
 document.addEventListener('contextmenu', (e) => { if (e.target.closest('[data-hold]')) e.preventDefault(); });
 // Ползунок громкости: число меняется на ходу, образец звука — когда отпустил
+// Подсказка названий на «Моей полке»: браузер спрашивает русскую Википедию. Оставляем только книги и кино —
+// по краткому описанию статьи. Не ответила или ничего не нашла — человек просто дописывает название сам
+let shelfSugTimer = 0, shelfSugSeq = 0;
+function shelfSuggest(qv) {
+  clearTimeout(shelfSugTimer);
+  const box = $('#sh-sug'); if (!box) return;
+  if (qv.trim().length < 3) { box.innerHTML = ''; return; }
+  shelfSugTimer = setTimeout(async () => {
+    const seq = ++shelfSugSeq;
+    try {
+      const url = 'https://ru.wikipedia.org/w/api.php?action=query&generator=prefixsearch&gpslimit=8&gpsnamespace=0&prop=description&format=json&origin=*&gpssearch=' + encodeURIComponent(qv.trim());
+      const r = await (await fetch(url, { credentials: 'omit', referrerPolicy: 'no-referrer' })).json();
+      if (seq !== shelfSugSeq) return;
+      const SCR = /фильм|сериал|мультфильм|мультсериал|аниме|телешоу|кинокартина/i, BOOK = /роман|книга|повесть|рассказ|пьеса|поэма|сборник|цикл|произведение|трилогия|манга|комикс|автобиография|мемуар/i;
+      const items = Object.values((r.query && r.query.pages) || {}).sort((a, b) => a.index - b.index)
+        .map((p) => ({ t: String(p.title).replace(/\s*\([^)]*\)\s*$/, ''), d: p.description || '', raw: String(p.title) }))
+        .map((x) => ({ ...x, k: SCR.test(x.d) || SCR.test(x.raw) ? 'screen' : BOOK.test(x.d) || BOOK.test(x.raw) ? 'book' : null })).filter((x) => x.k).slice(0, 5);
+      const b2 = $('#sh-sug'); if (!b2) return;
+      b2.innerHTML = items.map((x) => `<button class="sh-sug-i" data-act="shelf-pick" data-t="${esc(x.t.slice(0, 60))}" data-k="${x.k}"><b>${esc(x.t)}</b><span class="small">${esc(x.d || (x.k === 'screen' ? 'кино' : 'книга'))}</span></button>`).join('');
+    } catch { /* без подсказок — как раньше */ }
+  }, 280);
+}
 document.addEventListener('input', (e) => {
+  if (e.target.id === 'sh-title') { shelfSuggest(e.target.value); return; }
   if (e.target.id === 'office-q') {
     S.officeQ = e.target.value; render();
     const i = $('#office-q'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
