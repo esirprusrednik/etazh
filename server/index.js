@@ -82,7 +82,7 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/auth/verify' && req.method === 'GET') {
       const cookie = api.verifyLogin(query.t);
       if (!cookie) return send(res, 302, '', { Location: '/?login=expired' });
-      const hash = /^[A-Z0-9]{6}$/.test(query.j || '') ? `#join=${query.j}` : /^[A-Z0-9]{6}$/.test(query.c || '') ? `#crew=${query.c}` : '';
+      const hash = /^(?:[A-Z0-9]{6}|[A-Z0-9]{12})$/.test(query.j || '') ? `#join=${query.j}` : /^[A-Z0-9]{6}$/.test(query.c || '') ? `#crew=${query.c}` : '';
       return send(res, 302, '', { Location: '/' + hash, 'Set-Cookie': cookie, 'Cache-Control': 'no-store' });
     }
 
@@ -91,6 +91,9 @@ const server = http.createServer(async (req, res) => {
       return send(res, 302, '', { Location: api.confirmAccess(query.t) ? '/?access=sent' : '/?access=expired', 'Cache-Control': 'no-store' });
     }
 
+    // Личное приглашение на неделю: etazh.example.ru/i/ХХХХХХХХХХХХ — до входа показывает, кто когда в офисе
+    const pi = /^\/i\/([A-Za-z0-9]{12})$/.exec(pathname);
+    if (pi) return send(res, 302, '', { Location: `/#inv=${pi[1].toUpperCase()}`, 'Cache-Control': 'no-store' });
     // Ссылка-приглашение в банду: etazh.example.ru/g/ABC123
     const g = /^\/g\/([A-Za-z0-9]{6})$/.exec(pathname);
     if (g) return send(res, 302, '', { Location: `/#join=${g[1].toUpperCase()}` });

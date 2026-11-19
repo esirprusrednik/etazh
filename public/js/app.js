@@ -1290,6 +1290,8 @@ async function loadGang() {
   if (!S.activeGang) { S.gang = null; return; }
   try { S.gang = await get(`/api/gangs/${S.activeGang}`); } catch { S.gang = null; S.activeGang = null; }
   await Promise.all([loadPolls(), loadGEvents(), loadCV(), loadWars(), loadSanta(), loadFriday(), loadWave()]);
+  // Личную ссылку-приглашение готовим заранее: «Поделиться» на iPhone срабатывает только сразу по нажатию
+  if (S.gang && S.gang.gang.link && !linkCache(S.gang.gang.id)) inviteLink(S.gang.gang.id);
 }
 function boardSync() {
   const d = S.boardDraft; if (!d) return;
@@ -1965,11 +1967,28 @@ const PHONE_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" s
 const isPhone = () => isIOS() || /android|mobile/i.test(navigator.userAgent);
 function loginInstallHint() {
   if (isStandalone()) return '';
-  if (!isPhone()) return `<div class="login-inst"><b>${PHONE_SVG}Этаж сделан для телефона</b>
-    <span>Открой <b>${esc(location.host)}</b> на телефоне и установи на главный экран. С компьютера войти можно, но зовы на кофе и обед сюда не придут.</span></div>`;
-  return `<div class="login-inst"><b>${PHONE_SVG}Сначала установи на главный экран</b>
-    <span>Так Этаж работает лучше всего: открывается с иконки, как обычное приложение, и присылает зовы и уведомления. В браузере они не приходят.${isIOS() ? ' Лучше установить до входа: на iPhone после установки может понадобиться войти ещё раз.' : ''}</span>
-    <details class="login-inst-how"><summary>Как установить — полминуты</summary>${renderInstall()}</details></div>`;
+  if (!isPhone()) return `<div class="login-inst"><b>${PHONE_SVG}Удобнее с телефона</b>
+    <span>Открой <b>${esc(location.host)}</b> в браузере телефона. С компьютера войти тоже можно, но зовы на кофе и обед сюда не придут.</span></div>`;
+  // Люди боятся «ещё одного приложения». Это сайт: говорим об этом первым, а иконку на экран предлагаем как необязательное
+  return `<div class="login-inst"><b>${PHONE_SVG}Ставить ничего не нужно</b>
+    <span>Этаж — это сайт, он открывается в браузере. Из магазина приложений ничего не скачивается.</span>
+    <details class="login-inst-how"><summary>Хочу иконку на экране и уведомления</summary><p class="small" style="margin:8px 0">Необязательно. С иконкой Этаж открывается одним касанием и присылает зовы на кофе и обед.${isIOS() ? ' На iPhone удобнее добавить иконку до входа: иначе войти придётся дважды.' : ''}</p>${renderInstall()}</details></div>`;
+}
+// Личное приглашение: человек ещё не вошёл, а уже видит, зачем это — в какие дни в офисе будут свои.
+// Сначала отмечает свои дни, потом видит числа: так же, как внутри, где график открывается заполнившим план
+function renderInvite() {
+  const v = S.invite;
+  if (!v || !v.data) return '';
+  const d = v.data, pick = v.plan || {};
+  const days = d.week.filter((x) => !x.holiday && x.wd);
+  const picked = Object.keys(pick).length > 0;
+  const best = days.reduce((m, x) => (x.office > (m ? m.office : 0) ? x : m), null);
+  return `<div class="card inv">
+    <div class="inv-head">${gangBadge(d.gang, 52)}<div><b>${d.from ? `${esc(d.from)} зовёт тебя` : 'Тебя зовут'} в «${esc(d.gang.name)}»</b><span class="small">${d.gang.people} ${plural(d.gang.people, 'человек', 'человека', 'человек')} · видно, кто в какой день в офисе</span></div></div>
+    <p class="inv-q">В какие дни ты в офисе?</p>
+    <div class="inv-days">${days.map((x) => `<button class="inv-day ${pick[x.wd] ? 'on' : ''}" data-act="inv-day" data-v="${esc(x.wd)}" aria-pressed="${!!pick[x.wd]}"><span>${esc(x.label)}</span>${picked ? `<b>${x.office + (pick[x.wd] ? 1 : 0)}</b>` : '<b>?</b>'}</button>`).join('')}</div>
+    <p class="small" style="margin:0">${picked ? (best ? `Число — сколько своих будет в офисе в этот день; в твоих днях считаем и тебя. Больше всего — ${esc(best.label)}.` : 'Число — сколько своих будет в офисе в этот день; в твоих днях считаем и тебя. Пока никто не отметил дни: будешь первым.') : 'Отметь хотя бы один день — покажем, сколько человек из банды будет в офисе в каждый.'}</p>
+  </div>`;
 }
 function renderLogin() {
   const o = S.onb;
@@ -2045,14 +2064,17 @@ function renderLogin() {
       <div class="land-r">
         <div class="card land-qr">${qr ? '<img src="/art/land/qr-moietazh.svg" width="132" height="132" alt="QR-код: открыть Этаж на телефоне">' : ''}
           <div><b>Открой на телефоне</b><span>${qr ? 'Наведи камеру на код. ' : ''}Этаж сделан для телефона: туда приходят зовы на кофе и обед.</span><span class="land-host">${esc(location.host)}</span></div></div>
+        ${renderInvite()}
         ${form}
         <p class="small land-note">С компьютера войти тоже можно, но уведомления сюда не придут.</p>
       </div>
     </div>`;
   }
+  const inv = renderInvite();
   return `<div class="onb">
     <div class="logo">Этаж<span>.</span><em class="logo-beta">β-тест</em></div>
-    <p class="sub">Видно, кто из твоих сегодня в офисе. Позвать на кофе или обед — одна кнопка. Неофициальное приложение для своих.</p>
+    ${inv || '<p class="sub">Видно, кто из твоих сегодня в офисе. Позвать на кофе или обед — одна кнопка. Неофициальное приложение для своих.</p>'}
+    ${inv && S.invite.plan && Object.keys(S.invite.plan).length ? '<p class="sub" style="margin:0">Войди по рабочей почте — увидишь имена и сможешь позвать на обед.</p>' : ''}
     ${form}
     ${loginInstallHint()}
     ${about}
@@ -6671,9 +6693,16 @@ const actions = {
     S.activeGang = null; await loadMe(); await loadGang();
   }),
   'invite-share': async () => {
-    const link = S.gang.gang.link;
-    if (!link) return toast('В этой банде зовёт только владелец');
-    await shareLink(`Вступай в банду «${S.gang.gang.name}» в Этаже`, link);
+    const g = S.gang.gang;
+    if (!g.link) return toast('В этой банде зовёт только владелец');
+    // Личная ссылка на неделю: по ней до входа видно, в какие дни свои в офисе. Не вышло получить — годится общая
+    const link = (await inviteLink(g.id)) || g.link;
+    await shareLink(`Смотри, в какие дни наши в офисе — «${g.name}» в Этаже. Это сайт, ставить ничего не нужно`, link);
+  },
+  'inv-day'(el) {
+    const p = { ...(S.invite.plan || {}) };
+    if (p[el.dataset.v]) delete p[el.dataset.v]; else p[el.dataset.v] = 'office';
+    S.invite.plan = p; store.set('pendingPlan', p); render();
   },
   'call-open': async (el) => {
     const gang = Number(el.dataset.gang || S.activeGang);
@@ -7760,6 +7789,21 @@ function saveSignalText() { if (!S.signal) S.signal = {}; const z = $('#s-zone')
 
 async function joinByCode(code) {
   await switchable(async (sw) => afterJoin(await post('/api/gangs/join', { code, switch: sw })));
+  // Дни, отмеченные на приглашении до входа, становятся планом недели — если своего плана ещё нет
+  const plan = store.get('pendingPlan', null);
+  if (plan) {
+    store.set('pendingPlan', null);
+    if (!Object.keys((S.me.profile && S.me.profile.plan) || {}).length && Object.keys(plan).length) {
+      try { await post('/api/me/profile', { profile: { plan } }); await loadMe(); } catch { /* план отметит внутри */ }
+    }
+  }
+}
+// Личная ссылка-приглашение живёт неделю; держим её в памяти телефона шесть дней, чтобы не плодить новые
+const linkCache = (gid) => { const c = store.get('inviteLink:' + gid, null); return c && c.until > Date.now() ? c.link : null; };
+async function inviteLink(gid) {
+  const have = linkCache(gid);
+  if (have) return have;
+  try { const r = await post(`/api/gangs/${gid}/link`); store.set('inviteLink:' + gid, { link: r.link, until: Date.now() + (r.days - 1) * 864e5 }); return r.link; } catch { return null; }
 }
 async function afterJoin(r) {
   S.activeGang = r.id; store.set('activeGang', r.id); S.tab = 'chats'; S.chatGang = true; S.dmList = false; S.dm = null; S.sheet = null;
@@ -8130,8 +8174,14 @@ async function boot() {
   applyHash(hash);
   if (blitzResume && S.me && S.me.nick) { S.tab = 'games'; setTimeout(() => { if (String(blitzResume)[0] === 'p') { S.blitzPracSet = String(blitzResume).slice(1) || null; actions['blitz-prac-resume'](); } else actions['blitz-open'](); }, 0); }
   const openFeedback = hash === '#feedback';
-  const join = /^#join=([A-Z0-9]{6})$/i.exec(hash);
+  const join = /^#(?:join|inv)=([A-Z0-9]{6}|[A-Z0-9]{12})$/i.exec(hash);
   if (join) store.set('pendingJoin', join[1]);
+  // Личное приглашение: до входа показываем, что внутри
+  const invTok = !S.me && (/^#inv=([A-Z0-9]{12})$/i.exec(hash) || [])[1];
+  if (invTok) {
+    try { S.invite = { token: invTok, data: await get('/api/invite/' + invTok), plan: store.get('pendingPlan', null) || {} }; }
+    catch { store.set('pendingJoin', null); toast('Приглашение устарело — попроси новую ссылку'); }
+  }
   const crewCode = /^#crew=([A-Z0-9]{6})$/i.exec(hash);
   if (crewCode) store.set('pendingCrew', crewCode[1]);
   if (S.me && !S.me.nick && !S.onb.nicks.length) S.onb.nicks = (await get('/api/nick-suggestions')).nicks;

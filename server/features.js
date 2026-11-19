@@ -668,6 +668,16 @@ function register(ctx) {
     return { days: cols, rows, best: best ? { label: best.label, office: best.office, total: rows.length, today: best.day === today() } : null, hidden: gangMembers(gangId).length - members.length };
   }
 
+  // Для приглашения по личной ссылке: только числа по дням, без имён. Считаем тех, кто не скрыл офис
+  function weekCounts(gangId) {
+    const members = gangMembers(gangId).filter((m) => m.share_office);
+    const profs = members.map((m) => [readProfile(m.profile), m.id]);
+    return weekDays().map((d) => ({
+      day: d, wd: weekdayName(d), label: `${DAY_NAMES[new Date(d + 'T00:00:00Z').getUTCDay()]} ${ddmm(d)}`, holiday: !!HOL.holidayName(d),
+      office: profs.filter(([p, id]) => cellFor(p, id, d) === 'office').length
+    }));
+  }
+
   // Вечером (после 19:00): кто из банд будет в офисе в следующий рабочий день — по плану недели.
   // Та же взаимность, что у графика: видит только тот, кто сам заполнил план. Скрывшие офис — не в списке
   const DAY_ACC = ['в воскресенье', 'в понедельник', 'во вторник', 'в среду', 'в четверг', 'в пятницу', 'в субботу'];
@@ -1262,7 +1272,7 @@ function register(ctx) {
     return { total: list.length, left: list.filter((id) => !done.has(id)).length };
   }
   const activeToday = (uid) => counter(uid, 'last_active') >= Number(today().replace(/-/g, ''));
-  return { streak: (uid) => counter(uid, 'day_streak'), setQuestProviders: (p) => Object.assign(prov, p), respects, onEvent, cleanup, tick, pairNow, questSummary, myPair, activeToday, cellFor, gangTomorrow, weekNote, weekNoteText };
+  return { streak: (uid) => counter(uid, 'day_streak'), setQuestProviders: (p) => Object.assign(prov, p), respects, onEvent, cleanup, tick, pairNow, questSummary, myPair, activeToday, cellFor, gangTomorrow, weekNote, weekNoteText, weekCounts };
 }
 
 module.exports = { register, ACH, QUESTS };

@@ -541,7 +541,7 @@ function createApi(db) {
       .run(U.sha256(token), emailHash, U.sha256(emailHash + ':' + code), U.now() + config.loginTokenMinutes * 60e3, company);
     // Пришёл по приглашению в банду или «стань подельником» — код едет в ссылке из письма:
     // письмо часто открывают в другом браузере, где приглашение из адресной строки потерялось бы
-    const inv = [['j', body.join], ['c', body.crew]].filter(([, v]) => /^[A-Za-z0-9]{6}$/.test(String(v || ''))).map(([k, v]) => `&${k}=${String(v).toUpperCase()}`).join('');
+    const inv = [['j', body.join], ['c', body.crew]].filter(([k, v]) => (k === 'j' ? /^(?:[A-Za-z0-9]{6}|[A-Za-z0-9]{12})$/ : /^[A-Za-z0-9]{6}$/).test(String(v || ''))).map(([k, v]) => `&${k}=${String(v).toUpperCase()}`).join('');
     const link = `${config.baseUrl}/auth/verify?t=${token}${inv}`;
     try {
       await sendLoginLink(email, link, code);
@@ -936,11 +936,54 @@ function createApi(db) {
     return { ok: true, id: Number(r.lastInsertRowid), code };
   });
 
+  // ---------- Личная ссылка-приглашение ----------
+  // Каждый зовущий получает свою ссылку на неделю. По ней до входа видно, зачем идти: сколько людей банды
+  // будет в офисе по дням — только числа, без имён. В базе лежит хеш ссылки, сама она — только у того, кому её дали
+  db.exec('CREATE TABLE IF NOT EXISTS gang_links (token_hash TEXT PRIMARY KEY, gang_id INTEGER NOT NULL, user_id INTEGER NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL)');
+  const LINK_DAYS = 7;
+  const linkByToken = (t) => q('SELECT * FROM gang_links WHERE token_hash = ? AND expires_at > ?').get(U.sha256(String(t).toUpperCase()), U.now());
+  route('POST', '/api/gangs/:id/link', async (req, body, query, params) => {
+    const u = requireUser(req);
+    const g = q('SELECT * FROM gangs WHERE id = ? AND hidden = 0').get(Number(params.id));
+    if (!g || !isMember(g.id, u.id)) throw new HttpError(404, 'Банда не найдена.');
+    if (g.who_invites === 'owner' && g.owner_id !== u.id) throw bad('В этой банде зовёт только владелец.');
+    rateLimit('gang-link:' + u.id, 10, 864e5);
+    const ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const token = Array.from(require('node:crypto').randomBytes(12), (b) => ABC[b % ABC.length]).join('');
+    q('DELETE FROM gang_links WHERE expires_at < ?').run(U.now());
+    q('INSERT INTO gang_links (token_hash, gang_id, user_id, created_at, expires_at) VALUES (?, ?, ?, ?, ?)').run(U.sha256(token), g.id, u.id, U.now(), U.now() + LINK_DAYS * 864e5);
+    return { link: `${config.baseUrl}/i/${token}`, days: LINK_DAYS };
+  });
+  // Открывается без входа, поэтому отдаём минимум: название и герб банды, ник позвавшего и числа по дням
+  route('GET', '/api/invite/:token', async (req, body, query, params) => {
+    rateLimit('inv-view:' + (req.ip || ''), 60, 3600e3);
+    const l = /^[A-Za-z0-9]{12}$/.test(params.token) ? linkByToken(params.token) : null;
+    const g = l ? q('SELECT * FROM gangs WHERE id = ? AND hidden = 0').get(l.gang_id) : null;
+    if (!g) throw new HttpError(404, 'Приглашение устарело — попроси новую ссылку.');
+    const from = q('SELECT nick FROM users WHERE id = ?').get(l.user_id);
+    const members = gangMembers(g.id);
+    return {
+      gang: { name: g.name, color: g.color, ...U.crestPub(g), people: members.length },
+      from: from && isMember(g.id, l.user_id) ? from.nick : null, expiresAt: l.expires_at,
+      week: features ? features.weekCounts(g.id) : []
+    };
+  });
+
   route('POST', '/api/gangs/join', async (req, body) => {
     const u = requireUser(req);
-    const m = /([A-Z2-9]{6})\s*$/i.exec(String(body.code || '').trim());
-    if (!m) throw bad('Это не похоже на ссылку банды.');
-    const g = q('SELECT * FROM gangs WHERE code = ? AND hidden = 0').get(m[1].toUpperCase());
+    const raw = String(body.code || '').trim();
+    // Личная ссылка-приглашение: 12 знаков, живёт неделю
+    const pt = /(?:^|\/|=)([A-Z0-9]{12})\s*$/i.exec(raw);
+    let g = null;
+    if (pt) {
+      const l = linkByToken(pt[1]);
+      if (!l) throw bad('Приглашение устарело — попроси новую ссылку, она живёт неделю.');
+      g = q('SELECT * FROM gangs WHERE id = ? AND hidden = 0').get(l.gang_id);
+    } else {
+      const m = /([A-Z2-9]{6})\s*$/i.exec(raw);
+      if (!m) throw bad('Это не похоже на ссылку банды.');
+      g = q('SELECT * FROM gangs WHERE code = ? AND hidden = 0').get(m[1].toUpperCase());
+    }
     if (!g) throw bad('Ссылка банды не найдена или банда закрыта.');
     if (isMember(g.id, u.id)) return { ok: true, id: g.id, already: true };
     joinGang(u, g, { switch: !!body.switch });

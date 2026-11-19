@@ -2908,10 +2908,24 @@ main > .chats-hint { margin: 0 6px; text-align: center; }
 .ofl-city:first-of-type { margin-top: 6px; }
 .ofl-ask { display: flex; align-items: center; gap: 12px; width: 100%; margin-top: 12px; padding: 12px 14px; text-align: left; font: inherit; color: var(--ink);
   background: none; border: 1.5px dashed var(--line); border-radius: 14px; cursor: pointer; }
-.ofl-ask > svg, .ofl-ask > .ei { flex: none; color: var(--accent); }
+.ofl-ask > svg, .ofl-ask > .ei { flex: none; color: var(--ic); }
 .ofl-ask .grow { display: grid; gap: 2px; }
 .ofl-ask b { font-weight: 800; }
 .orq-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .orq-row .grow { display: grid; gap: 1px; min-width: 0; }
 .orq-st { flex: none; font-size: 12px; font-weight: 800; color: var(--muted); }
-.orq-st.done { color: var(--ok, #1F7A3A); }
+.orq-st.done { color: var(--green); }
+
+/* ---------- Приглашение до входа: в какие дни свои в офисе ---------- */
+.inv { display: grid; gap: 14px; }
+.inv-head { display: flex; align-items: center; gap: 12px; }
+.inv-head > div { display: grid; gap: 2px; min-width: 0; }
+.inv-head b { font-size: 17px; line-height: 1.25; }
+.inv-q { margin: 0; font-weight: 800; font-size: 16px; }
+.inv-days { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.inv-day { display: grid; gap: 4px; justify-items: center; padding: 10px 2px; font: inherit; color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; cursor: pointer; }
+.inv-day span { font-size: 12px; font-weight: 700; color: var(--muted); white-space: nowrap; }
+.inv-day b { font-size: 20px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.inv-day.on { background: var(--chip-on-bg); border-color: var(--chip-on-bd); color: var(--chip-on-fg); }
+.inv-day.on span { color: inherit; opacity: .85; }
+.inv-day:focus-visible { outline: 3px solid var(--ic); outline-offset: 2px; }

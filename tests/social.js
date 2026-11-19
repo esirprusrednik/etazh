@@ -774,5 +774,39 @@ function startServer(day, extra = {}) {
       assert.ok(!r2.devLink.includes('&j='));
     });
   } finally { sm.stop(); }
+  const si = startServer('2026-11-16');
+  try {
+    await si.ready;
+    await step('личное приглашение: до входа видны числа по дням без имён, по ссылке вступают, чужой токен не годится', async () => {
+      const O = await new si.Client().login('inv1@mts.ru', 'зовущий'), M = await new si.Client().login('inv2@mts.ru', 'планировщик');
+      const g = (await O.post('/api/gangs', { name: 'Вторничные', access: 'invite' })).json;
+      const gid = g.gang ? g.gang.id : g.id;
+      await M.post('/api/gangs/join', { code: (await O.get(`/api/gangs/${gid}`)).json.gang.code });
+      await O.post('/api/me/profile', { shareOffice: true, profile: { plan: { 'Вт': 'office', 'Чт': 'office' } } });
+      await M.post('/api/me/profile', { shareOffice: true, profile: { plan: { 'Вт': 'office', 'Ср': 'home' } } });
+      const H = await new si.Client().login('inv5@mts.ru', 'скрытный_инв');   // офис не показывает — в числа не попадает
+      await H.post('/api/gangs/join', { code: (await O.get(`/api/gangs/${gid}`)).json.gang.code });
+      await H.post('/api/me/profile', { profile: { plan: { 'Вт': 'office', 'Ср': 'office' } } });
+      const link = (await O.post(`/api/gangs/${gid}/link`)).json.link;
+      const tok = /\/i\/([A-Z0-9]{12})$/.exec(link)[1];
+      const red = await fetch(link, { redirect: 'manual' });
+      assert.equal(red.headers.get('location'), `/#inv=${tok}`);
+      const pv = await (await fetch(`${si.BASE}/api/invite/${tok}`)).json();   // без входа
+      assert.equal(pv.gang.name, 'Вторничные'); assert.equal(pv.gang.people, 3); assert.equal(pv.from, 'зовущий');
+      const by = Object.fromEntries(pv.week.map((d) => [d.wd, d.office]));
+      assert.equal(by['Вт'], 2); assert.equal(by['Чт'], 1); assert.equal(by['Ср'], 0);
+      const raw = JSON.stringify(pv);
+      assert.ok(!raw.includes('планировщик') && !raw.includes('"id"') && !raw.includes('code'), 'ни имён участников, ни постоянного кода: ' + raw);
+      assert.equal((await fetch(`${si.BASE}/api/invite/AAAAAAAAAAAA`)).status, 404);
+      const N = new si.Client();
+      const r = (await N.post('/api/auth/request', { email: 'inv3@mts.ru', consent: true, join: tok })).json;
+      assert.ok(r.devLink.endsWith('&j=' + tok), r.devLink);
+      assert.equal((await fetch(r.devLink, { redirect: 'manual' })).headers.get('location'), '/#join=' + tok);
+      const J = await new si.Client().login('inv4@mts.ru', 'новенький_инв');
+      assert.equal((await J.post('/api/gangs/join', { code: 'AAAAAAAAAAAA' })).status, 400);
+      assert.equal((await J.post('/api/gangs/join', { code: tok })).json.id, gid, 'в закрытую банду по личной ссылке');
+      await O.post(`/api/gangs/${gid}/settings`, { whoInvites: 'owner' }).catch(() => {});
+    });
+  } finally { si.stop(); }
   console.log(`social: ${passed} ok`);
 })().catch((e) => { console.error(e); process.exit(1); });
