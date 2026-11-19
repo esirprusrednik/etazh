@@ -1673,6 +1673,8 @@ async function loadFeatures() {
   if (fresh.length) {
     if (seen.size) toast(fresh.length === 1 ? `Новая ачивка: «${fresh[0].name}» · +${fresh[0].reward}` : `Новых ачивок: ${fresh.length}`);
     store.set('achSeen', S.fx.achievements.filter((a) => a.got).map((a) => a.id));
+    // Запоминаем свежие, пока человек не откроет «Ачивки»: в профиле они подсвечены, искать не надо
+    if (seen.size) store.set('achNew', [...new Set([...store.get('achNew', []), ...fresh.map((a) => a.id)])]);
   }
 }
 async function loadCrew() { S.crew = await get('/api/crew'); try { S.battles = (await get('/api/battles')).items; } catch { S.battles = []; } }
@@ -2167,7 +2169,7 @@ function renderApp() {
   <div class="app">
     <header class="top">
       <button class="who" data-act="open" data-v="profile" aria-label="Мой профиль">
-        <span class="me-ava ${S.coach === 1 ? 'coach-focus' : ''}">${b.feedback || b.feed ? '<span class="bdot" aria-hidden="true"></span>' : ''}${me.completion && me.completion.pct < 100 ? `<span class="pring sm" style="--p:${me.completion.pct}" title="Профиль заполнен на ${me.completion.pct}%">${avatar(me.look, 40)}</span>` : avatar(me.look, 40)}</span>
+        <span class="me-ava ${S.coach === 1 ? 'coach-focus' : ''}">${b.feedback || b.feed || store.get('achNew', []).length ? '<span class="bdot" aria-hidden="true"></span>' : ''}${me.completion && me.completion.pct < 100 ? `<span class="pring sm" style="--p:${me.completion.pct}" title="Профиль заполнен на ${me.completion.pct}%">${avatar(me.look, 40)}</span>` : avatar(me.look, 40)}</span>
         <span style="min-width:0;display:flex;flex-direction:column;gap:3px">
           <span class="nick-row"><span class="nick">${nk(me)}</span><span class="chev" aria-hidden="true">›</span></span>
           <span class="row" style="gap:6px">
@@ -4859,7 +4861,8 @@ function renderAchievements() {
   const cats = f.achCats || [['all', 'Ачивки']];
   const R = Object.fromEntries(all.map((a) => [a.tier, a.reward]));
   const prog = (n, goal) => goal > 1 ? `<span class="ach-prog"><i style="width:${Math.round((n / goal) * 100)}%"></i></span><span class="ach-num">${n} / ${goal}</span>` : '';
-  const tile = (a) => `<div class="ach ${a.tier} ${a.got ? 'got' : ''} ${a.secret ? 'secret' : ''}" title="${esc(a.desc)}">
+  const fr = (a) => (S.achFresh && S.achFresh.has(a.id) ? 'fresh' : '');
+  const tile = (a) => `<div class="ach ${a.tier} ${a.got ? 'got' : ''} ${a.secret ? 'secret' : ''} ${fr(a)}" title="${esc(a.desc)}">
       <span class="ach-ico" aria-hidden="true">${art(a.got ? 'medal_' + (['common', 'rare', 'legendary'].includes(a.tier) ? a.tier : 'common') : a.secret ? 'medal_secret' : 'medal_locked', 44)}</span><span class="ach-name">${esc(a.name)}</span><span class="ach-desc">${esc(a.desc)}</span>${a.got ? '' : prog(a.n, a.goal)}</div>`;
   // Ступени одной серии — одна плитка: уровень, точки уровней, прогресс до следующего
   const seriesTile = (lv) => {
@@ -4867,7 +4870,7 @@ function renderAchievements() {
     const top = done[done.length - 1];
     const next = lv.find((x) => !x.got);
     const shown = top || lv[0];
-    return `<div class="ach ${shown.tier} ${top ? 'got' : ''} series" title="${esc(next ? 'Дальше: ' + next.desc : 'Все ступени взяты')}">
+    return `<div class="ach ${shown.tier} ${top ? 'got' : ''} series ${lv.some((x) => fr(x)) ? 'fresh' : ''}" title="${esc(next ? 'Дальше: ' + next.desc : 'Все ступени взяты')}">
       <span class="ach-ico" aria-hidden="true">${art(top ? 'medal_' + (['common', 'rare', 'legendary'].includes(shown.tier) ? shown.tier : 'common') : 'medal_locked', 44)}</span><span class="ach-name">${esc(shown.name)}</span>
       <span class="ach-lv">${lv.map((x) => `<i class="${x.tier} ${x.got ? 'on' : ''}"></i>`).join('')}</span>
       <span class="ach-desc">${esc(next ? next.desc : 'Все ступени взяты')}</span>${next ? prog(next.n, next.goal) : ''}</div>`;
@@ -6001,6 +6004,21 @@ function renderAvatarEditor() {
 
 const MOUTH_NAMES = { smile: 'Улыбка', grin: 'До ушей', smirk: 'Ухмылка', neutral: 'Серьёзный|Серьёзная', sad: 'Грустный|Грустная', wow: 'Удивлён|Удивлена' };
 const BEARD_NAMES = { none: 'Нет', stubble: 'Щетина', beard: 'Борода', mustache: 'Усы', goatee: 'Эспаньолка' };
+// Красная точка на аватаре в шапке значит «в профиле есть новое». Здесь, наверху профиля, говорим, что именно
+const achNewNames = () => { const ids = store.get('achNew', []); return ids.length && S.fx ? S.fx.achievements.filter((a) => ids.includes(a.id)).map((a) => a.name) : []; };
+// Открыл «Ачивки» — свежие больше не новость, но в списке остаются подсвеченными до закрытия профиля
+function achOpened() { const ids = store.get('achNew', []); if (ids.length) { S.achFresh = new Set(ids); store.set('achNew', []); } }
+function profNews() {
+  const b = (S.state && S.state.badges) || {};
+  const ach = achNewNames();
+  const rows = [
+    ach.length && ['sec', 'ach', 'medal', ach.length === 1 ? `Новая ачивка: «${esc(ach[0])}»` : `Новых ачивок: ${ach.length}`, 'Открыть ачивки'],
+    b.feed && ['open', 'events', 'spark', `Новое про тебя: ${b.feed}`, 'Респекты, ответы на зовы, подарки'],
+    b.feedback && ['open', 'feedback', 'chat', 'Модератор ответил на твоё сообщение', 'Идеи и ошибки']
+  ].filter(Boolean);
+  if (!rows.length) return '';
+  return `<div class="prof-news">${rows.map(([act, v, ic, t, sub]) => `<button class="pn-row" data-act="${act}" data-v="${v}"><span class="st-ico">${ico(ic, 20)}</span><span class="grow"><b>${t}</b><span class="small">${sub}</span></span><span class="chev" aria-hidden="true">›</span></button>`).join('')}</div>`;
+}
 function section(id, title, summary, body, opts = {}) {
   const open = S.sec.has(id);
   return `<section class="psec ${open ? 'open' : ''}">
@@ -6135,10 +6153,11 @@ function renderProfile() {
       <div><b>${me.level || 1}</b><span>уровень</span><i>растёт вместе с заработанными зёрнами</i></div>
       <div><b>${FLAME}${me.streak || 0}</b><span>${plural(me.streak || 0, 'день', 'дня', 'дней')} подряд</span><i>рабочих дней с отметкой — в офисе или из дома</i></div>
     </div>
+    ${profNews()}
     <div class="p-group">Обо мне</div>
     ${section('look', 'Внешность', `${OUTFIT_NAMES[look.outfit] || 'Худи'} · ${(HAIR_NAMES[look.hairStyle] || '').toLowerCase()}${look.prop && look.prop !== 'none' ? ' · ' + (PROP_NAMES[look.prop] || '').toLowerCase() : ''}`, lookBody)}
     ${section('name', 'Ник, имя и фамилия', name ? `${esc(name)}` : 'Имя не указано', nameBody)}
-    ${section('ach', 'Ачивки', got == null ? '' : `${got} из ${S.fx.achievements.length}`, renderAchievements())}
+    ${section('ach', 'Ачивки', got == null ? '' : `${got} из ${S.fx.achievements.length}${achNewNames().length ? ` · <b class="psec-new">новая: «${esc(achNewNames()[0])}»${achNewNames().length > 1 ? ` и ещё ${achNewNames().length - 1}` : ''}</b>` : ''}`, renderAchievements())}
     ${section('work', 'Работа', `${office || 'офис не указан'} · ${plan}`, workBody)}
     ${section('vac', 'Отпуска', p.vacations.length ? p.vacations.map((v) => `${ddmm(v.from)}–${ddmm(v.to)}`).join(', ') : 'не запланированы', vacBody)}
     ${section('about', 'О себе', [p.about && esc(p.about), p.bday && 'ДР ' + esc(p.bday)].filter(Boolean).join(' · ') || 'интересы, пара слов, день рождения', aboutBody)}
@@ -7582,6 +7601,7 @@ const actions = {
   'sound-test'() { const demo = ['tap', 'open', 'on', 'send', 'vote', 'confirm', 'coin']; demo.forEach((n, i) => setTimeout(() => sfx(n), i * 320)); },
   'open-sec'(el) {
     const v = el.dataset.v;
+    if (v === 'ach') achOpened();
     const wasOpen = S.sheet === 'profile';
     if (!wasOpen) collapseAll();
     S.sheet = 'profile'; S.sec.add(v); if (!wasOpen) S.lastSheet = null;
@@ -7596,7 +7616,15 @@ const actions = {
     if (!S.fx) loadFeatures().catch(() => {}); // данные для ачивок; без перерисовки, чтобы не сбить прокрутку
   },
   'compl-hide'() { store.set('complHideUntil', Date.now() + 7 * 864e5); render(); },
-  sec(el) { const v = el.dataset.v; if (S.sec.has(v)) S.sec.delete(v); else S.sec.add(v); render(); },
+  sec(el) {
+    const v = el.dataset.v;
+    // Из плашки «что нового» раздел только открываем и прокручиваем к нему, а не сворачиваем
+    const jump = el.classList.contains('pn-row');
+    if (S.sec.has(v) && !jump) S.sec.delete(v); else S.sec.add(v);
+    if (v === 'ach' && S.sec.has(v)) achOpened();
+    render();
+    if (jump) { const h = document.querySelector(`.psec-head[data-v="${v}"]`); if (h) h.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+  },
   'name-save': () => run(async () => {
     const f = nameCase($('#p-first').value), l = nameCase($('#p-last').value);
     if (!f || !l) throw new Error('Имя и фамилия обязательны.');

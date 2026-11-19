@@ -2931,3 +2931,13 @@ main > .chats-hint { margin: 0 6px; text-align: center; }
 .inv-day:focus-visible { outline: 3px solid var(--ic); outline-offset: 2px; }
 
 .joined-best { margin: 0; padding: 12px 14px; border-radius: 12px; background: var(--tint-b); color: var(--tint-b-fg); font-weight: 700; }
+
+/* ---------- Профиль: что нового — наверху, чтобы не искать ---------- */
+.prof-news { display: grid; gap: 8px; margin: 4px 0 6px; }
+.pn-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; text-align: left; font: inherit; color: var(--tint-y-fg); background: var(--tint-y); border: 0; border-radius: 16px; cursor: pointer; }
+.pn-row .grow { display: grid; gap: 1px; min-width: 0; }
+.pn-row b { font-weight: 800; }
+.pn-row .small { color: inherit; opacity: .8; }
+.psec-new { color: var(--red); font-weight: 800; }
+.ach.fresh { position: relative; opacity: 1; outline: 2.5px solid var(--red); outline-offset: 2px; }
+.ach.fresh::after { content: 'новая'; position: absolute; top: -8px; right: -6px; padding: 2px 7px; border-radius: 999px; background: var(--red); color: #fff; font-size: 10px; font-weight: 800; }
