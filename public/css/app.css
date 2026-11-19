@@ -2946,7 +2946,7 @@ main > .chats-hint { margin: 0 6px; text-align: center; }
 .occ { display: grid; gap: 10px; background: linear-gradient(160deg, var(--tint-v), var(--card) 70%); }
 .occ h3 { margin: 0; font-size: 20px; }
 .occ-res { display: grid; gap: 6px; }
-.occ-bar { position: relative; display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; font: inherit; font-weight: 700; text-align: left; color: var(--ink); background: var(--s1); border: 1.5px solid transparent; border-radius: 12px; overflow: hidden; cursor: pointer; }
+.occ-bar { position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 12px; font-weight: 700; font-size: 14px; color: var(--ink); background: var(--s1); border: 1.5px solid transparent; border-radius: 12px; overflow: hidden; }
 .occ-bar i { position: absolute; inset: 0 auto 0 0; background: var(--tint-b); border-radius: 0; }
 .occ-bar > span, .occ-bar > b { position: relative; }
 .occ-bar.on { border-color: var(--ic); }
@@ -2957,3 +2957,8 @@ main > .chats-hint { margin: 0 6px; text-align: center; }
 .shelf-row .grow { display: grid; gap: 1px; min-width: 0; }
 .person-shelf { display: grid; gap: 4px; justify-items: center; font-size: 14px; color: var(--muted); }
 .person-shelf b { color: var(--ink); }
+.occ.done { gap: 8px; padding-top: 14px; padding-bottom: 14px; }
+.occ-top { display: flex; align-items: center; gap: 10px; }
+.occ-top .grow { display: grid; gap: 2px; min-width: 0; }
+.occ-mine { font-size: 17px; font-weight: 800; }
+.occ-joke { margin: 0; font-size: 15px; color: var(--ink); }

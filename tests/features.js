@@ -284,8 +284,9 @@ const mskToday = () => new Date(Date.now() + SHIFT_H * 3600e3).toISOString().sli
       const v = (await a.post('/api/occasion/vote', { id: live.id, opt: o1 })).json.occasion;
       assert.equal(v.mine, o1); assert.equal(v.total, 2);
       assert.deepEqual(v.picks.map((x) => [x.nick, x.opt]), [[(await b.get('/api/me')).json.user.nick, o2]], 'свои видны по никам');
-      const v2 = (await a.post('/api/occasion/vote', { id: live.id, opt: o2 })).json.occasion;
-      assert.equal(v2.total, 2, 'передумал — голос один'); assert.equal(v2.options.find((x) => x.id === o2).n, 2);
+      assert.ok(v.joke && v.mineLabel, 'в ответ — шутка');
+      assert.equal((await a.post('/api/occasion/vote', { id: live.id, opt: o2 })).status, 400, 'передумать нельзя');
+      assert.equal((await a.get('/api/occasion')).json.occasion.mine, o1);
       const far0 = await new Client().login('occ9@mts.ru', 'чужой_геймер');
       await far0.post('/api/occasion/vote', { id: live.id, opt: o1 });
       assert.deepEqual((await far0.get('/api/occasion')).json.occasion.picks, [], 'чужим ники не показываем');

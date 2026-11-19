@@ -2657,14 +2657,20 @@ function renderBoardCard() {
 function renderOccasion() {
   const o = S.occ;
   if (!o) return '';
+  const ach = o.ach.got ? `<p class="small occ-ach got">\uE000medal\uE001 Ачивка «${esc(o.ach.name)}» твоя</p>`
+    : `<p class="small occ-ach">\uE000medal\uE001 ${o.last ? 'Только сегодня' : 'Сегодня и завтра'}: отметься в офисе — получишь ачивку «${esc(o.ach.name)}». Потом её не взять.</p>`;
+  if (!o.mine) {
+    return `<section class="card occ"><div class="eyebrow">Повод недели</div><h3>${esc(o.title)}</h3><p class="sub" style="margin:0">${esc(o.text)}</p>
+      <div class="chips">${o.options.map((x) => `<button class="chip" data-act="occ-vote" data-v="${x.id}">${esc(x.label)}</button>`).join('')}</div>
+      <p class="small" style="margin:0">Ответ один, передумать нельзя.</p>${ach}</section>`;
+  }
+  // Ответил: шутка в ответ и свёрнутая карточка. Итоги — по нажатию, менять ответ нельзя
   const max = Math.max(1, ...o.options.map((x) => x.n || 0));
-  const body = o.mine
-    ? `<div class="occ-res">${o.options.map((x) => `<button class="occ-bar ${x.id === o.mine ? 'on' : ''}" data-act="occ-vote" data-v="${x.id}" aria-pressed="${x.id === o.mine}"><i style="width:${Math.round(((x.n || 0) / max) * 100)}%"></i><span class="grow">${esc(x.label)}</span><b>${x.n || 0}</b></button>`).join('')}</div>
-      ${o.picks.length ? `<p class="small occ-picks">Из твоих: ${o.picks.slice(0, 6).map((p) => `<button class="linkbtn" data-act="person" data-id="${p.id}">${esc(p.nick)}</button> — ${esc(p.text)}`).join(', ')}${o.picks.length > 6 ? ` и ещё ${o.picks.length - 6}` : ''}</p>` : '<p class="small occ-picks">Из твоих пока никто не признался. Позови — пусть отметятся.</p>'}`
-    : `<div class="chips">${o.options.map((x) => `<button class="chip" data-act="occ-vote" data-v="${x.id}">${esc(x.label)}</button>`).join('')}</div>`;
-  const ach = o.ach.got ? `<p class="small occ-ach got">medal Ачивка «${esc(o.ach.name)}» твоя</p>`
-    : `<p class="small occ-ach">medal ${o.last ? 'Только сегодня' : 'Сегодня и завтра'}: отметься в офисе — получишь ачивку «${esc(o.ach.name)}». Потом её не взять.</p>`;
-  return `<section class="card occ"><div class="eyebrow">Повод недели</div><h3>${esc(o.title)}</h3><p class="sub" style="margin:0">${esc(o.text)}</p>${body}${ach}</section>`;
+  const res = S.occOpen ? `<div class="occ-res">${o.options.map((x) => `<div class="occ-bar ${x.id === o.mine ? 'on' : ''}"><i style="width:${Math.round(((x.n || 0) / max) * 100)}%"></i><span class="grow">${esc(x.label)}</span><b>${x.n || 0}</b></div>`).join('')}</div>
+      ${o.picks.length ? `<p class="small occ-picks">Из твоих: ${o.picks.slice(0, 6).map((p) => `<button class="linkbtn" data-act="person" data-id="${p.id}">${esc(p.nick)}</button> — ${esc(p.text)}`).join(', ')}${o.picks.length > 6 ? ` и ещё ${o.picks.length - 6}` : ''}</p>` : '<p class="small occ-picks">Из твоих пока никто не признался.</p>'}` : '';
+  return `<section class="card occ done"><div class="occ-top"><div class="grow"><div class="eyebrow">${esc(o.title)}</div><b class="occ-mine">${esc(o.mineLabel || '')}</b></div>
+      <button class="chip small" data-act="occ-toggle" aria-expanded="${!!S.occOpen}">${S.occOpen ? 'Свернуть' : `Как у всех · ${o.total}`}</button></div>
+    ${o.joke ? `<p class="occ-joke">${esc(o.joke)}</p>` : ''}${res}${o.ach.got && !S.occOpen ? '' : ach}</section>`;
 }
 // Одно объявление Доски: обед (время, кто идёт), угощение на кухне (таймер) или обычное
 function boardRow(x) {
@@ -7198,7 +7204,8 @@ const actions = {
   'digest-toggle': (el) => run(async () => { await post('/api/me/profile', { profile: { digest: el.checked } }); await loadMe(); toast(el.checked ? 'Утренняя сводка включена' : 'Утреннюю сводку больше не пришлю'); }),
   'match-on': () => run(async () => { await post('/api/me/profile', { profile: { matchShow: true } }); await Promise.all([loadMe(), loadMatch()]); toast('Твои дни открыты коллегам'); }),
   'match-day'(el) { S.matchDay = Number(el.dataset.v); render(); },
-  'occ-vote': (el) => run(async () => { if (!S.occ) return; S.occ = (await post('/api/occasion/vote', { id: S.occ.id, opt: el.dataset.v })).occasion; }),
+  'occ-vote': (el) => run(async () => { if (!S.occ || S.occ.mine) return; S.occ = (await post('/api/occasion/vote', { id: S.occ.id, opt: el.dataset.v })).occasion; S.occOpen = false; sfx('confirm'); }),
+  'occ-toggle'() { S.occOpen = !S.occOpen; render(); },
   'board-filter'(el) { S.boardScope = el.dataset.v; S.boardAll = false; render(); },
   'board-cat'(el) { S.boardCat = el.dataset.v; S.boardAll = false; render(); },
   'board-time'(el) { boardSync(); S.boardDraft.time = el.dataset.v; render(); },
