@@ -40,6 +40,14 @@ public/sounds/hit2.mp3
 public/sounds/sunk1.mp3
 public/sounds/resign.mp3
 public/sounds/emo_lol.mp3
+public/sounds/emo_lol_m.mp3
+public/sounds/emo_lol_f.mp3
+public/sounds/emo_mercy_m.mp3
+public/sounds/emo_mercy_f.mp3
+public/sounds/emo_angry_m.mp3
+public/sounds/emo_angry_f.mp3
+public/sounds/emo_clap_m.mp3
+public/sounds/emo_clap_f.mp3
 public/sounds/emo_angry.mp3
 public/sounds/emo_bored.mp3
 public/sounds/emo_smart.mp3
@@ -190,6 +198,8 @@ public/art/rps.webp
 public/art/shake.webp
 public/art/shield.webp
 public/art/emo.webp
+public/art/emo_mf.webp
+public/art/sect.webp
 public/art/gull.webp
 public/art/climb/boy.jpg
 public/art/climb/boy.mp4

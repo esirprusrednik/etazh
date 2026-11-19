@@ -3038,3 +3038,25 @@ button:not(.bc):not(:disabled):active { transform: scale(.97); }
 @keyframes okPop { 0% { opacity: 0; transform: scale(.4); } 25% { opacity: 1; transform: scale(1.08); } 70% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.05); } }
 @keyframes okDraw { to { stroke-dashoffset: 0; } }
 @media (prefers-reduced-motion: reduce) { button { transition: none; } button:active { transform: none !important; } .unfold, .occ-res.unfold .occ-bar i { animation: none; } }
+
+/* ---------- Рожицы морского боя: он и она, у каждой эмоции своё движение ---------- */
+.emo-art.mf { background-image: url(/art/emo_mf.webp); background-size: 400% 200%; }
+.emo-bubble b { animation: none; }
+.emo-bubble b .emo-art.emo-lol { animation: emoLol .42s ease-in-out infinite; transform-origin: 50% 85%; }
+.emo-bubble b .emo-art.emo-mercy { animation: emoCry 1.1s ease-in-out infinite; transform-origin: 50% 100%; }
+.emo-bubble b .emo-art.emo-angry { animation: emoRage .12s linear infinite; }
+.emo-bubble b .emo-art.emo-clap { animation: emoBow 1.2s ease-in-out infinite; transform-origin: 50% 90%; }
+.emo:active .emo-art.emo-lol { animation: emoLol .3s ease-in-out 2; }
+.emo:active .emo-art.emo-angry { animation: emoRage .1s linear 5; }
+@keyframes emoLol { 0%, 100% { transform: translateY(0) rotate(-5deg) scale(1); } 50% { transform: translateY(-7px) rotate(5deg) scale(1.06); } }
+@keyframes emoCry { 0%, 100% { transform: rotate(-4deg) translateY(0); } 50% { transform: rotate(4deg) translateY(4px) scale(.96); } }
+@keyframes emoRage { 0% { transform: translate(-2px, 1px) rotate(-2deg); } 50% { transform: translate(2px, -1px) rotate(2deg) scale(1.05); } 100% { transform: translate(-1px, 2px) rotate(-1deg); } }
+@keyframes emoBow { 0%, 100% { transform: rotate(0) scale(1); } 35% { transform: rotate(9deg) translateY(3px); } 60% { transform: rotate(-3deg) scale(1.05); } }
+/* ---------- Объёмные значки разделов ---------- */
+.sect-art { flex: none; display: inline-block; background: url(/art/sect.webp) 0 0 / 300% 300% no-repeat; filter: drop-shadow(0 2px 3px rgba(11,47,107,.18)); }
+.chats-head h3 .sect-art { margin: -4px 0; }
+.occ-top h3 { margin: 0; }
+.joined-bell { display: grid; place-items: center; margin: -4px 0 2px; }
+.joined-bell .sect-art { animation: bellRing 1.6s ease-in-out 1; transform-origin: 50% 12%; }
+@keyframes bellRing { 0%, 60%, 100% { transform: rotate(0); } 10% { transform: rotate(14deg); } 22% { transform: rotate(-12deg); } 34% { transform: rotate(8deg); } 46% { transform: rotate(-5deg); } }
+@media (prefers-reduced-motion: reduce) { .emo-bubble b .emo-art, .emo:active .emo-art, .joined-bell .sect-art { animation: none !important; } }

@@ -1697,7 +1697,7 @@ function setBattleView(v) {
     S.bEmoteSeen = oe.at;
     S.bEmote = { ...(S.bEmote || {}), opp: { e: oe.e, until: Date.now() + 3200 } };
     setTimeout(() => { if (S.battle) render(); }, 3300);
-    emoSfx(oe.e);
+    emoSfx(oe.e, v.opp && v.opp.look);
   } else if (oe && S.bEmoteSeen == null) S.bEmoteSeen = oe.at;
   // Обе расстановки готовы — партия началась: труба «Свистать всех наверх!» (один раз)
   if (S.bv && S.bv.id === v.id && S.bv.status === 'setup' && v.status === 'play') sfx('bugle');
@@ -2026,7 +2026,7 @@ function renderEventInvite() {
   if (!v || !v.data) return '';
   const d = v.data, e = d.event, w = evWhen(e);
   const when = [w.rel, e.time, e.place].filter(Boolean).map(esc).join(' · ');
-  const head = `<div class="inv-head">${gangBadge(d.gang, 52)}<div><b>${esc(e.title)}</b><span class="small">${d.from ? `зовёт ${esc(d.from)} · ` : ''}«${esc(d.gang.name)}»</span></div></div>
+  const head = `<div class="inv-head">${sect('invite', 56)}<div><b>${esc(e.title)}</b><span class="small">${d.from ? `зовёт ${esc(d.from)} · ` : ''}«${esc(d.gang.name)}»</span></div></div>
     <div class="evi-when"><span class="evi-date"><b>${w.dd}</b>${w.mon}</span><span class="grow">${when}</span></div>
     <p class="small" style="margin:0">${d.going ? `Уже идут: <b>${d.going}</b>` : 'Пока никто не отметился — будь первым'}</p>`;
   if (d.mine) {
@@ -2355,7 +2355,7 @@ function renderOfficeReq() {
   const items = S.officeReqs || [];
   const st = { pending: 'ждёт модератора', done: 'добавлен', rejected: 'не добавили' };
   const known = [...new Set(S.cat.offices.map((o) => o.city || 'Москва'))];
-  return `<p class="sub" style="margin-top:0">Работаешь по другому адресу в Москве или в другом городе? Напиши город и как офис называют свои — модератор добавит его в список.</p>
+  return `<div class="joined-bell">${sect('office', 72)}</div><p class="sub" style="margin-top:0">Работаешь по другому адресу в Москве или в другом городе? Напиши город и как офис называют свои — модератор добавит его в список.</p>
     <label class="field">Город<input id="orq-city" maxlength="40" list="orq-cities" placeholder="Москва, Казань, Новосибирск…" value="${esc(d.city)}" autocomplete="address-level2"></label>
     <datalist id="orq-cities">${known.map((c) => `<option value="${esc(c)}">`).join('')}</datalist>
     <label class="field">Название офиса<input id="orq-name" maxlength="40" placeholder="Как говорят коллеги: «Башня», «Ленина, 5»" value="${esc(d.name)}" autocomplete="off"></label>
@@ -2541,8 +2541,8 @@ const shelfKey = (x) => x.k + '|' + x.t.toLocaleLowerCase('ru').replace(/ё/g, '
 function renderGangShelf() {
   const all = [];
   for (const m of (S.gang && S.gang.members) || []) for (const x of m.shelf || []) all.push({ ...x, who: m });
-  const head = `<div class="chats-head"><h3>Полка банды</h3>${myShelf().length ? '<button class="addpill plain" data-act="shelf-open">Моя полка ›</button>' : addPill('shelf-open', 'Моя полка')}</div>`;
-  if (!all.length) return starter('tasks', 'Полка банды', 'Что читаем, смотрим и советуем — видят только свои', 'shelf-open', 'data-open');
+  const head = `<div class="chats-head"><h3>${sect('books', 28)}Полка банды</h3>${myShelf().length ? '<button class="addpill plain" data-act="shelf-open">Моя полка ›</button>' : addPill('shelf-open', 'Моя полка')}</div>`;
+  if (!all.length) return starter('books', 'Полка банды', 'Что читаем, смотрим и советуем — видят только свои', 'shelf-open', 'data-open');
   const works = new Map();
   for (const x of all) { const k = shelfKey(x); if (!works.has(k)) works.set(k, { key: k, k: x.k, t: x.t, list: [], at: 0 }); const w = works.get(k); w.list.push(x); if (x.w && !w.w) w.w = x.w; w.at = Math.max(w.at, x.at || 0); }
   const n = (w, f) => w.list.filter(f).length;
@@ -2592,8 +2592,8 @@ function renderShelfSheet() {
 }
 function renderGangBoard(g) {
   const items = boardItems(g.id);
-  if (!items.length) return starter('megaphone', 'Объявления для своих', '«Скинемся на торт», «Отдам монитор» — увидит только банда', 'board-new', 'data-v="other" data-scope="gang"');
-  return `<section class="card bboard"><div class="chats-head"><h3>Только для своих</h3>${addPill('board-new', 'Объявление', 'data-v="other" data-scope="gang"')}</div>
+  if (!items.length) return starter('pin', 'Объявления', '«Скинемся на торт», «Отдам монитор» — только для своих', 'board-new', 'data-v="other" data-scope="gang"');
+  return `<section class="card bboard"><div class="chats-head"><h3>${sect('pin', 28)}Только для своих</h3>${addPill('board-new', 'Объявление', 'data-v="other" data-scope="gang"')}</div>
     ${items.map(boardRow).join('')}
   </section>`;
 }
@@ -2780,13 +2780,14 @@ function renderBoardCard() {
   </section>`;
 }
 // Повод недели: один вопрос в один тап. Ответ — он же шуточный статус: свои видят, кто что выбрал
+const occPic = (o, size = 40) => (/^game/.test(o.id) ? sect('pad', size) : /^blackfriday/.test(o.id) ? sect('bag', size) : /^winter/.test(o.id) ? `<img src="/art/ny/flakes.webp" width="${size}" height="${size}" alt="">` : '');
 function renderOccasion() {
   const o = S.occ;
   if (!o) return '';
   const ach = o.ach.got ? `<p class="small occ-ach got">\uE000medal\uE001 Ачивка «${esc(o.ach.name)}» твоя</p>`
     : `<p class="small occ-ach">\uE000medal\uE001 ${o.last ? 'Только сегодня' : 'Сегодня и завтра'}: отметься в офисе — получишь ачивку «${esc(o.ach.name)}». Потом её не взять.</p>`;
   if (!o.mine) {
-    return `<section class="card occ"><div class="eyebrow">Повод недели</div><h3>${esc(o.title)}</h3><p class="sub" style="margin:0">${esc(o.text)}</p>
+    return `<section class="card occ"><div class="occ-top">${occPic(o, 54)}<div class="grow"><div class="eyebrow">Повод недели</div><h3>${esc(o.title)}</h3></div></div><p class="sub" style="margin:0">${esc(o.text)}</p>
       <div class="chips">${o.options.map((x) => `<button class="chip" data-act="occ-vote" data-v="${x.id}">${esc(x.label)}</button>`).join('')}</div>
       <p class="small" style="margin:0">Ответ один, передумать нельзя.</p>${ach}</section>`;
   }
@@ -2794,7 +2795,7 @@ function renderOccasion() {
   const max = Math.max(1, ...o.options.map((x) => x.n || 0));
   const res = S.occOpen ? `<div class="occ-res${unfold('occ')}">${o.options.map((x) => `<div class="occ-bar ${x.id === o.mine ? 'on' : ''}"><i style="width:${Math.round(((x.n || 0) / max) * 100)}%"></i><span class="grow">${esc(x.label)}</span><b>${x.n || 0}</b></div>`).join('')}</div>
       ${o.picks.length ? `<p class="small occ-picks">Из твоих: ${o.picks.slice(0, 6).map((p) => `<button class="linkbtn" data-act="person" data-id="${p.id}">${esc(p.nick)}</button> — ${esc(p.text)}`).join(', ')}${o.picks.length > 6 ? ` и ещё ${o.picks.length - 6}` : ''}</p>` : '<p class="small occ-picks">Из твоих пока никто не признался.</p>'}` : '';
-  return `<section class="card occ done"><div class="occ-top"><div class="grow"><div class="eyebrow">${esc(o.title)}</div><b class="occ-mine">${esc(o.mineLabel || '')}</b></div>
+  return `<section class="card occ done"><div class="occ-top">${occPic(o)}<div class="grow"><div class="eyebrow">${esc(o.title)}</div><b class="occ-mine">${esc(o.mineLabel || '')}</b></div>
       <button class="chip small" data-act="occ-toggle" aria-expanded="${!!S.occOpen}">${S.occOpen ? 'Свернуть' : `Как у всех · ${o.total}`}</button></div>
     ${o.joke ? `<p class="occ-joke">${esc(o.joke)}</p>` : ''}${res}${o.ach.got && !S.occOpen ? '' : ach}</section>`;
 }
@@ -3573,9 +3574,9 @@ function renderGEvents() {
   const v = S.gev;
   if (!v) return '';
   const sug = v.suggestions.length ? `<div class="gev-sug"><span class="small"><b>Повод есть:</b></span>${v.suggestions.map((x, i) => `<button class="chip" data-act="gev-new" data-sug="${i}">${esc(x.hint)} ＋</button>`).join('')}</div>` : '';
-  if (!v.upcoming.length && !v.past.length) return `${starter('popper', 'События', 'Встреча, день рождения, поход в бар — соберём, кто идёт', 'gev-new')}${sug ? `<section class="card gevents" style="padding-top:12px;padding-bottom:12px">${sug}</section>` : ''}`;
+  if (!v.upcoming.length && !v.past.length) return `${starter('cal', 'События', 'Встреча, день рождения, поход в бар — соберём, кто идёт', 'gev-new')}${sug ? `<section class="card gevents" style="padding-top:12px;padding-bottom:12px">${sug}</section>` : ''}`;
   return `<section class="card gevents">
-    <div class="chats-head"><h3>События${v.upcoming.length ? ` <span class="chats-n">${v.upcoming.length}</span>` : ''}</h3>${addPill('gev-new', 'Событие')}</div>
+    <div class="chats-head"><h3>${sect('cal', 28)}События${v.upcoming.length ? ` <span class="chats-n">${v.upcoming.length}</span>` : ''}</h3>${addPill('gev-new', 'Событие')}</div>
     ${v.upcoming.map(renderGEvent).join('')}
     ${sug}
     ${v.past.length ? `<details><summary class="small" style="cursor:pointer;min-height:32px">Недавно прошли (${v.past.length})</summary>${v.past.map(renderGEvent).join('')}</details>` : ''}
@@ -3583,10 +3584,13 @@ function renderGEvents() {
 }
 // Четыре жеста на всё приложение: строка с шевроном — откроется другой экран; круглый плюс — раскроется здесь же;
 // залитая кнопка — действие; чип — выбор. Ниже — общие кусочки для первых двух.
+// Объёмные значки разделов: атлас /art/sect.webp 3×3 — календарь, урна, книги, булавка, колокольчик, приглашение, офис, геймпад, пакет
+const SECT = ['cal', 'vote', 'books', 'pin', 'bell', 'invite', 'office', 'pad', 'bag'];
+const sect = (name, size = 44) => { const n = SECT.indexOf(name); return `<i class="sect-art" style="width:${size}px;height:${size}px;background-position:${(n % 3) * 50}% ${Math.floor(n / 3) * 50}%" aria-hidden="true"></i>`; };
 // «＋ Что-то» в заголовке раздела: одна и та же пилюля везде
 const addPill = (act, label, attrs = '') => `<button class="addpill" data-act="${act}" ${attrs}>＋ ${label}</button>`;
 // Пустой раздел не занимает треть экрана: одна строка — картинка, название, зачем это, плюс. Нажал — создаёшь первое
-const starter = (pic, title, hint, act, attrs = '') => `<button class="starter" data-act="${act}" ${attrs}>${art(pic, 44)}<span class="grow"><b>${title}</b><span class="small">${hint}</span></span><span class="addpill" aria-hidden="true">${attrs.includes('data-open') ? 'Открыть' : '＋ Создать'}</span></button>`;
+const starter = (pic, title, hint, act, attrs = '') => `<button class="starter" data-act="${act}" ${attrs}>${sect(pic, 46)}<span class="grow"><b>${title}</b><span class="small">${hint}</span></span><span class="addpill" aria-hidden="true">${attrs.includes('data-open') ? 'Открыть' : '＋ Создать'}</span></button>`;
 // Только что раскрытый блок появляется плавно. Признак живёт один кадр: фоновые перерисовки анимацию не повторяют
 const unfold = (id) => (S.justNow === id ? ' unfold' : '');
 // Галочка-подтверждение по центру экрана: «записано». Для действий, после которых на экране мало что меняется
@@ -3897,7 +3901,7 @@ function prBotEmote(pool) {
     if (S.practice !== P) return;
     const e = pool[Math.floor(Math.random() * pool.length)];
     S.bEmote = { ...(S.bEmote || {}), opp: { e, until: Date.now() + 3200 } };
-    emoSfx(e); render();
+    emoSfx(e, P && P.opp && P.opp.look); render();
     setTimeout(() => { if (S.practice === P) render(); }, 3300);
   }, 900);
 }
@@ -4092,9 +4096,9 @@ function renderGEventNew() {
 
 function renderPolls() {
   const items = S.polls || [];
-  if (!items.length) return starter('quiz', 'Опросы', 'Куда идём обедать, какую пиццу брать — спроси банду', 'poll-new');
+  if (!items.length) return starter('vote', 'Опросы', 'Куда идём обедать, какую пиццу брать — спроси банду', 'poll-new');
   return `<section class="card polls">
-    <div class="chats-head"><h3>Опросы${items.filter((p) => !p.closed).length ? ` <span class="chats-n">${items.filter((p) => !p.closed).length}</span>` : ''}</h3>${addPill('poll-new', 'Опрос')}</div>
+    <div class="chats-head"><h3>${sect('vote', 28)}Опросы${items.filter((p) => !p.closed).length ? ` <span class="chats-n">${items.filter((p) => !p.closed).length}</span>` : ''}</h3>${addPill('poll-new', 'Опрос')}</div>
     ${items.map(renderPoll).join('')}
   </section>`;
 }
@@ -4619,9 +4623,16 @@ const EMOTES = { lol: 'Ха-ха!', angry: 'Ну всё!', bored: 'Скукот�
 // На панели четыре реакции, по одной на чувство: насмешка, слёзы, злость и благодарность сопернику.
 // Остальные рожицы остались в атласе, чтобы реакция от старой версии приложения показалась как надо
 const EMO_PANEL = ['lol', 'mercy', 'angry', 'clap'];
-const emoSfx = (k) => sfx(`emo_${k}`);
+// У четырёх реакций панели свой голос и своя рожица для м и ж: кто отправил, тем голосом и звучит
+const emoG = (look) => gw(look, 'm', 'f');
+const emoSfx = (k, look) => sfx(EMO_PANEL.includes(k) ? `emo_${k}_${emoG(look)}` : `emo_${k}`);
 const EMO_KEYS = Object.keys(EMOTES);
-const emoArt = (k) => { const n = EMO_KEYS.indexOf(k); return n < 0 ? '' : `<i class="emo-art" style="background-position:${(n % 4) * 100 / 3}% ${Math.floor(n / 4) * 100 / 3}%"></i>`; };
+const emoArt = (k, look) => {
+  const p = EMO_PANEL.indexOf(k);
+  // Атлас /art/emo_mf.webp: 4 столбца — смех, слёзы, злость, спасибо; верхний ряд — он, нижний — она
+  if (p >= 0) return `<i class="emo-art mf emo-${k}" style="background-position:${p * 100 / 3}% ${emoG(look) === 'f' ? 100 : 0}%"></i>`;
+  const n = EMO_KEYS.indexOf(k); return n < 0 ? '' : `<i class="emo-art" style="background-position:${(n % 4) * 100 / 3}% ${Math.floor(n / 4) * 100 / 3}%"></i>`;
+};
 
 // Части корпуса: нос, середина, корма — чтобы корабль выглядел кораблём, а не набором квадратов
 // Поле 10×10. kind: 'opp' — по нему стреляю я; 'me' — мой флот и выстрелы соперника
@@ -4735,7 +4746,7 @@ function renderEmoteLayer(v) {
   const one = (who, look) => {
     const e = S.bEmote && S.bEmote[who];
     if (!e || Date.now() > e.until) return '';
-    const em = emoArt(e.e), label = EMOTES[e.e] || '';
+    const em = emoArt(e.e, look), label = EMOTES[e.e] || '';
     // Экран боя перерисовывается каждую секунду: без отрицательной задержки анимация начиналась заново
     // и пузырь «выскакивал» второй раз. Продолжаем с того места, где она была
     const gone = Math.max(0, Date.now() - (e.until - 3200));
@@ -4745,7 +4756,7 @@ function renderEmoteLayer(v) {
 }
 
 function renderEmoteBar() {
-  return `<div class="b-emotes" role="group" aria-label="Реакции">${EMO_PANEL.map((k) => [k, EMOTES[k]]).map(([k, label]) => `<button class="emo" data-act="bemote" data-v="${k}" aria-label="${label}">${emoArt(k)}<span>${label}</span></button>`).join('')}</div>`;
+  return `<div class="b-emotes" role="group" aria-label="Реакции">${EMO_PANEL.map((k) => [k, EMOTES[k]]).map(([k, label]) => `<button class="emo" data-act="bemote" data-v="${k}" aria-label="${label}">${emoArt(k, S.me.look)}<span>${label}</span></button>`).join('')}</div>`;
 }
 
 function renderBattle() {
@@ -5511,7 +5522,8 @@ const SAMPLE_URLS = { bugle: '/sounds/battle.mp3', lose: '/sounds/lose.mp3', vic
   // Морской бой: настоящие записи пушки, взрывов и воды (CC0), по два варианта — чтобы выстрелы не звучали одинаково
   splash: ['/sounds/miss1.mp3', '/sounds/miss2.mp3'], hit: ['/sounds/hit1.mp3', '/sounds/hit2.mp3'], sunk: '/sounds/sunk1.mp3', chicken: '/sounds/resign.mp3', waveBoom: '/sounds/wave_boom.mp3',
   // Реакции в играх: короткие «мультяшные» реплики оркестра — у каждой своя, узнаётся без взгляда на экран
-  ...Object.fromEntries([...EMO_KEYS].map((k) => [`emo_${k}`, `/sounds/emo_${k}.mp3`])) };
+  ...Object.fromEntries([...EMO_KEYS].map((k) => [`emo_${k}`, `/sounds/emo_${k}.mp3`])),
+  ...Object.fromEntries(EMO_PANEL.flatMap((k) => ['m', 'f'].map((g) => [`emo_${k}_${g}`, `/sounds/emo_${k}_${g}.mp3`]))) };
 // Громкость записей подогнана к остальным звукам: кульминации боя громче всего, но не оглушают
 const SAMPLE_VOL = { bugle: 0.62, lose: 0.75, victory: 0.53, fanfare: 0.26, gangHorn: 0.28, splash: 0.3, hit: 0.25, sunk: 0.4, chicken: 0.13,
   emo_lol: 0.157, emo_angry: 0.19, emo_bored: 0.126, emo_smart: 0.155, emo_oops: 0.135, emo_clap: 0.159, emo_mercy: 0.126, emo_easy: 0.31,
@@ -5875,6 +5887,8 @@ const SOUNDS = {
   // Победа в бою и дуэли — живой оркестр; без файла — синтезированные фанфары
   victory: (c) => { if (!playSample(c, 'victory')) SOUNDS.fanfare(c); },
   ...Object.fromEntries([...EMO_KEYS].map((k) => [`emo_${k}`, (c) => { if (!playSample(c, `emo_${k}`)) SOUNDS.vote(c); }])),
+  // Голосовые реакции: не загрузились — играет прежний звук этой реакции
+  ...Object.fromEntries(EMO_PANEL.flatMap((k) => ['m', 'f'].map((g) => [`emo_${k}_${g}`, (c) => { if (!playSample(c, `emo_${k}_${g}`, 0.85)) SOUNDS[`emo_${k}`](c); }]))),
   // Гудок банды из Лавки: боевой рог — валторны с тубой
   gangHorn: (c) => { if (!playSample(c, 'gangHorn')) SOUNDS.waveHorn(c); },
   fanfare: (c) => {
@@ -7090,8 +7104,8 @@ const actions = {
     if (S.bEmoteAt && Date.now() - S.bEmoteAt < 2500) return;
     S.bEmoteAt = Date.now();
     S.bEmote = { ...(S.bEmote || {}), mine: { e, until: Date.now() + 3200 } };
-    emoSfx(e); render(); setTimeout(() => { if (S.battle || S.practice) render(); }, 3300);
-    if (prSea()) { if (Math.random() < 0.5) prBotEmote(['lol', 'clap', 'bored', 'easy', 'mercy']); return; }
+    emoSfx(e, S.me.look); render(); setTimeout(() => { if (S.battle || S.practice) render(); }, 3300);
+    if (prSea()) { if (Math.random() < 0.5) prBotEmote(['lol', 'clap', 'angry', 'mercy']); return; }
     post(`/api/battle/${S.battle}/emote`, { e }).catch(() => {});
   },
   bshuffle: () => run(async () => { if (prSea() && S.practice.server) { await prMove({ shuffle: true }); sfx('pick'); return; } if (prSea()) { PR.seaShuffle(S.practice.st); sfx('pick'); setBattleView(PR.seaView(S.practice.st, prScore('sea'))); return; } setBattleView(await post(`/api/battle/${S.battle}/shuffle`)); }),
@@ -8112,7 +8126,7 @@ function renderJoined() {
       ${isStandalone() ? '' : '<p class="small" style="margin:0">Иконку на экран можно добавить потом — с ней Этаж открывается одним касанием.</p>'}`
     : st === 'install' ? `<p class="sub" style="margin:0"><b>На iPhone уведомления приходят только с иконки на экране.</b> Это полминуты, из магазина приложений ничего не скачивается. После этого открой Этаж с иконки и войди ещё раз по той же почте.</p>${renderInstall()}`
     : '<p class="small" style="margin:0">Уведомления в этом браузере выключены или не поддерживаются. Включить их можно в профиле.</p>';
-  return `${g ? `<p class="sub" style="margin-top:0">«${esc(g.name)}» — теперь видно, кто из своих когда в офисе.</p>` : ''}
+  return `<div class="joined-bell">${sect('bell', 72)}</div>${g ? `<p class="sub" style="margin-top:0">«${esc(g.name)}» — теперь видно, кто из своих когда в офисе.</p>` : ''}
     ${best}
     <p class="sub" style="margin:0">${why}</p>
     ${S.error ? `<div class="err">${esc(S.error)}</div>` : ''}
