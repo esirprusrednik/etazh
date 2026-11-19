@@ -198,7 +198,7 @@ public/art/rps.webp
 public/art/shake.webp
 public/art/shield.webp
 public/art/emo.webp
-public/art/emo_mf.webp
+public/art/emo_fish.webp
 public/art/sect.webp
 public/art/gull.webp
 public/art/climb/boy.jpg

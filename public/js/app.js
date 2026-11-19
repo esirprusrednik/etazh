@@ -4618,19 +4618,19 @@ function renderBattleInvite(f) {
 
 const B_COLS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К'];
 // Реакции в бою: пластилиновые рожицы из одного атласа 4×2 (/art/emo.webp), порядок — как ключи
-const EMOTES = { lol: 'Ха-ха!', angry: 'Ну всё!', bored: 'Скукота', smart: 'Умный ход', oops: 'Ой-ой', clap: 'Красиво, спасибо!', mercy: 'Обидно…', easy: 'Изи',
+const EMOTES = { lol: 'Ха-ха!', angry: 'А-а-а!', bored: 'Скукота', smart: 'Умный ход', oops: 'Ой-ой', clap: 'Мгм!', mercy: 'У-у-у…', easy: 'Изи',
   sink: 'Буль-буль', miss: 'Мимо!', gull: 'Моё!', boom: 'Попал!', hmm: 'Хм…', bye: 'Пока-пока', rage: 'Псих', wait: 'Ходи уже' };
-// На панели четыре реакции, по одной на чувство: насмешка, слёзы, злость и благодарность сопернику.
-// Остальные рожицы остались в атласе, чтобы реакция от старой версии приложения показалась как надо
+// На панели четыре реакции-рыбы: смеётся, плачет, кричит, одобрительно хмыкает. Рыба одна для всех, а голос —
+// без слов и по полу отправителя: мужской или женский. Прежние рожицы остались в атласе для реакций от старых версий
 const EMO_PANEL = ['lol', 'mercy', 'angry', 'clap'];
 // У четырёх реакций панели свой голос и своя рожица для м и ж: кто отправил, тем голосом и звучит
 const emoG = (look) => gw(look, 'm', 'f');
 const emoSfx = (k, look) => sfx(EMO_PANEL.includes(k) ? `emo_${k}_${emoG(look)}` : `emo_${k}`);
 const EMO_KEYS = Object.keys(EMOTES);
-const emoArt = (k, look) => {
+const emoArt = (k) => {
   const p = EMO_PANEL.indexOf(k);
-  // Атлас /art/emo_mf.webp: 4 столбца — смех, слёзы, злость, спасибо; верхний ряд — он, нижний — она
-  if (p >= 0) return `<i class="emo-art mf emo-${k}" style="background-position:${p * 100 / 3}% ${emoG(look) === 'f' ? 100 : 0}%"></i>`;
+  // Атлас /art/emo_fish.webp, 4 в ряд: смех, слёзы, крик, одобрение
+  if (p >= 0) return `<i class="emo-art mf emo-${k}" style="background-position:${p * 100 / 3}% 0"></i>`;
   const n = EMO_KEYS.indexOf(k); return n < 0 ? '' : `<i class="emo-art" style="background-position:${(n % 4) * 100 / 3}% ${Math.floor(n / 4) * 100 / 3}%"></i>`;
 };
 
@@ -4746,17 +4746,17 @@ function renderEmoteLayer(v) {
   const one = (who, look) => {
     const e = S.bEmote && S.bEmote[who];
     if (!e || Date.now() > e.until) return '';
-    const em = emoArt(e.e, look), label = EMOTES[e.e] || '';
+    const em = emoArt(e.e), label = EMOTES[e.e] || '';
     // Экран боя перерисовывается каждую секунду: без отрицательной задержки анимация начиналась заново
     // и пузырь «выскакивал» второй раз. Продолжаем с того места, где она была
     const gone = Math.max(0, Date.now() - (e.until - 3200));
-    return `<div class="emo-float ${who}" style="animation-delay:-${gone}ms"><span class="emo-mini">${avatar(look, 30)}</span><span class="emo-bubble"><b style="animation-delay:${150 - gone}ms">${em}</b><span>${esc(label)}</span></span></div>`;
+    return `<div class="emo-float ${who}" style="animation-delay:-${gone}ms"><span class="emo-mini">${avatar(look, 30)}</span><span class="emo-bubble"><b style="animation-delay:${150 - gone}ms">${em}</b>${EMO_PANEL.includes(e.e) ? '' : `<span>${esc(label)}</span>`}</span></div>`;
   };
   return one('opp', v.opp.look) + one('mine', S.me.look);
 }
 
 function renderEmoteBar() {
-  return `<div class="b-emotes" role="group" aria-label="Реакции">${EMO_PANEL.map((k) => [k, EMOTES[k]]).map(([k, label]) => `<button class="emo" data-act="bemote" data-v="${k}" aria-label="${label}">${emoArt(k, S.me.look)}<span>${label}</span></button>`).join('')}</div>`;
+  return `<div class="b-emotes" role="group" aria-label="Реакции">${EMO_PANEL.map((k) => [k, EMOTES[k]]).map(([k, label]) => `<button class="emo" data-act="bemote" data-v="${k}" aria-label="${{ lol: 'Смеюсь', mercy: 'Плачу', angry: 'Кричу', clap: 'Одобряю' }[k]}">${emoArt(k)}</button>`).join('')}</div>`;
 }
 
 function renderBattle() {

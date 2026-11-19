@@ -3040,7 +3040,12 @@ button:not(.bc):not(:disabled):active { transform: scale(.97); }
 @media (prefers-reduced-motion: reduce) { button { transition: none; } button:active { transform: none !important; } .unfold, .occ-res.unfold .occ-bar i { animation: none; } }
 
 /* ---------- Рожицы морского боя: он и она, у каждой эмоции своё движение ---------- */
-.emo-art.mf { background-image: url(/art/emo_mf.webp); background-size: 400% 200%; }
+.emo-art.mf { background-image: url(/art/emo_fish.webp); background-size: 400% 100%; }
+/* Панель реакций: четыре равные кнопки во всю ширину, рыба по центру */
+.b-emotes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0 16px 12px; padding: 8px; border-radius: 20px; overflow: visible; }
+.emo { display: grid; place-items: center; height: 64px; padding: 0; border-radius: 14px; }
+.emo .emo-art { width: 52px; height: 52px; }
+@media (max-width: 380px) { .emo { height: 56px; } .emo .emo-art { width: 44px; height: 44px; } }
 .emo-bubble b { animation: none; }
 .emo-bubble b .emo-art.emo-lol { animation: emoLol .42s ease-in-out infinite; transform-origin: 50% 85%; }
 .emo-bubble b .emo-art.emo-mercy { animation: emoCry 1.1s ease-in-out infinite; transform-origin: 50% 100%; }
