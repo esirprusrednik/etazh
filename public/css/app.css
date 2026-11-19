@@ -2973,3 +2973,9 @@ main > .chats-hint { margin: 0 6px; text-align: center; }
 
 .inv-santa { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: var(--tint-r); color: var(--tint-r-fg); font-size: 14px; line-height: 1.35; }
 .inv-santa > :first-child { flex: none; }
+
+/* ---------- Гость Тайного Санты ---------- */
+.sg-keep { display: grid; gap: 10px; padding: 12px 14px; border-radius: 14px; background: var(--tint-y); color: var(--tint-y-fg); font-size: 14px; line-height: 1.4; }
+.sg-target { display: grid; gap: 4px; padding: 12px 14px; border-radius: 14px; background: var(--s1); }
+.sg-target b { font-size: 22px; }
+.sg-target p { margin: 0; font-weight: 700; }

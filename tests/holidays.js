@@ -50,7 +50,7 @@ function startServer(day, dir0) {
     }
   }
   const ready = (async () => { for (let i = 0; i < 150; i++) { try { if ((await fetch(BASE + "/healthz")).ok) return; } catch {} await new Promise((r) => setTimeout(r, 100)); } throw new Error('server did not start\n' + log); })();
-  return { Client, ready, stop: () => proc.kill(), log: () => log, dir };
+  return { Client, ready, stop: () => proc.kill(), log: () => log, dir, BASE };
 }
 
 (async () => {
@@ -140,6 +140,25 @@ function startServer(day, dir0) {
       assert.equal((await D.post(`/api/gangs/${g.id}/santa/join`, { wish: 'Самокат' })).json.wish, 'Носки', 'вернулся — пожелание прежнее');
       await D.post(`/api/gangs/${g.id}/santa/leave`);
       assert.equal((await A.get(`/api/gangs/${g.id}/santa`)).json.status, 'open', 'до 4 декабря жеребьёвки нет');
+      // Гость без аккаунта: имя, пожелание и согласие — в ответ личная ссылка, по ней он вернётся
+      const J = { 'Content-Type': 'application/json' };
+      const pub = async (base, path, body) => { const r = await fetch(base + path, body ? { method: 'POST', headers: J, body: JSON.stringify(body) } : {}); return { status: r.status, json: await r.json() }; };
+      const gl = (await B.post(`/api/gangs/${g.id}/santa/guest-link`)).json.link;
+      const gt = gl.split('/').pop();
+      assert.equal((await fetch(gl, { redirect: 'manual' })).headers.get('location'), `/#santa=${gt}`);
+      const inv = (await pub(s1.BASE, `/api/santa-invite/${gt}`)).json;
+      assert.equal(inv.count, 3); assert.equal(inv.budget, 500); assert.ok(!JSON.stringify(inv).includes('Люблю чай'), 'чужих пожеланий на приглашении нет');
+      assert.equal((await pub(s1.BASE, `/api/santa-invite/${gt}/join`, { name: 'Гость Телеграмов', wish: 'Хороший кофе' })).status, 400, 'без согласия нельзя');
+      assert.equal((await pub(s1.BASE, `/api/santa-invite/${gt}/join`, { name: 'Гость Телеграмов', wish: '', consent: true })).status, 400, 'без пожелания нельзя');
+      const gj = (await pub(s1.BASE, `/api/santa-invite/${gt}/join`, { name: 'Гость Телеграмов', wish: 'Хороший кофе', consent: true })).json;
+      assert.match(gj.code, /^[A-Z0-9]{14}$/); assert.ok(gj.link.endsWith('/sg/' + gj.code));
+      assert.equal((await pub(s1.BASE, `/api/santa-invite/${gt}/join`, { name: 'гость телеграмов', wish: 'Ещё кофе', consent: true })).status, 400, 'дважды под одним именем не записаться');
+      const gv0 = (await pub(s1.BASE, `/api/santa-guest/${gj.code}`)).json;
+      assert.equal(gv0.status, 'open'); assert.equal(gv0.target, null); assert.equal(gv0.count, 4);
+      assert.equal((await pub(s1.BASE, '/api/santa-guest/AAAAAAAAAAAAAA')).status, 404);
+      const sv = (await A.get(`/api/gangs/${g.id}/santa`)).json;
+      assert.deepEqual(sv.guests.map((x) => x.name), ['Гость Телеграмов']); assert.equal(sv.count, 4);
+      assert.equal((await B.post(`/api/gangs/${g.id}/santa/guests/${sv.guests[0].id}/remove`)).status, 400, 'убрать гостя может только владелец');
       // Наступило 4 декабря: тот же сервер с той же базой, жеребьёвку проводит таймер
       s1.stop(); await new Promise((r) => setTimeout(r, 400));
       s1b = startServer('2026-12-04', s1.dir); await s1b.ready;
@@ -151,10 +170,18 @@ function startServer(day, dir0) {
         const w = (await x.get(`/api/gangs/${g.id}/santa`)).json;
         assert.equal(w.status, 'drawn');
         assert.ok(w.target && w.target.id !== x.id, 'никто не дарит себе');
-        assert.equal(w.target.wish, wishes[w.target.id]);
-        targets.push(w.target.id);
+        if (w.target.guest) assert.equal(w.target.wish, 'Хороший кофе'); else assert.equal(w.target.wish, wishes[w.target.id]);
+        targets.push(w.target.nick);
       }
-      assert.equal(new Set(targets).size, 3, 'у каждого ровно один Санта');
+      // Гость в том же круге: у него тоже есть подопечный, и ровно один участник дарит ему
+      const gv = (await pub(s1b.BASE, `/api/santa-guest/${gj.code}`)).json;
+      assert.equal(gv.status, 'drawn'); assert.ok(gv.target && gv.target.name !== 'Гость Телеграмов' && gv.target.wish);
+      targets.push(gv.target.name);
+      assert.equal(new Set(targets).size, 4, 'у каждого ровно один Санта');
+      assert.equal(targets.filter((n) => n === 'Гость Телеграмов').length, 1, 'гостю дарит ровно один');
+      assert.equal((await pub(s1b.BASE, `/api/santa-guest/${gj.code}/leave`, {})).status, 400, 'после жеребьёвки гость не выходит');
+      assert.equal((await pub(s1b.BASE, `/api/santa-guest/${gj.code}/gifted`, {})).json.myGifted, true);
+      assert.equal((await pub(s1b.BASE, `/api/santa-invite/${gt}`)).status, 404, 'после жеребьёвки ссылка для гостей закрыта');
       assert.equal((await A2.get(`/api/gangs/${g.id}/santa`)).json.budget, 500);
       const ib = (await B2.get('/api/inbox')).json.items;
       assert.ok(ib.some((x) => x.kind === 'santa' && /Подарок для/.test(x.title)), 'после жеребьёвки — напоминание о подарке');
@@ -163,7 +190,7 @@ function startServer(day, dir0) {
       assert.equal((await D2.post(`/api/gangs/${g.id}/santa/join`, { wish: 'х' })).status, 400, 'после жеребьёвки не записаться');
       assert.equal((await A2.post(`/api/gangs/${g.id}/santa/leave`)).status, 400);
       await B2.post(`/api/gangs/${g.id}/santa/gifted`);
-      assert.equal((await A2.get(`/api/gangs/${g.id}/santa`)).json.gifted, 1);
+      assert.equal((await A2.get(`/api/gangs/${g.id}/santa`)).json.gifted, 2, 'подарок гостя и подарок участника');
       const chat = (await A2.get(`/api/gangs/${g.id}`)).json;
       assert.ok(chat.messages.some((m) => /жеребьёвка прошла/.test(m.text || '')));
     });

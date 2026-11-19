@@ -94,6 +94,11 @@ const server = http.createServer(async (req, res) => {
     // Личное приглашение на неделю: etazh.example.ru/i/ХХХХХХХХХХХХ — до входа показывает, кто когда в офисе
     const pi = /^\/i\/([A-Za-z0-9]{12})$/.exec(pathname);
     if (pi) return send(res, 302, '', { Location: `/#inv=${pi[1].toUpperCase()}`, 'Cache-Control': 'no-store' });
+    // Тайный Санта для гостей: /s/… — записаться, /sg/… — личная ссылка гостя
+    const ps = /^\/s\/([A-Za-z0-9]{12})$/.exec(pathname);
+    if (ps) return send(res, 302, '', { Location: `/#santa=${ps[1].toUpperCase()}`, 'Cache-Control': 'no-store' });
+    const pg = /^\/sg\/([A-Za-z0-9]{14})$/.exec(pathname);
+    if (pg) return send(res, 302, '', { Location: `/#sg=${pg[1].toUpperCase()}`, 'Cache-Control': 'no-store' });
     // Приглашение гостя на событие банды: etazh.example.ru/e/ХХХХХХХХХХХХ
     const pe = /^\/e\/([A-Za-z0-9]{12})$/.exec(pathname);
     if (pe) return send(res, 302, '', { Location: `/#ev=${pe[1].toUpperCase()}`, 'Cache-Control': 'no-store' });

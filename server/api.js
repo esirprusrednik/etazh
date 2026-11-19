@@ -1861,7 +1861,7 @@ function createApi(db) {
   require('./ava').register({ route, requireUser, bad, U });
 
   // ---------- Праздники: Тайный Санта банды и адвент-календарь ----------
-  santa = require('./santa').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
+  santa = require('./santa').register({ db, q, route, requireUser, bad, U, rateLimit, config, isMember, gangMembers, notify, fireAndForget, HttpError, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   advent = require('./advent').register({ db, q, route, requireUser, bad, U, config, addBeans, workdayName: weekdayName, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
 
   // ---------- Подельники: личные контакты ----------

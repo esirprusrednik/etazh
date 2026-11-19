@@ -1978,6 +1978,45 @@ function loginInstallHint() {
     <span>Этаж — это сайт, он открывается в браузере. Из магазина приложений ничего не скачивается.</span>
     <details class="login-inst-how"><summary>Хочу иконку на экране и уведомления</summary><p class="small" style="margin:8px 0">Необязательно. С иконкой Этаж открывается одним касанием и присылает зовы на кофе и обед.${isIOS() ? ' На iPhone удобнее добавить иконку до входа: иначе войти придётся дважды.' : ''}</p>${renderInstall()}</details></div>`;
 }
+// Гость Тайного Санты: без аккаунта. Сначала форма (имя, пожелание), потом его личная страница:
+// до жеребьёвки — «ты записан» и ссылка, которую надо сохранить; после — кому дарить
+function renderSantaGuest() {
+  const gift = '<img src="/art/ny/gift.webp" width="56" height="62" alt="">';
+  const v = S.sgInv;
+  if (v && v.data) {
+    const d = v.data;
+    return `<div class="card inv sgx"><div class="inv-head">${gift}<div><b>Тайный Санта в «${esc(d.gang.name)}»</b><span class="small">${d.from ? `зовёт ${esc(d.from)} · ` : ''}записалось ${d.count}</span></div></div>
+      <p class="sub" style="margin:0">Каждый тайно дарит подарок одному из участников, до ${d.budget} ₽. Кому — решит жеребьёвка ${dayHuman(d.drawDay)}.</p>
+      <label class="field">Имя и фамилия<input id="sg-name" maxlength="40" autocomplete="name" placeholder="Так, как тебя знают свои" value="${esc(v.name || '')}"></label>
+      <label class="field">Чего ты хочешь<textarea id="sg-wish" maxlength="200" rows="2" placeholder="Люблю чай и настолки, сладкое не дарите">${esc(v.wish || '')}</textarea></label>
+      <p class="small" style="margin:0"><b>Одна попытка.</b> После отправки пожелание не изменить.</p>
+      <label class="check"><input id="sg-ok" type="checkbox" ${v.ok ? 'checked' : ''}> <span>Согласен, что участники увидят моё имя, а мой Санта — пожелание. Всё сотрётся после 15 января — <a href="/privacy.html" target="_blank" rel="noopener">подробнее</a></span></label>
+      ${v.error ? `<div class="err">${esc(v.error)}</div>` : ''}
+      <button class="btn wide" data-act="sg-join" ${S.busy ? 'disabled' : ''}>Участвую</button>
+      <p class="small" style="margin:0">Регистрация не нужна, ставить ничего не нужно.</p></div>`;
+  }
+  const g = S.sg;
+  if (!g || !g.data) return '';
+  const d = g.data;
+  const keep = `<div class="sg-keep"><b>Сохрани свою ссылку.</b> Это единственный способ узнать ${dayHuman(d.drawDay)}, кому ты даришь: аккаунта у тебя нет, напомнить мы не сможем.
+      <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn small" data-act="sg-send">Отправить себе</button><button class="btn small ghost" data-act="sg-copy">Скопировать</button></div></div>`;
+  let body;
+  if (d.status === 'drawn') {
+    body = d.target ? `<div class="sg-target"><span class="small">Ты даришь</span><b>${esc(d.target.name)}</b><p>${d.target.wish ? `«${esc(d.target.wish)}»` : 'Пожелания нет — придётся угадывать.'}</p><span class="small">Бюджет — до ${d.budget} ₽</span></div>
+        ${d.myGifted ? '<div class="note good" style="margin:0">Подарок вручён</div>' : '<button class="btn wide" data-act="sg-gifted">Подарок вручён</button>'}
+        <p class="small" style="margin:0">Вручено ${d.gifted} из ${d.count}. Кто дарит тебе — секрет до самого вручения.</p>`
+      : '<p class="sub" style="margin:0">Жеребьёвка прошла, но подопечного у тебя нет. Напиши тому, кто позвал.</p>';
+  } else if (d.status === 'cancelled') {
+    body = '<p class="sub" style="margin:0">Тайный Санта в этом году не состоялся: записалось слишком мало людей.</p>';
+  } else {
+    body = `<div class="note good" style="margin:0"><b>${esc(d.name)}, ты в игре.</b> Записалось ${d.count}. Жеребьёвка — ${dayHuman(d.drawDay)}.</div>
+      <div class="sg-target"><span class="small">Твоё пожелание</span><p>«${esc(d.wish)}»</p></div>
+      ${g.link ? keep : ''}
+      <button class="linkbtn" data-act="sg-leave" style="justify-self:start">Не участвую — убрать меня</button>`;
+  }
+  return `<div class="card inv sgx"><div class="inv-head">${gift}<div><b>Тайный Санта в «${esc(d.gang.name)}»</b><span class="small">ты участвуешь как гость</span></div></div>${body}
+    <p class="small" style="margin:0">Хочешь видеть, кто из своих когда в офисе, и получать напоминания? Войди по рабочей почте ниже.</p></div>`;
+}
 // Гость события: человек без аккаунта открыл ссылку. Видит событие и число идущих, оставляет имя.
 // Вход — следующий шаг и только по желанию: там имена, чат и кто когда в офисе
 const guestKey = () => { let k = store.get('guestKey', null); if (!k) { k = Array.from(crypto.getRandomValues(new Uint8Array(18)), (b) => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join(''); store.set('guestKey', k); } return k; };
@@ -2094,18 +2133,18 @@ function renderLogin() {
       <div class="land-r">
         <div class="card land-qr">${qr ? '<img src="/art/land/qr-moietazh.svg" width="132" height="132" alt="QR-код: открыть Этаж на телефоне">' : ''}
           <div><b>Открой на телефоне</b><span>${qr ? 'Наведи камеру на код. ' : ''}Этаж сделан для телефона: туда приходят зовы на кофе и обед.</span><span class="land-host">${esc(location.host)}</span></div></div>
-        ${renderEventInvite() || renderInvite()}
+        ${renderSantaGuest() || renderEventInvite() || renderInvite()}
         ${form}
         <p class="small land-note">С компьютера войти тоже можно, но уведомления сюда не придут.</p>
       </div>
     </div>`;
   }
-  const inv = renderEventInvite() || renderInvite();
+  const inv = renderSantaGuest() || renderEventInvite() || renderInvite();
   return `<div class="onb">
     <div class="logo">Этаж<span>.</span><em class="logo-beta">β-тест</em></div>
     ${inv || '<p class="sub">Видно, кто из твоих сегодня в офисе. Позвать на кофе или обед — одна кнопка. Неофициальное приложение для своих.</p>'}
     ${inv && S.invite && S.invite.plan && Object.keys(S.invite.plan).length ? '<p class="sub" style="margin:0">Войди по рабочей почте — увидишь имена и сможешь позвать на обед.</p>' : ''}
-    ${S.evInv && S.evInv.data && !S.evInv.data.mine && !S.evInv.login ? '<button class="linkbtn" data-act="evi-login" style="align-self:center">Уже есть аккаунт? Войти</button>' : `${form}
+    ${((S.evInv && S.evInv.data && !S.evInv.data.mine) || (S.sgInv && S.sgInv.data)) && !S.guestLogin ? '<button class="linkbtn" data-act="evi-login" style="align-self:center">Уже есть аккаунт? Войти</button>' : `${form}
     ${loginInstallHint()}`}
     ${about}
   </div>`;
@@ -3007,8 +3046,11 @@ const nyDeco = () => '<div class="ny-deco" aria-hidden="true"><img class="ny-fir
 // Санта должен вернуться, узнать подопечного и отметить подарок, а без входа это держится на одном браузере
 function santaShare(s) {
   const g = S.gang && S.gang.gang;
-  if (!s.regOpen || !g || !g.canInvite) return '';
-  return `<button class="btn ghost" data-act="santa-share">Позвать в Санту по ссылке</button><span class="small sx-c">Ссылку можно пересылать. Чтобы участвовать, человек входит по рабочей почте — так Санта узнает, кому дарит.</span>`;
+  const guests = (s.guests || []).length ? `<p class="small sx-c">Гости: ${s.guests.map((x) => `${esc(x.name)}${s.canRemoveGuest ? ` <button class="linkbtn" data-act="santa-guest-del" data-v="${x.id}" aria-label="Убрать гостя ${esc(x.name)}">✕</button>` : ''}`).join(', ')}</p>` : '';
+  if (!s.regOpen || !g || !g.canInvite) return guests;
+  const link = S.santaLink && S.santaLink[g.id];
+  return `${guests}${link ? '<button class="btn ghost" data-act="santa-share">Отправить ссылку гостям</button>' : '<button class="btn ghost" data-act="santa-link">Позвать гостей — без регистрации</button>'}
+    <span class="small sx-c">Для тех, кого нет в Этаже: имя и пожелание, больше ничего. Ссылку можно пересылать, она работает до жеребьёвки.</span>`;
 }
 function renderSanta() {
   const s = S.santa;
@@ -6807,13 +6849,39 @@ const actions = {
     try { v.data = await post(`/api/event-invite/${v.token}/go`, { name: v.name, key: guestKey(), consent: true }); sfx('confirm'); } catch (e) { v.error = e.message; }
     S.busy = false; render();
   },
-  'evi-login'() { S.evInv.login = true; render(); },
+  'evi-login'() { S.guestLogin = true; render(); },
   'evi-leave': async () => { const v = S.evInv; if (!v) return; try { v.data = await post(`/api/event-invite/${v.token}/leave`, { key: guestKey() }); } catch { /* ссылка могла устареть */ } render(); },
-  'santa-share': async () => {
-    const g = S.gang && S.gang.gang; if (!g) return;
-    const link = await inviteLink(g.id);
-    if (!link) return toast('Не получилось сделать ссылку. Попробуй ещё раз чуть позже');
-    await shareLink(`Тайный Санта в «${g.name}»: запись до ${ddmm(S.santa.drawDay)}, подарок до ${S.santa.budget} ₽. Записывайся — это сайт, ставить ничего не нужно`, link);
+  'santa-link': () => run(async () => { const gid = S.gang.gang.id; const r = await post(`/api/gangs/${gid}/santa/guest-link`); S.santaLink = { ...(S.santaLink || {}), [gid]: r.link }; }),
+  async 'santa-share'() {
+    const g = S.gang && S.gang.gang, link = g && S.santaLink && S.santaLink[g.id];
+    if (link) await shareLink(`Тайный Санта в «${g.name}»: запись до ${ddmm(S.santa.drawDay)}, подарок до ${S.santa.budget} ₽. Регистрация не нужна — только имя и пожелание`, link);
+  },
+  'santa-guest-del': (el) => run(async () => {
+    if (!confirmInline('santa-g' + el.dataset.v, 'Нажми ещё раз — гость выбывает из Санты')) return;
+    S.santa = await post(`/api/gangs/${S.activeGang}/santa/guests/${el.dataset.v}/remove`);
+  }),
+  // Гость Санты: записаться, отметить подарок, выйти
+  'sg-join': async () => {
+    const v = S.sgInv; if (!v) return;
+    v.name = ($('#sg-name') || {}).value || ''; v.wish = ($('#sg-wish') || {}).value || ''; v.ok = !!($('#sg-ok') || {}).checked; v.error = '';
+    if (v.name.trim().length < 2) { v.error = 'Напиши имя и фамилию'; return render(); }
+    if (v.wish.trim().length < 3) { v.error = 'Напиши пожелание — пару слов о том, что любишь'; return render(); }
+    if (!v.ok) { v.error = 'Отметь согласие — без него записать нельзя'; return render(); }
+    S.busy = true; render();
+    try {
+      const r = await post(`/api/santa-invite/${v.token}/join`, { name: v.name, wish: v.wish, consent: true });
+      store.set('santaGuest', r.code); S.sgInv = null;
+      S.sg = { code: r.code, link: r.link, fresh: true, data: await get('/api/santa-guest/' + r.code) }; sfx('confirm');
+    } catch (e) { v.error = e.message; }
+    S.busy = false; render();
+  },
+  'sg-copy'() { try { navigator.clipboard.writeText(S.sg.link).then(() => toast('Ссылка скопирована — отправь её себе')); } catch { /* скопируют руками */ } },
+  async 'sg-send'() { await shareLink('Моя ссылка Тайного Санты — открыть 4 декабря', S.sg.link); },
+  'sg-gifted': async () => { try { S.sg.data = await post(`/api/santa-guest/${S.sg.code}/gifted`, {}); sfx('confirm'); } catch (e) { toast(e.message); } render(); },
+  'sg-leave': async () => {
+    if (!confirmInline('sg-leave', 'Нажми ещё раз — запись и пожелание удалятся')) return;
+    try { await post(`/api/santa-guest/${S.sg.code}/leave`, {}); store.set('santaGuest', null); S.sg = null; toast('Ты вышел из Санты'); } catch (e) { toast(e.message); }
+    render();
   },
   'inv-day'(el) {
     const p = { ...(S.invite.plan || {}) };
@@ -8342,6 +8410,16 @@ async function boot() {
   const openFeedback = hash === '#feedback';
   const join = /^#(?:join|inv)=([A-Z0-9]{6}|[A-Z0-9]{12})$/i.exec(hash);
   if (join) store.set('pendingJoin', join[1]);
+  // Тайный Санта для гостей: #santa=… — форма записи, #sg=… или сохранённый код — личная страница гостя
+  if (!S.me) {
+    const st = (/^#santa=([A-Z0-9]{12})$/i.exec(hash) || [])[1];
+    const code = (/^#sg=([A-Z0-9]{14})$/i.exec(hash) || [])[1] || store.get('santaGuest', null);
+    if (code) {
+      try { S.sg = { code, link: `${location.origin}/sg/${code}`, data: await get('/api/santa-guest/' + code) }; store.set('santaGuest', code); }
+      catch { if (!/^#sg=/i.test(hash)) store.set('santaGuest', null); else toast('Такой записи нет — проверь ссылку'); }
+    }
+    if (st && !S.sg) { try { S.sgInv = { token: st, data: await get('/api/santa-invite/' + st), name: '', wish: '', ok: false }; } catch { toast('Запись по этой ссылке закрыта'); } }
+  }
   // Приглашение гостя на событие: без входа — страница события; вошедшему — привязываем запись и ведём к банде
   const evTok = (/^#ev=([A-Z0-9]{12})$/i.exec(hash) || [])[1] || (!S.me && store.get('pendingEvent', null));
   if (evTok && !S.me) {
