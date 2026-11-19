@@ -2393,7 +2393,7 @@ function renderStatusBlock() {
       <h2>${['home', 'vacation', 'sick', 'slack'].includes(st.presence.where) ? 'Всё-таки в офисе?' : 'Где ты сегодня?'}</h2>
       ${st.presence.where === 'idle' ? `<p class="sub st-joke">Пока банда видит про тебя: <b>«${esc((S.cat.idleJokes || [])[st.presence.joke] || 'в астрале')}»</b></p>` : ''}
       ${officePicker()}
-      ${['home', 'vacation', 'sick', 'slack'].includes(st.presence.where) ? '' : `<button class="office-more away-btn" data-act="away-toggle" aria-expanded="${!!S.awayOpen}"><span class="grow">Не в офисе</span><span class="small">дом, отпуск, болею</span><span aria-hidden="true">${S.awayOpen ? '⌃' : '⌄'}</span></button>
+      ${['home', 'vacation', 'sick', 'slack'].includes(st.presence.where) ? '' : `<button class="office-more away-btn" data-act="away-toggle" aria-expanded="${!!S.awayOpen}"><span class="grow">Не в офисе</span><span class="small">дом, отпуск, болею</span><span class="pm" aria-hidden="true">${S.awayOpen ? '−' : '+'}</span></button>
       ${S.awayOpen ? `<div class="today-grid">
         <button class="btn ghost" data-act="today" data-v="home">home Из дома</button>
         <button class="btn ghost" data-act="open" data-v="sick">thermo Болею</button>
@@ -3187,7 +3187,7 @@ function collapseAll() {
 function renderComp() {
   const t = S.tour;
   if (!compOpen()) return `<button class="st-strip comp-strip" data-act="comp-toggle" aria-expanded="false"><span class="st-ico">${art('trophy', 26)}</span><span class="grow"><b>Соревнования банд</b><span class="small">Лига${t ? ' · ' + esc(t.title) : ''}</span></span><span class="chev" aria-hidden="true">›</span></button>`;
-  return `<button class="g-group comp-head" data-act="comp-toggle" aria-expanded="true">Соревнования банд <span aria-hidden="true">⌃</span></button>
+  return `<button class="g-group comp-head" data-act="comp-toggle" aria-expanded="true">Соревнования банд <span class="pm" aria-hidden="true">−</span></button>
     ${renderLeagueCard()}
     ${renderTourCard()}`;
 }
@@ -3588,9 +3588,9 @@ function renderGEvents() {
 const SECT = ['cal', 'vote', 'books', 'pin', 'bell', 'invite', 'office', 'pad', 'bag'];
 const sect = (name, size = 44) => { const n = SECT.indexOf(name); return `<i class="sect-art" style="width:${size}px;height:${size}px;background-position:${(n % 3) * 50}% ${Math.floor(n / 3) * 50}%" aria-hidden="true"></i>`; };
 // «＋ Что-то» в заголовке раздела: одна и та же пилюля везде
-const addPill = (act, label, attrs = '') => `<button class="addpill" data-act="${act}" ${attrs}>＋ ${label}</button>`;
+const addPill = (act, label, attrs = '') => `<button class="addpill" data-act="${act}" ${attrs}><i aria-hidden="true">+</i>${label}</button>`;
 // Пустой раздел не занимает треть экрана: одна строка — картинка, название, зачем это, плюс. Нажал — создаёшь первое
-const starter = (pic, title, hint, act, attrs = '') => `<button class="starter" data-act="${act}" ${attrs}>${sect(pic, 46)}<span class="grow"><b>${title}</b><span class="small">${hint}</span></span><span class="addpill" aria-hidden="true">${attrs.includes('data-open') ? 'Открыть' : '＋ Создать'}</span></button>`;
+const starter = (pic, title, hint, act, attrs = '') => `<button class="starter" data-act="${act}" ${attrs}>${sect(pic, 46)}<span class="grow"><b>${title}</b><span class="small">${hint}</span></span><span class="addpill" aria-hidden="true">${attrs.includes('data-open') ? 'Открыть' : '<i>+</i>Создать'}</span></button>`;
 // Только что раскрытый блок появляется плавно. Признак живёт один кадр: фоновые перерисовки анимацию не повторяют
 const unfold = (id) => (S.justNow === id ? ' unfold' : '');
 // Галочка-подтверждение по центру экрана: «записано». Для действий, после которых на экране мало что меняется
