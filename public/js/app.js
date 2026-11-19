@@ -4138,23 +4138,7 @@ function renderGangSettings() {
     <div class="row" style="gap:10px"><label class="field" style="width:130px">Лимит людей<input id="gs-max" type="number" min="0" max="30" value="${d.maxMembers || 0}"></label>
       <label class="field grow">Офис банды<select id="gs-office"><option value="">Любой</option>${officeOpts(d.office)}</select></label></div>
     <p class="small" style="margin:0">0 — до 30 человек, это максимум для любой банды.</p>
-    <button class="btn" data-act="gs-save">Сохранить</button>
-    ${renderGangTg()}`;
-}
-// События банды — в её группу в Телеграме. Раздела нет, пока на сервере не подключён бот
-function renderGangTg() {
-  const t = S.gangTg;
-  if (!t || !t.on) return '';
-  const what = 'Тайный Санта, войны банд, встречи, опросы, турнир';
-  if (t.linked) return `<div class="tgbox"><h3>Телеграм</h3>
-    <p class="small" style="margin:0">События банды приходят в группу «${esc(t.linked.title)}»: ${what}. Чат «Этажа», зовы и личка туда не уходят.</p>
-    ${t.owner ? '<button class="linkbtn danger" data-act="tg-unlink">Отключить группу</button>' : ''}</div>`;
-  if (!t.owner) return '';
-  return `<div class="tgbox"><h3>Телеграм</h3>
-    <p class="small" style="margin:0">Если у банды есть группа в Телеграме, туда могут приходить события: ${what}. Только события и только в одну сторону — переписку «Этажа», зовы и личку бот не пересылает, сообщения группы не читает.</p>
-    ${t.code ? `<ol class="tg-steps"><li>Добавь в группу бота ${t.bot ? `<b>@${esc(t.bot)}</b>` : '«Этажа»'}.</li><li>Напиши в группе: <button class="tg-code" data-act="tg-copy" data-v="/etazh ${esc(t.code)}">/etazh ${esc(t.code)}</button></li><li>Бот ответит «Готово». Код живёт 15 минут.</li></ol>
-      <button class="btn small ghost" data-act="tg-check">Проверить</button>`
-      : '<button class="btn small ghost" data-act="tg-code">Подключить группу</button>'}</div>`;
+    <button class="btn" data-act="gs-save">Сохранить</button>`;
 }
 
 function renderGang() {
@@ -6660,18 +6644,8 @@ const actions = {
   'gang-settings': () => run(async () => {
     const g = S.gang.gang;
     S.gset = { name: g.name, emoji: g.emoji, crest: g.crest || null, color: g.color, area: g.area, about: g.about, interests: [...(g.interests || [])], access: g.access, whoInvites: g.whoInvites, maxMembers: g.maxSet, office: g.office };
-    S.sheet = 'gang-settings'; S.gangTg = null;
-    get(`/api/gangs/${g.id}/tg`).then((t) => { S.gangTg = t; if (S.sheet === 'gang-settings') { saveGangForm('set'); render(); } }).catch(() => {});
+    S.sheet = 'gang-settings';
   }),
-  'tg-code': () => run(async () => { saveGangForm('set'); S.gangTg = await post(`/api/gangs/${S.gang.gang.id}/tg/code`); }),
-  'tg-check': () => run(async () => {
-    saveGangForm('set'); const code = S.gangTg && S.gangTg.code;
-    const t = await get(`/api/gangs/${S.gang.gang.id}/tg`);
-    S.gangTg = t.linked ? t : { ...t, code };
-    toast(t.linked ? 'Группа подключена' : 'Пока не видим команды в группе');
-  }),
-  'tg-unlink': () => run(async () => { saveGangForm('set'); S.gangTg = await post(`/api/gangs/${S.gang.gang.id}/tg/unlink`); toast('Группа отключена'); }),
-  'tg-copy'(el) { try { navigator.clipboard.writeText(el.dataset.v).then(() => toast('Команда скопирована')); } catch { /* скопируют руками */ } },
   'gs-save': () => run(async () => {
     saveGangForm('set'); const d = S.gset;
     await post(`/api/gangs/${S.gang.gang.id}/settings`, { name: d.name, emoji: d.emoji, crest: d.crest, color: d.color, area: d.area || null, about: d.about, interests: d.interests, access: d.access, whoInvites: d.whoInvites, maxMembers: Number(d.maxMembers) || 0, office: d.office || null });

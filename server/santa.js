@@ -53,7 +53,7 @@ function register(ctx) {
   const drawDay = (year) => `${year}-12-04`;
   const row = (gid, year) => q('SELECT * FROM santa WHERE gang_id = ? AND year = ?').get(gid, year);
   const ensure = (gid, year) => { q('INSERT OR IGNORE INTO santa (gang_id, year) VALUES (?, ?)').run(gid, year); return row(gid, year); };
-  const chat = (gid, uid, text) => { q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(gid, uid, 'text', text, U.now()); require('./tg').announce(gid, text); };
+  const chat = (gid, uid, text) => q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(gid, uid, 'text', text, U.now());
   const cleanWish = (w) => {
     const t = U.cleanText(w, WISH_MAX) || '';
     const prob = t && U.moderationProblem(t);

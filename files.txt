@@ -91,7 +91,6 @@ server/gangwar.js
 server/wartopics.js
 server/access.js
 server/offices.js
-server/tg.js
 server/botgames.js
 server/duels.js
 server/tourney.js

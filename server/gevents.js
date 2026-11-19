@@ -28,8 +28,6 @@ const EXTRA_DATES = { '05-07': 'День радио — праздник свя�
 
 function register(ctx) {
   const { db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, rateLimit, readProfile, onEvent } = ctx;
-  // Событие банды: строка в чат и, если подключено, в её группу в Телеграме
-  const gsay = (gid, uid, text, at) => { q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(gid, uid, 'text', text, at); require('./tg').announce(gid, text); };
 
   db.exec(`
   CREATE TABLE IF NOT EXISTS gang_events (
@@ -60,7 +58,7 @@ function register(ctx) {
   const sees = (e, uid) => isMember(e.gang_id, uid) || (!!e.guest_gang_id && isMember(e.guest_gang_id, uid));
   const gangOf = (e, uid) => (isMember(e.gang_id, uid) ? e.gang_id : e.guest_gang_id);
   const gname = (id) => (q('SELECT name FROM gangs WHERE id = ?').get(id) || {}).name || '';
-  const chatBoth = (e, uid, text) => { const t = U.now(); for (const gid of [e.gang_id, e.guest_gang_id].filter(Boolean)) gsay(gid, uid, text, t); };
+  const chatBoth = (e, uid, text) => { const t = U.now(); for (const gid of [e.gang_id, e.guest_gang_id].filter(Boolean)) q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(gid, uid, 'text', text, t); };
   const note = (ids, e, kind, text) => {
     const st = q('INSERT OR REPLACE INTO gang_event_notes (user_id, event_id, gang_id, kind, title, text, at) VALUES (?, ?, ?, ?, ?, ?, ?)');
     for (const id of ids) st.run(id, e.id, gangOf(e, id) || e.gang_id, kind, e.title, text, U.now());
@@ -172,11 +170,11 @@ function register(ctx) {
     q('INSERT INTO gang_event_rsvp (event_id, user_id, answer, at) VALUES (?, ?, ?, ?)').run(id, u.id, 'yes', t);
     const k = KINDS[kind];
     const when = `${day.slice(8)}.${day.slice(5, 7)}${time ? ' в ' + time : ''}`;
-    gsay(g.id, u.id, `${k.emoji} Событие: «${title}» — ${when}${guest ? ` вместе с бандой «${guest.name}»` : ''}. Отметься в «Событиях» выше`, t);
+    q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(g.id, u.id, 'text', `${k.emoji} Событие: «${title}» — ${when}${guest ? ` вместе с бандой «${guest.name}»` : ''}. Отметься в «Событиях» выше`, t);
     const others = gangMembers(g.id).filter((m) => m.id !== u.id).map((m) => m.id);
     fireAndForget(notify(others, { title: `${k.emoji} ${g.name}: ${title}`, body: `${when}${place ? ' · ' + place : ''} — ${u.nick} зовёт${guest ? ` вместе с «${guest.name}»` : ''}`, url: `/#gang/${g.id}`, tag: `gevent-${id}` }));
     if (guest) {
-      gsay(guest.id, u.id, `${k.emoji} Банда «${g.name}» зовёт вас: «${title}» — ${when}. Отметься в «Событиях» выше`, t);
+      q('INSERT INTO messages (gang_id, user_id, type, text, at) VALUES (?, ?, ?, ?, ?)').run(guest.id, u.id, 'text', `${k.emoji} Банда «${g.name}» зовёт вас: «${title}» — ${when}. Отметься в «Событиях» выше`, t);
       const gm = gangMembers(guest.id).filter((m) => m.id !== u.id && !others.includes(m.id)).map((m) => m.id);
       fireAndForget(notify(gm, { title: `${k.emoji} «${g.name}» зовёт вашу банду`, body: `${title} — ${when}${place ? ' · ' + place : ''}`, url: `/#gang/${guest.id}`, tag: `gevent-${id}` }));
     }
