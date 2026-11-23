@@ -18,7 +18,7 @@ let lastWin = null;
 let ambientAt = 0;
 let last = 0;
 // Живность: когда в следующий раз появится чайка, рыба, плавник
-const due = { gull: 0, fish: 0, fin: 0, bolt: 0 };
+const due = { gull: 0, fish: 0, fin: 0, bolt: 0, cloud: 0, rare: 0 };
 
 function ensure() {
   if (cv) return;
@@ -44,6 +44,24 @@ function add(p) {
   parts.push(p);
 }
 const later = (ms, fn) => { timers.push(setTimeout(() => { if (active) fn(); }, ms)); };
+
+// ---------- пластилиновые спрайты ----------
+// Два атласа 4×2 (160 px на клетку), нарисованы в стиле кораблей.
+// sea_life: 0 чайка, 1 чайка со взмахом, 2 дельфин, 3 плавник, 4 хвост кита, 5 щупальце, 6 черепаха, 7 облако.
+// sea_fx:   0 взрыв, 1 огненный шар, 2 всплеск, 3 дым, 4 молния, 5 туча, 6 кольцо пены, 7 обломки.
+const IMG = {};
+function img(name) {
+  if (!IMG[name]) { IMG[name] = new Image(); IMG[name].decoding = 'async'; IMG[name].src = `/art/sea_${name}.webp`; }
+  return IMG[name];
+}
+function drawSpr(atlas, i, x, y, size, rot = 0, alpha = 1, flip = 1) {
+  const im = img(atlas); if (!im.complete || !im.naturalWidth || alpha <= 0.01) return;
+  const c = im.naturalWidth / 4;
+  ctx.save(); ctx.translate(x, y); if (rot) ctx.rotate(rot); if (flip < 0) ctx.scale(-1, 1); ctx.globalAlpha = Math.min(1, alpha);
+  ctx.drawImage(im, (i % 4) * c, Math.floor(i / 4) * c, c, c, -size / 2, -size / 2, size, size);
+  ctx.restore(); ctx.globalAlpha = 1;
+}
+const spr = (a, i, o) => add({ k: 'spr', a, i, ...o });
 
 // ---------- что где на экране ----------
 const boardEl = (pre) => document.querySelector(`.board-wrap.${pre === 'o' ? 'opp' : 'me'} .board`);
@@ -73,6 +91,8 @@ function shipCells(pre, x, y) {
 // ---------- эффекты ----------
 function splash(c) {
   const s = c.s;
+  spr('fx', 6, { x: c.cx, y: c.cy, size: s * 1.7, m: 'grow', life: 0.9 });
+  spr('fx', 2, { x: c.cx, y: c.cy, size: s * 1.9, m: 'pop', life: 0.55, rot: rnd(0, TAU) });
   for (let i = 0; i < 3; i++) add({ k: 'ring', x: c.cx, y: c.cy, r: s * 0.12, vr: s * (2.1 - i * 0.45), life: 0.75 + i * 0.22, w: 2.4 - i * 0.6, col: '225,240,255', delay: i * 0.09 });
   add({ k: 'glow', x: c.cx, y: c.cy, r: s * 0.9, life: 0.28, col: '200,230,255', a: 0.55 });
   for (let i = 0; i < 16; i++) {
@@ -85,6 +105,8 @@ function splash(c) {
 
 function boom(c, power = 1) {
   const s = c.s * power;
+  spr('fx', power > 1.2 ? 0 : 1, { x: c.cx, y: c.cy, size: s * (power > 1.2 ? 2.9 : 2.2), m: 'pop', life: 0.5, rot: rnd(-0.5, 0.5) });
+  later(140, () => spr('fx', 3, { x: c.cx, y: c.cy - s * 0.2, vx: rnd(-8, 8), vy: -rnd(22, 36), size: s * 1.5, m: 'rise', life: 1.3, rot: rnd(0, TAU) }));
   add({ k: 'glow', x: c.cx, y: c.cy, r: s * 3.2, life: 0.22, col: '255,244,214', a: 0.95 });
   add({ k: 'ring', x: c.cx, y: c.cy, r: s * 0.2, vr: s * 4.6, life: 0.42, w: 3.2, col: '255,214,150' });
   for (let i = 0; i < 9; i++) {
@@ -155,6 +177,8 @@ function impact(pre, x, y) {
       boom(c2, 1.35); shake(2);
       add({ k: 'veil', x: 0, y: 0, life: 0.3, col: '255,236,200', a: 0.34 });
       cells.forEach(([a, b], i) => later(90 + i * 110, () => { const cc = cellAt(pre, a, b); if (cc) { boom(cc, 1.05); if (i % 2 === 0) shake(1); } }));
+      // На месте потопленного корабля несколько секунд плавают обломки
+      later(700, () => { const cc = cellAt(pre, x, y); if (cc) spr('fx', 7, { x: cc.cx, y: cc.cy, vx: rnd(-3, 3), vy: rnd(-2, 2), size: cc.s * 1.5, m: 'float', al: 0.95, life: 5.5 }); });
       return;
     }
     boom(c2, 1); shake(1);
@@ -193,40 +217,69 @@ function scene() {
   if (!board) return;
   const r = board.getBoundingClientRect(); if (r.width < 120) return;
   const s = r.width / 10, k = s / 30, wx = stage.dataset.wx || 'clear', now = performance.now();
-  if (wx === 'rain' || wx === 'storm') {
+  const wet = wx === 'rain' || wx === 'storm';
+  if (wet) {
     const n = wx === 'storm' ? 5 : 3;
     for (let i = 0; i < n; i++) add({ k: 'rain', x: rnd(r.left + 6, r.right + 10), y: rnd(r.top - 6, r.bottom - 46 * k), vx: -70 * k, vy: rnd(420, 520) * k, life: rnd(0.16, 0.3), len: rnd(9, 15) * k });
     if (R() < 0.5) add({ k: 'ring', x: rnd(r.left + 8, r.right - 8), y: rnd(r.top + 8, r.bottom - 8), r: 1, vr: s * 0.9, life: 0.5, w: 1, col: '200,225,255' });
-    if (wx === 'storm' && now > due.bolt) {
-      if (due.bolt) { add({ k: 'veil', x: 0, y: 0, life: 0.14, col: '225,235,255', a: 0.3 }); later(180, () => add({ k: 'veil', x: 0, y: 0, life: 0.3, col: '225,235,255', a: 0.2 })); }
-      due.bolt = now + rnd(7000, 15000);
-    }
   } else if (wx === 'snow') {
     for (let i = 0; i < 2; i++) add({ k: 'snow', x: rnd(r.left, r.right), y: rnd(r.top - 4, r.bottom - 60 * k), vx: rnd(-10, 10), vy: rnd(18, 36) * k, life: rnd(1.6, 2.8), r: rnd(1, 2.4) * k, ph: rnd(0, TAU) });
   }
+  // Облака плывут над полем и бросают тень; в дождь и шторм — тучи. В шторм из тучи бьёт молния
+  if (now > due.cloud) {
+    if (due.cloud && wx !== 'fog') {
+      const ltr = R() < 0.5, sp = rnd(9, 15) * k, size = s * rnd(2.6, 3.6), dark = wet || wx === 'snow';
+      spr(dark ? 'fx' : 'life', dark ? 5 : 7, { x: ltr ? r.left - size * 0.2 : r.right + size * 0.2, y: rnd(r.top + s * 1.5, r.bottom - s * 1.5), vx: ltr ? sp : -sp, vy: 0, size, m: 'cloud', al: dark ? 0.5 : 0.4, life: (r.width + size * 0.4) / sp });
+    }
+    due.cloud = now + (wet ? rnd(5000, 9000) : rnd(12000, 22000));
+  }
+  if (wx === 'storm' && now > due.bolt) {
+    if (due.bolt) {
+      const bx = rnd(r.left + s * 2, r.right - s * 2), by = rnd(r.top + s * 2, r.bottom - s * 3);
+      spr('fx', 4, { x: bx, y: by, size: s * 3.4, m: 'flash', life: 0.5, rot: rnd(-0.25, 0.25) });
+      add({ k: 'veil', x: 0, y: 0, life: 0.16, col: '225,235,255', a: 0.32 });
+      add({ k: 'glow', x: bx, y: by, r: s * 4, life: 0.4, col: '255,240,170', a: 0.6 });
+    }
+    due.bolt = now + rnd(7000, 15000);
+  }
   // Чайка: пролетает над полем, под ней бежит тень
   if (now > due.gull) {
-    if (due.gull) { const ltr = R() < 0.5, y = rnd(r.top + s, r.bottom - s * 2), sp = rnd(70, 95) * k; add({ k: 'gull', x: ltr ? r.left - s : r.right + s, y, vx: ltr ? sp : -sp, vy: rnd(-12, 12) * k, life: (r.width + s * 2) / sp, s, ph: rnd(0, TAU) }); }
+    if (due.gull) { const ltr = R() < 0.5, sp = rnd(70, 95) * k, vy = rnd(-14, 14) * k, vx = ltr ? sp : -sp; spr('life', 0, { x: ltr ? r.left - s : r.right + s, y: rnd(r.top + s, r.bottom - s * 2), vx, vy, size: s * 1.5, m: 'fly', rot: Math.atan2(vy, vx) + Math.PI / 2, life: (r.width + s * 2) / sp, ph: rnd(0, 9) }); }
     due.gull = now + rnd(11000, 24000);
   }
-  // Рыба: выпрыгивает из свободной клетки и ныряет обратно
+  // Свободная клетка — для тех, кто выныривает: не там, куда стреляли, и не под своим кораблём
+  const freeCell = () => {
+    const free = [...board.children].filter((el) => el.classList.contains('bc') && !/\b(miss|hit|sunk|under|lastshot)\b/.test(el.className));
+    const el = free[Math.floor(R() * free.length)]; if (!el) return null;
+    const c = el.getBoundingClientRect(); return { cx: c.left + c.width / 2, cy: c.top + c.height / 2 };
+  };
+  // Дельфин: выпрыгивает дугой и ныряет обратно
   if (now > due.fish) {
     if (due.fish) {
-      const free = [...board.children].filter((el) => el.classList.contains('bc') && !/\b(miss|hit|sunk|under|lastshot)\b/.test(el.className));
-      const el = free[Math.floor(R() * free.length)];
-      if (el) {
-        const c = el.getBoundingClientRect(), cx = c.left + c.width / 2, cy = c.top + c.height * 0.6, dir = R() < 0.5 ? 1 : -1;
-        add({ k: 'ring', x: cx, y: cy, r: 1, vr: s * 1.1, life: 0.55, w: 1.2, col: '220,240,255' });
-        add({ k: 'fish', x: cx, y: cy, vx: dir * s * 0.9, vy: -s * 3.4, g: s * 8.5, life: 0.8, s, dir });
-        later(760, () => add({ k: 'ring', x: cx + dir * s * 0.72, y: cy, r: 1, vr: s * 1.3, life: 0.6, w: 1.2, col: '220,240,255' }));
+      const c = freeCell();
+      if (c) {
+        const dir = c.cx < r.left + r.width / 2 ? 1 : -1;
+        spr('fx', 6, { x: c.cx, y: c.cy, size: s * 1.3, m: 'grow', life: 0.7 });
+        spr('life', 2, { x: c.cx, y: c.cy, vx: dir * s * 1.5, vy: -s * 4.4, g: s * 9.8, size: s * 1.7, m: 'leap', dir, life: 0.9 });
+        later(820, () => { spr('fx', 2, { x: c.cx + dir * s * 1.35, y: c.cy, size: s * 1.5, m: 'pop', life: 0.5 }); spr('fx', 6, { x: c.cx + dir * s * 1.35, y: c.cy, size: s * 1.6, m: 'grow', life: 0.9 }); });
       }
     }
-    due.fish = now + rnd(6000, 13000);
+    due.fish = now + rnd(7000, 14000);
   }
-  // Плавник: медленно режет воду пару клеток и уходит на глубину
+  // Плавник: режет воду вверх по полю и уходит на глубину
   if (now > due.fin) {
-    if (due.fin) { const dir = R() < 0.5 ? 1 : -1; add({ k: 'fin', x: rnd(r.left + s * 2, r.right - s * 2), y: rnd(r.top + s, r.bottom - s), vx: dir * s * 0.55, vy: 0, life: 4.2, s, dir }); }
+    if (due.fin) spr('life', 3, { x: rnd(r.left + s * 1.5, r.right - s * 1.5), y: rnd(r.top + s * 4, r.bottom - s), vx: 0, vy: -s * 0.6, size: s * 1.5, m: 'glide', life: 4.6 });
     due.fin = now + rnd(22000, 45000);
+  }
+  // Редкие гости: кит показывает хвост, спрут — щупальце, черепаха плывёт по своим делам
+  if (now > due.rare) {
+    if (due.rare) {
+      const pick = R();
+      if (pick < 0.4) { const c = freeCell(); if (c) spr('life', 4, { x: c.cx, y: c.cy, size: s * 2.1, m: 'surface', wag: 0.12, ws: 3, life: 3.4 }); }
+      else if (pick < 0.7) { const c = freeCell(); if (c) spr('life', 5, { x: c.cx, y: c.cy, size: s * 1.8, m: 'surface', wag: 0.2, ws: 4.5, life: 3.8 }); }
+      else { const ltr = R() < 0.5, vx = (ltr ? 1 : -1) * s * 0.42, vy = rnd(-0.12, 0.12) * s; spr('life', 6, { x: rnd(r.left + s * 2, r.right - s * 2), y: rnd(r.top + s * 2, r.bottom - s * 2), vx, vy, size: s * 1.15, m: 'swim', rot: Math.atan2(vy, vx) + Math.PI / 2, life: 9 }); }
+    }
+    due.rare = now + rnd(26000, 55000);
   }
 }
 
@@ -338,33 +391,28 @@ function frame(now) {
         ctx.beginPath(); ctx.arc(x + Math.sin(p.t * 2.2 + p.ph) * 5, y, p.r, 0, TAU); ctx.fill();
         break;
       }
-      case 'gull': {
-        const a = Math.min(1, u * 8, (1 - u) * 8), w = p.s * 0.42, flap = Math.sin(p.t * 9 + p.ph), d = p.vx > 0 ? 1 : -1;
-        ctx.fillStyle = `rgba(0,14,40,${0.2 * a})`;
-        ctx.beginPath(); ctx.ellipse(x + p.s * 0.35, y + p.s * 0.55, w * (0.75 + flap * 0.12), w * 0.2, 0, 0, TAU); ctx.fill();
-        ctx.strokeStyle = `rgba(255,255,255,${0.95 * a})`; ctx.lineWidth = Math.max(1.6, p.s * 0.075); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-        ctx.beginPath(); ctx.moveTo(x - w, y - flap * w * 0.55); ctx.quadraticCurveTo(x - w * 0.45, y - w * 0.35 - flap * w * 0.2, x, y);
-        ctx.quadraticCurveTo(x + w * 0.45, y - w * 0.35 - flap * w * 0.2, x + w, y - flap * w * 0.55); ctx.stroke();
-        ctx.fillStyle = `rgba(255,255,255,${a})`; ctx.beginPath(); ctx.ellipse(x + d * w * 0.1, y + 1, w * 0.26, w * 0.13, 0, 0, TAU); ctx.fill();
-        ctx.fillStyle = `rgba(255,190,70,${a})`; ctx.beginPath(); ctx.arc(x + d * w * 0.4, y + 1, w * 0.07, 0, TAU); ctx.fill();
-        break;
-      }
-      case 'fish': {
-        const a = Math.min(1, u * 10, (1 - u) * 6), L = p.s * 0.34, ang = Math.atan2(p.vy, p.vx);
-        ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.globalAlpha = a;
-        ctx.fillStyle = '#BFE3F7'; ctx.beginPath(); ctx.ellipse(0, 0, L, L * 0.42, 0, 0, TAU); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(-L * 0.8, 0); ctx.lineTo(-L * 1.5, -L * 0.5); ctx.lineTo(-L * 1.5, L * 0.5); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = '#F4FBFF'; ctx.beginPath(); ctx.ellipse(L * 0.1, L * 0.12, L * 0.6, L * 0.16, 0, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#0B2A55'; ctx.beginPath(); ctx.arc(L * 0.55, -L * 0.08, Math.max(0.8, L * 0.1), 0, TAU); ctx.fill();
-        ctx.restore(); ctx.globalAlpha = 1;
-        break;
-      }
-      case 'fin': {
-        const a = Math.sin(u * Math.PI), h = p.s * 0.5 * Math.min(1, a * 1.6), d = p.dir;
-        ctx.strokeStyle = `rgba(230,244,255,${0.45 * a})`; ctx.lineWidth = 1.2; ctx.lineCap = 'round';
-        ctx.beginPath(); ctx.moveTo(x - d * p.s * 0.1, y + 1); ctx.lineTo(x - d * p.s * 0.75, y - 2); ctx.moveTo(x - d * p.s * 0.1, y + 3); ctx.lineTo(x - d * p.s * 0.7, y + 5); ctx.stroke();
-        ctx.fillStyle = `rgba(38,52,74,${0.95 * a})`;
-        ctx.beginPath(); ctx.moveTo(x - d * p.s * 0.22, y + 2); ctx.quadraticCurveTo(x - d * p.s * 0.02, y - h * 0.9, x + d * p.s * 0.06, y - h); ctx.quadraticCurveTo(x + d * p.s * 0.1, y - h * 0.3, x + d * p.s * 0.22, y + 2); ctx.closePath(); ctx.fill();
+      case 'spr': {
+        const edge = Math.min(1, u * 7, (1 - u) * 7);
+        switch (p.m) {
+          case 'pop': { const sc = u < 0.3 ? 0.35 + (u / 0.3) * 0.9 : 1.25 - (u - 0.3) * 0.25; drawSpr(p.a, p.i, x, y, p.size * sc, p.rot || 0, u < 0.55 ? 1 : 1 - (u - 0.55) / 0.45); break; }
+          case 'rise': drawSpr(p.a, p.i, x, y, p.size * (0.55 + u * 0.75), (p.rot || 0) + u * 0.5, 0.8 * (1 - u) * Math.min(1, u * 8)); break;
+          case 'grow': drawSpr(p.a, p.i, x, y, p.size * (0.35 + u * 0.95), 0, 0.85 * (1 - u)); break;
+          case 'float': drawSpr(p.a, p.i, x, y + Math.sin(p.t * 2) * 1.5, p.size, Math.sin(p.t * 1.4) * 0.09, (p.al || 1) * Math.min(1, u * 8, (1 - u) * 3)); break;
+          case 'cloud': {
+            ctx.fillStyle = `rgba(0,14,40,${0.16 * edge})`; ctx.beginPath(); ctx.ellipse(x + p.size * 0.12, y + p.size * 0.3, p.size * 0.42, p.size * 0.2, 0, 0, TAU); ctx.fill();
+            drawSpr(p.a, p.i, x, y, p.size, 0, (p.al || 0.6) * edge); break;
+          }
+          case 'fly': {
+            ctx.fillStyle = `rgba(0,14,40,${0.2 * edge})`; ctx.beginPath(); ctx.ellipse(x + p.size * 0.22, y + p.size * 0.34, p.size * 0.3, p.size * 0.1, 0, 0, TAU); ctx.fill();
+            drawSpr(p.a, Math.floor(p.t * 5 + p.ph) % 2, x, y, p.size * (1 + Math.sin(p.t * 5) * 0.04), p.rot, edge); break;
+          }
+          case 'leap': drawSpr(p.a, p.i, x, y, p.size, (-0.75 + u * 1.9) * p.dir, Math.min(1, u * 10, (1 - u) * 7), p.dir); break;
+          case 'glide': drawSpr(p.a, p.i, x, y, p.size * (0.7 + 0.3 * Math.sin(u * Math.PI)), Math.sin(p.t * 2.2) * 0.05, Math.sin(u * Math.PI) * 1.4); break;
+          case 'surface': { const up = u < 0.2 ? u / 0.2 : u > 0.72 ? (1 - u) / 0.28 : 1, e = 1 - (1 - up) * (1 - up); drawSpr(p.a, p.i, x, y + (1 - e) * p.size * 0.18, p.size * (0.45 + 0.55 * e), Math.sin(p.t * p.ws) * p.wag * e, e * 1.2); break; }
+          case 'swim': drawSpr(p.a, p.i, x, y, p.size, p.rot + Math.sin(p.t * 3.2) * 0.14, Math.min(1, u * 5, (1 - u) * 5)); break;
+          case 'flash': drawSpr(p.a, p.i, x, y, p.size, p.rot || 0, u < 0.18 || (u > 0.3 && u < 0.5) ? 1 : 0.35 * (1 - u)); break;
+          default: drawSpr(p.a, p.i, x, y, p.size, p.rot || 0, edge);
+        }
         break;
       }
       case 'glint': {
@@ -390,6 +438,7 @@ export function seaFxSync({ on, fresh, freshUntil, win }) {
     return;
   }
   ensure();
+  if (!active) { img('life'); img('fx'); }
   active = true;
   if (fresh && fresh !== lastFresh && Date.now() < freshUntil) {
     lastFresh = fresh;

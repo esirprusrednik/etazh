@@ -214,3 +214,5 @@ public/art/wave/boom.webp
 public/art/wave/cap.webp
 public/art/wave/crest.webp
 public/sounds/wave_boom.mp3
+public/art/sea_life.webp
+public/art/sea_fx.webp

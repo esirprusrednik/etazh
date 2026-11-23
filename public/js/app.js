@@ -1703,7 +1703,8 @@ function setBattleView(v) {
   if (was && was.status === 'play' && v.status === 'play') {
     if (v.oppLeft < was.oppLeft) S.bBump = { who: 'opp', until: Date.now() + 700 };
     else if (v.myLeft < was.myLeft) S.bBump = { who: 'me', until: Date.now() + 700 };
-    if (!was.myTurn && v.myTurn) setTimeout(turnRibbon, 650);
+    // Лента — только если соперник действительно сходил и промахнулся, а не при каждом обновлении экрана
+    if (!was.myTurn && v.myTurn && v.last && !v.last.mine) setTimeout(turnRibbon, 650);
   }
   const prev = S.bv && S.bv.id === v.id ? shotKeys(S.bv) : null;
   if (prev) {
