@@ -3287,3 +3287,26 @@ html:has(body.in-battle) { background: #071631; }
 .b-log span.wx { background: rgba(255,255,255,.05); color: rgba(255,255,255,.85); }
 @media (max-width: 400px) { .b-log span.wx i { display: none; } }
 @media (prefers-reduced-motion: reduce) { .b-stage .ship-slot.spr.ok::before, .b-stage .ship-slot.spr.ok.hurt, .b-stage[data-wx="fog"] .b-sea > .board-wrap::after { animation: none !important; } }
+
+/* Реплики в бою: пузырь всегда белый, текст всегда тёмный — в тёмной теме он сливался с фоном */
+.emo-float.say .emo-bubble { background: #fff; color: #0B2A55; }
+.emo-float.say.opp .emo-bubble { background: #FFF3C4; box-shadow: 0 8px 20px rgba(0,0,0,.45), 0 0 0 2px #FFC93C; }
+.emo-float.say { animation-duration: 3.6s; }
+/* ====================== Морской бой: «кино» ====================== */
+/* Гибель корабля: чёрные полосы, виньетка и наезд на поле. Попадание: короткий толчок камеры */
+.cine { position: fixed; inset: 0; z-index: 14; pointer-events: none; }
+.cine i { position: absolute; left: 0; right: 0; height: 34px; background: #000; transition: transform .28s cubic-bezier(.2,.8,.2,1); }
+.cine i:first-child { top: 0; transform: translateY(-100%); } .cine i:nth-child(2) { bottom: 0; transform: translateY(100%); }
+.cine b { position: absolute; inset: 0; opacity: 0; transition: opacity .3s; background: radial-gradient(ellipse at 50% 42%, transparent 45%, rgba(0,0,0,.55) 100%); }
+.cine.on i { transform: none; } .cine.on b { opacity: 1; }
+.b-stage .b-sea > .board-wrap { transition: transform .55s cubic-bezier(.2,.8,.2,1); }
+body.fx-kill .b-stage .b-sea > .board-wrap { transform: scale(1.045); transition-duration: .22s; }
+body.fx-punch .b-stage .b-sea > .board-wrap { transform: scale(1.022); transition-duration: .07s; }
+/* Ясная погода: по воде медленно ходят косые лучи солнца */
+.b-stage[data-wx="clear"] .b-sea > .board-wrap::after { opacity: 1; mix-blend-mode: screen;
+  background: linear-gradient(115deg, transparent 20%, rgba(255,255,220,.10) 28%, transparent 36%, transparent 52%, rgba(255,255,220,.07) 60%, transparent 70%);
+  background-size: 220% 100%; animation: wx-rays 18s ease-in-out infinite alternate; }
+@keyframes wx-rays { from { background-position: 0 0; } to { background-position: 100% 0; } }
+@media (prefers-reduced-motion: reduce) { .cine { display: none; } body.fx-kill .b-stage .b-sea > .board-wrap, body.fx-punch .b-stage .b-sea > .board-wrap { transform: none; } .b-stage[data-wx="clear"] .b-sea > .board-wrap::after { animation: none; } }
+
+.b-log span { flex: 0 1 auto; } .b-log span.wx { flex: none; }

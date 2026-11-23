@@ -1704,7 +1704,8 @@ function setBattleView(v) {
     if (v.oppLeft < was.oppLeft) S.bBump = { who: 'opp', until: Date.now() + 700 };
     else if (v.myLeft < was.myLeft) S.bBump = { who: 'me', until: Date.now() + 700 };
     // Лента — только если соперник действительно сходил и промахнулся, а не при каждом обновлении экрана
-    if (!was.myTurn && v.myTurn && v.last && !v.last.mine) setTimeout(turnRibbon, 650);
+    // В практике противник отвечает за секунду — там лента мелькала бы каждый ход, поэтому только в партии с человеком
+    if (!was.myTurn && v.myTurn && v.last && !v.last.mine && !v.practice) setTimeout(turnRibbon, 650);
   }
   const prev = S.bv && S.bv.id === v.id ? shotKeys(S.bv) : null;
   if (prev) {
@@ -4871,7 +4872,7 @@ function renderBattle() {
   <div class="b-log" aria-live="polite">${(() => {
     const cell = (t) => `${B_COLS[t.x]}${t.y + 1}`, word = (r) => (r === 'miss' ? 'мимо' : r === 'sunk' ? 'потоплен' : 'попадание');
     const mine = [...v.myShots].reverse().find((t) => !t.auto);
-    return `<span class="${mine && mine.r !== 'miss' ? 'good' : ''}"><i>ты</i> ${mine ? `${cell(mine)} · ${word(mine.r)}` : 'ещё не стрелял' + meG('', 'а')}</span><span class="${lo && lo.r !== 'miss' ? 'bad' : ''}"><i>${P ? 'противник' : esc(v.opp.nick)}</i> ${lo ? `${cell(lo)} · ${word(lo.r)}` : 'ещё не стрелял' + gw(v.opp.look, '', 'а')}</span><span class="wx"><i>на море</i> ${WX_NAME[wxOf(v)]}</span>`;
+    return `<span class="${mine && mine.r !== 'miss' ? 'good' : ''}"><i>ты</i> ${mine ? `${cell(mine)} · ${word(mine.r)}` : 'ждём выстрела'}</span><span class="${lo && lo.r !== 'miss' ? 'bad' : ''}"><i>${P ? 'противник' : esc(v.opp.nick)}</i> ${lo ? `${cell(lo)} · ${word(lo.r)}` : 'ждём выстрела'}</span><span class="wx">${WX_NAME[wxOf(v)]}</span>`;
   })()}</div>
   <div class="b-dock">
     <button class="b-mini2 ${small === 'me' && lastOpp && lastOpp !== 'мимо' ? 'hot' : ''}" data-act="b-mine-big" aria-label="${small === 'me' ? 'Показать моё поле крупно' : 'Вернуться к полю соперника'}">
