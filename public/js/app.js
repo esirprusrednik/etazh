@@ -1703,9 +1703,9 @@ function setBattleView(v) {
   const oe = v.emotes && v.emotes.opp;
   if (oe && oe.at !== S.bEmoteSeen && v.now - oe.at < 8000) {
     S.bEmoteSeen = oe.at;
-    S.bEmote = { ...(S.bEmote || {}), opp: { e: oe.e, until: Date.now() + 3200 } };
-    setTimeout(() => { if (S.battle) render(); }, 3300);
-    emoSfx(oe.e, v.opp && v.opp.look);
+    S.bEmote = { ...(S.bEmote || {}), opp: { e: oe.e, until: Date.now() + 3600 } };
+    setTimeout(() => { if (S.battle) render(); }, 3700);
+    emoSfx();
   } else if (oe && S.bEmoteSeen == null) S.bEmoteSeen = oe.at;
   // Обе расстановки готовы — партия началась: труба «Свистать всех наверх!» (один раз)
   if (S.bv && S.bv.id === v.id && S.bv.status === 'setup' && v.status === 'play') sfx('bugle');
@@ -1946,6 +1946,7 @@ function render() {
   const stage = document.querySelector('.b-stage');
   if (!!stage !== document.body.classList.contains('in-battle')) { document.body.classList.toggle('in-battle', !!stage); window.scrollTo(0, 0); }
   if (!stage || !document.querySelector('.board.armed')) aimEnd();
+  if (!stage) S.bSay = false;
   if (S.beanFx && S.beanFx.fresh) runBeanFx();
   if (focused) {
     const el = document.getElementById(focused.id);
@@ -3918,9 +3919,9 @@ function prBotEmote(pool) {
   setTimeout(() => {
     if (S.practice !== P) return;
     const e = pool[Math.floor(Math.random() * pool.length)];
-    S.bEmote = { ...(S.bEmote || {}), opp: { e, until: Date.now() + 3200 } };
-    emoSfx(e, P && P.opp && P.opp.look); render();
-    setTimeout(() => { if (S.practice === P) render(); }, 3300);
+    S.bEmote = { ...(S.bEmote || {}), opp: { e, until: Date.now() + 3600 } };
+    emoSfx(); render();
+    setTimeout(() => { if (S.practice === P) render(); }, 3700);
   }, 900);
 }
 const prSea = () => S.practice && S.practice.game === 'sea';
@@ -4636,22 +4637,17 @@ function renderBattleInvite(f) {
 
 const B_COLS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К'];
 // Реакции в бою: пластилиновые рожицы из одного атласа 4×2 (/art/emo.webp), порядок — как ключи
-const EMOTES = { lol: 'Ха-ха!', angry: 'А-а-а!', bored: 'Скукота', smart: 'Умный ход', oops: 'Ой-ой', clap: 'Мгм!', mercy: 'У-у-у…', easy: 'Изи',
-  sink: 'Буль-буль', miss: 'Мимо!', gull: 'Моё!', boom: 'Попал!', hmm: 'Хм…', bye: 'Пока-пока', rage: 'Псих', wait: 'Ходи уже' };
-// На панели четыре реакции-рыбы: смеётся, плачет, кричит, одобрительно хмыкает. Рыба одна для всех, а голос —
-// без слов и по полу отправителя: мужской или женский. Прежние рожицы остались в атласе для реакций от старых версий
-const EMO_PANEL = ['lol', 'mercy', 'angry', 'clap'];
-// У четырёх реакций панели свой голос и своя рожица для м и ж: кто отправил, тем голосом и звучит
-const emoG = (look) => gw(look, 'm', 'f');
-const emoSfx = (k, look) => sfx(EMO_PANEL.includes(k) ? `emo_${k}_${emoG(look)}` : `emo_${k}`);
+// Реплики в морском бою. Картинок и озвучки нет — только текст в пузыре у аватара: три набора рожиц и четыре озвучки
+// не прижились. Ключи — те же шестнадцать, что знает сервер (battle.js, EMOTES), поэтому старые версии понимают новые
+const EMOTES = {
+  lol: 'Ха! Мимо кассы', miss: 'Ты вообще целишься?', gull: 'Даже чайка стреляет точнее', easy: 'Это было слишком легко',
+  smart: 'Я вижу твой флот насквозь', sink: 'Буль-буль', boom: 'Бабах! Привет от бухгалтерии', hmm: 'Интересная расстановка. Смелая',
+  wait: 'Ходи уже, у меня созвон через пять минут', bored: 'Я пока кофе сделаю', oops: 'Ой. Это был мой любимый корабль', mercy: 'Пощади, у меня ипотека',
+  angry: 'Так, это уже личное', rage: 'Кто тебя учил так играть?!', clap: 'Красиво. Уважаю', bye: 'Хорошая партия. Реванш?' };
+// Порядок в списке: поддеть — поторопить — пожаловаться — похвалить
+const SAY_ORDER = ['lol', 'miss', 'gull', 'easy', 'smart', 'sink', 'boom', 'hmm', 'wait', 'bored', 'oops', 'mercy', 'angry', 'rage', 'clap', 'bye'];
+const emoSfx = () => sfx('send');
 const EMO_KEYS = Object.keys(EMOTES);
-const emoArt = (k) => {
-  const p = EMO_PANEL.indexOf(k);
-  // Атлас /art/emo_face.webp, 4 в ряд: смех, слёзы, ярость, уважение
-  if (p >= 0) return `<i class="emo-art mf emo-${k}" style="background-position:${p * 100 / 3}% 0"></i>`;
-  const n = EMO_KEYS.indexOf(k); return n < 0 ? '' : `<i class="emo-art" style="background-position:${(n % 4) * 100 / 3}% ${Math.floor(n / 4) * 100 / 3}%"></i>`;
-};
-
 // Части корпуса: нос, середина, корма — чтобы корабль выглядел кораблём, а не набором квадратов
 // Поле 10×10. kind: 'opp' — по нему стреляю я; 'me' — мой флот и выстрелы соперника
 function renderBoard(v, kind, mini = false) {
@@ -4765,18 +4761,17 @@ function renderVersus(v) {
 function renderEmoteLayer(v) {
   const one = (who, look) => {
     const e = S.bEmote && S.bEmote[who];
-    if (!e || Date.now() > e.until) return '';
-    const em = emoArt(e.e), label = EMOTES[e.e] || '';
-    // Экран боя перерисовывается каждую секунду: без отрицательной задержки анимация начиналась заново
-    // и пузырь «выскакивал» второй раз. Продолжаем с того места, где она была
-    const gone = Math.max(0, Date.now() - (e.until - 3200));
-    return `<div class="emo-float ${who}" style="animation-delay:-${gone}ms"><span class="emo-mini">${avatar(look, 30)}</span><span class="emo-bubble"><b style="animation-delay:${150 - gone}ms">${em}</b>${EMO_PANEL.includes(e.e) ? '' : `<span>${esc(label)}</span>`}</span></div>`;
+    if (!e || Date.now() > e.until || !EMOTES[e.e]) return '';
+    // Экран боя перерисовывается при каждом изменении: без отрицательной задержки пузырь «выскакивал» бы заново
+    const gone = Math.max(0, Date.now() - (e.until - 3600));
+    return `<div class="emo-float say ${who}" style="animation-delay:-${gone}ms"><span class="emo-mini">${avatar(look, 30)}</span><span class="emo-bubble">${esc(EMOTES[e.e])}</span></div>`;
   };
   return one('opp', v.opp.look) + one('mine', S.me.look);
 }
-
-function renderEmoteBar() {
-  return `<div class="b-emotes" role="group" aria-label="Реакции">${EMO_PANEL.map((k) => [k, EMOTES[k]]).map(([k, label]) => `<button class="emo" data-act="bemote" data-v="${k}" aria-label="${{ lol: 'Смеюсь', mercy: 'Плачу', angry: 'Кричу', clap: 'Одобряю' }[k]}">${emoArt(k)}</button>`).join('')}</div>`;
+// Кнопка «Сказать» и список готовых реплик над ней. Список закрывается сам после выбора
+function renderSay() {
+  return `<button class="b-say ${S.bSay ? 'on' : ''}" data-act="b-say" aria-expanded="${!!S.bSay}">${DM_SVG}<span>Сказать</span></button>
+    ${S.bSay ? `<div class="b-saylist" role="menu" aria-label="Реплики">${SAY_ORDER.map((k) => `<button role="menuitem" data-act="bemote" data-v="${k}">${esc(EMOTES[k])}</button>`).join('')}</div>` : ''}`;
 }
 
 function renderBattle() {
@@ -4832,9 +4827,12 @@ function renderBattle() {
   <div class="b-dock">
     <button class="b-mini2 ${small === 'me' && lastOpp && lastOpp !== 'мимо' ? 'hot' : ''}" data-act="b-mine-big" aria-label="${small === 'me' ? 'Показать моё поле крупно' : 'Вернуться к полю соперника'}">
       <span class="b-mini-board">${renderBoard(v, small, true)}</span>
-      <span class="b-mini-cap">${small === 'me' ? `мой флот <b>${v.myLeft}</b>/${v.fleet.length}${lastOpp ? ` · ${lastOpp}` : ''}` : 'к полю соперника'}</span>
+      <span class="b-mini-cap">${small === 'me' ? 'нажми — крупно' : 'к полю соперника'}</span>
     </button>
-    ${renderEmoteBar()}
+    <div class="b-info"><span class="sea-title">${small === 'me' ? 'Мой флот' : P ? 'Воды противника' : `Воды ${nk(v.opp)}`}</span>
+      ${fleetBars(small === 'me' ? mineFleet : oppFleet)}
+      <span class="b-info-last">${lastOpp ? `Последний выстрел по тебе: ${lastOpp}` : 'По тебе ещё не стреляли'}</span>
+      ${renderSay()}</div>
   </div></div>`;
 }
 
@@ -5639,8 +5637,7 @@ const SAMPLE_URLS = { bugle: '/sounds/battle.mp3', lose: '/sounds/lose.mp3', vic
   // Морской бой: настоящие записи пушки, взрывов и воды (CC0), по два варианта — чтобы выстрелы не звучали одинаково
   splash: ['/sounds/miss1.mp3', '/sounds/miss2.mp3'], hit: ['/sounds/hit1.mp3', '/sounds/hit2.mp3'], sunk: '/sounds/sunk1.mp3', chicken: '/sounds/resign.mp3', waveBoom: '/sounds/wave_boom.mp3',
   // Реакции в играх: короткие «мультяшные» реплики оркестра — у каждой своя, узнаётся без взгляда на экран
-  ...Object.fromEntries([...EMO_KEYS].map((k) => [`emo_${k}`, `/sounds/emo_${k}.mp3`])),
-  ...Object.fromEntries(EMO_PANEL.flatMap((k) => ['m', 'f'].map((g) => [`emo_${k}_${g}`, `/sounds/emo_${k}_${g}.mp3`]))) };
+};
 // Громкость записей подогнана к остальным звукам: кульминации боя громче всего, но не оглушают
 const SAMPLE_VOL = { bugle: 0.62, lose: 0.75, victory: 0.53, fanfare: 0.26, gangHorn: 0.28, splash: 0.3, hit: 0.25, sunk: 0.4, chicken: 0.13,
   emo_lol: 0.157, emo_angry: 0.19, emo_bored: 0.126, emo_smart: 0.155, emo_oops: 0.135, emo_clap: 0.159, emo_mercy: 0.126, emo_easy: 0.31,
@@ -6007,9 +6004,7 @@ const SOUNDS = {
   // Победа: литавры и медный аккорд
   // Победа в бою и дуэли — живой оркестр; без файла — синтезированные фанфары
   victory: (c) => { if (!playSample(c, 'victory')) SOUNDS.fanfare(c); },
-  ...Object.fromEntries([...EMO_KEYS].map((k) => [`emo_${k}`, (c) => { if (!playSample(c, `emo_${k}`)) SOUNDS.vote(c); }])),
   // Голосовые реакции: не загрузились — играет прежний звук этой реакции
-  ...Object.fromEntries(EMO_PANEL.flatMap((k) => ['m', 'f'].map((g) => [`emo_${k}_${g}`, (c) => { if (!playSample(c, `emo_${k}_${g}`, 0.85)) SOUNDS[`emo_${k}`](c); }]))),
   // Гудок банды из Лавки: боевой рог — валторны с тубой
   gangHorn: (c) => { if (!playSample(c, 'gangHorn')) SOUNDS.waveHorn(c); },
   fanfare: (c) => {
@@ -7252,13 +7247,15 @@ const actions = {
     if (opp) { S.dm = opp; await loadDm(); } else S.dm = null;
     await Promise.all([loadCrew(), loadChats()]);
   }),
+  'b-say'() { S.bSay = !S.bSay; sfx(S.bSay ? 'expand' : 'collapse'); render(); },
   bemote: (el) => {
     const e = el.dataset.v;
-    if (S.bEmoteAt && Date.now() - S.bEmoteAt < 2500) return;
+    if (S.bEmoteAt && Date.now() - S.bEmoteAt < 2500) { S.bSay = false; render(); return toast('Не части: одна реплика раз в пару секунд'); }
     S.bEmoteAt = Date.now();
-    S.bEmote = { ...(S.bEmote || {}), mine: { e, until: Date.now() + 3200 } };
-    emoSfx(e, S.me.look); render(); setTimeout(() => { if (S.battle || S.practice) render(); }, 3300);
-    if (prSea()) { if (Math.random() < 0.5) prBotEmote(['lol', 'clap', 'angry', 'mercy']); return; }
+    S.bEmote = { ...(S.bEmote || {}), mine: { e, until: Date.now() + 3600 } }; S.bSay = false;
+    emoSfx(); render(); setTimeout(() => { if (S.battle || S.practice) render(); }, 3700);
+    // Противник в практике отвечает в тон: на подколку — подколкой, на похвалу — похвалой
+    if (prSea()) { if (Math.random() < 0.6) prBotEmote(['clap', 'bye'].includes(e) ? ['clap', 'hmm'] : ['mercy', 'oops'].includes(e) ? ['easy', 'sink', 'lol'] : ['angry', 'rage', 'gull', 'miss']); return; }
     post(`/api/battle/${S.battle}/emote`, { e }).catch(() => {});
   },
   bshuffle: () => run(async () => { if (prSea() && S.practice.server) { await prMove({ shuffle: true }); sfx('pick'); return; } if (prSea()) { PR.seaShuffle(S.practice.st); sfx('pick'); setBattleView(PR.seaView(S.practice.st, prScore('sea'))); return; } setBattleView(await post(`/api/battle/${S.battle}/shuffle`)); }),

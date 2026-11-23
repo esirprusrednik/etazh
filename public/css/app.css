@@ -3104,7 +3104,7 @@ body.in-battle { background: #071631; }
 .b-seahead .fleet { flex: none; flex-wrap: nowrap; gap: 4px; }
 .b-seahead .fl { padding: 2px 6px; font-size: 11px; }
 .b-stage .b-sea > .board-wrap { margin: 0 auto; }
-.b-stage.play .b-sea > .board-wrap { width: min(100%, calc(100dvh - 228px - env(safe-area-inset-top) - env(safe-area-inset-bottom))); }
+.b-stage.play .b-sea > .board-wrap { width: min(100%, calc(100dvh - 234px - env(safe-area-inset-top) - env(safe-area-inset-bottom))); }
 .b-stage.setup .b-sea > .board-wrap { width: min(100%, calc(100dvh - 262px - env(safe-area-inset-top) - env(safe-area-inset-bottom))); }
 .b-stage.setup .sea-sub { font-size: 12px; }
 .b-stage .b-go { margin-top: 2px; }
@@ -3174,3 +3174,20 @@ html:has(body.in-battle) { background: #071631; }
 .sd-top li > b { font-size: 15px; font-weight: 900; color: #FFC93C; }
 .sd-n { width: 18px; text-align: center; color: rgba(255,255,255,.6); font-size: 12px; }
 .sd-empty { margin: 0; font-size: 12.5px; color: rgba(255,255,255,.78); text-align: center; }
+
+/* Морской бой: низ экрана без рожиц — мини-карта, сведения о флоте и готовые реплики текстом */
+.b-info { position: relative; display: flex; flex-direction: column; gap: 5px; justify-content: center; min-width: 0; padding: 8px 10px; border-radius: 16px; background: linear-gradient(180deg, #17406F, #0E2C52); box-shadow: 0 3px 0 #071430; }
+.b-info .sea-title { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.b-info .fleet { gap: 4px; }
+.b-info .fl { padding: 2px 6px; font-size: 11px; }
+.b-info-last { font-size: 11.5px; color: rgba(255,255,255,.78); }
+.b-say { margin-top: auto; display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 12px; border: 0; border-radius: 14px; background: #FFC93C; color: #3A2A00; font-weight: 900; font-size: 14px; box-shadow: 0 3px 0 #D99A0B; }
+.b-say svg { width: 18px; height: 18px; }
+.b-say.on { background: #fff; box-shadow: 0 3px 0 #B9C6DE; }
+.b-saylist { position: fixed; left: 8px; right: 8px; bottom: calc(64px + env(safe-area-inset-bottom)); z-index: 44; max-width: 464px; margin: 0 auto; max-height: min(62dvh, 430px); overflow-y: auto; touch-action: pan-y;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px; border-radius: 18px; background: #0B1E3F; box-shadow: 0 0 0 1px rgba(255,255,255,.14), 0 18px 40px rgba(0,0,0,.55); animation: unfold .18s ease-out both; }
+.b-saylist button { min-height: 44px; padding: 6px 10px; border: 0; border-radius: 12px; background: rgba(255,255,255,.1); color: #fff; font-size: 13px; font-weight: 700; line-height: 1.2; text-align: left; }
+.b-saylist button:active { background: #FFC93C; color: #3A2A00; }
+@media (max-width: 339px) { .b-saylist button { font-size: 12px; padding: 6px 8px; } }
+.emo-float.say .emo-bubble { max-width: min(70vw, 260px); white-space: normal; padding: 8px 12px; font-size: 14px; font-weight: 800; line-height: 1.25; text-align: left; }
+@media (max-height: 600px) { .b-info-last { display: none; } .b-say { min-height: 40px; } }
