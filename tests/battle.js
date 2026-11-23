@@ -208,6 +208,28 @@ let winnerBeans = 0;
     assert.equal(await beans(winner), winner === a ? wa : wb, 'повторно не выплачивается');
   });
 
+  await step('задача дня: один флот на всех, считаем выстрелы, попытка одна, таблица — только свои', async () => {
+    process.env.EMAIL_PEPPER = 'test-pepper-test-pepper-test-pepper-123';
+    const { fleetOf } = require('../server/seaday');
+    const v0 = (await c.get('/api/sea-daily')).json;
+    assert.ok(v0.day && v0.n === 0 && !v0.done && v0.ships === null && v0.left === 10, 'расстановку до конца не отдаём');
+    const fleet = fleetOf(v0.day), cells = fleet.flat();
+    const water = (() => { for (let x = 0; x < 10; x++) for (let y = 0; y < 10; y++) if (!cells.some(([a2, b2]) => a2 === x && b2 === y)) return [x, y]; })();
+    assert.equal((await c.post('/api/sea-daily/shoot', { x: water[0], y: water[1] })).json.result, 'miss');
+    assert.equal((await c.post('/api/sea-daily/shoot', { x: water[0], y: water[1] })).status, 400, 'дважды в одну клетку нельзя');
+    assert.equal((await c.post('/api/sea-daily/shoot', { x: 10, y: 0 })).status, 400);
+    const before = (await c.get('/api/me')).json.user.beans;
+    let last;
+    for (const [x, y] of cells) last = (await c.post('/api/sea-daily/shoot', { x, y })).json;
+    assert.ok(last.view.done && last.view.n === 21 && last.beans === 3 && last.view.place === 1 && last.view.players === 1, JSON.stringify({ n: last.view.n, b: last.beans }));
+    assert.equal((await c.get('/api/me')).json.user.beans, before + 3);
+    assert.equal(last.view.ships.length, 10, 'после конца флот открыт');
+    assert.ok(last.view.top.length === 1 && last.view.top[0].me);
+    assert.equal((await c.post('/api/sea-daily/shoot', { x: 0, y: 0 })).status, 400, 'вторая попытка — завтра');
+    const va = (await a.get('/api/sea-daily')).json;
+    assert.ok(va.players === 1 && va.top.length === 0 && va.n === 0, 'чужих по именам не показываем, только число игроков');
+  });
+
   console.log(`\nВсё прошло: ${passed} проверок`);
 })()
   .catch((e) => { console.error('\nПровал:', e.message, '\n--- лог ---\n' + log.slice(-2000)); process.exitCode = 1; })

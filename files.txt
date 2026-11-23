@@ -111,6 +111,7 @@ server/mailer.js
 server/polls.js
 server/quiz.js
 server/santa.js
+server/seaday.js
 server/secret.js
 server/seasons.js
 server/util.js
@@ -198,7 +199,7 @@ public/art/rps.webp
 public/art/shake.webp
 public/art/shield.webp
 public/art/emo.webp
-public/art/emo_fish.webp
+public/art/emo_face.webp
 public/art/sect.webp
 public/art/gull.webp
 public/art/climb/boy.jpg

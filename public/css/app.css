@@ -3040,7 +3040,7 @@ button:not(.bc):not(:disabled):active { transform: scale(.97); }
 @media (prefers-reduced-motion: reduce) { button { transition: none; } button:active { transform: none !important; } .unfold, .occ-res.unfold .occ-bar i { animation: none; } }
 
 /* ---------- Рожицы морского боя: он и она, у каждой эмоции своё движение ---------- */
-.emo-art.mf { background-image: url(/art/emo_fish.webp); background-size: 400% 100%; }
+.emo-art.mf { background-image: url(/art/emo_face.webp); background-size: 400% 100%; }
 /* Панель реакций: четыре равные кнопки во всю ширину, рыба по центру */
 .b-emotes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0 16px 12px; padding: 8px; border-radius: 20px; overflow: visible; }
 .emo { display: grid; place-items: center; height: 64px; padding: 0; border-radius: 14px; }
@@ -3156,3 +3156,21 @@ body.in-battle .emo-float.mine { bottom: calc(84px + env(safe-area-inset-bottom)
 @media (prefers-reduced-motion: reduce) { .b-stage.hurt::after, .ship-slot.spr.justsunk, .b-stage.play .board.armed { animation: none !important; } .b-stage.hurt::after { display: none; } }
 html:has(body.in-battle) { background: #071631; }
 .b-stage .b-banner.lose { color: #FFD3D3; background: rgba(229,72,77,.2); }
+
+/* Задача дня морского боя */
+.sd-strip { position: relative; width: 100%; text-align: left; }
+.sd-strip .gq-dot { position: static; flex: none; }
+.sd-strip.done .st-ico { opacity: .7; }
+.sd-head { display: grid; gap: 1px; text-align: center; padding: 5px 10px; border-radius: 16px; background: radial-gradient(120% 90% at 50% 0%, #1F4E8C 0%, #0B1E3F 70%); box-shadow: 0 3px 0 #071430; }
+.sd-head > b { font-size: 15px; font-weight: 900; }
+.sd-head span { font-size: 12px; color: #DCE7FF; } .sd-head span b { color: #FFC93C; font-size: 14px; }
+.b-stage.daily.play .b-sea > .board-wrap { width: min(100%, calc(100dvh - 232px - env(safe-area-inset-top) - env(safe-area-inset-bottom))); }
+.sd-box { padding: 8px 10px; border-radius: 16px; background: linear-gradient(180deg, #17406F, #0E2C52); box-shadow: 0 3px 0 #071430; }
+.sd-dock { margin-top: auto; min-height: 0; max-height: max(96px, calc(100dvh - 100vw - 170px)); overflow-y: auto; touch-action: pan-y; }
+.sd-cap { font-size: 11px; font-weight: 700; color: rgba(255,255,255,.7); margin-bottom: 4px; }
+.sd-top { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.sd-top li { display: flex; align-items: center; gap: 8px; padding: 3px 8px 3px 4px; border-radius: 12px; background: rgba(255,255,255,.07); font-size: 13px; font-weight: 700; }
+.sd-top li.me { background: rgba(255,201,60,.22); box-shadow: inset 0 0 0 1px rgba(255,201,60,.6); }
+.sd-top li > b { font-size: 15px; font-weight: 900; color: #FFC93C; }
+.sd-n { width: 18px; text-align: center; color: rgba(255,255,255,.6); font-size: 12px; }
+.sd-empty { margin: 0; font-size: 12.5px; color: rgba(255,255,255,.78); text-align: center; }

@@ -1975,6 +1975,7 @@ function createApi(db) {
   // ---------- «Дела дня»: напоминалка про жизнь в офисе, до трёх дел, похвала и подкол ----------
   todos = require('./todos').register({ db, q, route, requireUser, bad, U, notify, fireAndForget, HttpError, readProfile, features, addBeans, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d), myGangs, gangMembers, publicLook });
   // ---------- «Волна» по банде: клич раз в неделю ----------
+  const seaday = require('./seaday').register({ db, q, route, requireUser, bad, U, publicLook, addBeans });
   wave = require('./wave').register({ db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, publicLook, weekdayName, onEvent: (t, uid, d) => features && features.onEvent(t, uid, d) });
   // ---------- Погода на завтра: вечером накануне офисного дня ----------
   weather = require('./weather').register({ db, q, U, notify, fireAndForget, readProfile, weekdayName, features });
@@ -2066,6 +2067,7 @@ function createApi(db) {
     const t = U.now();
     q('DELETE FROM messages WHERE at < ?').run(t - 24 * 3600e3);
     q('DELETE FROM notif_log WHERE at < ?').run(t - NOTIF_DAYS * 864e5);
+    seaday.cleanup();
     q('UPDATE canteen SET user_id = NULL WHERE at < ? AND user_id IS NOT NULL').run(t - 24 * 3600e3);
     q('DELETE FROM canteen WHERE at < ?').run(t - 30 * 864e5);
     q("DELETE FROM gang_invites WHERE at < ? AND status != 'pending'").run(t - 30 * 864e5);

@@ -1675,6 +1675,7 @@ async function loadPolls() {
 async function loadEvents() { S.events = await get('/api/events'); }
 async function loadFeatures() {
   S.fx = await get(`/api/features?gang=${S.activeGang || ''}`);
+  loadSeaDay().then(() => { if (S.tab === 'games' && !S.daily && !S.sheet && !S.practice) render(); });
   // Новые ачивки — короткое поздравление, один раз
   const seen = new Set(store.get('achSeen', []));
   const fresh = S.fx.achievements.filter((a) => a.got && !seen.has(a.id));
@@ -3171,6 +3172,7 @@ function renderSanta() {
 }
 
 function renderGames() {
+  if (S.daily) return renderSeaDay();
   if (S.practice) return renderPractice();
   const gangChips = S.me.gangs.length > 1 ? `<div class="chips dark">${S.me.gangs.map((g) => `<button class="chip ${g.id === S.activeGang ? 'on' : ''}" data-act="gang-select" data-v="${g.id}">${esc(g.name)}</button>`).join('')}</div>` : '';
   const group = (title) => `<div class="g-group">${title}</div>`;
@@ -3180,6 +3182,7 @@ function renderGames() {
     ${renderAdvent()}
     
     ${renderBlitzCard()}
+    ${renderSeaDayCard()}
     ${group('Один на один')}
     ${renderDuelsCard()}
     ${ownQuiz || ownGuess ? group('Про своих') : ''}
@@ -4644,7 +4647,7 @@ const emoSfx = (k, look) => sfx(EMO_PANEL.includes(k) ? `emo_${k}_${emoG(look)}`
 const EMO_KEYS = Object.keys(EMOTES);
 const emoArt = (k) => {
   const p = EMO_PANEL.indexOf(k);
-  // Атлас /art/emo_fish.webp, 4 в ряд: смех, слёзы, крик, одобрение
+  // Атлас /art/emo_face.webp, 4 в ряд: смех, слёзы, ярость, уважение
   if (p >= 0) return `<i class="emo-art mf emo-${k}" style="background-position:${p * 100 / 3}% 0"></i>`;
   const n = EMO_KEYS.indexOf(k); return n < 0 ? '' : `<i class="emo-art" style="background-position:${(n % 4) * 100 / 3}% ${Math.floor(n / 4) * 100 / 3}%"></i>`;
 };
@@ -4833,6 +4836,57 @@ function renderBattle() {
     </button>
     ${renderEmoteBar()}
   </div></div>`;
+}
+
+// ---------- Задача дня: один флот на весь Этаж ----------
+// Играешь один: топишь флот и считаешь выстрелы. Расстановка у всех одна, меняется в полночь по Москве; попытка одна.
+// Экран — тот же боевой режим и тот же прицел, что в партии; вместо соперника внизу таблица своих
+async function loadSeaDay() { try { S.seaDay = await get('/api/sea-daily'); } catch { /* нет сети — карточка просто не появится */ } }
+function renderSeaDayCard() {
+  const d = S.seaDay; if (!d) return '';
+  const lead = d.top.find((t) => !t.me);
+  const sub = d.done ? `Потоплен за ${d.n} ${plural(d.n, 'выстрел', 'выстрела', 'выстрелов')} · место ${d.place} из ${d.players}. Завтра — новый флот`
+    : d.n ? `Выстрелов: ${d.n} · осталось кораблей: ${d.left}. Продолжай`
+    : lead ? `${esc(lead.nick)}: ${lead.n} ${plural(lead.n, 'выстрел', 'выстрела', 'выстрелов')}. Сможешь меньше?` : 'Один флот на весь Этаж. Потопи за меньшее число выстрелов';
+  return `<button class="st-strip sd-strip ${d.done ? 'done' : ''}" data-act="daily-open"><span class="st-ico">${art('ship', 30)}</span><span class="grow"><b>Задача дня: потопи флот</b><span class="small">${sub}</span></span>${d.done ? '' : '<i class="gq-dot" aria-label="не пройдено"></i>'}<span class="chev" aria-hidden="true">›</span></button>`;
+}
+const dailyView = (d) => ({ myShots: d.shots, oppShots: [], myShips: [], oppSunk: d.sunk, oppShips: d.ships, myTurn: !d.done, fleet: d.fleet,
+  last: (() => { const t = [...d.shots].reverse().find((x) => !x.auto); return t ? { mine: true, x: t.x, y: t.y, r: t.r } : null; })() });
+function renderSeaDay() {
+  const d = S.seaDay;
+  const backBtn = '<button class="b-ico" data-act="daily-back" aria-label="К играм">‹</button>';
+  if (!d) return `<div class="b-stage wait"><div class="b-top">${backBtn}<span></span><span></span></div><div class="card"><p class="sub">Расставляем флот…</p></div></div>`;
+  const fleet = d.fleet.map((len) => ({ len, sunk: false }));
+  for (const sh of d.sunk) { const f = fleet.find((x) => x.len === sh.length && !x.sunk); if (f) f.sunk = true; }
+  const table = d.top.length ? `<ol class="sd-top">${d.top.map((t, i) => `<li class="${t.me ? 'me' : ''}"><span class="sd-n">${i + 1}</span>${avatar(t.look, 26)}<span class="grow ellipsis">${t.me ? 'ты' : esc(t.nick)}</span><b>${t.n}</b></li>`).join('')}</ol>`
+    : '<p class="sd-empty">Из твоих сегодня ещё никто не доплыл. Будь первым — остальным придётся догонять.</p>';
+  const head = `<div class="b-top">${backBtn}<div class="sd-head"><b>Задача дня</b><span>${d.done ? `флот потоплен` : `выстрелов: <b>${d.n}</b>${d.best ? ` · твой рекорд ${d.best}` : ''}`}</span></div><span></span></div>`;
+  const sea = `<section class="b-sea"><div class="b-seahead"><span class="sea-title">Флот дня</span>${fleetBars(fleet)}</div>${renderBoard(dailyView(d), 'opp')}</section>`;
+  if (d.done) {
+    return `<div class="b-stage done daily">${SHIP_DEFS}${head}
+      <div class="b-banner has-art win">${art('trophy', 44)}<span>Потоплен за ${d.n} ${plural(d.n, 'выстрел', 'выстрела', 'выстрелов')}. Место ${d.place} из ${d.players} на Этаже</span></div>
+      <div class="sd-box"><div class="sd-cap">Свои сегодня — меньше выстрелов, выше место</div>${table}</div>
+      ${sea}
+      <p class="sd-empty">Новый флот — в полночь по Москве.</p></div>`;
+  }
+  return `<div class="b-stage play daily">${SHIP_DEFS}${head}${sea}
+    <div class="sd-box sd-dock"><div class="sd-cap">${d.players ? `Сегодня потопили: ${d.players}. ` : ''}Свои — меньше выстрелов, выше место</div>${table}</div></div>`;
+}
+async function dailyShoot(el) {
+  if (S.bBusy) return; S.bBusy = true;
+  try {
+    const before = new Set(S.seaDay.shots.map((t) => `o:${t.x},${t.y}`));
+    const r = await post('/api/sea-daily/shoot', { x: Number(el.dataset.x), y: Number(el.dataset.y) });
+    S.seaDay = r.view;
+    S.bFresh = new Set(r.view.shots.map((t) => `o:${t.x},${t.y}`).filter((k) => !before.has(k))); S.bFreshUntil = Date.now() + 1400;
+    const t = { miss: 'Мимо', hit: `${meG('Попал', 'Попала')}!`, sunk: `${meG('Потопил', 'Потопила')}!` }[r.result];
+    S.bShout = { text: r.view.done ? (r.beans ? `Победа! +${r.beans} ${plural(r.beans, 'зерно', 'зерна', 'зёрен')}` : 'Победа!') : t, cls: r.view.done ? 'sunk' : r.result, until: Date.now() + 1400, board: 'o' };
+    shotSfx(r.view.done ? 'sunk' : r.result);
+    if (r.view.done) { sfx('victory'); loadMe().catch(() => {}); }
+    render();
+    setTimeout(() => { if (S.daily) render(); }, 1500);
+  } catch (e) { toast(e.message || 'Не получилось выстрелить'); }
+  finally { S.bBusy = false; }
 }
 
 // ---------- Прицел ----------
@@ -6906,6 +6960,8 @@ const actions = {
   }),
   'pr-start'(el) { S.sheet = null; S.tab = 'games'; prNew(el.dataset.v); sfx('open'); render(); window.scrollTo(0, 0); },
   'pr-again'() { prNew(S.practice.game); sfx('open'); render(); window.scrollTo(0, 0); },
+  'daily-open'() { S.daily = true; S.sheet = null; S.tab = 'games'; S.bShout = null; S.bFresh = new Set(); sfx('open'); render(); window.scrollTo(0, 0); loadSeaDay().then(render); },
+  'daily-back'() { S.daily = false; render(); window.scrollTo(0, 0); },
   'pr-back'() { S.practice = null; S.bv = null; S.bEmote = null; render(); window.scrollTo(0, 0); },
   'pr-level'(el) {
     const all = store.get('practiceLevel', {}); all[S.practice.game] = el.dataset.v; store.set('practiceLevel', all);
@@ -7219,6 +7275,7 @@ const actions = {
   bshoot: (el, aimed) => {
     // Выстрел уже сделан «отпусканием» прицела — следом браузер пришлёт обычный click по той же клетке
     if (aimed !== true && Date.now() - AIM.shotAt < 700) return;
+    if (S.daily) return dailyShoot(el);
     if (prSea() && S.practice.server) {
       const P = S.practice; if (S.bBusy) return; S.bBusy = true;
       run(async () => {

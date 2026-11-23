@@ -128,6 +128,7 @@ const SHOP = [
 // Начисления зёрен и дневные лимиты (раздел 6 ТЗ)
 const EARN = {
   welcome: { amount: Number(process.env.WELCOME_BEANS || 50), perDay: 1 },
+  seaday: { amount: 3, perDay: 1 },   // потопил флот в задаче дня морского боя
   checkin: { amount: 5, perDay: 1 },  // сумма растёт с серией — см. STREAK_BEANS
   plan: { amount: 5, perDay: 1 },     // заполнил план недели (раз в неделю — проверяется отдельно)
   advent: { amount: 2, perDay: 1 },   // окошко адвент-календаря
