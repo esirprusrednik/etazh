@@ -75,6 +75,26 @@ function drawSpr(atlas, i, x, y, size, rot = 0, alpha = 1, flip = 1, sy = 1) {
   ctx.restore(); ctx.globalAlpha = 1;
 }
 const spr = (a, i, o) => add({ k: 'spr', a, i, ...o });
+// Покадровые анимации (public/art/anim/*.webp): атлас 4 кадра в ряд по 192 px, кадры идут слева направо, сверху вниз.
+// n — сколько кадров, fps — скорость, loop — зацикленная (чайка, плавник, черепаха) или разовая (остальные).
+const ANIM = {
+  gull: { n: 12, fps: 15, loop: true }, fin: { n: 12, fps: 11, loop: true }, turtle: { n: 12, fps: 9, loop: true },
+  dolphin: { n: 16, fps: 13 }, whale: { n: 16, fps: 10 }, kraken: { n: 16, fps: 11 }, boom: { n: 14, fps: 17 }, splash: { n: 14, fps: 17 }
+};
+function aimg(name) {
+  const key = 'a:' + name;
+  if (!IMG[key]) { IMG[key] = new Image(); IMG[key].decoding = 'async'; IMG[key].src = `/art/anim/${name}.webp`; }
+  return IMG[key];
+}
+function drawAnim(name, frame, x, y, size, rot = 0, alpha = 1, flip = 1) {
+  const im = aimg(name); if (!im.complete || !im.naturalWidth || alpha <= 0.01) return;
+  const c = im.naturalWidth / 4, f = Math.max(0, Math.min(ANIM[name].n - 1, Math.floor(frame)));
+  ctx.save(); ctx.translate(x, y); if (rot) ctx.rotate(rot); if (flip < 0) ctx.scale(-1, 1); ctx.globalAlpha = Math.min(1, alpha);
+  ctx.drawImage(im, (f % 4) * c, Math.floor(f / 4) * c, c, c, -size / 2, -size / 2, size, size);
+  ctx.restore(); ctx.globalAlpha = 1;
+}
+// Разовая анимация живёт ровно столько, сколько длятся её кадры; зацикленной срок задаёт вызывающий
+const anim = (name, o) => add({ k: 'anim', n: name, life: ANIM[name].n / ANIM[name].fps, ...o });
 
 // ---------- что где на экране ----------
 const boardEl = (pre) => document.querySelector(`.board-wrap.${pre === 'o' ? 'opp' : 'me'} .board`);
@@ -104,37 +124,24 @@ function shipCells(pre, x, y) {
 // ---------- эффекты ----------
 function splash(c) {
   const s = c.s;
-  spr('fx', 6, { x: c.cx, y: c.cy, size: s * 1.7, m: 'grow', life: 0.9 });
-  spr('fx', 2, { x: c.cx, y: c.cy, size: s * 1.9, m: 'pop', life: 0.55, rot: rnd(0, TAU) });
-  for (let i = 0; i < 3; i++) add({ k: 'ring', x: c.cx, y: c.cy, r: s * 0.12, vr: s * (2.1 - i * 0.45), life: 0.75 + i * 0.22, w: 2.4 - i * 0.6, col: '225,240,255', delay: i * 0.09 });
+  anim('splash', { x: c.cx, y: c.cy, size: s * 2.9, rot: rnd(0, TAU) });
   add({ k: 'glow', x: c.cx, y: c.cy, r: s * 0.9, life: 0.28, col: '200,230,255', a: 0.55 });
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < 8; i++) {
     const a = rnd(-Math.PI * 0.95, -Math.PI * 0.05); const v = rnd(60, 190) * (s / 30);
     add({ k: 'drop', x: c.cx + rnd(-3, 3), y: c.cy, vx: Math.cos(a) * v * 0.55, vy: Math.sin(a) * v, g: 520 * (s / 30), life: rnd(0.45, 0.8), r: rnd(1.2, 2.6) * (s / 30) });
   }
-  // столб воды
-  for (let i = 0; i < 5; i++) add({ k: 'drop', x: c.cx + rnd(-2, 2), y: c.cy, vx: rnd(-10, 10), vy: -rnd(180, 260) * (s / 30), g: 620 * (s / 30), life: 0.6, r: rnd(2.2, 3.4) * (s / 30), col: '255,255,255' });
 }
 
 function boom(c, power = 1) {
   const s = c.s * power;
-  spr('fx', power > 1.2 ? 0 : 1, { x: c.cx, y: c.cy, size: s * (power > 1.2 ? 2.9 : 2.2), m: 'pop', life: 0.5, rot: rnd(-0.5, 0.5) });
-  later(140, () => spr('fx', 3, { x: c.cx, y: c.cy - s * 0.2, vx: rnd(-8, 8), vy: -rnd(22, 36), size: s * 1.5, m: 'rise', life: 1.3, rot: rnd(0, TAU) }));
+  // Сам взрыв — покадровый пластилиновый: вспышка, огненный шар с осколками, клуб дыма. Вокруг — свет, кольцо и искры
+  anim('boom', { x: c.cx, y: c.cy - s * 0.1, size: s * 3.1, rot: rnd(-0.35, 0.35) });
   add({ k: 'glow', x: c.cx, y: c.cy, r: s * 3.2, life: 0.22, col: '255,244,214', a: 0.95 });
   add({ k: 'ring', x: c.cx, y: c.cy, r: s * 0.2, vr: s * 4.6, life: 0.42, w: 3.2, col: '255,214,150' });
-  for (let i = 0; i < 9; i++) {
-    const a = rnd(0, TAU); const d = rnd(0, s * 0.35);
-    add({ k: 'fire', x: c.cx + Math.cos(a) * d, y: c.cy + Math.sin(a) * d, vx: Math.cos(a) * rnd(10, 60), vy: Math.sin(a) * rnd(10, 60) - 30, r: rnd(0.45, 0.85) * s, life: rnd(0.35, 0.7), hot: R() < 0.5 });
-  }
-  for (let i = 0; i < Math.round(22 * power); i++) {
+  for (let i = 0; i < Math.round(14 * power); i++) {
     const a = rnd(0, TAU); const v = rnd(120, 420) * (c.s / 30);
     add({ k: 'spark', x: c.cx, y: c.cy, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 60, g: 480, drag: 2.2, life: rnd(0.3, 0.75), w: rnd(1, 2.2) });
   }
-  for (let i = 0; i < Math.round(7 * power); i++) {
-    const a = rnd(-Math.PI, 0); const v = rnd(120, 300) * (c.s / 30);
-    add({ k: 'chip', x: c.cx, y: c.cy, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 760, life: rnd(0.6, 1), r: rnd(2, 4.2) * (c.s / 30), rot: rnd(0, TAU), vrot: rnd(-12, 12) });
-  }
-  for (let i = 0; i < 6; i++) add({ k: 'smoke', x: c.cx + rnd(-s * 0.25, s * 0.25), y: c.cy + rnd(-s * 0.2, s * 0.2), vx: rnd(-14, 14), vy: -rnd(26, 60), r: rnd(0.35, 0.6) * s, grow: s * 0.9, life: rnd(1, 1.9), delay: rnd(0.05, 0.3) });
 }
 
 // Снаряд летит по дуге: вспышка у стрелка, тень бежит по воде, за снарядом тянется дымок.
@@ -193,11 +200,20 @@ function impact(pre, x, y) {
       const cells = shipCells(pre, x, y);
       boom(c2, 1.35); shake(2);
       add({ k: 'veil', x: 0, y: 0, life: 0.3, col: '255,236,200', a: 0.34 });
-      slowUntil = performance.now() + 620; cinema(1500);
+      slowUntil = performance.now() + 620; cinema(2900);
       for (let i = 0; i < 3; i++) add({ k: 'ring', x: c2.cx, y: c2.cy, r: c2.s * 0.4, vr: c2.s * (5.5 - i * 1.2), life: 0.9 + i * 0.25, w: 3 - i * 0.7, col: '255,240,220', delay: i * 0.1 });
       cells.forEach(([a, b], i) => later(90 + i * 110, () => { const cc = cellAt(pre, a, b); if (cc) { boom(cc, 1.05); if (i % 2 === 0) shake(1); } }));
-      // На месте потопленного корабля несколько секунд плавают обломки
-      later(700, () => { const cc = cellAt(pre, x, y); if (cc) spr('fx', 7, { x: cc.cx, y: cc.cy, vx: rnd(-3, 3), vy: rnd(-2, 2), size: cc.s * 1.5, m: 'float', al: 0.95, life: 5.5 }); });
+      // Когда отгремели взрывы, из воды поднимается кракен: щупальца обхватывают корабль и утаскивают его на дно.
+      // Анимация растянута по размеру корабля; после неё на воде остаются обломки
+      const kAt = 250 + cells.length * 110;
+      later(kAt, () => {
+        const pts = cells.map(([a, b]) => cellAt(pre, a, b)).filter(Boolean); if (!pts.length) return;
+        const kx = pts.reduce((t, q) => t + q.cx, 0) / pts.length, ky = pts.reduce((t, q) => t + q.cy, 0) / pts.length, cs = pts[0].s;
+        anim('kraken', { x: kx, y: ky, size: cs * (2.6 + cells.length * 0.75) });
+        for (let i = 0; i < 3; i++) add({ k: 'ring', x: kx, y: ky, r: cs * 0.5, vr: cs * (4 - i), life: 1 + i * 0.3, w: 2.4 - i * 0.6, col: '235,244,255', delay: 0.25 + i * 0.14 });
+        later(430, () => shake(1, true));
+      });
+      later(kAt + 1350, () => { const cc = cellAt(pre, x, y); if (cc) spr('fx', 7, { x: cc.cx, y: cc.cy, vx: rnd(-3, 3), vy: rnd(-2, 2), size: cc.s * 1.5, m: 'float', al: 0.95, life: 5.5 }); });
       return;
     }
     boom(c2, 1); shake(1); punch();
@@ -271,60 +287,42 @@ function scene() {
     }
     due.gull = now + rnd(11000, 24000);
   }
-  // Свободная клетка — для тех, кто выныривает: не там, куда стреляли, и не под своим кораблём
-  const freeCell = () => {
-    const free = [...board.children].filter((el) => el.classList.contains('bc') && !/\b(miss|hit|sunk|under|lastshot)\b/.test(el.className));
-    const el = free[Math.floor(R() * free.length)]; if (!el) return null;
-    const c = el.getBoundingClientRect(); return { cx: c.left + c.width / 2, cy: c.top + c.height / 2 };
+  // Свободная клетка — для тех, кто выныривает: не там, куда стреляли, и не под своим кораблём. minY — не выше этой линии
+  const freeCell = (minY = 0) => {
+    const free = [...board.children].filter((el) => el.classList.contains('bc') && !/\b(miss|hit|sunk|under|lastshot)\b/.test(el.className))
+      .map((el) => { const c = el.getBoundingClientRect(); return { cx: c.left + c.width / 2, cy: c.top + c.height / 2 }; }).filter((c) => c.cy >= minY);
+    return free[Math.floor(R() * free.length)] || null;
   };
   const bubbles = (c, n, spread) => { for (let i = 0; i < n; i++) later(i * 110, () => add({ k: 'ring', x: c.cx + rnd(-spread, spread), y: c.cy + rnd(-spread, spread), r: 1, vr: s * rnd(0.5, 0.9), life: 0.55, w: 1.1, col: '220,240,255' })); };
-  // Дельфин: сначала вода «закипает», потом прыжок дугой с брызгами — вытягивается на взлёте, сжимается в верхней точке
+  // Дельфин: вода «закипает», потом покадровый прыжок — выныривает из пены, идёт дугой и ныряет со всплеском.
+  // В кадре анимации старт — в левом нижнем углу, поэтому кадр сдвинут так, чтобы пена пришлась на клетку
   if (now > due.fish) {
     if (due.fish) {
-      const c = freeCell();
+      const size = s * 3.7, c = freeCell(r.top + size * 0.72);
       if (c) {
         const dir = c.cx < r.left + r.width / 2 ? 1 : -1;
         bubbles(c, 4, s * 0.25);
-        later(420, () => {
-          spr('fx', 2, { x: c.cx, y: c.cy, size: s * 1.3, m: 'pop', life: 0.45 });
-          spr('life', 2, { x: c.cx, y: c.cy, vx: dir * s * 1.6, vy: -s * 5, g: s * 10.4, size: s * 1.8, m: 'leap', dir, life: 0.97, trail: true });
-          for (let i = 0; i < 12; i++) add({ k: 'drop', x: c.cx + rnd(-4, 4), y: c.cy, vx: dir * rnd(10, 90) * k, vy: -rnd(120, 300) * k, g: 620 * k, life: rnd(0.5, 0.9), r: rnd(1.2, 2.6) * k, col: '225,242,255' });
-        });
-        later(420 + 930, () => {
-          const ex = c.cx + dir * s * 1.55;
-          spr('fx', 2, { x: ex, y: c.cy, size: s * 1.7, m: 'pop', life: 0.55 }); spr('fx', 6, { x: ex, y: c.cy, size: s * 2, m: 'grow', life: 1.1 });
-          for (let i = 0; i < 2; i++) add({ k: 'ring', x: ex, y: c.cy, r: s * 0.2, vr: s * (2.6 - i), life: 0.9 + i * 0.3, w: 2 - i * 0.6, col: '225,240,255', delay: i * 0.12 });
-        });
+        later(420, () => anim('dolphin', { x: c.cx + dir * size * 0.37, y: c.cy - size * 0.33, size, flip: dir }));
       }
     }
     due.fish = now + rnd(7000, 14000);
   }
-  // Плавник: режет воду вверх по полю, оставляя расходящийся след, и уходит на глубину
+  // Плавник: покадрово режет воду вверх по полю — пена у основания кипит, след расходится — и уходит на глубину
   if (now > due.fin) {
-    if (due.fin) spr('life', 3, { x: rnd(r.left + s * 1.5, r.right - s * 1.5), y: rnd(r.top + s * 4.5, r.bottom - s), vx: 0, vy: -s * 0.62, size: s * 1.5, m: 'glide', life: 4.8, wake: 0 });
+    if (due.fin) anim('fin', { x: rnd(r.left + s * 1.5, r.right - s * 1.5), y: rnd(r.top + s * 4.5, r.bottom - s), vx: 0, vy: -s * 0.62, size: s * 2, life: 5, dive: true });
     due.fin = now + rnd(22000, 45000);
   }
-  // Редкие гости: кит бьёт хвостом, спрут высовывает щупальце, черепаха плывёт по своим делам
+  // Редкие гости: кит поднимает хвост и бьёт им по воде, черепаха гребёт по своим делам
   if (now > due.rare) {
     if (due.rare) {
-      const pick = R();
-      if (pick < 0.7) {
-        const c = freeCell(), whale = pick < 0.4;
+      if (R() < 0.6) {
+        const size = s * 3.4, c = freeCell(r.top + size * 0.5);
         if (c) {
-          bubbles(c, 7, s * 0.5);
-          later(800, () => {
-            spr('fx', 6, { x: c.cx, y: c.cy + s * 0.3, size: s * 2.4, m: 'grow', life: 1.4 });
-            spr('life', whale ? 4 : 5, { x: c.cx, y: c.cy, size: s * (whale ? 2.3 : 1.9), m: 'surface', wag: whale ? 0.1 : 0.22, ws: whale ? 2.6 : 4.5, slap: whale, life: whale ? 3.6 : 4 });
-            for (let i = 0; i < 10; i++) add({ k: 'drop', x: c.cx + rnd(-s * 0.5, s * 0.5), y: c.cy, vx: rnd(-50, 50) * k, vy: -rnd(90, 220) * k, g: 520 * k, life: rnd(0.5, 0.9), r: rnd(1.2, 2.4) * k, col: '225,242,255' });
-          });
-          // Уход под воду: кит напоследок шлёпает хвостом — всплеск, круги, экран чуть вздрагивает
-          later(800 + (whale ? 2700 : 3100), () => {
-            spr('fx', 2, { x: c.cx, y: c.cy + s * 0.2, size: s * (whale ? 2.6 : 1.8), m: 'pop', life: 0.6 });
-            for (let i = 0; i < 3; i++) add({ k: 'ring', x: c.cx, y: c.cy + s * 0.2, r: s * 0.3, vr: s * (3.4 - i * 0.8), life: 1 + i * 0.3, w: 2.4 - i * 0.6, col: '225,240,255', delay: i * 0.12 });
-            if (whale) { shake(1, true); for (let i = 0; i < 16; i++) add({ k: 'drop', x: c.cx, y: c.cy, vx: rnd(-140, 140) * k, vy: -rnd(120, 320) * k, g: 640 * k, life: rnd(0.5, 1), r: rnd(1.4, 3) * k, col: '235,246,255' }); }
-          });
+          bubbles(c, 6, s * 0.4);
+          later(650, () => anim('whale', { x: c.cx, y: c.cy - size * 0.12, size }));
+          later(650 + 820, () => shake(1, true));
         }
-      } else { const ltr = R() < 0.5, vx = (ltr ? 1 : -1) * s * 0.42, vy = rnd(-0.12, 0.12) * s; spr('life', 6, { x: rnd(r.left + s * 2, r.right - s * 2), y: rnd(r.top + s * 2, r.bottom - s * 2), vx, vy, size: s * 1.15, m: 'swim', rot: Math.atan2(vy, vx) + Math.PI / 2, life: 9, wake: 0 }); }
+      } else { const ltr = R() < 0.5, vx = (ltr ? 1 : -1) * s * 0.42, vy = rnd(-0.12, 0.12) * s; anim('turtle', { x: rnd(r.left + s * 2, r.right - s * 2), y: rnd(r.top + s * 2, r.bottom - s * 2), vx, vy, size: s * 1.35, rot: Math.atan2(vy, vx) + Math.PI / 2, life: 9, al: 0.92, wake: 0 }); }
     }
     due.rare = now + rnd(26000, 55000);
   }
@@ -439,6 +437,15 @@ function frame(now) {
         ctx.beginPath(); ctx.arc(x + Math.sin(p.t * 2.2 + p.ph) * 5, y, p.r, 0, TAU); ctx.fill();
         break;
       }
+      case 'anim': {
+        const A = ANIM[p.n];
+        if (A.loop) {
+          const edge = Math.min(1, u * 6, (1 - u) * 6), sc = p.dive ? 0.6 + 0.4 * Math.min(1, u * 5, (1 - u) * 5) : 1;
+          drawAnim(p.n, (p.t * A.fps) % A.n, x, y, p.size * sc, p.rot || 0, edge * (p.al || 1), p.flip || 1);
+          if (p.wake !== undefined && p.t > p.wake) { p.wake = p.t + 0.9; addLate({ k: 'ring', x: p.x, y: p.y, r: p.size * 0.2, vr: p.size * 0.6, life: 1.4, w: 1, col: '225,240,255' }); }
+        } else drawAnim(p.n, u * A.n, x, y, p.size, p.rot || 0, p.al || 1, p.flip || 1);
+        break;
+      }
       case 'spr': {
         const edge = Math.min(1, u * 7, (1 - u) * 7);
         switch (p.m) {
@@ -493,9 +500,10 @@ function frame(now) {
         const tx = 2 * q * (p.cx - p.x0) + 2 * e * (p.x1 - p.cx), ty = 2 * q * (p.cy - p.y0) + 2 * e * (p.y1 - p.cy);
         const low = Math.sin(e * Math.PI), a = Math.min(1, u * 9, (1 - u) * 9), size = p.size * (0.85 + 0.4 * low), hgt = p.size * (0.75 - 0.5 * low);
         ctx.fillStyle = `rgba(0,14,40,${(0.1 + 0.16 * low) * a})`; ctx.beginPath(); ctx.ellipse(gx + hgt * 0.5, gy + hgt, size * (0.3 - 0.06 * low), size * 0.1, 0, 0, TAU); ctx.fill();
-        // взмахи сериями: несколько быстрых — и парит; кадры перетекают друг в друга, а не щёлкают
-        const beat = (p.t * 0.55 + p.ph) % 1 < 0.6 ? Math.sin(p.t * 13) : 0.9, mix = 0.5 + 0.5 * beat, rot = Math.atan2(ty, tx) + Math.PI / 2;
-        drawSpr('life', 0, gx, gy, size, rot, a * mix, 1, 1); drawSpr('life', 1, gx, gy, size, rot, a * (1 - mix), 1, 1);
+        // взмахи сериями: несколько полных циклов — и парит, едва шевеля крыльями
+        const cyc = (p.t * 0.5 + p.ph) % 1, rot = Math.atan2(ty, tx) + Math.PI / 2;
+        p.fr = ((p.fr || 0) + dt * (cyc < 0.62 ? ANIM.gull.fps : 5)) % ANIM.gull.n; // парит — крылья идут втрое медленнее, без рывка
+        drawAnim('gull', p.fr, gx, gy, size, rot, a);
         break;
       }
       case 'shell': {
@@ -535,7 +543,7 @@ export function seaFxSync({ on, fresh, freshUntil, win }) {
     return;
   }
   ensure();
-  if (!active) { img('life'); img('fx'); }
+  if (!active) { img('life'); img('fx'); aimg('boom'); aimg('splash'); aimg('kraken'); setTimeout(() => ['gull', 'fin', 'dolphin', 'whale', 'turtle'].forEach(aimg), 2500); }
   active = true;
   if (fresh && fresh !== lastFresh && Date.now() < freshUntil) {
     lastFresh = fresh;

@@ -216,3 +216,11 @@ public/art/wave/crest.webp
 public/sounds/wave_boom.mp3
 public/art/sea_life.webp
 public/art/sea_fx.webp
+public/art/anim/gull.webp
+public/art/anim/fin.webp
+public/art/anim/dolphin.webp
+public/art/anim/kraken.webp
+public/art/anim/whale.webp
+public/art/anim/boom.webp
+public/art/anim/splash.webp
+public/art/anim/turtle.webp
