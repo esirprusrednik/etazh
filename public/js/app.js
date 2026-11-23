@@ -1689,7 +1689,22 @@ async function loadFeatures() {
 async function loadCrew() { S.crew = await get('/api/crew'); try { S.battles = (await get('/api/battles')).items; } catch { S.battles = []; } }
 // Морской бой: при обновлении запоминаем, какие клетки появились — их и анимируем
 const shotKeys = (v) => new Set([...v.myShots.map((t) => `o:${t.x},${t.y}`), ...v.oppShots.map((t) => `m:${t.x},${t.y}`)]);
+// «Твой ход» — лента через поле в момент, когда очередь перешла ко мне. Живёт вне корня: перерисовка её не обрывает
+function turnRibbon() {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const old = document.querySelector('.turn-ribbon'); if (old) old.remove();
+  const el = document.createElement('div'); el.className = 'turn-ribbon'; el.setAttribute('aria-hidden', 'true'); el.innerHTML = '<span>Твой ход</span>';
+  const b = document.querySelector('.b-stage.play .b-sea .board'); if (b) { const r = b.getBoundingClientRect(); el.style.top = r.top + r.height / 2 + 'px'; }
+  document.body.appendChild(el); setTimeout(() => el.remove(), 1300);
+}
 function setBattleView(v) {
+  const was = S.bv && S.bv.id === v.id ? S.bv : null;
+  // Число кораблей на плаву изменилось — цифра в шапке «подпрыгивает»; очередь перешла ко мне — лента «Твой ход»
+  if (was && was.status === 'play' && v.status === 'play') {
+    if (v.oppLeft < was.oppLeft) S.bBump = { who: 'opp', until: Date.now() + 700 };
+    else if (v.myLeft < was.myLeft) S.bBump = { who: 'me', until: Date.now() + 700 };
+    if (!was.myTurn && v.myTurn) setTimeout(turnRibbon, 650);
+  }
   const prev = S.bv && S.bv.id === v.id ? shotKeys(S.bv) : null;
   if (prev) {
     const fresh = [...shotKeys(v)].filter((k) => !prev.has(k));
@@ -4750,9 +4765,10 @@ function renderVersus(v) {
   else if (v.last && v.last.r && v.last.r !== 'miss') { const sunk = v.last.r === 'sunk'; if (v.last.mine) { mm = sunk ? 'win' : 'happy'; mo = sunk ? 'sad' : 'wow'; } else { mo = sunk ? 'win' : 'happy'; mm = sunk ? 'sad' : 'wow'; } }
   // Во время партии — компактная строка, чтобы поле соперника и свой флот поместились на одном экране
   const cmp = v.status === 'play', AS = cmp ? 34 : 52;
+  const bump = (who) => (S.bBump && S.bBump.who === who && Date.now() < S.bBump.until ? `class="bump" style="animation-delay:-${Math.max(0, Date.now() - (S.bBump.until - 700))}ms"` : '');
   return `<section class="b-vs ${cmp ? 'compact' : ''}">
     <div class="vs-side ${myTurn ? 'turn' : ''}">${bubble('mine')}<span class="vs-ava mood-${mm}">${avatar(moodLook(S.me.look, mm), AS)}</span><span class="vs-name">ты</span>${v.clock ? `<span class="vs-clock" data-who="me">${fmtClock(clockNow(v, 'me'))}</span>` : ''}</div>
-    <div class="vs-mid"><div class="vs-score"><b>${v.score.me}</b><span>:</span><b>${v.score.opp}</b></div><div class="vs-cap">${v.status === 'setup' ? 'расстановка' : v.status === 'done' ? 'партия окончена' : myTurn ? 'твой ход' : 'ход соперника'}</div></div>
+    <div class="vs-mid"><div class="vs-score">${cmp ? `<b ${bump('me')}>${v.myLeft}</b><span>:</span><b ${bump('opp')}>${v.oppLeft}</b>` : `<b>${v.score.me}</b><span>:</span><b>${v.score.opp}</b>`}</div><div class="vs-cap">${v.status === 'setup' ? 'расстановка' : v.status === 'done' ? 'счёт по партиям' : myTurn ? 'твой ход' : 'ход соперника'}</div>${cmp ? '<div class="vs-sub">кораблей на плаву</div>' : ''}</div>
     <div class="vs-side ${oppTurn ? 'turn' : ''}">${bubble('opp')}${(v.practice ? (h) => h : (h) => tap(v.opp.id, h))(`<span class="vs-ava mood-${mo}">${avatar(moodLook(v.opp.look, mo), AS)}</span>`)}<span class="vs-name ellipsis">${nk(v.opp)}</span>${v.clock ? `<span class="vs-clock" data-who="opp">${fmtClock(clockNow(v, 'opp'))}</span>` : ''}</div>
   </section>`;
 }
@@ -4824,6 +4840,11 @@ function renderBattle() {
     <div class="b-seahead"><span class="sea-title">${big === 'me' ? 'Мой флот' : P ? 'Воды противника' : `Воды ${nk(v.opp)}`}</span>${fleetBars(big === 'me' ? mineFleet : oppFleet)}</div>
     ${renderBoard(v, big)}
   </section>
+  <div class="b-log" aria-live="polite">${(() => {
+    const cell = (t) => `${B_COLS[t.x]}${t.y + 1}`, word = (r) => (r === 'miss' ? 'мимо' : r === 'sunk' ? 'потоплен' : 'попадание');
+    const mine = [...v.myShots].reverse().find((t) => !t.auto);
+    return `<span class="${mine && mine.r !== 'miss' ? 'good' : ''}"><i>ты</i> ${mine ? `${cell(mine)} · ${word(mine.r)}` : 'ещё не стрелял' + meG('', 'а')}</span><span class="${lo && lo.r !== 'miss' ? 'bad' : ''}"><i>${P ? 'противник' : esc(v.opp.nick)}</i> ${lo ? `${cell(lo)} · ${word(lo.r)}` : 'ещё не стрелял' + gw(v.opp.look, '', 'а')}</span>`;
+  })()}</div>
   <div class="b-dock">
     <button class="b-mini2 ${small === 'me' && lastOpp && lastOpp !== 'мимо' ? 'hot' : ''}" data-act="b-mine-big" aria-label="${small === 'me' ? 'Показать моё поле крупно' : 'Вернуться к полю соперника'}">
       <span class="b-mini-board">${renderBoard(v, small, true)}</span>

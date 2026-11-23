@@ -3191,3 +3191,24 @@ html:has(body.in-battle) { background: #071631; }
 @media (max-width: 339px) { .b-saylist button { font-size: 12px; padding: 6px 8px; } }
 .emo-float.say .emo-bubble { max-width: min(70vw, 260px); white-space: normal; padding: 8px 12px; font-size: 14px; font-weight: 800; line-height: 1.25; text-align: left; }
 @media (max-height: 600px) { .b-info-last { display: none; } .b-say { min-height: 40px; } }
+
+/* Морской бой: состояние хода, счёт кораблей, лента событий */
+.b-stage .b-vs .vs-sub { font-size: 8.5px; font-weight: 700; color: rgba(220,231,255,.6); white-space: nowrap; line-height: 1.1; }
+.b-stage .b-vs .vs-score b.bump { display: inline-block; animation: b-bump .7s cubic-bezier(.3,1.6,.5,1) both; color: #FFC93C; }
+@keyframes b-bump { 0% { transform: scale(1); } 30% { transform: scale(1.7) rotate(-6deg); } 100% { transform: scale(1); } }
+/* Ход соперника: поле, по которому сейчас стрелять нельзя, приглушено — видно без чтения подписи */
+.b-stage.play .b-sea:not(.mine) > .board-wrap .board { transition: filter .35s ease; }
+.b-stage.play .b-sea:not(.mine) > .board-wrap .board:not(.armed) { filter: saturate(.65) brightness(.8); }
+.b-log { display: none; gap: 6px; justify-content: center; margin: auto 0; }
+.b-log span { padding: 5px 10px; border-radius: 999px; background: rgba(255,255,255,.08); font-size: 12px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.b-log span i { font-style: normal; font-weight: 700; color: rgba(255,255,255,.6); margin-right: 3px; }
+.b-log span.good { background: rgba(62,214,160,.2); box-shadow: inset 0 0 0 1px rgba(62,214,160,.5); }
+.b-log span.bad { background: rgba(229,72,77,.22); box-shadow: inset 0 0 0 1px rgba(229,72,77,.55); }
+@media (min-height: 700px) { .b-stage.play .b-log { display: flex; } .b-stage.play .b-dock { margin-top: 0; } .b-info-last { display: none; } }
+/* Расстановка — по центру высокого экрана, а не прижата к верху */
+.b-stage.setup .b-sea { margin-top: auto; margin-bottom: auto; }
+.turn-ribbon { position: fixed; left: 0; right: 0; top: 40%; z-index: 43; pointer-events: none; display: grid; place-items: center; transform: translateY(-50%); animation: b-ribbon 1.25s cubic-bezier(.2,.8,.2,1) both; }
+.turn-ribbon span { padding: 10px 44px; font-size: 24px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; color: #3A2A00; background: linear-gradient(90deg, rgba(255,201,60,0), #FFC93C 18%, #FFE38A 50%, #FFC93C 82%, rgba(255,201,60,0)); width: 100%; text-align: center; }
+@keyframes b-ribbon { 0% { opacity: 0; transform: translateY(-50%) scaleX(.3); } 18% { opacity: 1; transform: translateY(-50%) scaleX(1); } 75% { opacity: 1; } 100% { opacity: 0; transform: translateY(-50%) scaleX(1.06); } }
+@media (prefers-reduced-motion: reduce) { .b-stage .b-vs .vs-score b.bump { animation: none; } }
+@media (max-height: 540px) { .b-stage .b-vs .vs-sub { display: none; } .b-stage.play .b-sea > .board-wrap { width: min(100%, calc(100dvh - 240px)); } }
