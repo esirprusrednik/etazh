@@ -3067,3 +3067,9 @@ button:not(.bc):not(:disabled):active { transform: scale(.97); }
 @media (prefers-reduced-motion: reduce) { .emo-bubble b .emo-art, .emo:active .emo-art, .joined-bell .sect-art { animation: none !important; } }
 .addpill i { font-style: normal; font-weight: 900; font-size: 15px; line-height: 1; }
 .away-btn .pm { margin-left: 4px; }
+
+/* Журнал уведомлений в «Этаже» */
+.inbox-h { margin: 10px 2px 0; font-size: 13px; font-weight: 700; color: var(--muted); }
+.inbox-note .inbox-ico { background: var(--s2); color: var(--muted); }
+.inbox-note b { font-weight: 600; }
+.inbox-when { color: var(--muted); font-size: 12px; }

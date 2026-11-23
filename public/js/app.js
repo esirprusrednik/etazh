@@ -1222,7 +1222,8 @@ const ICONS = {
   scissors: 'M9.5 12.5 6.2 4.2a1.6 1.6 0 0 1 3-1.1l3.3 8.4M12.5 11.5l1.3-8a1.6 1.6 0 0 1 3.2.5l-1.2 8.5M15.8 12.5a1.6 1.6 0 0 1 3.2 0v2.5a6.5 6.5 0 0 1-6.5 6.5h-1a6.5 6.5 0 0 1-6.3-4.9l-.6-2.4a1.8 1.8 0 0 1 3.4-1.1l1 2.4M9.5 15c1.6-1.2 3.8-1.3 5.6-.2',
   glasses: 'M6.5 16a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM17.5 16a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM10 12.5h4M3 12.5 2 10M21 12.5l1-2.5',
   circle: 'M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16z',
-  grid: 'M4 9h16M4 15h16M9 4v16M15 4v16'
+  grid: 'M4 9h16M4 15h16M9 4v16M15 4v16',
+  bell: 'M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0'
 };
 // Часть значков нарисована в пластилиновом стиле: вместо линейной иконки ставится картинка из /art (якорь морского боя — кораблик)
 const ART_ICON = { anchor: 'ship' };
@@ -1312,10 +1313,17 @@ async function loadSanta() {
   try { S.santa = await get(`/api/gangs/${S.activeGang}/santa`); } catch { S.santa = null; }
 }
 // «Этаж» пишет сам: живая сводка дел. Новые пункты (ещё не виденные) — счётчик на вкладке «Чаты»
-async function loadInbox() { try { S.inbox = (await get('/api/inbox')).items; } catch { S.inbox = S.inbox || []; } }
+async function loadInbox() { try { const r = await get('/api/inbox'); S.inbox = r.items; S.inboxRecent = r.recent || []; } catch { S.inbox = S.inbox || []; } }
+const inboxIds = () => [...(S.inbox || []).map((x) => x.id), ...(S.inboxRecent || []).map((x) => 'n' + x.id)];
 const inboxSeen = () => { try { return new Set(store.get('inboxSeen', [])); } catch { return new Set(); } };
-const inboxNew = () => { const seen = inboxSeen(); return (S.inbox || []).filter((x) => !seen.has(x.id)).length; };
-function markInboxSeen() { try { store.set('inboxSeen', (S.inbox || []).map((x) => x.id)); } catch {} }
+const inboxNew = () => { const seen = inboxSeen(); return inboxIds().filter((id) => !seen.has(id)).length; };
+function markInboxSeen() { try { store.set('inboxSeen', inboxIds()); } catch {} }
+// «сегодня 14:05», «вчера 18:20», «21.11»
+function notifWhen(at) {
+  const d = new Date(at), n = new Date(), p = (x) => String(x).padStart(2, '0'), hm = `${p(d.getHours())}:${p(d.getMinutes())}`;
+  const days = Math.round((new Date(n.getFullYear(), n.getMonth(), n.getDate()) - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 864e5);
+  return days <= 0 ? `сегодня ${hm}` : days === 1 ? `вчера ${hm}` : `${p(d.getDate())}.${p(d.getMonth() + 1)} ${hm}`;
+}
 async function loadMatch() { try { S.match = await get('/api/match'); } catch { S.match = null; } }
 async function loadBoard() { try { S.board = await get('/api/board'); } catch { S.board = null; } }
 async function loadOccasion() { try { S.occ = (await get('/api/occasion')).occasion; } catch { S.occ = null; } }
@@ -2980,7 +2988,8 @@ function renderChatNews() {
 function renderInboxRow() {
   const items = S.inbox || [];
   const n = inboxNew();
-  const line = items.length ? items[0].title + (items.length > 1 ? ` и ещё ${items.length - 1}` : '') : 'Всё сделано. Можно и поработать';
+  const rec = S.inboxRecent || [], seen = inboxSeen(), fresh = rec.find((x) => !seen.has('n' + x.id));
+  const line = fresh ? `${fresh.title}${fresh.body ? ': ' + fresh.body : ''}` : items.length ? items[0].title + (items.length > 1 ? ` и ещё ${items.length - 1}` : '') : 'Всё сделано. Можно и поработать';
   return `<button class="chat-row inbox-row" data-act="inbox-open"><img class="inbox-ava" src="/icons/icon-192.png" alt="" width="42" height="42">
     <span class="grow" style="min-width:0"><span class="chat-title">Этаж <span class="small">· что ждёт тебя</span></span><span class="where ellipsis ${n ? 'unread' : ''}">${esc(line)}</span></span>
     <span class="crew-side">${n ? `<span class="crew-badge">${n > 9 ? '9+' : n}</span>` : items.length ? `<span class="small">${items.length}</span>` : ''}</span></button>`;
@@ -2994,6 +3003,9 @@ function renderInbox() {
     <div class="inbox-msg">${esc(intro)}</div>
     ${items.map((x) => `<button class="inbox-item k-${x.kind}" data-act="inbox-go" data-go='${esc(JSON.stringify(x.go))}'><span class="inbox-ico">${ico(x.icon, 20)}</span>
       <span class="grow" style="min-width:0"><b>${esc(x.title)}</b>${x.text ? `<span class="small">${esc(x.text)}</span>` : ''}</span><span aria-hidden="true">›</span></button>`).join('')}
+    ${(S.inboxRecent || []).length ? `<h4 class="inbox-h">Недавние уведомления</h4>${S.inboxRecent.map((x) => `<button class="inbox-item inbox-note" data-act="notif-go" data-url="${esc(x.url || '/')}"><span class="inbox-ico">${ico('bell', 20)}</span>
+      <span class="grow" style="min-width:0"><b>${esc(x.title)}</b>${x.body ? `<span class="small">${esc(x.body)}</span>` : ''}<span class="small inbox-when">${notifWhen(x.at)}</span></span><span aria-hidden="true">›</span></button>`).join('')}
+    <p class="small" style="margin:0 2px">Здесь лежит всё, что приходило пушем за три дня, — если баннер мелькнул и пропал.</p>` : ''}
     <p class="small" style="margin:6px 2px 0">Раз в рабочий день, около 11:30, пришлю короткую сводку пушем — только если ты ещё не заходил${meG('', 'а')} и есть что-то кроме заданий дня. Отключается в профиле → «Приватность».</p>
   </div>`;
 }
@@ -5937,7 +5949,7 @@ const FEEL_SELF = new Set(['todo-done', 'wave-launch', 'wave-join', 'tr-buy', 't
 const FEEL = {
   open: 'open', 'open-sec': 'open', person: 'open', 'find-open': 'open', 'poll-new': 'open', 'gev-new': 'open', 'ava-open': 'open', 'ava-open-vac': 'open', 'vac-party': 'open', 'meme-open': 'open', 'pcall-open': 'open',
   'call-open': 'open', 'dm-call-open': 'open', 'battle-new': 'open', 'crew-share': 'open',
-  'gang-open': 'open', 'dm-open': 'open', 'battle-open': 'open', 'inbox-open': 'open', 'inbox-go': 'open', 'gev-edit': 'open', 'quest-go': 'open',
+  'gang-open': 'open', 'dm-open': 'open', 'battle-open': 'open', 'inbox-open': 'open', 'inbox-go': 'open', 'notif-go': 'open', 'gev-edit': 'open', 'quest-go': 'open',
   close: 'close', 'close-bg': 'close', 'chats-back': 'close', 'dm-back': 'close', 'battle-back': 'close', 'onb-back': 'close', 'nick-no': 'close', 'food-cancel': 'close', 'feed-close': 'close', 'coach-skip': 'close',
   'poll-vote': 'vote', vote: 'vote', 'quiz-pick': 'vote', 'guess-pick': 'vote', 'food-pick': 'vote', reply: 'vote', 'dm-reply': 'vote', 'coffee-reply': 'vote',
   buy: 'confirm', 'ava-buy': 'confirm', equip: 'confirm', 'invite-accept': 'confirm', 'crew-accept': 'confirm', 'nick-yes': 'confirm', checkin: 'confirm', 'canteen-in': 'confirm',
@@ -7397,6 +7409,12 @@ const actions = {
   }),
   // Плитка задания дня ведёт туда, где его можно выполнить
   'inbox-open': () => run(async () => { S.sheet = 'inbox'; S.lastSheet = null; render(); await loadInbox(); markInboxSeen(); }),
+  // Уведомление из журнала ведёт туда же, куда вёл пуш
+  'notif-go'(el) {
+    const h = (el.dataset.url || '').split('#')[1];
+    S.sheet = null; render();
+    if (h && h !== 'inbox') location.hash = '#' + h;
+  },
   async 'inbox-go'(el) {
     let g = {};
     try { g = JSON.parse(el.dataset.go || '{}'); } catch {}

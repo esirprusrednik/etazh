@@ -495,12 +495,30 @@ function createApi(db) {
   }
 
   // ---------- Пуши ----------
+  // Журнал уведомлений: баннер на телефоне живёт секунды, а прочитать хочется потом. Храним три дня, текст запечатан.
+  // Личные сообщения (tag dm-…) сюда не пишем — они и так лежат в чате со своим счётчиком.
+  // Пишем до проверок «тихих часов» и фокуса: пуш мог не прийти, но в «Этаже» человек его увидит.
+  db.exec(`CREATE TABLE IF NOT EXISTS notif_log (id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    at INTEGER NOT NULL, tag TEXT, body TEXT NOT NULL); CREATE INDEX IF NOT EXISTS notif_log_user ON notif_log(user_id, at)`);
+  const NOTIF_DAYS = 3, NOTIF_MAX = 30;
+  function logNotif(uid, p) {
+    if (!p || !p.title || /^dm-/.test(p.tag || '')) return;
+    if (p.tag) q('DELETE FROM notif_log WHERE user_id = ? AND tag = ?').run(uid, p.tag);
+    q('INSERT INTO notif_log (user_id, at, tag, body) VALUES (?, ?, ?, ?)').run(uid, U.now(), p.tag || null, U.seal(JSON.stringify({ t: String(p.title).slice(0, 120), b: String(p.body || '').slice(0, 300), u: String(p.url || '/').slice(0, 120) })));
+    q('DELETE FROM notif_log WHERE user_id = ? AND id NOT IN (SELECT id FROM notif_log WHERE user_id = ? ORDER BY at DESC, id DESC LIMIT ?)').run(uid, uid, NOTIF_MAX);
+  }
+  function recentNotifs(uid) {
+    return q('SELECT id, at, body FROM notif_log WHERE user_id = ? AND at > ? ORDER BY at DESC, id DESC').all(uid, U.now() - NOTIF_DAYS * 864e5).map((r) => {
+      try { const d = JSON.parse(U.unseal(r.body)); return { id: r.id, at: r.at, title: d.t, body: d.b, url: d.u }; } catch { return null; }
+    }).filter(Boolean);
+  }
   async function notify(userIds, payload, { ignoreQuiet = false } = {}) {
     if (!userIds.length) return;
     const quietNow = U.isQuietHour();
     for (const uid of userIds) {
       const u = q('SELECT quiet, profile FROM users WHERE id = ?').get(uid);
       if (!u) continue;
+      try { logNotif(uid, payload); } catch (e) { console.error('[notif-log]', e.message); }
       if (!ignoreQuiet && quietNow && u.quiet) continue;
       // В отпуске зовы не беспокоят — увидит в чате, когда вернётся
       if (!ignoreQuiet && ['vacation', 'sick'].includes(presenceOf(readProfile(u.profile), activeCheckin(uid)).where)) continue;
@@ -1969,7 +1987,7 @@ function createApi(db) {
     battery: (uid) => !!(battery && battery.pending(uid)),
     blitz: (uid) => { const set = blitz && blitz.activeSet(); return !!(set && !q('SELECT 1 FROM blitz_runs WHERE user_id = ? AND set_id = ?').get(uid, set.id)); }
   });
-  inbox = require('./inbox').register({ markStreak, db, q, route, requireUser, U, notify, fireAndForget, myGangs, readProfile, weekdayName, features, blitz, advent, santa, duels, gevents, polls, weather, friday, wave, battery: () => battery, todos: () => todos });
+  inbox = require('./inbox').register({ recentNotifs, markStreak, db, q, route, requireUser, U, notify, fireAndForget, myGangs, readProfile, weekdayName, features, blitz, advent, santa, duels, gevents, polls, weather, friday, wave, battery: () => battery, todos: () => todos });
   feedback = require('./feedback').register({ db, q, route, requireUser, requireAdmin, bad, U, addBeans, notify, fireAndForget, HttpError, BUILD });
 
   // Разово шифруем старую переписку, лежащую в базе открытым текстом (повторный запуск ничего не меняет)
@@ -2047,6 +2065,7 @@ function createApi(db) {
   function cleanup() {
     const t = U.now();
     q('DELETE FROM messages WHERE at < ?').run(t - 24 * 3600e3);
+    q('DELETE FROM notif_log WHERE at < ?').run(t - NOTIF_DAYS * 864e5);
     q('UPDATE canteen SET user_id = NULL WHERE at < ? AND user_id IS NOT NULL').run(t - 24 * 3600e3);
     q('DELETE FROM canteen WHERE at < ?').run(t - 30 * 864e5);
     q("DELETE FROM gang_invites WHERE at < ? AND status != 'pending'").run(t - 30 * 864e5);

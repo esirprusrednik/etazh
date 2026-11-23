@@ -9,7 +9,7 @@ const LUNCH_FROM = 14, LUNCH_TO = 14.75; // «Как обед?» — тем, к�
 const { streakBeans } = require('./catalog');
 
 function register(ctx) {
-  const { db, q, route, requireUser, U, notify, fireAndForget, myGangs, readProfile, weekdayName, features, blitz, advent, santa } = ctx;
+  const { recentNotifs, db, q, route, requireUser, U, notify, fireAndForget, myGangs, readProfile, weekdayName, features, blitz, advent, santa } = ctx;
 
   db.exec('CREATE TABLE IF NOT EXISTS inbox_push (user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, day TEXT NOT NULL)');
 
@@ -122,7 +122,7 @@ function register(ctx) {
 
   route('GET', '/api/inbox', async (req) => {
     const u = requireUser(req);
-    return { items: items(u) };
+    return { items: items(u), recent: recentNotifs ? recentNotifs(u.id) : [] };
   });
 
   db.exec('CREATE TABLE IF NOT EXISTS lunch_push (user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, day TEXT NOT NULL)');

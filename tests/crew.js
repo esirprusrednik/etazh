@@ -58,6 +58,12 @@ async function step(name, fn) {
     const r = await a.post('/api/crew/add', { nick: 'НОЧНОЙ_ФИЛИН' });
     assert.equal(r.status, 200); assert.ok(r.json.pending);
     assert.equal((await b.get('/api/state')).json.badges.crew, 1);
+    // Журнал уведомлений: то, что ушло пушем, лежит в «Этаже» — даже если пуши не включены; чужому не видно
+    const rec = (await b.get('/api/inbox')).json.recent;
+    assert.ok(rec.length === 1 && rec[0].title === 'Заявка в подельники' && /бодрый_енот/.test(rec[0].body) && rec[0].url === '/#crew', JSON.stringify(rec));
+    assert.equal((await a.get('/api/inbox')).json.recent.length, 0);
+    await a.post('/api/crew/add', { nick: 'ночной_филин' });
+    assert.equal((await b.get('/api/inbox')).json.recent.length, 1, 'повтор с тем же тегом заменяет запись, а не копит');
     const cb = (await b.get('/api/crew')).json;
     assert.equal(cb.incoming[0].nick, 'бодрый_енот');
     // Писать можно и до принятия (по умолчанию личка открыта всем), но где он — не видно: не банда и не подельник
