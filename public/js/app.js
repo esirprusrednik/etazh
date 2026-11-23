@@ -3871,12 +3871,12 @@ function prNew(game) {
   S.bResigned = false; S.bEmote = null; S.duelAnim = null;
   // Сильный бот в крестиках и морском бое играет на сервере: за победу над ним дают ачивки, их нельзя нарисовать в браузере
   if ((game === 'ttt' || game === 'sea') && level === 'hard') {
-    const P = S.practice = { game, level, first, counted: false, server: true, id: null, dv: null, sv: null };
+    const P = S.practice = { wx: Math.floor(Math.random() * 1e6), game, level, first, counted: false, server: true, id: null, dv: null, sv: null };
     S.bv = null;
     post('/api/botgame', { game, first }).then((r) => { if (S.practice !== P) return; P.id = r.id; prPlay(P, r); }).catch((e) => { if (S.practice === P) { toast(e.message); S.practice = null; render(); } });
     return;
   }
-  S.practice = { game, level, first, counted: false, st: game === 'sea' ? PR.newSea() : PR.newDuel(game, { first }) };
+  S.practice = { wx: Math.floor(Math.random() * 1e6), game, level, first, counted: false, st: game === 'sea' ? PR.newSea() : PR.newDuel(game, { first }) };
   if (game === 'sea') { S.bv = null; setBattleView(PR.seaView(S.practice.st, prScore('sea'))); }
   if (game === 'ttt' && first === 'opp') prTttBot();
 }
@@ -4725,7 +4725,7 @@ function renderBoard(v, kind, mini = false) {
     const L = sh.length, o = vertical ? 'v' : 'h';
     const scorch = hits.map((i) => `<i class="scorch" style="${vertical ? `top:${((i + 0.5) / L) * 100}%;left:50%;width:74%` : `left:${((i + 0.5) / L) * 100}%;top:50%;width:${74 / L}%`}"></i>`).join('');
     const justSunk = isSunk && sh.some(([x, y]) => fresh.has(`${pre}:${x},${y}`));
-    art.push(`<div class="ship-slot spr ${state} ${justSunk ? 'justsunk' : ''}" ${movable ? `data-ship="${shown.indexOf(sh)}"` : ''} style="${justSunk ? `--ad:-${fAgo}ms;` : ''}${area};--bob:-${(Date.now() + (x0 * 7 + y0 * 13) * 190) % 3600}ms"><img class="ship-spr ${o}" src="/art/ships/s${L}${o}${isSunk ? 'w' : ''}.webp" alt="" draggable="false">${scorch}</div>`);
+    art.push(`<div class="ship-slot spr ${state} ${hits.length ? 'hurt' : ''} ${justSunk ? 'justsunk' : ''}" ${movable ? `data-ship="${shown.indexOf(sh)}"` : ''} style="${justSunk ? `--ad:-${fAgo}ms;` : ''}${area};--bob:-${(Date.now() + (x0 * 7 + y0 * 13) * 190) % 3600}ms"><img class="ship-spr ${o}" src="/art/ships/s${L}${o}${isSunk ? 'w' : ''}.webp" alt="" draggable="false">${scorch}</div>`);
   }
   // Попадания по чужим кораблям, которые ещё на плаву: видно только взрыв
   if (kind === 'opp') for (const t of shots) if (t.r !== 'miss' && !sunkAt.has(t.x * 10 + t.y)) art.push(`<div class="ship-slot boom" style="grid-area:${t.y + 1} / ${t.x + 1};--bob:-${(Date.now() + (t.x + t.y) * 230) % 1400}ms"><i class="crater"></i></div>`);
@@ -4816,7 +4816,7 @@ function renderBattle() {
   // Уровень противника в практике — чипами под шапкой, только до начала и после конца партии
   const levels = P && v.status !== 'play' ? `<div class="chips b-levels">${Object.entries(PR.LEVELS).map(([k, l]) => `<button class="chip ${P.level === k ? 'on' : ''}" data-act="pr-level" data-v="${k}" aria-pressed="${P.level === k}">${l}</button>`).join('')}</div>` : '';
   if (v.status === 'setup') {
-    return `<div class="b-stage setup ${seaTheme()}">${defs}${renderEmoteLayer(v)}
+    return `<div class="b-stage setup ${seaTheme()}" data-wx="${wxOf(v)}">${defs}${renderEmoteLayer(v)}
     <div class="b-top">${backBtn}${renderVersus(v)}${quitBtn(`Отказаться от партии${v.stake ? ' — ставки вернутся' : ''}`)}</div>
     ${levels}
     <section class="b-sea">
@@ -4861,7 +4861,7 @@ function renderBattle() {
   const fresh = Date.now() < (S.bFreshUntil || 0) ? S.bFresh : null;
   // По моему кораблю только что попали — экран на миг краснеет по краям
   const hurt = fresh && [...fresh].some((k) => { if (k[0] !== 'm') return false; const [x, y] = k.slice(2).split(',').map(Number); return v.myShips.some((sh) => sh.some(([a, b]) => a === x && b === y)); });
-  return `<div class="b-stage play ${seaTheme()} ${hurt ? 'hurt' : ''}" style="--ad:-${Math.max(0, Date.now() - ((S.bFreshUntil || 0) - 1400))}ms">${defs}${renderEmoteLayer(v)}
+  return `<div class="b-stage play ${seaTheme()} ${hurt ? 'hurt' : ''}" data-wx="${wxOf(v)}" style="--ad:-${Math.max(0, Date.now() - ((S.bFreshUntil || 0) - 1400))}ms">${defs}${renderEmoteLayer(v)}
   <div class="b-top">${backBtn}${renderVersus(v)}${quitBtn('Сдаться')}</div>
   <section class="b-sea ${big === 'me' ? 'mine' : ''}">
     <div class="b-seahead"><span class="sea-title">${big === 'me' ? 'Мой флот' : P ? 'Воды противника' : `Воды ${nk(v.opp)}`}</span>${fleetBars(big === 'me' ? mineFleet : oppFleet)}</div>
@@ -4870,7 +4870,7 @@ function renderBattle() {
   <div class="b-log" aria-live="polite">${(() => {
     const cell = (t) => `${B_COLS[t.x]}${t.y + 1}`, word = (r) => (r === 'miss' ? 'мимо' : r === 'sunk' ? 'потоплен' : 'попадание');
     const mine = [...v.myShots].reverse().find((t) => !t.auto);
-    return `<span class="${mine && mine.r !== 'miss' ? 'good' : ''}"><i>ты</i> ${mine ? `${cell(mine)} · ${word(mine.r)}` : 'ещё не стрелял' + meG('', 'а')}</span><span class="${lo && lo.r !== 'miss' ? 'bad' : ''}"><i>${P ? 'противник' : esc(v.opp.nick)}</i> ${lo ? `${cell(lo)} · ${word(lo.r)}` : 'ещё не стрелял' + gw(v.opp.look, '', 'а')}</span>`;
+    return `<span class="${mine && mine.r !== 'miss' ? 'good' : ''}"><i>ты</i> ${mine ? `${cell(mine)} · ${word(mine.r)}` : 'ещё не стрелял' + meG('', 'а')}</span><span class="${lo && lo.r !== 'miss' ? 'bad' : ''}"><i>${P ? 'противник' : esc(v.opp.nick)}</i> ${lo ? `${cell(lo)} · ${word(lo.r)}` : 'ещё не стрелял' + gw(v.opp.look, '', 'а')}</span><span class="wx"><i>на море</i> ${WX_NAME[wxOf(v)]}</span>`;
   })()}</div>
   <div class="b-dock">
     <button class="b-mini2 ${small === 'me' && lastOpp && lastOpp !== 'мимо' ? 'hot' : ''}" data-act="b-mine-big" aria-label="${small === 'me' ? 'Показать моё поле крупно' : 'Вернуться к полю соперника'}">
@@ -4915,7 +4915,7 @@ function renderSeaDay() {
       ${sea}
       <p class="sd-empty">Новый флот — в полночь по Москве.</p></div>`;
   }
-  return `<div class="b-stage play daily ${seaTheme()}">${SHIP_DEFS}${head}${sea}
+  return `<div class="b-stage play daily ${seaTheme()}" data-wx="${seaWeather('d' + d.day)}">${SHIP_DEFS}${head}${sea}
     <div class="sd-box sd-dock"><div class="sd-cap">${d.players ? `Сегодня потопили: ${d.players}. ` : ''}Свои — меньше выстрелов, выше место</div>${table}</div></div>`;
 }
 async function dailyShoot(el) {
@@ -4935,6 +4935,16 @@ async function dailyShoot(el) {
   finally { S.bBusy = false; }
 }
 
+// Погода над полем — только украшение. У каждой партии своя (от её номера), зимой чаще снег; на игру не влияет
+const WX_NAME = { clear: 'ясно', rain: 'дождь', storm: 'шторм', snow: 'снег', fog: 'туман' };
+function seaWeather(seed) {
+  let h = 2166136261; for (const ch of String(seed)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); }
+  const r = ((h >>> 0) % 1000) / 1000, m = new Date(Date.now() + 3 * 3600e3).getUTCMonth(), winter = m === 11 || m <= 1;
+  const table = winter ? [['snow', 0.42], ['clear', 0.24], ['fog', 0.18], ['storm', 0.16]] : [['clear', 0.4], ['rain', 0.25], ['fog', 0.2], ['storm', 0.15]];
+  let acc = 0; for (const [k, p] of table) { acc += p; if (r < acc) return k; }
+  return 'clear';
+}
+const wxOf = (v) => seaWeather(v && v.practice ? `pr${(S.practice && S.practice.wx) || 0}` : `g${v ? v.id : 0}`);
 // Оформление поля куплено в Лавке и включено — класс темы на экране боя. Видит только владелец
 const seaTheme = () => (S.me && S.me.look && S.me.look.sea ? `sea-${S.me.look.sea}` : '');
 

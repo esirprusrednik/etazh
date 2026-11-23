@@ -17,6 +17,8 @@ let lastFresh = null;
 let lastWin = null;
 let ambientAt = 0;
 let last = 0;
+// Живность: когда в следующий раз появится чайка, рыба, плавник
+const due = { gull: 0, fish: 0, fin: 0, bolt: 0 };
 
 function ensure() {
   if (cv) return;
@@ -173,11 +175,58 @@ function ambient() {
     if (R() < (sunk ? 0.5 : 0.28)) add({ k: 'smoke', x: cx + rnd(-s * 0.15, s * 0.15), y: cy - s * 0.1, vx: rnd(-8, 10), vy: -rnd(16, 34), r: rnd(0.16, 0.26) * s, grow: s * 0.75, life: rnd(1.1, 2), soft: true });
     if (R() < 0.1) add({ k: 'spark', x: cx, y: cy, vx: rnd(-40, 40), vy: -rnd(60, 130), g: 200, drag: 1, life: rnd(0.4, 0.8), w: 1.2 });
   }
+  scene();
   for (const b of document.querySelectorAll('.board')) {
     if (R() > 0.35) continue;
     const r = b.getBoundingClientRect();
     if (r.bottom < 0 || r.top > window.innerHeight) continue;
     add({ k: 'glint', x: rnd(r.left + 8, r.right - 8), y: rnd(r.top + 8, r.bottom - 8), life: rnd(0.5, 0.9), r: rnd(0.8, 1.6) * Math.min(1, r.width / 300) });
+  }
+}
+
+// ---------- погода и живность ----------
+// Только украшение: на игру не влияет и о кораблях ничего не говорит — места случайные. Живёт на большом поле;
+// на мини-карте и на экране итога ничего не рисуем. Погоду задаёт экран боя (data-wx у .b-stage)
+function scene() {
+  const stage = document.querySelector('.b-stage.play, .b-stage.setup');
+  const board = stage && stage.querySelector('.b-sea > .board-wrap .board');
+  if (!board) return;
+  const r = board.getBoundingClientRect(); if (r.width < 120) return;
+  const s = r.width / 10, k = s / 30, wx = stage.dataset.wx || 'clear', now = performance.now();
+  if (wx === 'rain' || wx === 'storm') {
+    const n = wx === 'storm' ? 5 : 3;
+    for (let i = 0; i < n; i++) add({ k: 'rain', x: rnd(r.left + 6, r.right + 10), y: rnd(r.top - 6, r.bottom - 46 * k), vx: -70 * k, vy: rnd(420, 520) * k, life: rnd(0.16, 0.3), len: rnd(9, 15) * k });
+    if (R() < 0.5) add({ k: 'ring', x: rnd(r.left + 8, r.right - 8), y: rnd(r.top + 8, r.bottom - 8), r: 1, vr: s * 0.9, life: 0.5, w: 1, col: '200,225,255' });
+    if (wx === 'storm' && now > due.bolt) {
+      if (due.bolt) { add({ k: 'veil', x: 0, y: 0, life: 0.14, col: '225,235,255', a: 0.3 }); later(180, () => add({ k: 'veil', x: 0, y: 0, life: 0.3, col: '225,235,255', a: 0.2 })); }
+      due.bolt = now + rnd(7000, 15000);
+    }
+  } else if (wx === 'snow') {
+    for (let i = 0; i < 2; i++) add({ k: 'snow', x: rnd(r.left, r.right), y: rnd(r.top - 4, r.bottom - 60 * k), vx: rnd(-10, 10), vy: rnd(18, 36) * k, life: rnd(1.6, 2.8), r: rnd(1, 2.4) * k, ph: rnd(0, TAU) });
+  }
+  // Чайка: пролетает над полем, под ней бежит тень
+  if (now > due.gull) {
+    if (due.gull) { const ltr = R() < 0.5, y = rnd(r.top + s, r.bottom - s * 2), sp = rnd(70, 95) * k; add({ k: 'gull', x: ltr ? r.left - s : r.right + s, y, vx: ltr ? sp : -sp, vy: rnd(-12, 12) * k, life: (r.width + s * 2) / sp, s, ph: rnd(0, TAU) }); }
+    due.gull = now + rnd(11000, 24000);
+  }
+  // Рыба: выпрыгивает из свободной клетки и ныряет обратно
+  if (now > due.fish) {
+    if (due.fish) {
+      const free = [...board.children].filter((el) => el.classList.contains('bc') && !/\b(miss|hit|sunk|under|lastshot)\b/.test(el.className));
+      const el = free[Math.floor(R() * free.length)];
+      if (el) {
+        const c = el.getBoundingClientRect(), cx = c.left + c.width / 2, cy = c.top + c.height * 0.6, dir = R() < 0.5 ? 1 : -1;
+        add({ k: 'ring', x: cx, y: cy, r: 1, vr: s * 1.1, life: 0.55, w: 1.2, col: '220,240,255' });
+        add({ k: 'fish', x: cx, y: cy, vx: dir * s * 0.9, vy: -s * 3.4, g: s * 8.5, life: 0.8, s, dir });
+        later(760, () => add({ k: 'ring', x: cx + dir * s * 0.72, y: cy, r: 1, vr: s * 1.3, life: 0.6, w: 1.2, col: '220,240,255' }));
+      }
+    }
+    due.fish = now + rnd(6000, 13000);
+  }
+  // Плавник: медленно режет воду пару клеток и уходит на глубину
+  if (now > due.fin) {
+    if (due.fin) { const dir = R() < 0.5 ? 1 : -1; add({ k: 'fin', x: rnd(r.left + s * 2, r.right - s * 2), y: rnd(r.top + s, r.bottom - s), vx: dir * s * 0.55, vy: 0, life: 4.2, s, dir }); }
+    due.fin = now + rnd(22000, 45000);
   }
 }
 
@@ -277,6 +326,45 @@ function frame(now) {
         ctx.strokeStyle = g; ctx.lineWidth = 3; ctx.lineCap = 'round';
         ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(hx, hy); ctx.stroke();
         ctx.globalCompositeOperation = 'source-over';
+        break;
+      }
+      case 'rain':
+        ctx.strokeStyle = `rgba(210,230,255,${0.5 * (1 - u * 0.5)})`; ctx.lineWidth = 1.1; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + p.len * 0.16, y - p.len); ctx.stroke();
+        break;
+      case 'snow': {
+        const a = Math.sin(Math.min(1, u * 4) * Math.PI / 2) * (1 - u * u) * 0.9;
+        ctx.fillStyle = `rgba(255,255,255,${a})`;
+        ctx.beginPath(); ctx.arc(x + Math.sin(p.t * 2.2 + p.ph) * 5, y, p.r, 0, TAU); ctx.fill();
+        break;
+      }
+      case 'gull': {
+        const a = Math.min(1, u * 8, (1 - u) * 8), w = p.s * 0.42, flap = Math.sin(p.t * 9 + p.ph), d = p.vx > 0 ? 1 : -1;
+        ctx.fillStyle = `rgba(0,14,40,${0.2 * a})`;
+        ctx.beginPath(); ctx.ellipse(x + p.s * 0.35, y + p.s * 0.55, w * (0.75 + flap * 0.12), w * 0.2, 0, 0, TAU); ctx.fill();
+        ctx.strokeStyle = `rgba(255,255,255,${0.95 * a})`; ctx.lineWidth = Math.max(1.6, p.s * 0.075); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.beginPath(); ctx.moveTo(x - w, y - flap * w * 0.55); ctx.quadraticCurveTo(x - w * 0.45, y - w * 0.35 - flap * w * 0.2, x, y);
+        ctx.quadraticCurveTo(x + w * 0.45, y - w * 0.35 - flap * w * 0.2, x + w, y - flap * w * 0.55); ctx.stroke();
+        ctx.fillStyle = `rgba(255,255,255,${a})`; ctx.beginPath(); ctx.ellipse(x + d * w * 0.1, y + 1, w * 0.26, w * 0.13, 0, 0, TAU); ctx.fill();
+        ctx.fillStyle = `rgba(255,190,70,${a})`; ctx.beginPath(); ctx.arc(x + d * w * 0.4, y + 1, w * 0.07, 0, TAU); ctx.fill();
+        break;
+      }
+      case 'fish': {
+        const a = Math.min(1, u * 10, (1 - u) * 6), L = p.s * 0.34, ang = Math.atan2(p.vy, p.vx);
+        ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.globalAlpha = a;
+        ctx.fillStyle = '#BFE3F7'; ctx.beginPath(); ctx.ellipse(0, 0, L, L * 0.42, 0, 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(-L * 0.8, 0); ctx.lineTo(-L * 1.5, -L * 0.5); ctx.lineTo(-L * 1.5, L * 0.5); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#F4FBFF'; ctx.beginPath(); ctx.ellipse(L * 0.1, L * 0.12, L * 0.6, L * 0.16, 0, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#0B2A55'; ctx.beginPath(); ctx.arc(L * 0.55, -L * 0.08, Math.max(0.8, L * 0.1), 0, TAU); ctx.fill();
+        ctx.restore(); ctx.globalAlpha = 1;
+        break;
+      }
+      case 'fin': {
+        const a = Math.sin(u * Math.PI), h = p.s * 0.5 * Math.min(1, a * 1.6), d = p.dir;
+        ctx.strokeStyle = `rgba(230,244,255,${0.45 * a})`; ctx.lineWidth = 1.2; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(x - d * p.s * 0.1, y + 1); ctx.lineTo(x - d * p.s * 0.75, y - 2); ctx.moveTo(x - d * p.s * 0.1, y + 3); ctx.lineTo(x - d * p.s * 0.7, y + 5); ctx.stroke();
+        ctx.fillStyle = `rgba(38,52,74,${0.95 * a})`;
+        ctx.beginPath(); ctx.moveTo(x - d * p.s * 0.22, y + 2); ctx.quadraticCurveTo(x - d * p.s * 0.02, y - h * 0.9, x + d * p.s * 0.06, y - h); ctx.quadraticCurveTo(x + d * p.s * 0.1, y - h * 0.3, x + d * p.s * 0.22, y + 2); ctx.closePath(); ctx.fill();
         break;
       }
       case 'glint': {
