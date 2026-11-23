@@ -1532,7 +1532,6 @@ function renderWave() {
   if (!last) return '';
   return `<section class="card wave idle">
     ${last ? `<div class="wave-last ${last.kind}">hand <span>${esc(last.text)}${last.mine ? '' : ` · ты ${meG('пропустил', 'пропустила')}`}</span></div>` : ''}
-    ${w.canLaunch ? '' : `<div class="small">${esc(w.why)}</div>`}
   </section>`;
 }
 // Бомбочка волны: круглая, с искрящим и дымящим фитилём. Лежит отдельной строкой на «Своих», пока волну на этой неделе
