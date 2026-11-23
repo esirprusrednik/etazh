@@ -29,6 +29,9 @@ const AUTO_CALLS = [
   ['Перерыв на волну', 'Отложи таблицу на 5 секунд. «{gang}» встаёт']
 ];
 const AUTO_HOUR = 12;
+// Автозапуск выключен: волна без повода в среду собирала 1 из 11 и только раздражала. Волну поднимает человек.
+// Вернуть — WAVE_AUTO=1 в окружении.
+const AUTO_ON = process.env.WAVE_AUTO === '1';
 
 function register(ctx) {
   const { db, q, route, requireUser, bad, U, isMember, gangMembers, notify, fireAndForget, HttpError, addBeans, publicLook, onEvent, weekdayName } = ctx;
@@ -83,7 +86,7 @@ function register(ctx) {
     const can = members.length >= MIN_GANG && !done && !w;
     const why = members.length < MIN_GANG ? `Волну можно запустить, когда в банде ${MIN_GANG} человека.`
       : w ? '' : done ? 'Волна на этой неделе уже была. Следующая — с понедельника.' : '';
-    const out = { canLaunch: can, why, windowMin: WINDOW_MIN, autoHint: `Если до среды никто не запустит, Этаж сам поднимет банду в ${AUTO_HOUR}:00`, active: null, last: null };
+    const out = { canLaunch: can, why, windowMin: WINDOW_MIN, autoHint: AUTO_ON ? `Если до среды никто не запустит, Этаж сам поднимет банду в ${AUTO_HOUR}:00` : '', active: null, last: null };
     if (w) {
       const joins = joinsOf(w.id);
       const order = new Map(joins.map((j, i) => [j.user_id, i]));
@@ -170,7 +173,7 @@ function register(ctx) {
     return true;
   }
   function tick() {
-    if (!autoDue()) return;
+    if (!AUTO_ON || !autoDue()) return;
     for (const g of q('SELECT id, name FROM gangs WHERE hidden = 0').all()) autoLaunch(g);
   }
   setInterval(() => { try { tick(); } catch (e) { console.error('wave', e); } }, Number(process.env.WAVE_TICK_MS) || 5 * 60e3).unref();
