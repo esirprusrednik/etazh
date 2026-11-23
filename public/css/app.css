@@ -3073,3 +3073,86 @@ button:not(.bc):not(:disabled):active { transform: scale(.97); }
 .inbox-note .inbox-ico { background: var(--s2); color: var(--muted); }
 .inbox-note b { font-weight: 600; }
 .inbox-when { color: var(--muted); font-size: 12px; }
+
+/* ====================== Морской бой: боевой режим ======================
+   В бою экран целиком отдан игре: шапка, вкладки и плашка установки спрятаны, всё помещается без прокрутки
+   на телефонах от 320×568. Поле берёт всю ширину; на низком экране ужимается по высоте (100dvh минус «обвязка»). */
+body.in-battle .top, body.in-battle .tabs, body.in-battle main > .banner { display: none; }
+body.in-battle .app { padding-bottom: 0; min-height: 100dvh; }
+body.in-battle main { padding: calc(6px + env(safe-area-inset-top)) 8px calc(6px + env(safe-area-inset-bottom)); gap: 0; }
+body.in-battle { background: #071631; }
+.b-stage { display: flex; flex-direction: column; gap: 6px; min-height: calc(100dvh - 12px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); color: #fff; }
+.b-stage.play { touch-action: none; overscroll-behavior: none; }
+.b-top { display: grid; grid-template-columns: 40px minmax(0, 1fr) 40px; align-items: center; gap: 6px; }
+.b-ico { width: 40px; height: 44px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 14px; background: rgba(255,255,255,.1); color: #DCE7FF; font-size: 26px; font-weight: 800; line-height: 1; }
+.b-ico.quit { color: #FFB4B4; }
+.b-ico .ei { width: 18px; height: 18px; }
+.b-stage .b-vs, .b-stage .b-vs.compact { margin: 0; padding: 5px 10px; border-radius: 16px; align-items: center; box-shadow: 0 3px 0 #071430; }
+.b-stage .b-vs .vs-side { flex-direction: row; gap: 6px; }
+.b-stage .b-vs .vs-side:last-child { flex-direction: row-reverse; }
+.b-stage .b-vs .vs-ava { padding: 2px; }
+.b-stage .b-vs .vs-ava .ava, .b-stage .b-vs .vs-ava svg, .b-stage .b-vs .vs-ava img { width: 34px !important; height: 34px !important; }
+.b-stage .b-vs .vs-name { font-size: 12px; }
+.b-stage .b-vs .vs-mid { padding: 0; }
+.b-stage .b-vs .vs-score { font-size: 22px; }
+.b-stage .b-vs .vs-cap, .b-stage .b-vs.compact .vs-cap { display: block; margin-top: 2px; font-size: 9.5px; letter-spacing: .05em; white-space: nowrap; }
+.b-stage .b-vs .vs-clock { font-size: 12px; }
+.b-levels { justify-content: center; }
+.b-stage .b-sea { margin: 0; padding: 8px 6px 6px; gap: 6px; border-radius: 18px; }
+.b-seahead { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 0 4px; min-height: 22px; }
+.b-seahead .sea-title { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.b-seahead .fleet { flex: none; flex-wrap: nowrap; gap: 4px; }
+.b-seahead .fl { padding: 2px 6px; font-size: 11px; }
+.b-stage .b-sea > .board-wrap { margin: 0 auto; }
+.b-stage.play .b-sea > .board-wrap { width: min(100%, calc(100dvh - 228px - env(safe-area-inset-top) - env(safe-area-inset-bottom))); }
+.b-stage.setup .b-sea > .board-wrap { width: min(100%, calc(100dvh - 262px - env(safe-area-inset-top) - env(safe-area-inset-bottom))); }
+.b-stage.setup .sea-sub { font-size: 12px; }
+.b-stage .b-go { margin-top: 2px; }
+.b-stage .b-stake { margin: 0; font-size: 12.5px; padding: 6px 10px; }
+.b-stage .board { gap: 2px; padding: 3px; touch-action: none; }
+.b-stage.done { touch-action: auto; padding-bottom: 16px; }
+.b-stage .b-banner { margin: 0; }
+/* Низ: мой флот мини-картой и реакции. На высоких экранах мини-карта крупнее, рыбы — в два ряда */
+.b-dock { margin-top: auto; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px; align-items: stretch; }
+.b-mini2 { --mini: clamp(58px, calc(100dvh - 100vw - 160px), 260px); display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px 6px 3px; border: 0; border-radius: 16px; color: #fff; background: linear-gradient(180deg, #17406F, #0E2C52); box-shadow: 0 3px 0 #071430; }
+.b-mini2.hot { box-shadow: 0 3px 0 #071430, inset 0 0 0 2px rgba(229,72,77,.75); }
+.b-mini2 .b-mini-board { width: var(--mini); display: block; pointer-events: none; }
+.b-mini2 .b-mini-board .board-wrap { width: var(--mini); }
+.b-mini2 .b-mini-board .board { gap: 1px; padding: 2px; border-radius: 7px; }
+.b-mini2 .b-mini-board .b-shout { display: none; }
+.b-mini-cap { font-size: 10px; font-weight: 700; color: rgba(255,255,255,.8); white-space: nowrap; max-width: calc(var(--mini) + 44px); overflow: hidden; text-overflow: ellipsis; }
+.b-mini-cap b { color: #fff; }
+.b-dock .b-emotes { margin: 0; padding: 5px; gap: 5px; border-radius: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }
+@media (max-aspect-ratio: 10/19) { .b-dock .b-emotes { grid-template-columns: minmax(0, 1fr); } }
+.b-dock .emo { height: auto; min-height: 48px; border-radius: 12px; }
+.b-dock .emo .emo-art { width: min(42px, 100%); height: auto; aspect-ratio: 1; }
+@media (min-width: 481px) { .b-mini2 { --mini: clamp(58px, calc(100dvh - 640px), 260px); } }
+@media (max-width: 379px) { .b-stage.play .b-seahead .sea-title { display: none; } .b-stage.play .b-seahead { justify-content: center; } }
+/* Пузыри реакций — у своих углов нового экрана */
+body.in-battle .emo-float.opp { top: calc(58px + env(safe-area-inset-top)); }
+body.in-battle .emo-float.mine { bottom: calc(84px + env(safe-area-inset-bottom)); }
+/* Попали по моему кораблю — края экрана на миг краснеют */
+.b-stage.hurt::after { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 30; box-shadow: inset 0 0 60px 18px rgba(229,72,77,.75); animation: b-hurt .9s ease-out both; animation-delay: var(--ad, 0s); }
+@keyframes b-hurt { 0% { opacity: 0; } 12% { opacity: 1; } 100% { opacity: 0; } }
+/* Потопленный корабль кренится и уходит под воду, а не просто меняет картинку */
+.ship-slot.spr.justsunk { animation: b-sink 1.3s cubic-bezier(.3,.1,.3,1) both; animation-delay: var(--ad, 0s); }
+@keyframes b-sink { 0% { transform: translateY(-2px) rotate(0) scale(1.06); filter: brightness(1.8); } 25% { transform: rotate(-7deg) scale(1.04); filter: brightness(1.2); } 55% { transform: translateY(3px) rotate(5deg); } 100% { transform: none; filter: none; } }
+/* Очередь перешла ко мне — поле «взводится» */
+.b-stage.play .board.armed { animation: b-arm .5s ease-out both; }
+@keyframes b-arm { 0% { transform: scale(.985); } 60% { transform: scale(1.008); } 100% { transform: none; } }
+.b-stage .board.armed .bc.aim:hover, .b-stage .board.armed .bc.aim:active { background: rgba(255,255,255,.045); box-shadow: inset 0 0 0 1px rgba(255,255,255,.05); }
+/* Прицел: перекрестие по строке и столбцу, рамка клетки и лупа с координатой над пальцем */
+.aim-layer { position: fixed; inset: 0; z-index: 45; pointer-events: none; display: none; }
+.aim-layer.on { display: block; }
+.aim-layer i { position: fixed; display: block; }
+.aim-row, .aim-col { background: rgba(255,214,90,.16); border-radius: 6px; }
+.aim-cell { border-radius: 7px; background: rgba(255,214,90,.55); box-shadow: 0 0 0 2px #FFE38A, 0 0 18px rgba(255,214,90,.8); }
+.aim-loupe { position: fixed; width: 64px; height: 64px; display: grid; place-items: center; border-radius: 50%; font-size: 22px; font-weight: 900; color: #3A2A00;
+  background: radial-gradient(circle at 35% 30%, #FFF3C4, #FFC93C 70%); box-shadow: 0 0 0 3px #fff, 0 10px 24px rgba(0,0,0,.5); }
+.aim-layer.bad .aim-cell { background: rgba(229,72,77,.35); box-shadow: 0 0 0 2px #E5484D; }
+.aim-layer.bad .aim-loupe { background: #5A6680; color: #fff; }
+.aim-layer.bad .aim-row, .aim-layer.bad .aim-col { background: rgba(255,255,255,.07); }
+.hap-switch { position: fixed; left: -99px; top: -99px; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .b-stage.hurt::after, .ship-slot.spr.justsunk, .b-stage.play .board.armed { animation: none !important; } .b-stage.hurt::after { display: none; } }
+html:has(body.in-battle) { background: #071631; }
+.b-stage .b-banner.lose { color: #FFD3D3; background: rgba(229,72,77,.2); }
