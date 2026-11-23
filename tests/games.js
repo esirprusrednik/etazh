@@ -12,7 +12,9 @@ const server = spawn(process.execPath, ['--no-warnings', path.join(__dirname, '.
   env: {
     ...process.env, PORT: String(PORT), BASE_URL: BASE, DB_PATH: path.join(dir, 'db.sqlite'),
     EMAIL_PEPPER: 'test-pepper-test-pepper-test-pepper-123', MAIL_MODE: 'console', SECURE_COOKIES: 'false', ADMIN_EMAILS: 'a1@mts.ru',
-    TZ_OFFSET_HOURS: String(12 - new Date().getUTCHours()), LEAGUE_LAUNCH: '2020-01-01'
+    // Сервер живёт 16-го числа текущего месяца, в полдень: запись на Кубок открыта с 15-го и закрывается за шесть рабочих дней
+    // до конца месяца — по настоящей дате тест падал в последнюю неделю каждого месяца
+    TZ_OFFSET_HOURS: String(Math.round((Date.parse(new Date().toISOString().slice(0, 8) + '16T12:00:00Z') - Date.now()) / 3600e3)), LEAGUE_LAUNCH: '2020-01-01'
   },
   stdio: ['ignore', 'pipe', 'pipe']
 });

@@ -817,7 +817,7 @@ function startServer(day, extra = {}) {
       const O = await new sg.Client().login('ge1@mts.ru', 'организатор'), M = await new sg.Client().login('ge2@mts.ru', 'участник_соб');
       const gid = (await O.post('/api/gangs', { name: 'Настольщики', access: 'invite' })).json.id;
       await M.post('/api/gangs/join', { code: await inviteOf(O, gid) });
-      const ev = (await M.post(`/api/gangs/${gid}/gevents`, { kind: 'other', title: 'Настолки в четверг', day: '2026-11-19', time: '19:00', place: 'Переговорка 5', note: 'Секретная заметка для своих' })).json.event;
+      const ev = (await M.post(`/api/gangs/${gid}/gevents`, { kind: 'other', title: 'Настолки в четверг', day: new Date(Date.now() + 3 * 864e5).toISOString().slice(0, 10), time: '19:00', place: 'Переговорка 5', note: 'Секретная заметка для своих' })).json.event;
       assert.equal(ev.openGuests, false);
       assert.equal((await O.post(`/api/gevents/${ev.id}/link`)).status, 400, 'пока гости выключены, ссылку не сделать');
       const X = await new sg.Client().login('ge3@mts.ru', 'чужой_соб');
