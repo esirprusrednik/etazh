@@ -77,16 +77,18 @@ const { b64url, fromB64url, moderationProblem, emailDomainAllowed } = require('.
     // Блицы: наборы не пересекаются с соседями, правильный ответ первым и без дублей вариантов, итог — в пятницу
     const { SETS, summaryDay, summaryText } = require('../server/blitz');
     const weekly = SETS.filter((x) => x.id.startsWith('w_'));
-    assert.equal(weekly.length, 5);
+    assert.equal(weekly.length, 7);
     for (const st of SETS) for (const [text, opts] of st.questions) { assert.ok(text.length > 5 && opts.length === 4 && new Set(opts).size === 4, st.id + ': ' + text); }
     for (const st of weekly) {
       assert.equal(new Date(st.from + 'T12:00:00Z').getUTCDay(), 1, st.id + ' начинается в понедельник');
       assert.equal(new Date(summaryDay(st) + 'T12:00:00Z').getUTCDay(), 5, st.id + ': итог в пятницу');
-      assert.ok(st.questions.length >= 18 && st.secs <= 180);
+      assert.ok(st.questions.length >= 18 && st.secs <= 300 && st.questions.length * 9 >= st.secs, st.id + ': вопросов хватает на всё время');
       assert.ok(!SETS.some((o) => o !== st && o.from <= st.to && st.from <= o.to), st.id + ' пересекается с другим набором');
     }
-    assert.equal(summaryDay(SETS.find((x) => x.id === 'ba2')), '2026-12-18');
-    const st = weekly[0];
+    assert.equal(summaryDay(SETS.find((x) => x.id === 'ba2')), '2026-11-20');
+    // С 23 ноября до 24 января сетка без дыр: на каждый день есть набор
+    for (let t = Date.parse('2026-11-23T12:00:00Z'); t <= Date.parse('2027-01-24T12:00:00Z'); t += 864e5) { const d = new Date(t).toISOString().slice(0, 10); assert.equal(SETS.filter((x) => x.from <= d && d <= x.to).length, 1, d + ': ровно один блиц'); }
+    const st = SETS.find((x) => x.id === 'w_ppt1');
     assert.match(summaryText(st, { top: [], place: null, players: 0 }, '2027-01-15'), /первое место свободно/);
     assert.match(summaryText(st, { top: [{ nick: 'лидер' }], place: 3, players: 7 }, '2027-01-15'), /Ты 3-й из 7, впереди — лидер\. Закрывается 17\.01/);
     assert.match(summaryText(st, { top: [{ nick: 'лидер' }], place: null, players: 4 }, '2027-01-17'), /Сегодня последний день\. Сыграли уже 4/);

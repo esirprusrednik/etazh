@@ -256,7 +256,7 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     const set = SETS.find((x) => x.id === v.set.id);
     const before = (await a.get('/api/me')).json.user.beans;
     let score = 0, guard = 0;
-    while (v.state === 'play' && guard++ < 40) {
+    while (v.state === 'play' && guard++ < 80) {
       const qq = set.questions.find((x) => x[0] === v.question.text);
       const pick = v.question.options.indexOf(qq[1][0]);
       const r = (await a.post('/api/blitz/answer', { n: v.question.n, pick })).json;
@@ -279,7 +279,7 @@ const mskToday = () => new Date(Date.now() + (12 - new Date().getUTCHours()) * 3
     assert.equal((await a.get('/api/blitz')).json.state, 'done', 'зачётный результат на месте');
     assert.equal((await a.get('/api/blitz?practice=1')).json.state, 'play');
     let pg = 0;
-    while (pv.state === 'play' && pg++ < 40) pv = (await a.post('/api/blitz/answer', { n: pv.question.n, pick: 0, practice: true })).json;
+    while (pv.state === 'play' && pg++ < 80) pv = (await a.post('/api/blitz/answer', { n: pv.question.n, pick: 0, practice: true })).json;
     assert.ok(pv.practice && pv.state === 'done' && !pv.beans);
     assert.equal((await a.get('/api/me')).json.user.beans, beansBefore, 'за тренировку зёрен нет');
     assert.equal(JSON.stringify((await a.get('/api/blitz')).json.board), boardBefore, 'рейтинг не изменился');
