@@ -93,6 +93,12 @@ function drawAnim(name, frame, x, y, size, rot = 0, alpha = 1, flip = 1) {
   ctx.drawImage(im, (f % 4) * c, Math.floor(f / 4) * c, c, c, -size / 2, -size / 2, size, size);
   ctx.restore(); ctx.globalAlpha = 1;
 }
+// Размеры — в клетках поля и в одном масштабе между собой, чтобы кит не оказался меньше дельфина.
+// Первое число — сколько клеток занимает само животное, второе — какую долю ширины кадра оно занимает в атласе.
+// Мерка: катер — 1 клетка. Чайка 1,1 (размах крыльев), черепаха 0,9, плавник с пеной 1,3, дельфин 1,5 (тело),
+// хвост кита 3,2 (вдвое шире дельфина). Размер кадра = клетки / доля
+const BODY = { gull: [1.1, 0.97], turtle: [0.9, 0.91], fin: [1.3, 0.84], dolphin: [1.5, 0.5], whale: [3.2, 0.62] };
+const frameOf = (name, cell) => (cell * BODY[name][0]) / BODY[name][1];
 // Разовая анимация живёт ровно столько, сколько длятся её кадры; зацикленной срок задаёт вызывающий
 const anim = (name, o) => add({ k: 'anim', n: name, life: ANIM[name].n / ANIM[name].fps, ...o });
 
@@ -209,7 +215,7 @@ function impact(pre, x, y) {
       later(kAt, () => {
         const pts = cells.map(([a, b]) => cellAt(pre, a, b)).filter(Boolean); if (!pts.length) return;
         const kx = pts.reduce((t, q) => t + q.cx, 0) / pts.length, ky = pts.reduce((t, q) => t + q.cy, 0) / pts.length, cs = pts[0].s;
-        anim('kraken', { x: kx, y: ky, size: cs * (2.6 + cells.length * 0.75) });
+        anim('kraken', { x: kx, y: ky, size: cs * (3 + cells.length * 0.75) });
         for (let i = 0; i < 3; i++) add({ k: 'ring', x: kx, y: ky, r: cs * 0.5, vr: cs * (4 - i), life: 1 + i * 0.3, w: 2.4 - i * 0.6, col: '235,244,255', delay: 0.25 + i * 0.14 });
         later(430, () => shake(1, true));
       });
@@ -283,14 +289,14 @@ function scene() {
     if (due.gull) {
       const ltr = R() < 0.5, y0 = rnd(r.top + s, r.bottom - s * 2), y1 = rnd(r.top + s, r.bottom - s * 2);
       const x0 = ltr ? r.left - s * 1.5 : r.right + s * 1.5, x1 = ltr ? r.right + s * 1.5 : r.left - s * 1.5;
-      add({ k: 'gull', x: x0, y: y0, x0, y0, x1, y1, cx: (x0 + x1) / 2 + rnd(-s, s), cy: (y0 + y1) / 2 + rnd(-s * 3.5, s * 3.5), size: s * 1.55, life: rnd(3.4, 4.6), ph: rnd(0, 9) });
+      add({ k: 'gull', x: x0, y: y0, x0, y0, x1, y1, cx: (x0 + x1) / 2 + rnd(-s, s), cy: (y0 + y1) / 2 + rnd(-s * 3.5, s * 3.5), size: frameOf('gull', s), life: rnd(3.4, 4.6), ph: rnd(0, 9) });
     }
     due.gull = now + rnd(11000, 24000);
   }
   // Свободная клетка — для тех, кто выныривает: не там, куда стреляли, и не под своим кораблём. minY — не выше этой линии
-  const freeCell = (minY = 0) => {
+  const freeCell = (minY = 0, padX = 0, maxY = Infinity) => {
     const free = [...board.children].filter((el) => el.classList.contains('bc') && !/\b(miss|hit|sunk|under|lastshot)\b/.test(el.className))
-      .map((el) => { const c = el.getBoundingClientRect(); return { cx: c.left + c.width / 2, cy: c.top + c.height / 2 }; }).filter((c) => c.cy >= minY);
+      .map((el) => { const c = el.getBoundingClientRect(); return { cx: c.left + c.width / 2, cy: c.top + c.height / 2 }; }).filter((c) => c.cy >= minY && c.cy <= maxY && c.cx >= r.left + padX && c.cx <= r.right - padX);
     return free[Math.floor(R() * free.length)] || null;
   };
   const bubbles = (c, n, spread) => { for (let i = 0; i < n; i++) later(i * 110, () => add({ k: 'ring', x: c.cx + rnd(-spread, spread), y: c.cy + rnd(-spread, spread), r: 1, vr: s * rnd(0.5, 0.9), life: 0.55, w: 1.1, col: '220,240,255' })); };
@@ -298,7 +304,7 @@ function scene() {
   // В кадре анимации старт — в левом нижнем углу, поэтому кадр сдвинут так, чтобы пена пришлась на клетку
   if (now > due.fish) {
     if (due.fish) {
-      const size = s * 3.7, c = freeCell(r.top + size * 0.72);
+      const size = frameOf('dolphin', s), c = freeCell(r.top + size * 0.72, s * 0.5, r.bottom - s * 0.5);
       if (c) {
         const dir = c.cx < r.left + r.width / 2 ? 1 : -1;
         bubbles(c, 4, s * 0.25);
@@ -307,22 +313,24 @@ function scene() {
     }
     due.fish = now + rnd(7000, 14000);
   }
-  // Плавник: покадрово режет воду вверх по полю — пена у основания кипит, след расходится — и уходит на глубину
+  // Плавник: виден сбоку и плывёт туда, куда смотрит его передний край, — пена тянется следом. В атласе он плывёт влево,
+  // для движения вправо кадр отражается. Чуть покачивается на волне и уходит на глубину
   if (now > due.fin) {
-    if (due.fin) anim('fin', { x: rnd(r.left + s * 1.5, r.right - s * 1.5), y: rnd(r.top + s * 4.5, r.bottom - s), vx: 0, vy: -s * 0.62, size: s * 2, life: 5, dive: true });
+    if (due.fin) { const dir = R() < 0.5 ? -1 : 1, size = frameOf('fin', s); anim('fin', { x: dir < 0 ? rnd(r.left + s * 5, r.right - s) : rnd(r.left + s, r.right - s * 5), y: rnd(r.top + s * 1.5, r.bottom - s * 1.5), vx: dir * s * 0.75, vy: 0, size, flip: -dir, life: 5, dive: true, bob: true }); }
     due.fin = now + rnd(22000, 45000);
   }
   // Редкие гости: кит поднимает хвост и бьёт им по воде, черепаха гребёт по своим делам
   if (now > due.rare) {
     if (due.rare) {
       if (R() < 0.6) {
-        const size = s * 3.4, c = freeCell(r.top + size * 0.5);
+        // кит большой: выныривает только там, где хвост и всплеск целиком поместятся на поле
+        const size = frameOf('whale', s), c = freeCell(r.top + size * 0.45, size * 0.36, r.bottom - size * 0.3);
         if (c) {
           bubbles(c, 6, s * 0.4);
           later(650, () => anim('whale', { x: c.cx, y: c.cy - size * 0.12, size }));
           later(650 + 820, () => shake(1, true));
         }
-      } else { const ltr = R() < 0.5, vx = (ltr ? 1 : -1) * s * 0.42, vy = rnd(-0.12, 0.12) * s; anim('turtle', { x: rnd(r.left + s * 2, r.right - s * 2), y: rnd(r.top + s * 2, r.bottom - s * 2), vx, vy, size: s * 1.35, rot: Math.atan2(vy, vx) + Math.PI / 2, life: 9, al: 0.92, wake: 0 }); }
+      } else { const ltr = R() < 0.5, vx = (ltr ? 1 : -1) * s * 0.42, vy = rnd(-0.12, 0.12) * s; anim('turtle', { x: rnd(r.left + s * 2, r.right - s * 2), y: rnd(r.top + s * 2, r.bottom - s * 2), vx, vy, size: frameOf('turtle', s), rot: Math.atan2(vy, vx) + Math.PI / 2, life: 9, al: 0.92, wake: 0 }); }
     }
     due.rare = now + rnd(26000, 55000);
   }
@@ -441,7 +449,7 @@ function frame(now) {
         const A = ANIM[p.n];
         if (A.loop) {
           const edge = Math.min(1, u * 6, (1 - u) * 6), sc = p.dive ? 0.6 + 0.4 * Math.min(1, u * 5, (1 - u) * 5) : 1;
-          drawAnim(p.n, (p.t * A.fps) % A.n, x, y, p.size * sc, p.rot || 0, edge * (p.al || 1), p.flip || 1);
+          drawAnim(p.n, (p.t * A.fps) % A.n, x, y + (p.bob ? Math.sin(p.t * 2.4) * p.size * 0.03 : 0), p.size * sc, p.rot || 0, edge * (p.al || 1), p.flip || 1);
           if (p.wake !== undefined && p.t > p.wake) { p.wake = p.t + 0.9; addLate({ k: 'ring', x: p.x, y: p.y, r: p.size * 0.2, vr: p.size * 0.6, life: 1.4, w: 1, col: '225,240,255' }); }
         } else drawAnim(p.n, u * A.n, x, y, p.size, p.rot || 0, p.al || 1, p.flip || 1);
         break;
