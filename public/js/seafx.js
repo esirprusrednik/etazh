@@ -136,6 +136,14 @@ function impact(pre, x, y) {
   const cls = c.el.classList;
   if (cls.contains('auto')) return;   // клетки вокруг потопленного корабля закрываются сами — без выстрела
   const mine = pre === 'o';
+  // Мини-карта (клетка меньше 16 px): полный взрыв закрыл бы её целиком — только вспышка, кольцо и лёгкая тряска
+  if (c.s < 16) {
+    const hit = !cls.contains('miss');
+    add({ k: 'glow', x: c.cx, y: c.cy, r: c.s * (hit ? 2.2 : 1.4), life: 0.25, col: hit ? '255,214,150' : '220,240,255', a: 0.8 });
+    add({ k: 'ring', x: c.cx, y: c.cy, r: c.s * 0.2, vr: c.s * 5, life: 0.4, w: 1.6, col: hit ? '255,214,150' : '220,240,255' });
+    if (hit) shake(cls.contains('sunk') ? 2 : 1);
+    return;
+  }
   tracer(c, mine);
   later(120, () => {
     const c2 = cellAt(pre, x, y) || c;

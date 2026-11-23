@@ -4679,6 +4679,20 @@ function renderBoard(v, kind, mini = false) {
   // Экран перерисовывается чаще, чем идёт анимация (опрос, ход соперника). Чтобы взрыв, всплеск и надпись
   // не начинались заново и не мелькали дважды, продолжаем анимацию с того места, где она была
   const fAgo = Math.max(0, Date.now() - (S.bFreshUntil - 1400));
+  // «Добей»: клетки рядом с подбитым, но не потопленным кораблём слегка пульсируют. Два попадания в ряд — только по оси корабля
+  const hint = new Set();
+  if (canShoot) {
+    const hits = shots.filter((t) => t.r !== 'miss' && !sunkAt.has(t.x * 10 + t.y));
+    const isHit = (x, y) => hits.some((t) => t.x === x && t.y === y);
+    for (const t of hits) {
+      const hz = isHit(t.x - 1, t.y) || isHit(t.x + 1, t.y), vt = isHit(t.x, t.y - 1) || isHit(t.x, t.y + 1);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        if ((hz && dy) || (vt && dx)) continue;
+        const nx = t.x + dx, ny = t.y + dy;
+        if (nx >= 0 && ny >= 0 && nx < 10 && ny < 10 && !shotAt.has(nx * 10 + ny)) hint.add(nx * 10 + ny);
+      }
+    }
+  }
   const cells = [];
   const lastOppShot = kind === 'me' ? [...v.oppShots].reverse().find((t) => !t.auto) : null;
   for (let y = 0; y < 10; y++) for (let x = 0; x < 10; x++) {
@@ -4691,11 +4705,13 @@ function renderBoard(v, kind, mini = false) {
     if (kind === 'opp' ? v.last && v.last.mine && v.last.x === x && v.last.y === y : lastOppShot && lastOppShot.x === x && lastOppShot.y === y) cls.push('lastshot');
     const label = `${B_COLS[x]}${y + 1}`;
     cells.push(canShoot && !t
-      ? `<button class="${cls.join(' ')} aim" data-act="bshoot" data-x="${x}" data-y="${y}" aria-label="Выстрел в ${label}"></button>`
+      ? `<button class="${cls.join(' ')} aim ${hint.has(k) ? 'hint' : ''}" data-act="bshoot" data-x="${x}" data-y="${y}" aria-label="Выстрел в ${label}"></button>`
       : `<span class="${cls.join(' ').trim()}"${cls.includes('fresh') ? ` style="--ad:-${fAgo}ms"` : ''} aria-label="${label}${t ? (t.r === 'miss' ? ' мимо' : sunkAt.has(k) ? ' потоплен' : ' попадание') : ''}"></span>`);
   }
   // Слой кораблей поверх клеток: свои — целиком, чужие — только потопленные (горят) и, после партии, уцелевшие
   const art = [];
+  // При расстановке свои корабли можно таскать и поворачивать (см. «Расстановка руками»)
+  const movable = kind === 'me' && !mini && v.status === 'setup' && !v.ready;
   for (const sh of shown) {
     const vertical = sh.length > 1 && sh[0][0] === sh[1][0];
     const sorted = [...sh].sort((p, q) => (vertical ? p[1] - q[1] : p[0] - q[0]));
@@ -4709,7 +4725,7 @@ function renderBoard(v, kind, mini = false) {
     const L = sh.length, o = vertical ? 'v' : 'h';
     const scorch = hits.map((i) => `<i class="scorch" style="${vertical ? `top:${((i + 0.5) / L) * 100}%;left:50%;width:74%` : `left:${((i + 0.5) / L) * 100}%;top:50%;width:${74 / L}%`}"></i>`).join('');
     const justSunk = isSunk && sh.some(([x, y]) => fresh.has(`${pre}:${x},${y}`));
-    art.push(`<div class="ship-slot spr ${state} ${justSunk ? 'justsunk' : ''}" style="${justSunk ? `--ad:-${fAgo}ms;` : ''}${area};--bob:-${(Date.now() + (x0 * 7 + y0 * 13) * 190) % 3600}ms"><img class="ship-spr ${o}" src="/art/ships/s${L}${o}${isSunk ? 'w' : ''}.webp" alt="" draggable="false">${scorch}</div>`);
+    art.push(`<div class="ship-slot spr ${state} ${justSunk ? 'justsunk' : ''}" ${movable ? `data-ship="${shown.indexOf(sh)}"` : ''} style="${justSunk ? `--ad:-${fAgo}ms;` : ''}${area};--bob:-${(Date.now() + (x0 * 7 + y0 * 13) * 190) % 3600}ms"><img class="ship-spr ${o}" src="/art/ships/s${L}${o}${isSunk ? 'w' : ''}.webp" alt="" draggable="false">${scorch}</div>`);
   }
   // Попадания по чужим кораблям, которые ещё на плаву: видно только взрыв
   if (kind === 'opp') for (const t of shots) if (t.r !== 'miss' && !sunkAt.has(t.x * 10 + t.y)) art.push(`<div class="ship-slot boom" style="grid-area:${t.y + 1} / ${t.x + 1};--bob:-${(Date.now() + (t.x + t.y) * 230) % 1400}ms"><i class="crater"></i></div>`);
@@ -4800,12 +4816,12 @@ function renderBattle() {
   // Уровень противника в практике — чипами под шапкой, только до начала и после конца партии
   const levels = P && v.status !== 'play' ? `<div class="chips b-levels">${Object.entries(PR.LEVELS).map(([k, l]) => `<button class="chip ${P.level === k ? 'on' : ''}" data-act="pr-level" data-v="${k}" aria-pressed="${P.level === k}">${l}</button>`).join('')}</div>` : '';
   if (v.status === 'setup') {
-    return `<div class="b-stage setup">${defs}${renderEmoteLayer(v)}
+    return `<div class="b-stage setup ${seaTheme()}">${defs}${renderEmoteLayer(v)}
     <div class="b-top">${backBtn}${renderVersus(v)}${quitBtn(`Отказаться от партии${v.stake ? ' — ставки вернутся' : ''}`)}</div>
     ${levels}
     <section class="b-sea">
       <div class="sea-title">${v.ready ? 'Флот расставлен' : 'Расставь флот'}</div>
-      <p class="sea-sub">${v.ready ? (v.oppReady ? 'Начинаем…' : `Ждём, пока ${nk(v.opp)} расставит корабли. Придёт уведомление.`) : 'Корабли стоят случайно. Не нравится — перемешай.'}</p>
+      <p class="sea-sub">${v.ready ? (v.oppReady ? 'Начинаем…' : `Ждём, пока ${nk(v.opp)} расставит корабли. Придёт уведомление.`) : 'Перетащи корабль на новое место, нажми — повернётся. Или перемешай все разом.'}</p>
       ${renderBoard(v, 'me')}
       ${v.stake ? `<div class="b-stake">${BEAN} Ставка ${v.stake} зёрен с каждого — победитель забирает ${v.stake * 2}${v.needPay ? '. Твои спишутся, когда нажмёшь «В бой»' : !v.oppPaid ? `. ${nk(v.opp)} ещё не ${gw(v.opp.look, 'принял', 'приняла')} вызов` : ''}</div>` : ''}
       ${v.ready ? '' : `<div class="row b-go"><button class="btn ghost grow" data-act="bshuffle">dice Перемешать</button><button class="btn grow" data-act="bready">anchor ${v.needPay ? `В бой · ${v.stake} зёрен` : 'В бой!'}</button></div>`}
@@ -4818,11 +4834,22 @@ function renderBattle() {
   for (const sh of v.oppSunk) { const f = oppFleet.find((x) => x.len === sh.length && !x.sunk); if (f) f.sunk = true; }
   const mineFleet = fleetLeft(v.myShips, v.oppShots);
   if (done) {
-    // Партия окончена: оба поля целиком, экран прокручивается
-    return `<div class="b-stage done">${defs}${renderEmoteLayer(v)}
+    // Партия окончена: итог с цифрами и крупным «Реваншем», ниже — оба поля целиком. Экран прокручивается
+    const stat = (list) => { const real = list.filter((t) => !t.auto), hits = real.filter((t) => t.r !== 'miss').length; let best = 0, run = 0; for (const t of real) { run = t.r === 'miss' ? 0 : run + 1; best = Math.max(best, run); } return { n: real.length, acc: real.length ? Math.round((hits / real.length) * 100) : 0, best }; };
+    const me = stat(v.myShots), op = stat(v.oppShots), win = v.winner === 'me';
+    const title = win ? (v.timeout ? 'Победа по времени' : v.resigned ? 'Победа: соперник сдался' : 'Победа!') : (v.timeout ? 'Время вышло' : v.resigned ? `Ты ${meG('сдался', 'сдалась')}` : 'Флот на дне');
+    const sub = win ? (me.acc >= 50 ? 'Каждый второй выстрел — в цель. Снайпер' : me.best >= 4 ? `Серия из ${me.best} попаданий подряд — это было красиво` : 'Весь флот соперника на дне') : (v.resigned ? 'Бывает. Реванш всё исправит' : op.acc >= 50 ? 'Соперник стрелял как по линейке. Реванш?' : 'В следующий раз повезёт больше');
+    const row = (label, a, b, fmt = (x) => x, more = true) => `<div class="bf-row"><b class="${more !== null && (more ? a > b : a < b) ? 'lead' : ''}">${fmt(a)}</b><span>${label}</span><b class="${more !== null && (more ? b > a : b < a) ? 'lead' : ''}">${fmt(b)}</b></div>`;
+    return `<div class="b-stage done ${seaTheme()}">${defs}${renderEmoteLayer(v)}
     <div class="b-top">${backBtn}${renderVersus(v)}<span></span></div>
-    ${banner}${levels}
-    ${P ? '<button class="btn wide" data-act="pr-again">Ещё партию</button>' : `<button class="btn wide" data-act="battle-new" data-id="${v.opp.id}" data-mode="${v.mode}" data-stake="${v.stake || 0}">Реванш${v.mode === 'fast' ? ' · быстрая' : ''}</button>`}
+    <section class="b-final ${win ? 'win' : 'lose'}">
+      <div class="bf-art">${art(win ? 'trophy' : v.timeout ? 'hourglass' : v.resigned ? 'flag' : 'buoy', 76)}</div>
+      <h2>${title}</h2><p>${sub}</p>
+      <div class="bf-stats"><div class="bf-head"><span>ты</span><span></span><span>${P ? 'противник' : nk(v.opp)}</span></div>
+        ${row('выстрелов', me.n, op.n, (x) => x, null)}${row('точность', me.acc, op.acc, (x) => x + '%')}${row('лучшая серия', me.best, op.best)}${row('кораблей на плаву', v.myLeft, v.oppLeft)}</div>
+      ${P ? '<button class="btn wide bf-again" data-act="pr-again">Ещё партию</button>' : `<button class="btn wide bf-again" data-act="battle-new" data-id="${v.opp.id}" data-mode="${v.mode}" data-stake="${v.stake || 0}">Реванш${v.mode === 'fast' ? ' · быстрая' : ''}</button>`}
+    </section>
+    ${levels}
     <section class="b-sea"><div class="b-seahead"><span class="sea-title">${P ? 'Воды противника' : `Воды ${nk(v.opp)}`}</span>${fleetBars(oppFleet)}</div>${renderBoard(v, 'opp')}</section>
     <section class="b-sea mine"><div class="b-seahead"><span class="sea-title">Мой флот</span>${fleetBars(mineFleet)}</div>${renderBoard(v, 'me')}</section></div>`;
   }
@@ -4834,7 +4861,7 @@ function renderBattle() {
   const fresh = Date.now() < (S.bFreshUntil || 0) ? S.bFresh : null;
   // По моему кораблю только что попали — экран на миг краснеет по краям
   const hurt = fresh && [...fresh].some((k) => { if (k[0] !== 'm') return false; const [x, y] = k.slice(2).split(',').map(Number); return v.myShips.some((sh) => sh.some(([a, b]) => a === x && b === y)); });
-  return `<div class="b-stage play ${hurt ? 'hurt' : ''}" style="--ad:-${Math.max(0, Date.now() - ((S.bFreshUntil || 0) - 1400))}ms">${defs}${renderEmoteLayer(v)}
+  return `<div class="b-stage play ${seaTheme()} ${hurt ? 'hurt' : ''}" style="--ad:-${Math.max(0, Date.now() - ((S.bFreshUntil || 0) - 1400))}ms">${defs}${renderEmoteLayer(v)}
   <div class="b-top">${backBtn}${renderVersus(v)}${quitBtn('Сдаться')}</div>
   <section class="b-sea ${big === 'me' ? 'mine' : ''}">
     <div class="b-seahead"><span class="sea-title">${big === 'me' ? 'Мой флот' : P ? 'Воды противника' : `Воды ${nk(v.opp)}`}</span>${fleetBars(big === 'me' ? mineFleet : oppFleet)}</div>
@@ -4882,13 +4909,13 @@ function renderSeaDay() {
   const head = `<div class="b-top">${backBtn}<div class="sd-head"><b>Задача дня</b><span>${d.done ? `флот потоплен` : `выстрелов: <b>${d.n}</b>${d.best ? ` · твой рекорд ${d.best}` : ''}`}</span></div><span></span></div>`;
   const sea = `<section class="b-sea"><div class="b-seahead"><span class="sea-title">Флот дня</span>${fleetBars(fleet)}</div>${renderBoard(dailyView(d), 'opp')}</section>`;
   if (d.done) {
-    return `<div class="b-stage done daily">${SHIP_DEFS}${head}
+    return `<div class="b-stage done daily ${seaTheme()}">${SHIP_DEFS}${head}
       <div class="b-banner has-art win">${art('trophy', 44)}<span>Потоплен за ${d.n} ${plural(d.n, 'выстрел', 'выстрела', 'выстрелов')}. Место ${d.place} из ${d.players} на Этаже</span></div>
       <div class="sd-box"><div class="sd-cap">Свои сегодня — меньше выстрелов, выше место</div>${table}</div>
       ${sea}
       <p class="sd-empty">Новый флот — в полночь по Москве.</p></div>`;
   }
-  return `<div class="b-stage play daily">${SHIP_DEFS}${head}${sea}
+  return `<div class="b-stage play daily ${seaTheme()}">${SHIP_DEFS}${head}${sea}
     <div class="sd-box sd-dock"><div class="sd-cap">${d.players ? `Сегодня потопили: ${d.players}. ` : ''}Свои — меньше выстрелов, выше место</div>${table}</div></div>`;
 }
 async function dailyShoot(el) {
@@ -4907,6 +4934,68 @@ async function dailyShoot(el) {
   } catch (e) { toast(e.message || 'Не получилось выстрелить'); }
   finally { S.bBusy = false; }
 }
+
+// Оформление поля куплено в Лавке и включено — класс темы на экране боя. Видит только владелец
+const seaTheme = () => (S.me && S.me.look && S.me.look.sea ? `sea-${S.me.look.sea}` : '');
+
+// ---------- Расстановка руками ----------
+// Во время расстановки корабль можно перетащить пальцем на другое место, а коротким нажатием — повернуть.
+// Пока тащишь, корабль едет по сетке; встал неправильно (вплотную к другому) — краснеет и при отпускании вернётся назад
+const DRAG = { on: false };
+const shipCellsAt = (len, x, y, vert) => Array.from({ length: len }, (_, i) => (vert ? [x, y + i] : [x + i, y]));
+function placeOk(ships, i, cells) {
+  if (cells.some(([x, y]) => x < 0 || y < 0 || x > 9 || y > 9)) return false;
+  for (let j = 0; j < ships.length; j++) { if (j === i) continue; for (const [a, b] of ships[j]) for (const [x, y] of cells) if (Math.abs(a - x) <= 1 && Math.abs(b - y) <= 1) return false; }
+  return true;
+}
+function dragCell(e) {
+  const b = DRAG.board.getBoundingClientRect(), pad = 3, w = (b.width - pad * 2) / 10;
+  return [Math.floor((e.clientX - b.left - pad) / w), Math.floor((e.clientY - b.top - pad) / w)];
+}
+document.addEventListener('pointerdown', (e) => {
+  const el = e.target.closest && e.target.closest('.b-stage.setup .ship-slot[data-ship]');
+  if (!el || e.button > 0 || !S.bv || S.bBusy) return;
+  const i = Number(el.dataset.ship), sh = S.bv.myShips[i]; if (!sh) return;
+  const vert = sh.length > 1 && sh[0][0] === sh[1][0], sorted = [...sh].sort((p, q2) => (vert ? p[1] - q2[1] : p[0] - q2[0]));
+  Object.assign(DRAG, { on: true, el, i, len: sh.length, vert, x0: sorted[0][0], y0: sorted[0][1], board: el.closest('.board'), moved: false, ok: true });
+  const [cx, cy] = dragCell(e); DRAG.gx = cx - DRAG.x0; DRAG.gy = cy - DRAG.y0; DRAG.x = DRAG.x0; DRAG.y = DRAG.y0;
+  el.classList.add('drag'); e.preventDefault();
+}, true);
+document.addEventListener('pointermove', (e) => {
+  if (!DRAG.on) return;
+  const [cx, cy] = dragCell(e);
+  const x = Math.max(0, Math.min(10 - (DRAG.vert ? 1 : DRAG.len), cx - DRAG.gx)), y = Math.max(0, Math.min(10 - (DRAG.vert ? DRAG.len : 1), cy - DRAG.gy));
+  if (x === DRAG.x && y === DRAG.y) return;
+  DRAG.x = x; DRAG.y = y; DRAG.moved = true;
+  DRAG.el.style.gridArea = DRAG.vert ? `${y + 1} / ${x + 1} / span ${DRAG.len} / span 1` : `${y + 1} / ${x + 1} / span 1 / span ${DRAG.len}`;
+  DRAG.ok = placeOk(S.bv.myShips, DRAG.i, shipCellsAt(DRAG.len, x, y, DRAG.vert));
+  DRAG.el.classList.toggle('bad', !DRAG.ok); feelTick();
+}, true);
+function dragEnd(cancel) {
+  if (!DRAG.on) return;
+  DRAG.on = false;
+  const ships = S.bv.myShips; let cells = null;
+  if (cancel === true) cells = null;
+  else if (DRAG.moved) cells = DRAG.ok ? shipCellsAt(DRAG.len, DRAG.x, DRAG.y, DRAG.vert) : null;
+  else if (DRAG.len > 1) {
+    // Короткое нажатие — поворот вокруг клетки, за которую взялись; не помещается — пробуем соседние положения
+    const px = DRAG.x0 + (DRAG.vert ? 0 : DRAG.gx), py = DRAG.y0 + (DRAG.vert ? DRAG.gy : 0), nv = !DRAG.vert;
+    for (let k = 0; k < DRAG.len && !cells; k++) for (const d of [0, 1, -1]) {
+      const x = nv ? px + d : px - k, y = nv ? py - k : py + d, c = shipCellsAt(DRAG.len, x, y, nv);
+      if (placeOk(ships, DRAG.i, c)) { cells = c; break; }
+    }
+    if (!cells) toast('Тут не развернуться: рядом другой корабль или край поля');
+  }
+  if (!cells) { sfx(DRAG.moved || DRAG.len > 1 ? 'error' : 'tap'); return render(); }
+  const next = ships.map((sh, j) => (j === DRAG.i ? cells : sh));
+  S.bv = { ...S.bv, myShips: next }; sfx('pick'); render();
+  // Сервер проверяет расстановку сам; не принял — вернём то, что у него
+  if (prSea() && S.practice.server) prMove({ place: next }).catch((e2) => toast(e2.message));
+  else if (prSea()) { PR.seaPlace(S.practice.st, next); setBattleView(PR.seaView(S.practice.st, prScore('sea'))); render(); }
+  else post(`/api/battle/${S.battle}/place`, { ships: next }).then((nv) => { setBattleView(nv); render(); }).catch((e2) => { toast(e2.message); get(`/api/battle/${S.battle}`).then((nv) => { setBattleView(nv); render(); }).catch(() => {}); });
+}
+document.addEventListener('pointerup', () => dragEnd(), true);
+document.addEventListener('pointercancel', () => dragEnd(true), true);
 
 // ---------- Прицел ----------
 // Клетка на телефоне 30–40 px — пальцем легко промахнуться. Поэтому стреляем не тапом, а «отпусканием»: ведёшь пальцем
@@ -6619,6 +6708,7 @@ const tryLook = (it) => ({ ...S.me.look, ...(TRY_UNCOVER[it.slot] || {}), [it.sl
 function shopPrev(it, size = 44, plain = false) {
   if (it.kind === 'part') return avatar(tryLook(it), size);
   if (it.kind === 'frame') return avatar({ ...S.me.look, frame: it.id, crown: false, prank: null }, size);
+  if (it.kind === 'sea') return `<span class="shop-ico sea-ico sea-${it.value}"><i class="board"></i></span>`;
   if (it.kind === 'crown') return avatar({ ...S.me.look, crown: true, prank: null }, size);
   if (it.kind === 'prank') return avatar({ ...S.me.look, frame: null, crown: false, prank: { v: it.value, until: Date.now() + 6e4 } }, size);
   if (it.kind === 'nickfx') return `<span class="shop-ico nfx-ico"><span class="nfx nfx-${it.value}" data-t="Аа">Аа</span></span>`;
@@ -6712,7 +6802,7 @@ function renderShop() {
     const rest = shopSort(inTab.filter((x) => !x.owned)), mine = inTab.filter((x) => x.owned);
     body = `${shopTryCard(inTab)}<div class="shop-grid">${rest.map(shopTile).join('')}</div>${ownedFold(mine, (l) => `<div class="shop-grid">${l.map(shopTile).join('')}</div>`)}`;
   } else if (tab === 'style') {
-    const groups = [['nickfx', 'Эффект ника · на неделю'], ['sound', 'Звук отметки в офисе'], ['status', 'Статусы'], ['frame', 'Рамки аватара'], ['crown', 'Особое']];
+    const groups = [['nickfx', 'Эффект ника · на неделю'], ['sound', 'Звук отметки в офисе'], ['status', 'Статусы'], ['frame', 'Рамки аватара'], ['sea', 'Поле в морском бою'], ['crown', 'Особое']];
     body = groups.map(([k, t]) => { const l = shopSort(inTab.filter((x) => x.kind === k)); return l.length ? `<h3>${t}</h3>${l.map(shopRow).join('')}` : ''; }).join('');
   } else if (tab === 'fun') {
     const pr = S.me.look.prank && S.me.look.prank.until > Date.now();

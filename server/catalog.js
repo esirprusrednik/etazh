@@ -46,6 +46,10 @@ const SHOP = [
   { id: 'st_owl', kind: 'status', name: 'Сова на смене', price: 70 },
   { id: 'st_room', kind: 'status', name: 'Повелитель переговорок', price: 80 },
   { id: 'st_canteen', kind: 'status', name: 'Легенда столовой', price: 120, limit: 20 },
+  // Оформление поля в морском бою: видит только владелец, на игру не влияет
+  { id: 'sea_night', kind: 'sea', value: 'night', name: 'Ночное море', price: 40 },
+  { id: 'sea_tropic', kind: 'sea', value: 'tropic', name: 'Тропическая лагуна', price: 40 },
+  { id: 'sea_ice', kind: 'sea', value: 'ice', name: 'Северные льды', price: 60 },
   { id: 'fr_gold', kind: 'frame', name: 'Золотая рамка', price: 60, color: '#FFC93C' },
   { id: 'fr_neon', kind: 'frame', name: 'Неоновая рамка', price: 80, color: '#22D3EE' },
   { id: 'fr_fire', kind: 'frame', name: 'Огненная рамка', price: 120, color: '#F97316' },

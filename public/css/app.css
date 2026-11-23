@@ -3212,3 +3212,55 @@ html:has(body.in-battle) { background: #071631; }
 @keyframes b-ribbon { 0% { opacity: 0; transform: translateY(-50%) scaleX(.3); } 18% { opacity: 1; transform: translateY(-50%) scaleX(1); } 75% { opacity: 1; } 100% { opacity: 0; transform: translateY(-50%) scaleX(1.06); } }
 @media (prefers-reduced-motion: reduce) { .b-stage .b-vs .vs-score b.bump { animation: none; } }
 @media (max-height: 540px) { .b-stage .b-vs .vs-sub { display: none; } .b-stage.play .b-sea > .board-wrap { width: min(100%, calc(100dvh - 240px)); } }
+
+/* ====================== Морской бой: итог, подсказка, расстановка руками, темы поля ====================== */
+/* Попали по моему кораблю — краснеют только края, середина экрана остаётся читаемой */
+.b-stage.hurt::after { box-shadow: inset 0 0 44px 6px rgba(229,72,77,.6); }
+/* «Добей»: клетки рядом с подбитым кораблём мягко пульсируют */
+.b-stage .bc.aim.hint { animation: b-hint 1.4s ease-in-out infinite; }
+@keyframes b-hint { 0%, 100% { background: rgba(255,214,90,.10); box-shadow: inset 0 0 0 1px rgba(255,214,90,.35); } 50% { background: rgba(255,214,90,.30); box-shadow: inset 0 0 0 2px rgba(255,214,90,.75); } }
+/* Расстановка руками */
+.b-stage.setup .ship-slot[data-ship] { pointer-events: auto; cursor: grab; touch-action: none; }
+.b-stage.setup .ship-slot.drag { z-index: 5; cursor: grabbing; filter: drop-shadow(0 8px 10px rgba(0,0,0,.5)) brightness(1.12); transform: scale(1.06); animation: none; }
+.b-stage.setup .ship-slot.drag.bad { filter: saturate(.3) sepia(1) hue-rotate(-50deg) brightness(.95); }
+.b-stage.setup .ship-slot.drag.bad::after { content: ''; position: absolute; inset: 6%; border-radius: 10px; background: rgba(229,72,77,.35); box-shadow: 0 0 0 2px #E5484D; }
+/* Итог партии */
+.b-final { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 12px 12px; border-radius: 22px; text-align: center; background: radial-gradient(120% 80% at 50% 0%, #1F4E8C 0%, #0B1E3F 72%); box-shadow: 0 4px 0 #071430; }
+.b-final.win { background: radial-gradient(120% 80% at 50% 0%, #2B7A4B 0%, #0B2A3F 72%); }
+.b-final h2 { margin: 0; font-size: 26px; font-weight: 900; line-height: 1.1; }
+.b-final.win h2 { color: #FFE38A; }
+.b-final p { margin: 0 0 4px; font-size: 13.5px; color: #DCE7FF; }
+.bf-art { animation: bf-pop .7s cubic-bezier(.3,1.5,.5,1) both; }
+.b-final.win .bf-art .art { animation: bf-sway 2.4s ease-in-out .7s infinite; transform-origin: 50% 90%; }
+@keyframes bf-pop { 0% { transform: scale(.2) rotate(-18deg); opacity: 0; } 100% { transform: none; opacity: 1; } }
+@keyframes bf-sway { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg) scale(1.04); } }
+.bf-stats { width: 100%; display: grid; gap: 4px; margin: 2px 0 8px; }
+.bf-head, .bf-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
+.bf-head span { font-size: 11px; font-weight: 800; color: rgba(255,255,255,.6); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bf-row { padding: 6px 10px; border-radius: 12px; background: rgba(255,255,255,.07); }
+.bf-row span { font-size: 12px; font-weight: 700; color: rgba(255,255,255,.75); }
+.bf-row b { font-size: 18px; font-weight: 900; }
+.bf-row b.lead { color: #FFC93C; }
+.bf-again { min-height: 52px; font-size: 17px; }
+/* Образец оформления поля в Лавке */
+.sea-ico { padding: 5px; }
+.sea-ico .board { display: block; width: 100%; height: 100%; padding: 0; border-radius: 9px; animation: none; }
+.b-stage.sea-night .board, .sea-ico.sea-night .board { background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='60'%3E%3Cpath d='M0 15 Q15 5 30 15 T60 15 T90 15 T120 15' fill='none' stroke='%23ffffff' stroke-opacity='.10' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M-30 45 Q-15 35 0 45 T30 45 T60 45 T90 45 T120 45 T150 45' fill='none' stroke='%23ffffff' stroke-opacity='.07' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") 0 0 / 120px 60px,
+    radial-gradient(60% 45% at 80% 10%, rgba(255,244,200,.34), transparent 60%),
+    radial-gradient(80% 60% at 10% 100%, rgba(90,60,200,.30), transparent 65%),
+    linear-gradient(165deg, #1B1F5C 0%, #11123F 50%, #070824 100%); }
+.b-stage.sea-night .bc { background: rgba(190,200,255,.05); box-shadow: inset 0 0 0 1px rgba(190,200,255,.07); }
+.b-stage.sea-tropic .board, .sea-ico.sea-tropic .board { background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='60'%3E%3Cpath d='M0 15 Q15 5 30 15 T60 15 T90 15 T120 15' fill='none' stroke='%23ffffff' stroke-opacity='.10' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M-30 45 Q-15 35 0 45 T30 45 T60 45 T90 45 T120 45 T150 45' fill='none' stroke='%23ffffff' stroke-opacity='.07' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") 0 0 / 120px 60px,
+    radial-gradient(90% 60% at 18% 8%, rgba(255,255,210,.45), transparent 60%),
+    radial-gradient(70% 55% at 88% 96%, rgba(255,214,120,.28), transparent 65%),
+    linear-gradient(165deg, #1FC3B8 0%, #0E9BB0 45%, #0B6A93 100%); }
+.b-stage.sea-tropic .bc { background: rgba(255,255,255,.07); box-shadow: inset 0 0 0 1px rgba(255,255,255,.10); }
+.b-stage.sea-ice .board, .sea-ico.sea-ice .board { background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='60'%3E%3Cpath d='M0 15 Q15 5 30 15 T60 15 T90 15 T120 15' fill='none' stroke='%23ffffff' stroke-opacity='.10' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M-30 45 Q-15 35 0 45 T30 45 T60 45 T90 45 T120 45 T150 45' fill='none' stroke='%23ffffff' stroke-opacity='.07' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") 0 0 / 120px 60px,
+    radial-gradient(90% 60% at 18% 8%, rgba(255,255,255,.6), transparent 62%),
+    radial-gradient(70% 55% at 88% 96%, rgba(170,220,255,.35), transparent 65%),
+    linear-gradient(165deg, #9CC9E8 0%, #5F97C4 45%, #2F5F93 100%); }
+.b-stage.sea-ice .bc { background: rgba(255,255,255,.12); box-shadow: inset 0 0 0 1px rgba(255,255,255,.22); border-radius: 3px; }
+@media (prefers-reduced-motion: reduce) { .b-stage .bc.aim.hint, .bf-art, .b-final.win .bf-art .art { animation: none !important; } .b-stage .bc.aim.hint { box-shadow: inset 0 0 0 2px rgba(255,214,90,.6); } }

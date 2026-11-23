@@ -46,6 +46,27 @@ function randomFleet(rnd = Math.random) {
   throw new Error('fleet');
 }
 
+// Своя расстановка: тот же состав флота, корабли прямые, в поле, не пересекаются и не касаются
+function validFleet(ships) {
+  if (!Array.isArray(ships) || ships.length !== FLEET.length) return false;
+  const lens = ships.map((s) => (Array.isArray(s) ? s.length : 0)).sort((a, b) => b - a);
+  if (lens.join() !== [...FLEET].sort((a, b) => b - a).join()) return false;
+  const own = new Map();
+  for (let i = 0; i < ships.length; i++) {
+    const s = ships[i];
+    if (!s.every((c) => Array.isArray(c) && c.length === 2 && Number.isInteger(c[0]) && Number.isInteger(c[1]) && c[0] >= 0 && c[1] >= 0 && c[0] < N && c[1] < N)) return false;
+    const xs = s.map((c) => c[0]), ys = s.map((c) => c[1]);
+    const horiz = ys.every((y) => y === ys[0]), vert = xs.every((x) => x === xs[0]);
+    if (!horiz && !vert) return false;
+    const line = (horiz ? xs : ys).slice().sort((a, b) => a - b);
+    if (line.some((v, k) => k && v !== line[k - 1] + 1)) return false;
+    for (const [x, y] of s) { if (own.has(x * N + y)) return false; own.set(x * N + y, i); }
+  }
+  // Корабли не касаются друг друга, даже углами
+  for (const [k, i] of own) { const x = Math.floor(k / N), y = k % N; for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) { const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue; const j = own.get(nx * N + ny); if (j !== undefined && j !== i) return false; } }
+  return true;
+}
+
 // Выстрел по флоту. shots — уже сделанные выстрелы по этому флоту.
 // Возвращает { result: 'miss'|'hit'|'sunk', add: [новые записи выстрелов], ship?, allSunk }
 function fire(ships, shots, x, y) {
@@ -261,6 +282,17 @@ function register(ctx) {
     return view(load(g.id, u.id), u.id);
   });
 
+  // Своя расстановка: человек перетащил или повернул корабль
+  route('POST', '/api/battle/:id/place', async (req, body, query, params) => {
+    const u = requireUser(req);
+    const g = load(params.id, u.id);
+    const s = side(g, u.id);
+    if (g.status !== 'setup' || g[s + '_ready']) throw bad('Флот уже расставлен.');
+    if (!validFleet(body.ships)) throw bad('Так корабли не встанут: они не должны касаться друг друга.');
+    q(`UPDATE battles SET ${s}_ships = ?, updated_at = ? WHERE id = ?`).run(JSON.stringify(body.ships), U.now(), g.id);
+    return view(load(g.id, u.id), u.id);
+  });
+
   route('POST', '/api/battle/:id/ready', async (req, body, query, params) => {
     const u = requireUser(req);
     const g = load(params.id, u.id);
@@ -362,4 +394,4 @@ function register(ctx) {
   return { cleanup, createFor, stateOf };
 }
 
-module.exports = { register, randomFleet, fire, sunkShips, FLEET, N };
+module.exports = { register, randomFleet, fire, sunkShips, validFleet, FLEET, N };

@@ -178,6 +178,26 @@ export function seaView(st, score = { me: 0, opp: 0 }) {
     mode: 'calm', stake: 0, needPay: false, oppPaid: true, clock: null, last: st.last, score: { ...score }, fleet: FLEET, emotes: {}, now: Date.now()
   };
 }
+export function validFleet(ships) {
+  if (!Array.isArray(ships) || ships.length !== FLEET.length) return false;
+  const lens = ships.map((s) => (Array.isArray(s) ? s.length : 0)).sort((a, b) => b - a);
+  if (lens.join() !== [...FLEET].sort((a, b) => b - a).join()) return false;
+  const own = new Map();
+  for (let i = 0; i < ships.length; i++) {
+    const s = ships[i];
+    if (!s.every((c) => Array.isArray(c) && c.length === 2 && Number.isInteger(c[0]) && Number.isInteger(c[1]) && c[0] >= 0 && c[1] >= 0 && c[0] < N && c[1] < N)) return false;
+    const xs = s.map((c) => c[0]), ys = s.map((c) => c[1]);
+    const horiz = ys.every((y) => y === ys[0]), vert = xs.every((x) => x === xs[0]);
+    if (!horiz && !vert) return false;
+    const line = (horiz ? xs : ys).slice().sort((a, b) => a - b);
+    if (line.some((v, k) => k && v !== line[k - 1] + 1)) return false;
+    for (const [x, y] of s) { if (own.has(x * N + y)) return false; own.set(x * N + y, i); }
+  }
+  // Корабли не касаются друг друга, даже углами
+  for (const [k, i] of own) { const x = Math.floor(k / N), y = k % N; for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) { const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue; const j = own.get(nx * N + ny); if (j !== undefined && j !== i) return false; } }
+  return true;
+}
+export function seaPlace(st, ships) { if (st.status === 'setup' && validFleet(ships)) { st.myShips = ships.map((sh) => sh.map(([x, y]) => [x, y])); return true; } return false; }
 export function seaShuffle(st, rnd = Math.random) { if (st.status === 'setup') st.myShips = randomFleet(rnd); return st; }
 export function seaStart(st) { if (st.status === 'setup') { st.status = 'play'; st.turn = 'me'; st.seq++; } return st; }
 

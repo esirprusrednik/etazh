@@ -74,6 +74,7 @@ function register(ctx) {
         PR.tttMe(st, Number(body.cell)); steps.push(view(g, st));
         if (st.status === 'play') { PR.tttBot(st, { level: 'hard' }); steps.push(view(g, st)); }
       } else if (body.shuffle) { PR.seaShuffle(st); steps.push(view(g, st)); }
+      else if (body.place) { if (!PR.seaPlace(st, body.place)) throw bad('Так корабли не встанут: они не должны касаться друг друга.'); steps.push(view(g, st)); }
       else if (body.start) { PR.seaStart(st); steps.push(view(g, st)); }
       else {
         PR.seaShoot(st, Number(body.x), Number(body.y)); steps.push(view(g, st));

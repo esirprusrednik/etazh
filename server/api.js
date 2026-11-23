@@ -1700,7 +1700,7 @@ function createApi(db) {
         until: it.season && SEASON.seasonOn(it.season, U.msk().day) ? SEASON.nextWindow(it.season, U.msk().day).to : undefined,
         owned: ['gang', 'prank', 'nickfx'].includes(it.kind) ? undefined : owned.has(it.id),
         active: it.kind === 'nickfx' && fxOn(u.look.nfx) && u.look.nfx.v === it.value ? u.look.nfx.until : undefined,
-        equipped: it.kind === 'status' ? u.look.status === it.id : it.kind === 'frame' ? u.look.frame === it.id : it.kind === 'crown' ? !!u.look.crown : it.kind === 'sound' ? u.look.snd === it.value : undefined,
+        equipped: it.kind === 'status' ? u.look.status === it.id : it.kind === 'frame' ? u.look.frame === it.id : it.kind === 'crown' ? !!u.look.crown : it.kind === 'sound' ? u.look.snd === it.value : it.kind === 'sea' ? u.look.sea === it.value : undefined,
         left: it.limit ? Math.max(0, it.limit - q('SELECT COUNT(*) AS n FROM owned WHERE item_id = ?').get(it.id).n) : undefined
       }))
     };
@@ -1746,6 +1746,7 @@ function createApi(db) {
     const look = { ...u.look };
     if (it.kind === 'status') look.status = it.id;
     if (it.kind === 'frame') look.frame = it.id;
+    if (it.kind === 'sea') look.sea = it.value;
     if (it.kind === 'crown') look.crown = true;
     if (it.kind === 'sound') look.snd = it.value;
     saveLook(u.id, look);
@@ -1762,6 +1763,7 @@ function createApi(db) {
     if (it.kind === 'frame') look.frame = on ? it.id : null;
     if (it.kind === 'crown') look.crown = on;
     if (it.kind === 'sound') look.snd = on ? it.value : null;
+    if (it.kind === 'sea') look.sea = on ? it.value : null;
     saveLook(u.id, look);
     return { ok: true };
   });

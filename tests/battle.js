@@ -208,6 +208,41 @@ let winnerBeans = 0;
     assert.equal(await beans(winner), winner === a ? wa : wb, 'повторно не выплачивается');
   });
 
+  await step('своя расстановка: сервер принимает только честный флот; оформление поля покупается и включается', async () => {
+    const { validFleet, randomFleet } = require('../server/battle');
+    assert.ok(validFleet(randomFleet()));
+    const f = randomFleet();
+    assert.ok(!validFleet(f.slice(1)), 'не хватает корабля');
+    assert.ok(!validFleet(f.map((sh, i) => (i === 9 ? [[f[0][0][0], f[0][0][1]]] : sh))), 'корабль на корабле');
+    assert.ok(!validFleet(f.map((sh, i) => (i === 0 ? [[0, 0], [1, 1], [2, 2], [3, 3]] : sh))), 'по диагонали нельзя');
+    assert.ok(!validFleet(f.map((sh, i) => (i === 9 ? [[10, 0]] : sh))), 'за полем');
+    const gid = (await a.post('/api/battle', { to: b.id })).json.id;
+    const v0 = (await a.get(`/api/battle/${gid}`)).json;
+    assert.equal(v0.status, 'setup');
+    // переставим однопалубный в первую клетку, где он честно встаёт
+    const i1 = v0.myShips.findIndex((sh) => sh.length === 1);
+    let moved = null;
+    for (let x = 0; x < 10 && !moved; x++) for (let y = 0; y < 10 && !moved; y++) { const t = v0.myShips.map((sh, i) => (i === i1 ? [[x, y]] : sh)); if ((x !== v0.myShips[i1][0][0] || y !== v0.myShips[i1][0][1]) && validFleet(t)) moved = t; }
+    const ok = await a.post(`/api/battle/${gid}/place`, { ships: moved });
+    assert.equal(ok.status, 200); assert.deepEqual(ok.json.myShips[i1], moved[i1]);
+    const big = v0.myShips.find((sh) => sh.length === 4);
+    assert.equal((await a.post(`/api/battle/${gid}/place`, { ships: moved.map((sh, i) => (i === i1 ? [big[0]] : sh)) })).status, 400, 'вплотную — отказ');
+    assert.equal((await c.post(`/api/battle/${gid}/place`, { ships: moved })).status, 404, 'чужая партия');
+    await a.post(`/api/battle/${gid}/ready`);
+    assert.equal((await a.post(`/api/battle/${gid}/place`, { ships: moved })).status, 400, 'после «В бой» расстановку не меняют');
+    await a.post(`/api/battle/${gid}/resign`);
+    // оформление поля
+    const shop = (await a.get('/api/shop')).json;
+    const th = shop.items.find((x) => x.id === 'sea_night');
+    assert.ok(th && th.price === 40 && !th.owned);
+    if (shop.beans >= 40) {
+      assert.equal((await a.post('/api/shop/buy', { item: 'sea_night' })).status, 200);
+      assert.equal((await a.get('/api/me')).json.user.look.sea, 'night', 'купленное включается сразу');
+      await a.post('/api/shop/equip', { item: 'sea_night', on: false });
+      assert.equal((await a.get('/api/me')).json.user.look.sea, null);
+    }
+  });
+
   await step('задача дня: один флот на всех, считаем выстрелы, попытка одна, таблица — только свои', async () => {
     process.env.EMAIL_PEPPER = 'test-pepper-test-pepper-test-pepper-123';
     const { fleetOf } = require('../server/seaday');
