@@ -3310,3 +3310,18 @@ body.fx-punch .b-stage .b-sea > .board-wrap { transform: scale(1.022); transitio
 @media (prefers-reduced-motion: reduce) { .cine { display: none; } body.fx-kill .b-stage .b-sea > .board-wrap, body.fx-punch .b-stage .b-sea > .board-wrap { transform: none; } .b-stage[data-wx="clear"] .b-sea > .board-wrap::after { animation: none; } }
 
 .b-log span { flex: 0 1 auto; } .b-log span.wx { flex: none; }
+
+/* События банды: каждое — отдельная плашка, свёрнутая в одну строку (как Тайный Санта); по нажатию раскрывается */
+.gev-card { padding: 0; margin: 0 0 10px; overflow: hidden; }
+.gev-card.past { opacity: .7; }
+.gev-strip { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 10px 14px 10px 10px; border: 0; background: none; font: inherit; color: var(--ink); text-align: left; cursor: pointer; }
+.gev-strip .gev-date { align-self: center; width: 48px; padding: 5px 0; }
+.gev-strip .grow { display: grid; gap: 2px; min-width: 0; }
+.gev-strip .gev-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gev-card.open .gev-strip .gev-title { white-space: normal; }
+.gev-strip .small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gev-ask { justify-self: start; padding: 1px 8px; border-radius: 999px; background: var(--chip-on-bg); color: var(--chip-on-fg); font-size: 11.5px; font-weight: 800; }
+.gev-card.today .gev-date { background: #FFC93C; color: #3B2A00; }
+.gev-body { display: flex; flex-direction: column; gap: 6px; padding: 2px 14px 14px; border-top: 1px solid var(--line); padding-top: 10px; }
+.gev-past { margin: 0 0 10px; }
+.gev-past > summary { cursor: pointer; min-height: 36px; display: flex; align-items: center; padding: 0 6px; }

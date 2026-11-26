@@ -3217,7 +3217,7 @@ const compOpen = () => !!S.compOpen;
 function collapseAll() {
   S.awayOpen = false; S.compOpen = false; S.nearMore = false; S.todoOpen = false; S.todoDoneOpen = false; S.todoAdd = false;
   S.callsOpen = false; S.questOpen = null; S.fridayOpen = false; S.hintOpen = {}; S.guideOpen = null; S.shopOwnOpen = false;
-  S.boardAll = false; S.feedAll = false; S.membersAll = false; S.thxAll = false; S.lunchAll = false; S.pgOpen = {}; S.canteenOpen = false; S.santaOpen = false;
+  S.boardAll = false; S.feedAll = false; S.membersAll = false; S.thxAll = false; S.lunchAll = false; S.pgOpen = {}; S.canteenOpen = false; S.santaOpen = false; S.gevOpen = {};
   S.sec.clear();
 }
 function renderComp() {
@@ -3584,18 +3584,26 @@ function evWhen(e) {
 function renderGEvent(e) {
   const w = evWhen(e);
   const btn = (a, label) => `<button class="chip ${e.my === a ? 'on' : ''}" data-act="gev-rsvp" data-id="${e.id}" data-v="${a}">${label}</button>`;
-  return `<div class="gev ${e.past ? 'past' : ''} ${e.inDays === 0 ? 'today' : ''}">
-    <div class="gev-date"><b>${w.dd}</b><span>${w.mon}</span><i>${w.wd}</i></div>
-    <div class="grow" style="min-width:0;display:flex;flex-direction:column;gap:4px">
-      <div class="gev-title">${gevIco(e.kind)} ${esc(e.title)}</div>
+  // Каждое событие — своя плашка. Свёрнута — одна строка с главным: когда, сколько идут и мой ответ; подробности — по нажатию
+  const open = !!(S.gevOpen && S.gevOpen[e.id]);
+  const mine = e.my === 'yes' ? 'ты идёшь' : e.my === 'maybe' ? 'ты под вопросом' : e.my === 'no' ? 'ты не сможешь' : '';
+  const line = [e.past ? 'прошло' : w.rel, e.time, e.yes.length ? `идут ${e.yes.length}` : (e.past ? '' : 'пока никто не идёт'), mine].filter(Boolean).join(' · ');
+  const ask = !e.past && !e.my;
+  const head = `<button class="gev-strip" data-act="gev-toggle" data-id="${e.id}" aria-expanded="${open}">
+    <span class="gev-date"><b>${w.dd}</b><span>${w.mon}</span><i>${w.wd}</i></span>
+    <span class="grow"><b class="gev-title">${gevIco(e.kind)} ${esc(e.title)}</b><span class="small">${line}</span>${ask ? '<span class="gev-ask">Ответь, идёшь ли</span>' : ''}</span>
+    <span class="pm" aria-hidden="true">${open ? '−' : '+'}</span></button>`;
+  if (!open) return `<section class="card gev-card ${e.past ? 'past' : ''} ${e.inDays === 0 ? 'today' : ''}">${head}</section>`;
+  return `<section class="card gev-card open ${e.past ? 'past' : ''} ${e.inDays === 0 ? 'today' : ''}">${head}
+    <div class="gev-body${unfold('gev' + e.id)}">
       ${e.guest ? `<div class="gev-joint">${e.host.id === S.activeGang ? `вместе с бандой «${esc(e.guest.name)}»` : `зовёт банда «${esc(e.host.name)}»`}</div>` : ''}
-      <div class="small">${[w.rel, e.time, e.place && 'where ' + esc(e.place)].filter(Boolean).join(' · ')}${e.past ? 'прошло' : ''}</div>
+      ${e.place ? `<div class="small">where ${esc(e.place)}</div>` : ''}
       ${e.note ? `<div class="small gev-note">${esc(e.note)}</div>` : ''}
       <div class="gev-who">${e.yes.slice(0, 8).map((p) => `<span title="${esc(p.nick)}">${avatar(p.look, 22)}</span>`).join('')}<span class="small">${e.yes.length ? `идут ${e.yes.length}` : 'пока никто не идёт'}${e.maybe.length ? ` · может ${e.maybe.length}` : ''}${e.no ? ` · не смогут ${e.no}` : ''}</span></div>
       ${e.past ? '' : `<div class="chips">${btn('yes', 'thumbUp Иду')}${btn('maybe', 'Может быть')}${btn('no', 'Не смогу')}</div>`}
       ${e.past ? '' : gevGuests(e)}
       <div class="small">автор: ${esc(e.author)}${e.canEdit ? ` · <button class="linkbtn" data-act="gev-edit" data-id="${e.id}">изменить</button>` : ''}${e.canCancel && !e.past ? ` · <button class="linkbtn" data-act="gev-cancel" data-id="${e.id}">отменить</button>` : ''}</div>
-    </div></div>`;
+    </div></section>`;
 }
 // Гости по ссылке: включает автор события или владелец банды. Гость оставляет только имя и видит число идущих
 function gevGuests(e) {
@@ -3610,13 +3618,12 @@ function renderGEvents() {
   const v = S.gev;
   if (!v) return '';
   const sug = v.suggestions.length ? `<div class="gev-sug"><span class="small"><b>Повод есть:</b></span>${v.suggestions.map((x, i) => `<button class="chip" data-act="gev-new" data-sug="${i}">${esc(x.hint)} ＋</button>`).join('')}</div>` : '';
-  if (!v.upcoming.length && !v.past.length) return `${starter('cal', 'События', 'Встреча, день рождения, поход в бар — соберём, кто идёт', 'gev-new')}${sug ? `<section class="card gevents" style="padding-top:12px;padding-bottom:12px">${sug}</section>` : ''}`;
-  return `<section class="card gevents">
-    <div class="chats-head"><h3>${sect('cal', 28)}События${v.upcoming.length ? ` <span class="chats-n">${v.upcoming.length}</span>` : ''}</h3>${addPill('gev-new', 'Событие')}</div>
-    ${v.upcoming.map(renderGEvent).join('')}
-    ${sug}
-    ${v.past.length ? `<details><summary class="small" style="cursor:pointer;min-height:32px">Недавно прошли (${v.past.length})</summary>${v.past.map(renderGEvent).join('')}</details>` : ''}
-  </section>`;
+  // Сверху — всегда одна строка «События» с кнопкой создания; под ней каждое событие отдельной плашкой
+  const n = v.upcoming.length;
+  const head = starter('cal', 'События', n ? `Впереди: ${n}. Нажми на событие — раскроется` : 'Встреча, день рождения, поход в бар — соберём, кто идёт', 'gev-new');
+  return `${head}${v.upcoming.map(renderGEvent).join('')}
+    ${sug ? `<section class="card gevents" style="padding-top:12px;padding-bottom:12px">${sug}</section>` : ''}
+    ${v.past.length ? `<details class="gev-past"><summary class="small">Недавно прошли (${v.past.length})</summary>${v.past.map(renderGEvent).join('')}</details>` : ''}`;
 }
 // Четыре жеста на всё приложение: строка с шевроном — откроется другой экран; круглый плюс — раскроется здесь же;
 // залитая кнопка — действие; чип — выбор. Ниже — общие кусочки для первых двух.
@@ -8136,6 +8143,7 @@ const actions = {
   // Шаг из карточки «заполни профиль»: раскрываем нужный раздел, прокручиваем к нему и ставим курсор в поле
   'food-pick'(el) { S.foodDraft = { up: el.dataset.v === '1', tags: [], comment: '' }; render(); },
   'santa-toggle'() { S.santaOpen = !S.santaOpen; S.santaEdit = false; render(); },
+  'gev-toggle'(el) { const id = el.dataset.id; S.gevOpen = { ...(S.gevOpen || {}), [id]: !(S.gevOpen && S.gevOpen[id]) }; S.just = 'gev' + id; sfx(S.gevOpen[id] ? 'expand' : 'collapse'); render(); },
   'canteen-toggle'() { S.canteenOpen = !S.canteenOpen; render(); },
   'food-cancel'() { S.foodDraft = null; render(); },
   'food-tag'(el) {
